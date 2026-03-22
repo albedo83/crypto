@@ -46,11 +46,24 @@ td{padding:5px 6px;border-bottom:1px solid var(--border);}
 #chart{height:220px;border-radius:6px;overflow:hidden}
 .empty{color:var(--muted);padding:12px;text-align:center;font-size:12px;}
 .activity{font-size:11px;color:var(--muted);text-align:right;font-family:var(--mono);}
+.btn{border:none;border-radius:4px;padding:6px 14px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--mono);transition:opacity .2s;}
+.btn:hover{opacity:0.8}.btn:active{opacity:0.6}
+.btn-danger{background:var(--red);color:#fff;}.btn-warn{background:var(--yellow);color:#000;}
+.btn-ok{background:var(--green);color:#fff;}
+.btn-group{display:flex;gap:6px;align-items:center;margin-left:auto;}
+.paused-banner{background:var(--red);color:#fff;text-align:center;padding:8px;border-radius:6px;margin-bottom:12px;font-weight:600;display:none;}
 </style>
 </head>
 <body>
 <h1><span class="dot off" id="dot"></span>LiveBot v{{VERSION}} — Multi-Alt
-<span style="color:var(--muted);font-size:12px;font-weight:400;margin-left:auto" id="info"></span></h1>
+<span style="color:var(--muted);font-size:12px;font-weight:400;margin-left:8px" id="info"></span>
+<div class="btn-group">
+<button class="btn btn-danger" id="btn-stop" onclick="botStop()">STOP</button>
+<button class="btn btn-ok" id="btn-resume" onclick="botResume()" style="display:none">RESUME</button>
+<button class="btn btn-warn" onclick="botReset()">RAZ</button>
+</div></h1>
+
+<div class="paused-banner" id="paused-banner">TRADING PAUSED — positions fermées, pas de nouveaux trades</div>
 
 <div class="header">
 <div class="card"><div class="l">Session</div><div class="v" id="v-session">--</div></div>
@@ -216,7 +229,11 @@ async function refreshState() {
         const s = await sR.json(), t = await tR.json(), p = await pR.json();
 
         window._lastSignals = s.signals || {};
-        document.getElementById('dot').className = 'dot ' + (s.ws_connected ? 'on' : 'off');
+        const paused = s.paused || false;
+        document.getElementById('dot').className = 'dot ' + (paused ? 'off' : s.ws_connected ? 'on' : 'off');
+        document.getElementById('paused-banner').style.display = paused ? 'block' : 'none';
+        document.getElementById('btn-stop').style.display = paused ? 'none' : '';
+        document.getElementById('btn-resume').style.display = paused ? '' : 'none';
         const sess = s.session || '?';
         document.getElementById('v-session').innerHTML = `<span class="badge ${sess==='asian'?'asia':sess==='us'?'us':'off'}">${sess.toUpperCase()}</span>`;
                 const bal = document.getElementById('v-balance');
@@ -307,6 +324,29 @@ async function refreshState() {
 refreshTicker(); refreshState();
 setInterval(refreshTicker, 1000);
 setInterval(refreshState, 5000);
+
+async function botStop() {
+    if (!confirm('STOP le bot ? Ferme toutes les positions et pause le trading.')) return;
+    const r = await fetch('/api/pause', {method:'POST'});
+    const d = await r.json();
+    document.getElementById('btn-stop').style.display = 'none';
+    document.getElementById('btn-resume').style.display = '';
+    document.getElementById('paused-banner').style.display = 'block';
+    alert('Bot en pause. ' + (d.closed||0) + ' position(s) fermée(s).');
+}
+async function botResume() {
+    if (!confirm('Reprendre le trading ?')) return;
+    await fetch('/api/resume', {method:'POST'});
+    document.getElementById('btn-stop').style.display = '';
+    document.getElementById('btn-resume').style.display = 'none';
+    document.getElementById('paused-banner').style.display = 'none';
+}
+async function botReset() {
+    if (!confirm('RAZ complète ? Ferme les positions, remet balance à $1000, efface les trades.')) return;
+    if (!confirm('Tu es sûr ? Tout l\'historique sera perdu.')) return;
+    await fetch('/api/reset', {method:'POST'});
+    location.reload();
+}
 </script>
 </body>
 </html>

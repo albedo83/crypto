@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "5.1.0"
+VERSION = "5.2.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -212,6 +212,7 @@ class LiveBot:
         self._cooldowns: dict[str, datetime] = {}  # sym → earliest re-entry time
         self._streak_losses: dict[str, int] = {}   # sym → consecutive losses
         self._streak_disabled: dict[str, datetime] = {}  # sym → re-enable time
+        self._paused = False
         self.trades: list[Trade] = []
         self.signals: dict[str, dict] = {}
         self.running = False
@@ -594,7 +595,7 @@ class LiveBot:
                 "funding_rate_bps": round(st.funding_rate * 1e4, 2),
                 "oi": st.open_interest,
                 "session": session or "excluded",
-                "tradeable": session is not None and sym in TRADE_SYMBOLS_LIST,
+                "tradeable": session is not None and sym in TRADE_SYMBOLS_LIST and not self._paused,
             }
 
     def _margin_used(self) -> float:
@@ -660,7 +661,7 @@ class LiveBot:
                     self._streak_losses[sym] = 0  # reset on win
 
         # ── Step 2: Collect & rank new entry candidates ──────
-        if session is None:
+        if session is None or self._paused:
             return
         sess_cfg = SESSION_CONFIG.get(session, {"min_score": 0.35, "lev_mult": 0.8})
         min_score = sess_cfg["min_score"]
@@ -953,6 +954,7 @@ class LiveBot:
 
         return {
             "version": VERSION,
+            "paused": self._paused,
             "running": self.running, "ws_connected": self.ws_connected,
             "ws_connections": self.ws_count,
             "n_symbols": len(TRADE_SYMBOLS_LIST),
@@ -1070,6 +1072,53 @@ async def api_pnl():
 @app.get("/api/ticker")
 async def api_ticker():
     return JSONResponse(bot.get_ticker())
+
+@app.post("/api/pause")
+async def api_pause():
+    """Close all positions and pause trading."""
+    now = datetime.now(timezone.utc)
+    closed = 0
+    for sym in list(bot.positions.keys()):
+        st = bot.states.get(sym)
+        if st and st.mid_price > 0:
+            bot._close_position(sym, st.mid_price, now, "manual_stop")
+            closed += 1
+    bot._paused = True
+    log.info("PAUSED by user — %d positions closed", closed)
+    return JSONResponse({"ok": True, "closed": closed})
+
+@app.post("/api/resume")
+async def api_resume():
+    """Resume trading."""
+    bot._paused = False
+    log.info("RESUMED by user")
+    return JSONResponse({"ok": True})
+
+@app.post("/api/reset")
+async def api_reset():
+    """Close positions, reset all counters, clear CSV."""
+    now = datetime.now(timezone.utc)
+    for sym in list(bot.positions.keys()):
+        st = bot.states.get(sym)
+        if st and st.mid_price > 0:
+            bot._close_position(sym, st.mid_price, now, "reset")
+    bot.positions.clear()
+    bot.trades.clear()
+    bot._total_gross = 0.0
+    bot._total_pnl_usdt = 0.0
+    bot._total_leveraged = 0.0
+    bot._wins = 0
+    bot._cooldowns.clear()
+    bot._streak_losses.clear()
+    bot._streak_disabled.clear()
+    bot._paused = False
+    # Clear CSV
+    if os.path.exists(TRADES_CSV):
+        os.rename(TRADES_CSV, TRADES_CSV.replace(".csv", f"_reset_{now.strftime('%Y%m%d_%H%M%S')}.csv"))
+    if os.path.exists(SIGNALS_CSV):
+        os.rename(SIGNALS_CSV, SIGNALS_CSV.replace(".csv", f"_reset_{now.strftime('%Y%m%d_%H%M%S')}.csv"))
+    log.info("RESET by user — all counters cleared")
+    return JSONResponse({"ok": True})
 
 
 # ── Entry point ──────────────────────────────────────────────────────
