@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% set active = "alerts" %}
+
+{% block page_title %}Alerts & Events{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h3>Collector Events</h3>
+    <div id="events-table"
+         hx-get="{{ rp }}/api/alerts" hx-trigger="load, every 10s"
+         hx-target="#events-data" hx-swap="innerHTML">
+    </div>
+    <div id="events-data"></div>
+</div>
+
+<div class="card mt-1">
+    <h3>Session Gaps</h3>
+    <div id="gaps-data"></div>
+</div>
+
+<script>
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    if (evt.detail.pathInfo.requestPath.endsWith('/api/alerts')) {
+        try {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            renderEvents(data.events || []);
+            renderGaps(data.gaps || []);
+        } catch(e) {}
+    }
+});
+
+function renderEvents(events) {
+    const el = document.getElementById('events-data');
+    if (!events.length) { el.innerHTML = '<p class="muted">No events</p>'; return; }
+    let html = '<table class="data-table"><tr><th>Time</th><th>Collector</th><th>Type</th><th>Severity</th><th>Message</th></tr>';
+    events.forEach(e => {
+        html += `<tr class="severity-${e.severity}">
+            <td>${new Date(e.ts).toLocaleString()}</td>
+            <td>${e.collector_id}</td>
+            <td>${e.event_type}</td>
+            <td>${e.severity}</td>
+            <td>${e.message || ''}</td>
+        </tr>`;
+    });
+    html += '</table>';
+    el.innerHTML = html;
+}
+
+function renderGaps(gaps) {
+    const el = document.getElementById('gaps-data');
+    if (!gaps.length) { el.innerHTML = '<p class="muted">No gaps detected</p>'; return; }
+    let html = '<table class="data-table"><tr><th>Detected</th><th>Stream</th><th>Duration</th><th>Reason</th></tr>';
+    gaps.forEach(g => {
+        const dur = g.gap_duration_ms ? (g.gap_duration_ms / 1000).toFixed(1) + 's' : '--';
+        html += `<tr>
+            <td>${new Date(g.detected_at).toLocaleString()}</td>
+            <td>${g.stream_name}</td>
+            <td>${dur}</td>
+            <td>${g.reason || ''}</td>
+        </tr>`;
+    });
+    html += '</table>';
+    el.innerHTML = html;
+}
+</script>
+{% endblock %}

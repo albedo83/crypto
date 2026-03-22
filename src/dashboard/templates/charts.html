@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% set active = "charts" %}
+
+{% block head %}
+<script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
+{% endblock %}
+
+{% block page_title %}Charts{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="controls-row">
+        <select id="chart-symbol" onchange="reloadCharts()">
+            <option value="BTCUSDT">BTCUSDT</option>
+            <option value="ETHUSDT">ETHUSDT</option>
+            <option value="ADAUSDT">ADAUSDT</option>
+        </select>
+        <select id="chart-tf" onchange="reloadCharts()">
+            <option value="1h">1 Hour</option>
+            <option value="6h">6 Hours</option>
+            <option value="24h" selected>24 Hours</option>
+            <option value="7d">7 Days</option>
+        </select>
+        <label><input type="checkbox" id="auto-refresh" onchange="toggleAutoRefresh()"> Auto-refresh 30s</label>
+        <button class="btn" onclick="reloadCharts()">Refresh</button>
+    </div>
+</div>
+
+<!-- Price Chart -->
+<div class="card mt-1">
+    <h3>Price (OHLCV)</h3>
+    <div id="price-chart" style="height: 400px;"></div>
+</div>
+
+<!-- Volume Chart -->
+<div class="card mt-1">
+    <h3>Volume</h3>
+    <div id="volume-chart" style="height: 200px;"></div>
+</div>
+
+<!-- Spread Chart -->
+<div class="card mt-1">
+    <h3>Spread (bps)</h3>
+    <div id="spread-chart" style="height: 250px;"></div>
+</div>
+
+<!-- Basis Chart -->
+<div class="card mt-1">
+    <h3>Basis (bps)</h3>
+    <div id="basis-chart" style="height: 250px;"></div>
+</div>
+
+<script src="{{ rp }}/static/js/charts.js"></script>
+{% endblock %}

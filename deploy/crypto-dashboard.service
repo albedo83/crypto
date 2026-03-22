@@ -1,0 +1,24 @@
+[Unit]
+Description=Crypto Dashboard Web UI
+After=postgresql.service network.target
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/home/crypto
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/home/crypto/.venv/bin/uvicorn src.dashboard.main:app --host 0.0.0.0 --port 8090 --root-path /crypto
+Restart=always
+RestartSec=5
+
+# Resource limits
+MemoryMax=256M
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=crypto-dashboard
+
+[Install]
+WantedBy=multi-user.target

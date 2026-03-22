@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Environment
+.env
+
+# Analysis output (generated, not tracked)
+analysis/output/
+
+# IDE
+.vscode/
+.idea/
+
+# Claude
+.claude/
+
+# OS
+.DS_Store
+
+# Logs
+*.log
+nohup.out
+
+# Deploy secrets
+deploy/*.key

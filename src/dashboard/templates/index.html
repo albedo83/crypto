@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% set active = "overview" %}
+
+{% block page_title %}Overview{% endblock %}
+
+{% block content %}
+<div class="grid-3" id="symbol-cards"
+     hx-get="{{ rp }}/api/status" hx-trigger="load, every 10s"
+     hx-target="#status-data" hx-swap="innerHTML">
+</div>
+
+<div id="status-data"></div>
+
+<!-- Collector Health -->
+<div class="card mt-1">
+    <h3>Collector Health</h3>
+    <div id="heartbeat-data"
+         hx-get="{{ rp }}/api/status/heartbeat" hx-trigger="load, every 5s"
+         hx-target="#heartbeat-display" hx-swap="innerHTML">
+    </div>
+    <div id="heartbeat-display" class="metrics-row"></div>
+</div>
+
+<!-- Table Counts -->
+<div class="card mt-1">
+    <h3>Data Volumes</h3>
+    <div id="table-counts"></div>
+</div>
+
+<!-- Recent Alerts -->
+<div class="card mt-1">
+    <h3>Recent Alerts</h3>
+    <div id="recent-alerts"
+         hx-get="{{ rp }}/api/alerts/recent" hx-trigger="load, every 10s"
+         hx-target="#alerts-list" hx-swap="innerHTML">
+    </div>
+    <div id="alerts-list"></div>
+</div>
+
+<script>
+document.body.addEventListener('htmx:afterRequest', function(evt) {
+    const path = evt.detail.pathInfo.requestPath;
+    if (path.endsWith('/api/status') && !path.endsWith('/api/status/heartbeat')) {
+        try {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            renderOverview(data);
+        } catch(e) {}
+    }
+    if (path.endsWith('/api/status/heartbeat')) {
+        try {
+            const hb = JSON.parse(evt.detail.xhr.responseText);
+            renderHeartbeat(hb);
+        } catch(e) {}
+    }
+    if (path.endsWith('/api/alerts/recent')) {
+        try {
+            const data = JSON.parse(evt.detail.xhr.responseText);
+            renderRecentAlerts(data.alerts || []);
+        } catch(e) {}
+    }
+});
+
+function renderOverview(data) {
+    const cards = document.getElementById('symbol-cards');
+    const priceMap = {};
+    (data.prices || []).forEach(p => { priceMap[p.symbol] = p; });
+    const spreadMap = {};
+    (data.spreads || []).forEach(s => { spreadMap[s.symbol] = s; });
+
+    let html = '';
+    const SYMBOL_ORDER = ['BTCUSDT', 'ETHUSDT', 'ADAUSDT'];
+    const symbols = SYMBOL_ORDER;
+
+    symbols.forEach(sym => {
+        const p = priceMap[sym] || {};
+        const s = spreadMap[sym] || {};
+        html += `<div class="card symbol-card">
+            <h3>${sym}</h3>
+            <div class="price">${p.price ? Number(p.price).toLocaleString(undefined, {minimumFractionDigits: 2}) : '--'}</div>
+            <div class="meta-row">
+                <span>Spread: ${s.avg_spread_bps ? Number(s.avg_spread_bps).toFixed(2) + ' bps' : '--'}</span>
+                <span>Vol: ${p.volume ? Number(p.volume).toFixed(2) : '--'}</span>
+                <span>Trades: ${p.trade_count || '--'}</span>
+            </div>
+        </div>`;
+    });
+    cards.innerHTML = html;
+
+    const tc = document.getElementById('table-counts');
+    if (data.table_counts && data.table_counts.length) {
+        let thtml = '<table class="data-table"><tr><th>Table</th><th>Rows (approx)</th></tr>';
+        data.table_counts.forEach(t => {
+            thtml += `<tr><td>${t.table_name}</td><td>${Number(t.row_count).toLocaleString()}</td></tr>`;
+        });
+        thtml += '</table>';
+        tc.innerHTML = thtml;
+    }
+}
+
+function renderHeartbeat(hb) {
+    const el = document.getElementById('heartbeat-display');
+    if (!hb || !hb.ts) { el.innerHTML = '<span class="muted">No heartbeat data</span>'; return; }
+    el.innerHTML = `
+        <div class="metric"><label>WS</label><span class="${hb.ws_connected ? 'status-ok' : 'status-err'}">${hb.ws_connected ? 'Connected' : 'Disconnected'}</span></div>
+        <div class="metric"><label>Streams</label><span>${hb.streams_active}</span></div>
+        <div class="metric"><label>Memory</label><span>${hb.memory_rss_mb ? hb.memory_rss_mb.toFixed(1) + ' MB' : '--'}</span></div>
+        <div class="metric"><label>CPU</label><span>${hb.cpu_percent ? hb.cpu_percent.toFixed(1) + '%' : '--'}</span></div>
+        <div class="metric"><label>Last HB</label><span>${new Date(hb.ts).toLocaleTimeString()}</span></div>
+    `;
+}
+
+function renderRecentAlerts(alerts) {
+    const el = document.getElementById('alerts-list');
+    if (!alerts.length) { el.innerHTML = '<span class="muted">No recent alerts</span>'; return; }
+    let html = '<table class="data-table"><tr><th>Time</th><th>Type</th><th>Severity</th><th>Message</th></tr>';
+    alerts.forEach(a => {
+        html += `<tr class="severity-${a.severity}"><td>${new Date(a.ts).toLocaleTimeString()}</td><td>${a.event_type}</td><td>${a.severity}</td><td>${a.message || ''}</td></tr>`;
+    });
+    html += '</table>';
+    el.innerHTML = html;
+}
+</script>
+{% endblock %}
