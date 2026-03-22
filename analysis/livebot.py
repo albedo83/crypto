@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "5.0.0"
+VERSION = "5.0.1"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -620,9 +620,9 @@ class LiveBot:
             unrealized = pos.direction * (mid / pos.entry_price - 1) * 1e4
             leveraged_unreal = unrealized * pos.leverage
 
-            # Track peak for trailing stop
-            if leveraged_unreal > pos.peak_bps:
-                pos.peak_bps = leveraged_unreal
+            # Track peak on raw bps (consistent across leverage tiers)
+            if unrealized > pos.peak_bps:
+                pos.peak_bps = unrealized
 
             exit_reason = None
             if held >= HOLD_MINUTES:
@@ -631,10 +631,12 @@ class LiveBot:
                 (pos.direction == 1 and comp < -0.3) or (pos.direction == -1 and comp > 0.3)
             ):
                 exit_reason = "reversal"
-            elif leveraged_unreal < -100:  # stop loss
+            elif leveraged_unreal < -100:  # stop loss on leveraged bps
                 exit_reason = "stop_loss"
-            elif (pos.peak_bps >= TRAIL_ACTIVATE_BPS and
-                  leveraged_unreal < pos.peak_bps - TRAIL_DRAWDOWN_BPS):
+            elif held >= MIN_HOLD_MINUTES and (
+                pos.peak_bps >= TRAIL_ACTIVATE_BPS and
+                unrealized < pos.peak_bps - TRAIL_DRAWDOWN_BPS
+            ):
                 exit_reason = "trail_stop"
 
             if exit_reason:
@@ -655,7 +657,7 @@ class LiveBot:
                     st.next_funding_ts / 1000, tz=timezone.utc) - now).total_seconds() / 60)
                 if mins_to <= FUNDING_GRAB_MINUTES:
                     funding_grab = True
-                break
+                break  # all symbols share same settlement time
         if funding_grab:
             min_score *= 0.8  # 20% more aggressive near settlement
 
@@ -682,8 +684,9 @@ class LiveBot:
             if st and len(st.mids) >= VOL_WINDOW:
                 recent = list(st.mids)[-VOL_WINDOW:]
                 returns = [(recent[i] / recent[i-1] - 1) * 1e4 for i in range(1, len(recent))]
-                vol = float(np.std(returns)) if returns else 0
+                vol = float(np.std(returns, ddof=1)) if len(returns) > 1 else 0
                 if vol > VOL_MAX_BPS:
+                    log.info("VOL SKIP %s: %.1f bps > %.1f limit", sym, vol, VOL_MAX_BPS)
                     continue
             candidates.append((sym, sig, abs(comp)))
 
@@ -718,12 +721,12 @@ class LiveBot:
             leverage = min(sig["leverage"] * lev_mult, MAX_LEVERAGE)
 
             # Proportional sizing: scale margin by score strength
-            score_factor = min(score / 0.6, 1.0)  # 0.3→50%, 0.6+→100%
+            score_factor = min(score / 0.6, 1.0)  # score_factor: 0.3→0.5, 0.6+→1.0
             risk_pct = BASE_RISK_PCT + (MAX_RISK_PCT - BASE_RISK_PCT) * score_factor
-            margin = current_capital * risk_pct / 100
+            margin = min(current_capital * risk_pct / 100, remaining_capital)
 
-            if remaining_capital < margin * 0.5:
-                break  # not enough capital
+            if margin < current_capital * BASE_RISK_PCT / 100 * 0.5:
+                break  # not enough capital for a meaningful position
             size_usdt = margin * leverage
             remaining_capital -= margin  # decrement for next iteration
 
@@ -875,6 +878,8 @@ class LiveBot:
                 "pnl_usdt": round(pnl_usdt, 2),
                 "leverage": pos.leverage,
                 "hold_min": round((datetime.now(timezone.utc) - pos.entry_time).total_seconds() / 60, 1),
+                "peak_bps": round(pos.peak_bps, 2),
+                "trail_active": pos.peak_bps >= TRAIL_ACTIVATE_BPS,
                 "signals": pos.signals_detail,
             })
         now = datetime.now(timezone.utc)
@@ -1038,7 +1043,7 @@ async def main():
     log.info("Trading %d symbols: %s", len(TRADE_SYMBOLS_LIST), ", ".join(TRADE_SYMBOLS_LIST))
     log.info("Reference: BTC, ETH | Sessions: Asia+US | Hold: %dmin | Cost: %.0fbps",
              HOLD_MINUTES, COST_BPS)
-    log.info("WS connections: %d | Leverage: 1x→2x→3x", len(WS_URLS))
+    log.info("WS connections: %d | Leverage: 1x→1.5x→2.5x→3x", len(WS_URLS))
 
     async def _watch_shutdown():
         await bot._shutdown_event.wait()
