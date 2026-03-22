@@ -315,7 +315,17 @@ http://51.178.27.240:8095
    - Win rate par session → ajuster les heures
    - Ne pas implémenter avant d'avoir des données live suffisantes
 
-3. **Passage en production** (si paper trading positif) :
+3. **CarryBot** (actif, port 8096) :
+   - Funding carry trade market-neutral : long le plus bas funding, short le plus haut
+   - 19 symboles surveillés, max 3 paires simultanées, $150/leg
+   - Rebalance tous les 3 jours (9 settlements)
+   - Backtest : +6.9 bps/trade net, 75% win rate, +760 bps sur 2 mois
+   - XMR = le plus stable (flip rate 1%), toujours short XMR
+   - Dashboard : http://51.178.27.240:8096
+   - Logs : `analysis/output/carrybot.log` + `carry_trades.csv` + `carry_signals.csv`
+   - Commandes : `python3 -m analysis.carrybot`
+
+4. **Passage en production** (si paper trading positif) :
    - Ajouter API key Binance
    - Remplacer paper trading par vrais ordres limit (maker)
    - Commencer avec $100-200 de capital réel

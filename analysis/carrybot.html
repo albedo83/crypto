@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CarryBot — Funding Carry</title>
+<script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+:root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#e6edf3;--muted:#7d8590;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--yellow:#d29922;--mono:'SFMono-Regular',Consolas,monospace;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);padding:16px;max-width:1200px;margin:0 auto;}
+h1{font-size:18px;margin-bottom:12px;display:flex;align-items:center;gap:8px;}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;}.dot.on{background:var(--green);box-shadow:0 0 8px var(--green);animation:pulse 2s infinite;}.dot.off{background:var(--red);}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:0.5}}
+.header{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px 14px;min-width:110px;}
+.card .l{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:0.5px;}.card .v{font-size:18px;font-weight:600;font-family:var(--mono);margin-top:2px;}
+.p{color:var(--green)}.n{color:var(--red)}.y{color:var(--yellow)}
+.section{margin-bottom:20px}.section h2{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+.rates{display:flex;flex-direction:column;gap:3px;margin-bottom:16px;}
+.rate-row{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:12px;padding:4px 8px;background:var(--card);border-radius:4px;}
+.rate-row .sym{width:70px;font-weight:600;}.rate-row .bar{height:4px;border-radius:2px;}
+.rate-row .val{width:60px;text-align:right;}
+.stable-badge{font-size:9px;background:var(--yellow);color:#000;padding:1px 4px;border-radius:2px;font-weight:700;}
+table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--mono);}
+th{color:var(--muted);font-size:10px;text-transform:uppercase;padding:6px 8px;text-align:left;border-bottom:1px solid var(--border);}
+td{padding:6px 8px;border-bottom:1px solid var(--border);}
+#chart{height:220px;border-radius:6px;overflow:hidden}
+.empty{color:var(--muted);padding:12px;text-align:center;font-size:12px;}
+</style>
+</head>
+<body>
+<h1><span class="dot off" id="dot"></span>CarryBot — Funding Carry Trade
+<span style="color:var(--muted);font-size:12px;font-weight:400;margin-left:auto" id="info"></span></h1>
+
+<div class="header">
+<div class="card"><div class="l">Balance</div><div class="v" id="v-bal">$1000</div></div>
+<div class="card"><div class="l">P&L</div><div class="v" id="v-pnl">$0.00</div></div>
+<div class="card"><div class="l">Unrealized</div><div class="v" id="v-unr">$0.00</div></div>
+<div class="card"><div class="l">Pairs</div><div class="v" id="v-pairs">0/3</div></div>
+<div class="card"><div class="l">Trades</div><div class="v" id="v-trades">0</div></div>
+<div class="card"><div class="l">Win</div><div class="v" id="v-wr">--</div></div>
+<div class="card"><div class="l">Next Funding</div><div class="v" id="v-fund">--</div></div>
+</div>
+
+<div class="section">
+<h2>Funding Rates (sorted low → high)</h2>
+<div class="rates" id="rates"></div>
+</div>
+
+<div class="section" id="pairs-section">
+<h2>Active Carry Pairs</h2>
+<table><thead><tr><th>Long</th><th>Short</th><th>Margin</th><th>Hold</th><th>Settlements</th><th>Carry</th><th>Price P&L</th><th>Total</th><th>P&L $</th></tr></thead>
+<tbody id="pairs"><tr><td colspan="9" class="empty">No active pairs — waiting for funding spread > 1.5 bps</td></tr></tbody></table>
+</div>
+
+<div class="section" id="chart-section" style="display:none"><h2>P&L Curve</h2><div id="chart"></div></div>
+
+<div class="section" id="trades-section" style="display:none">
+<h2>Closed Trades</h2>
+<table><thead><tr><th>Date</th><th>Long</th><th>Short</th><th>Days</th><th>Carry</th><th>Price</th><th>Net</th><th>P&L $</th><th>Reason</th></tr></thead>
+<tbody id="tr"></tbody></table>
+</div>
+
+<script>
+let ch=null,pnlLine=null;
+const f=(v,d=1)=>(v>=0?'+':'')+v.toFixed(d),c=v=>v>=0?'p':'n';
+
+async function refresh(){try{
+const[sR,tR,pR]=await Promise.all([fetch('/api/state'),fetch('/api/trades'),fetch('/api/pnl')]);
+const s=await sR.json(),t=await tR.json(),p=await pR.json();
+
+document.getElementById('dot').className='dot '+(s.ws_connected?'on':'off');
+document.getElementById('info').textContent=`uptime ${Math.floor((s.uptime_s||0)/3600)}h${Math.floor((s.uptime_s||0)%3600/60).toString().padStart(2,'0')}m`;
+const be=document.getElementById('v-bal');be.textContent='$'+(s.balance||1000).toFixed(2);
+const pe=document.getElementById('v-pnl');pe.textContent=(s.pnl_usdt>=0?'+':'')+'$'+(s.pnl_usdt||0).toFixed(2);pe.className='v '+c(s.pnl_usdt||0);
+const ue=document.getElementById('v-unr');ue.textContent=(s.unrealized_usdt>=0?'+':'')+'$'+(s.unrealized_usdt||0).toFixed(2);ue.className='v '+c(s.unrealized_usdt||0);
+document.getElementById('v-pairs').textContent=(s.open_pairs||0)+'/'+(s.max_pairs||3);
+document.getElementById('v-trades').textContent=s.total_trades||0;
+document.getElementById('v-wr').textContent=((s.win_rate||0)*100).toFixed(0)+'%';
+document.getElementById('v-fund').textContent=s.next_funding_min!=null?s.next_funding_min+'m':'--';
+
+// Rates
+const rates=s.rates||{};
+const rEntries=Object.entries(rates).sort((a,b)=>a[1].funding_bps-b[1].funding_bps);
+let rh='';
+for(const[sym,r]of rEntries){
+ const v=r.funding_bps;const cl=v<0?'var(--green)':'var(--red)';
+ const w=Math.min(Math.abs(v)*30,120);
+ rh+=`<div class="rate-row"><span class="sym">${sym.replace('USDT','')}</span>
+  <span class="val" style="color:${cl}">${v>0?'+':''}${v.toFixed(2)}</span>
+  <div class="bar" style="width:${w}px;background:${cl}"></div>
+  ${r.stable?'<span class="stable-badge">STABLE</span>':''}
+  <span style="color:var(--muted);font-size:10px;margin-left:auto">basis ${r.basis_bps}bps</span></div>`;
+}
+document.getElementById('rates').innerHTML=rh;
+
+// Pairs
+const pairs=s.pairs||[];
+const pb=document.getElementById('pairs');
+pb.innerHTML=pairs.length===0?'<tr><td colspan="9" class="empty">No active pairs — waiting for spread > 1.5 bps</td></tr>'
+ :pairs.map(p=>`<tr><td class="p">${p.long.replace('USDT','')}</td><td class="n">${p.short.replace('USDT','')}</td>
+  <td>$${p.margin}</td><td>${p.hold_hours.toFixed(0)}h</td><td>${p.settlements}</td>
+  <td class="${c(p.carry_bps)}">${f(p.carry_bps)}bps</td>
+  <td class="${c(p.price_pnl_bps)}">${f(p.price_pnl_bps)}bps</td>
+  <td class="${c(p.total_bps)}" style="font-weight:700">${f(p.total_bps)}bps</td>
+  <td class="${c(p.pnl_usdt)}" style="font-weight:700">${p.pnl_usdt>=0?'+':''}$${p.pnl_usdt.toFixed(2)}</td></tr>`).join('');
+
+// Trades
+document.getElementById('trades-section').style.display=t.length>0?'block':'none';
+if(t.length>0){
+ document.getElementById('tr').innerHTML=t.map(x=>
+  `<tr><td>${new Date(x.exit_time).toLocaleDateString()}</td>
+   <td class="p">${x.long_sym.replace('USDT','')}</td><td class="n">${x.short_sym.replace('USDT','')}</td>
+   <td>${x.hold_days}d</td>
+   <td class="${c(x.carry_earned_bps)}">${f(x.carry_earned_bps)}</td>
+   <td class="${c(x.price_pnl_long_bps+x.price_pnl_short_bps)}">${f(x.price_pnl_long_bps+x.price_pnl_short_bps)}</td>
+   <td class="${c(x.net_bps)}">${f(x.net_bps)}bps</td>
+   <td class="${c(x.pnl_usdt)}" style="font-weight:700">${x.pnl_usdt>=0?'+':''}$${x.pnl_usdt.toFixed(2)}</td>
+   <td>${x.reason}</td></tr>`).join('');
+}
+
+// Chart
+document.getElementById('chart-section').style.display=p.length>0?'block':'none';
+if(p.length>0){
+ const pd=p.map(x=>({time:Math.floor(new Date(x.time).getTime()/1000),value:x.balance}));
+ if(!ch){const el=document.getElementById('chart');
+  ch=LightweightCharts.createChart(el,{layout:{background:{color:'#161b22'},textColor:'#e6edf3'},grid:{vertLines:{color:'#30363d'},horzLines:{color:'#30363d'}},timeScale:{timeVisible:true},width:el.offsetWidth,height:220});
+  pnlLine=ch.addLineSeries({color:'#d29922',lineWidth:2,title:'Balance'});
+  window.addEventListener('resize',()=>ch.resize(el.offsetWidth,220));}
+ pnlLine.setData(pd);ch.timeScale().fitContent();
+}
+}catch(e){console.error(e)}}
+refresh();setInterval(refresh,5000);
+</script>
+</body>
+</html>

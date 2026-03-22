@@ -126,3 +126,4 @@ Retention: book_tob 3d, book_levels 3d, trades_raw 7d, most tables 30d, funding 
 - **Capital grows/shrinks**: P&L adjusts the capital for position sizing (compound effect).
 - **PAXGUSDT excluded**: Gold token, scored high but behaves differently from crypto altcoins. Removed from Tier A.
 - **No auto-optimization yet**: Wait for 2-3 weeks of live data before implementing self-tuning. Analysis files: `livebot_signals.csv` (every 60s, 17 symbols) + `livebot_trades.csv`. Future: nightly self-review at 8h UTC, disable losing symbols, adjust thresholds.
+- **Two bots run in parallel**: LiveBot (:8095) = OI divergence swing, CarryBot (:8096) = funding carry. Independent capital, independent strategies. CarryBot is market-neutral (no directional risk).
