@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "5.3.0"
+VERSION = "5.3.1"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -72,7 +72,8 @@ LS_RATIO_URL = "https://fapi.binance.com/futures/data/globalLongShortAccountRati
 TOP_LS_URL = "https://fapi.binance.com/futures/data/topLongShortPositionRatio"
 SIGNAL_INTERVAL = 10        # compute signals every 10s
 HOLD_MINUTES = 120          # hold 2 hours
-COST_BPS = 4.0              # maker roundtrip (excl. spread)
+BNB_FEE_DISCOUNT = True     # True = 25% discount on fees (hold BNB)
+COST_BPS = 3.0 if BNB_FEE_DISCOUNT else 4.0  # maker roundtrip
 SLIPPAGE_BPS = 1.0          # simulated slippage (entry + exit)
 MAX_SPREAD_BPS = 3.0        # skip entry if spread > 3 bps
 OI_LOOKBACK = 18            # 18 ticks × 10s = 180s = 3 OI poll cycles
