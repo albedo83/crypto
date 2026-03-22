@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "5.0.1"
+VERSION = "5.1.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -72,7 +72,12 @@ LS_RATIO_URL = "https://fapi.binance.com/futures/data/globalLongShortAccountRati
 TOP_LS_URL = "https://fapi.binance.com/futures/data/topLongShortPositionRatio"
 SIGNAL_INTERVAL = 10        # compute signals every 10s
 HOLD_MINUTES = 120          # hold 2 hours
-COST_BPS = 4.0              # maker roundtrip
+COST_BPS = 4.0              # maker roundtrip (excl. spread)
+MAX_SPREAD_BPS = 3.0        # skip entry if spread > 3 bps
+OI_LOOKBACK = 18            # 18 ticks × 10s = 180s = 3 OI poll cycles
+STREAK_DISABLE = 3          # disable symbol after 3 consecutive losses
+STREAK_COOLDOWN_H = 12      # re-enable after 12 hours
+CORRELATION_MAX = 3          # if >3 symbols aligned, reduce confidence
 WEB_PORT = 8095
 
 # ── Capital management (Kelly-optimal) ───────────────────────────────
@@ -205,6 +210,8 @@ class LiveBot:
         self.states: dict[str, SymbolState] = {s.upper(): SymbolState() for s in ALL_SYMBOLS}
         self.positions: dict[str, Position] = {}
         self._cooldowns: dict[str, datetime] = {}  # sym → earliest re-entry time
+        self._streak_losses: dict[str, int] = {}   # sym → consecutive losses
+        self._streak_disabled: dict[str, datetime] = {}  # sym → re-enable time
         self.trades: list[Trade] = []
         self.signals: dict[str, dict] = {}
         self.running = False
@@ -486,13 +493,13 @@ class LiveBot:
             # ── Signal 1: OI Divergence ──────────────────────
             oi_signal = 0.0
             oi_detail = "no_data"
-            if len(st.oi_history) >= 6 and len(st.price_history) >= 6:
+            if len(st.oi_history) >= OI_LOOKBACK and len(st.price_history) >= OI_LOOKBACK:
                 oi_now = st.oi_history[-1]
-                oi_prev = st.oi_history[-6]  # same window as price [-6]
+                oi_prev = st.oi_history[-OI_LOOKBACK]  # 180s = 3 OI poll cycles
                 oi_change = (oi_now - oi_prev) / oi_prev * 100 if oi_prev > 0 else 0
 
                 price_now = st.price_history[-1]
-                price_prev = st.price_history[-6]
+                price_prev = st.price_history[-OI_LOOKBACK]
                 price_change = (price_now / price_prev - 1) * 1e4
 
                 # Graduated strength based on divergence magnitude
@@ -640,8 +647,17 @@ class LiveBot:
                 exit_reason = "trail_stop"
 
             if exit_reason:
-                self._close_position(sym, mid, now, exit_reason)
+                net_pnl = self._close_position(sym, mid, now, exit_reason)
                 self._cooldowns[sym] = now + timedelta(minutes=COOLDOWN_MINUTES)
+                # Track win/loss streaks per symbol
+                if net_pnl < 0:
+                    self._streak_losses[sym] = self._streak_losses.get(sym, 0) + 1
+                    if self._streak_losses[sym] >= STREAK_DISABLE:
+                        self._streak_disabled[sym] = now + timedelta(hours=STREAK_COOLDOWN_H)
+                        log.info("STREAK DISABLE %s: %d consecutive losses → disabled %dh",
+                                 sym, self._streak_losses[sym], STREAK_COOLDOWN_H)
+                else:
+                    self._streak_losses[sym] = 0  # reset on win
 
         # ── Step 2: Collect & rank new entry candidates ──────
         if session is None:
@@ -661,12 +677,27 @@ class LiveBot:
         if funding_grab:
             min_score *= 0.8  # 20% more aggressive near settlement
 
+        # Cross-symbol correlation: count aligned OI signals
+        oi_long = oi_short = 0
+        for sym2, sig2 in self.signals.items():
+            if sym2 not in TRADE_SYMBOLS_SET:
+                continue
+            oi2 = sig2.get("oi_signal", 0)
+            if oi2 > 0.3:
+                oi_long += 1
+            elif oi2 < -0.3:
+                oi_short += 1
+        macro_move = max(oi_long, oi_short) > CORRELATION_MAX
+
         candidates = []
         for sym in TRADE_SYMBOLS_LIST:
             if sym in self.positions:
                 continue  # already in position
             # Anti-whipsaw: respect cooldown after exit
             if sym in self._cooldowns and now < self._cooldowns[sym]:
+                continue
+            # Streak: disable symbol after consecutive losses
+            if sym in self._streak_disabled and now < self._streak_disabled[sym]:
                 continue
             sig = self.signals.get(sym)
             if not sig:
@@ -679,6 +710,15 @@ class LiveBot:
             # Require OI divergence as primary signal
             if abs(sig["oi_signal"]) < 0.1:
                 continue
+            # Spread filter: skip if effective cost too high
+            if sig["spread_bps"] > MAX_SPREAD_BPS:
+                continue
+            # Cross-symbol: reduce score if macro move detected
+            effective_score = abs(comp)
+            if macro_move:
+                effective_score *= 0.6  # dampen confidence during correlated moves
+                if effective_score < min_score:
+                    continue
             # Volatility filter: skip if symbol too volatile
             st = self.states.get(sym)
             if st and len(st.mids) >= VOL_WINDOW:
@@ -688,7 +728,7 @@ class LiveBot:
                 if vol > VOL_MAX_BPS:
                     log.info("VOL SKIP %s: %.1f bps > %.1f limit", sym, vol, VOL_MAX_BPS)
                     continue
-            candidates.append((sym, sig, abs(comp)))
+            candidates.append((sym, sig, effective_score))
 
         if not candidates:
             return
@@ -755,7 +795,7 @@ class LiveBot:
                 len(self.positions), MAX_POSITIONS,
             )
 
-    def _close_position(self, sym: str, exit_price: float, now: datetime, reason: str):
+    def _close_position(self, sym: str, exit_price: float, now: datetime, reason: str) -> float:
         pos = self.positions.pop(sym)
         gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
         hold_min = (now - pos.entry_time).total_seconds() / 60
@@ -804,6 +844,7 @@ class LiveBot:
             pos.size_usdt, pos.leverage, gross_bps,
             fee_usdt, net_pnl_usdt, balance, n, wr,
         )
+        return net_pnl_usdt
 
     def _write_csv(self, t: Trade):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
