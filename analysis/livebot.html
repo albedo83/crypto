@@ -188,8 +188,8 @@ async function refreshState() {
                 const bal = document.getElementById('v-balance');
         bal.textContent = '$' + (s.balance||1000).toFixed(2); bal.className = 'v';
         const pnl = document.getElementById('v-pnl-usd');
-        pnl.textContent = (s.total_pnl_usdt>=0?'+':'') + '$' + (s.total_pnl_usdt||0).toFixed(2);
-        pnl.className = 'v ' + c(s.total_pnl_usdt||0);
+        pnl.textContent = (s.net_pnl_usdt>=0?'+':'') + '$' + (s.net_pnl_usdt||0).toFixed(2);
+        pnl.className = 'v ' + c(s.net_pnl_usdt||0);
         const unr = document.getElementById('v-unreal');
         unr.textContent = (s.unrealized_usdt>=0?'+':'') + '$' + (s.unrealized_usdt||0).toFixed(2);
         unr.className = 'v ' + c(s.unrealized_usdt||0);

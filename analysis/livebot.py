@@ -101,6 +101,8 @@ HTML_PATH = os.path.join(os.path.dirname(__file__), "livebot.html")
 @dataclass
 class SymbolState:
     mid_price: float = 0.0
+    bid_price: float = 0.0
+    ask_price: float = 0.0
     spread_bps: float = 0.0
     bid_qty: float = 0.0
     ask_qty: float = 0.0
@@ -178,7 +180,7 @@ class LiveBot:
         self.ws_count = 0  # number of active WS connections
         self.started_at: datetime | None = None
         self._total_gross = 0.0
-        self._total_net = 0.0
+        self._total_pnl_usdt = 0.0  # running accumulator (dollars)
         self._total_leveraged = 0.0
         self._wins = 0
 
@@ -197,23 +199,26 @@ class LiveBot:
 
     async def _ws_connect(self, url: str, idx: int):
         n_streams = url.count("@")
+        backoff = 3
         while self.running:
             try:
                 log.info("WS[%d] connecting (%d streams)...", idx, n_streams)
                 async with websockets.connect(url, ping_interval=20, ping_timeout=10) as ws:
                     self.ws_count += 1
                     self.ws_connected = self.ws_count > 0
+                    backoff = 3  # reset on success
                     log.info("WS[%d] connected (total %d)", idx, self.ws_count)
                     async for raw in ws:
                         if not self.running:
                             break
                         self._on_ws_message(raw)
             except Exception as e:
-                log.warning("WS[%d] error: %s — reconnecting...", idx, e)
+                log.warning("WS[%d] error: %s — reconnecting in %ds...", idx, e, backoff)
             self.ws_count = max(0, self.ws_count - 1)
             self.ws_connected = self.ws_count > 0
             if self.running:
-                await asyncio.sleep(3)
+                await asyncio.sleep(backoff)
+                backoff = min(backoff * 2, 60)  # exponential backoff, max 60s
 
     def _on_ws_message(self, raw):
         try:
@@ -296,8 +301,14 @@ class LiveBot:
                                 st.prev_open_interest = st.open_interest
                                 st.open_interest = float(data.get("openInterest", 0))
                                 st.oi_updated_at = time.time()
-                    except Exception:
-                        pass
+                            elif resp.status == 429:
+                                log.warning("OI rate limited — pausing 30s")
+                                await asyncio.sleep(30)
+                            elif resp.status == 418:
+                                log.error("OI IP banned — pausing 120s")
+                                await asyncio.sleep(120)
+                    except Exception as e:
+                        log.warning("OI poll error %s: %s", sym.upper(), e)
                     await asyncio.sleep(0.15)  # ~7/sec to stay under rate limit
                 await asyncio.sleep(max(1, OI_POLL_INTERVAL - len(ALL_SYMBOLS) * 0.15))
 
@@ -431,7 +442,7 @@ class LiveBot:
 
     def _available_capital(self) -> float:
         """How much capital can still be allocated."""
-        pnl = sum(t.pnl_usdt for t in self.trades)
+        pnl = self._total_pnl_usdt
         current_capital = CAPITAL_USDT + pnl
         max_exposure = current_capital * MAX_RISK_TOTAL_PCT / 100
         return max(0, max_exposure - self._margin_used())
@@ -458,7 +469,8 @@ class LiveBot:
             elif (pos.direction == 1 and comp < -0.3) or (pos.direction == -1 and comp > 0.3):
                 exit_reason = "reversal"
             unrealized = pos.direction * (mid / pos.entry_price - 1) * 1e4
-            if unrealized < -100:
+            leveraged_loss = unrealized * pos.leverage
+            if leveraged_loss < -100:  # -100 bps on margin (after leverage)
                 exit_reason = "stop_loss"
 
             if exit_reason:
@@ -493,23 +505,31 @@ class LiveBot:
         if slots_available <= 0:
             return
 
-        pnl = sum(t.pnl_usdt for t in self.trades)
+        pnl = self._total_pnl_usdt
         current_capital = CAPITAL_USDT + pnl
         margin_per_trade = current_capital * RISK_PER_TRADE_PCT / 100
+        remaining_capital = self._available_capital()
 
-        for sym, sig, score in candidates[:slots_available]:
-            if self._available_capital() < margin_per_trade * 0.5:
+        for rank, (sym, sig, score) in enumerate(candidates[:slots_available], 1):
+            if remaining_capital < margin_per_trade * 0.5:
                 break  # not enough capital
 
             mid = sig["mid"]
             if mid == 0:
                 continue
+
+            # Skip if price data is stale (no update in 30s)
+            st = self.states.get(sym)
+            if st and (time.time() - st.tick_ts) > 30:
+                continue
+
             comp = sig["composite"]
             direction = 1 if comp > 0 else -1
             leverage = sig["leverage"]
 
-            size_usdt = margin_per_trade * leverage
             margin = margin_per_trade
+            size_usdt = margin * leverage
+            remaining_capital -= margin  # decrement for next iteration
 
             pos = Position(
                 symbol=sym, direction=direction,
@@ -522,7 +542,7 @@ class LiveBot:
                     "funding": sig["funding_detail"],
                     "btc_ret": sig["btc_ret"],
                     "composite": comp,
-                    "rank": candidates.index((sym, sig, score)) + 1,
+                    "rank": rank,
                 },
             )
             self.positions[sym] = pos
@@ -531,27 +551,29 @@ class LiveBot:
                 "→ ENTER %s %s @ %.4f | $%.0f (%.0fx) | score=%+.2f [#%d/%d] | "
                 "oi=%s | fund=%s | %d/%d slots",
                 side, sym, mid, size_usdt, leverage, comp,
-                candidates.index((sym, sig, score)) + 1, len(candidates),
+                rank, len(candidates),
                 sig["oi_detail"][:25], sig["funding_detail"][:20],
                 len(self.positions), MAX_POSITIONS,
             )
 
     def _close_position(self, sym: str, exit_price: float, now: datetime, reason: str):
         pos = self.positions.pop(sym)
-        gross = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
-        net = gross - COST_BPS
-        leveraged_net = net * pos.leverage
+        gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
         hold_min = (now - pos.entry_time).total_seconds() / 60
 
-        # P&L in dollars: size_usdt × return
+        # P&L in dollars (correct: computed on leveraged size)
         pnl_usdt = pos.size_usdt * (pos.direction * (exit_price / pos.entry_price - 1))
         fee_usdt = pos.size_usdt * COST_BPS / 1e4
         net_pnl_usdt = pnl_usdt - fee_usdt
 
-        self._total_gross += gross
-        self._total_net += net
-        self._total_leveraged += leveraged_net
-        if gross > 0:
+        # Bps metrics (on margin, leverage-aware)
+        leveraged_gross_bps = gross_bps * pos.leverage
+        leveraged_net_bps = leveraged_gross_bps - COST_BPS  # fees don't scale with leverage
+
+        self._total_gross += gross_bps
+        self._total_pnl_usdt += net_pnl_usdt  # running accumulator (dollars)
+        self._total_leveraged += leveraged_net_bps
+        if net_pnl_usdt > 0:  # win = net positive after fees
             self._wins += 1
 
         session = self._current_session() or "?"
@@ -563,8 +585,8 @@ class LiveBot:
             hold_min=round(hold_min, 1), leverage=pos.leverage,
             size_usdt=round(pos.size_usdt, 2),
             signals=pos.signals_detail,
-            gross_bps=round(gross, 2), net_bps=round(net, 2),
-            leveraged_net_bps=round(leveraged_net, 2),
+            gross_bps=round(gross_bps, 2), net_bps=round(leveraged_net_bps, 2),
+            leveraged_net_bps=round(leveraged_net_bps, 2),
             pnl_usdt=round(net_pnl_usdt, 2),
             reason=reason, session=session,
         )
@@ -573,15 +595,14 @@ class LiveBot:
 
         n = len(self.trades)
         wr = self._wins / n * 100 if n > 0 else 0
-        total_pnl = sum(t.pnl_usdt for t in self.trades)
-        balance = CAPITAL_USDT + total_pnl
-        arrow = "+" if gross > 0 else "-"
+        balance = CAPITAL_USDT + self._total_pnl_usdt
+        arrow = "+" if net_pnl_usdt > 0 else "-"
         log.info(
-            "%s EXIT %s %s | %.0fmin | $%.0f (%.0fx) | gross %+.1f net %+.1f bps | "
-            "%+.2f$ | balance $%.2f (#%d, win %.0f%%)",
+            "%s EXIT %s %s | %.0fmin | $%.0f (%.0fx) | gross %+.1f bps | "
+            "fee $%.3f | %+.2f$ | balance $%.2f (#%d, win %.0f%%)",
             arrow, trade.direction, sym, hold_min,
-            pos.size_usdt, pos.leverage, gross, net,
-            net_pnl_usdt, balance, n, wr,
+            pos.size_usdt, pos.leverage, gross_bps,
+            fee_usdt, net_pnl_usdt, balance, n, wr,
         )
 
     def _write_csv(self, t: Trade):
@@ -636,7 +657,7 @@ class LiveBot:
 
         # Capital tracking
         n_positions = len(self.positions)
-        total_pnl_usdt = sum(t.pnl_usdt for t in self.trades)
+        total_pnl_usdt = self._total_pnl_usdt
         balance = CAPITAL_USDT + total_pnl_usdt
         margin_used = self._margin_used()
         # Unrealized P&L
@@ -664,7 +685,7 @@ class LiveBot:
             "avg_funding_bps": avg_funding_bps,
             "total_trades": n,
             "gross_pnl_bps": round(self._total_gross, 2),
-            "net_pnl_bps": round(self._total_net, 2),
+            "net_pnl_usdt": round(self._total_pnl_usdt, 2),
             "leveraged_pnl_bps": round(self._total_leveraged, 2),
             "win_rate": round(self._wins / n, 3) if n > 0 else 0,
             "avg_leverage": round(np.mean([t.leverage for t in self.trades]), 1) if self.trades else 0,
@@ -743,9 +764,14 @@ class LiveBot:
 bot = LiveBot()
 app = FastAPI()
 
+_html_cache = None
+
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    return Path(HTML_PATH).read_text()
+    global _html_cache
+    if _html_cache is None:
+        _html_cache = Path(HTML_PATH).read_text()
+    return _html_cache
 
 @app.get("/api/state")
 async def api_state():
@@ -788,10 +814,18 @@ def entry():
     try:
         loop.run_until_complete(main())
     finally:
+        # Close any open positions at last known price
+        now = datetime.now(timezone.utc)
+        for sym in list(bot.positions.keys()):
+            st = bot.states.get(sym)
+            if st and st.mid_price > 0:
+                bot._close_position(sym, st.mid_price, now, "shutdown")
+                log.info("  Closed %s at shutdown", sym)
         n = len(bot.trades)
         if n:
-            log.info("FINAL: %d trades | net %+.1f | leveraged %+.1f bps | win %.0f%%",
-                     n, bot._total_net, bot._total_leveraged, bot._wins/n*100 if n else 0)
+            balance = CAPITAL_USDT + bot._total_pnl_usdt
+            log.info("FINAL: %d trades | balance $%.2f | win %.0f%%",
+                     n, balance, bot._wins/n*100 if n else 0)
         loop.close()
 
 if __name__ == "__main__":
