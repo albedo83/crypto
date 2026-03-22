@@ -53,13 +53,13 @@ Binance Futures
     │     + funding proximity (20%) + BTC lead-lag (15%)
     │     → composite score per symbol
     ├── CapitalManager
-    │     $1000 virtual capital, max 5 positions
+    │     $1000 virtual capital, max 4 positions
     │     Rank signals by strength, allocate best first
     ├── TradingLogic
     │     Sessions: Asia (0-8h) + US (14-21h) + Overnight (21-24h)
-    │     Entry: score > 0.3, ≥ 1 active signal
-    │     Exit: 2h timeout / reversal / stop loss -100bps
-    │     Leverage: 1x(1sig) → 2x(2sig) → 3x(3sig)
+    │     Entry: score > 0.3, OI signal required, cooldown 30min
+    │     Exit: 2h timeout / reversal (after 10min hold) / stop -100bps
+    │     Leverage: 1x(1sig) → 1.5x(2) → 2.5x(3) → 3x(4)
     ├── Dashboard (FastAPI on :8095)
     │     Ticker 1s / State 5s / Trades 10s
     └── CSV logger → analysis/output/livebot_trades.csv

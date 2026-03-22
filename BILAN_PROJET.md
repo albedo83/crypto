@@ -79,6 +79,9 @@ C'est un signal de "qualité du mouvement". On trade contre les mouvements faibl
 | Stop loss | -100 bps | Limite les pertes sur un trade |
 | Coût simulé | 4 bps roundtrip | Fees maker Binance (0.02% × 2 côtés) |
 | Entry threshold | score > 0.3 | Au moins 1 signal actif |
+| **Hold minimum** | **10 min** | Pas de reversal check avant 10 min — laisse le signal swing travailler (v4.9) |
+| **Cooldown** | **30 min** | Bloque re-entry sur même symbole après exit — anti-whipsaw (v4.9) |
+| **OI requis** | **oui** | Pas d'entrée sans signal OI divergence actif — c'est le signal principal (v4.9) |
 
 ### La gestion du capital
 
@@ -92,7 +95,7 @@ C'est un signal de "qualité du mouvement". On trade contre les mouvements faibl
 | Taille position 2x | **$500** |
 | Taille position 3x | **$750** |
 
-Si 10 signaux arrivent en même temps, le bot **trie par force du signal** et prend les 5 meilleurs. Les autres sont ignorés.
+Si 10 signaux arrivent en même temps, le bot **trie par force du signal** et prend les 4 meilleurs. Les autres sont ignorés.
 
 Les frais Binance réels par trade (maker, VIP 0) :
 
@@ -224,8 +227,8 @@ Binance Futures
         │   - BTC lead-lag   │    Retour BTC → prédire altcoins
         │                   │
         │   TradingLogic     │  Filtres : session + score + leverage
-        │   - Max 1 pos/sym  │  Entry : score > 0.3, ≥ 1 signal
-        │   - Hold 2h max    │  Exit : timeout / reversal / stop loss
+        │   - Max 1 pos/sym  │  Entry : score > 0.3, OI requis, cooldown 30m
+        │   - Hold 2h max    │  Exit : timeout / reversal (>10m) / stop loss
         │   - Stop -100 bps  │
         │                   │
         │   Dashboard        │  FastAPI sur :8095
@@ -302,6 +305,41 @@ http://51.178.27.240:8095
 
 ---
 
+## Historique des versions
+
+| Version | Date | Changements |
+|---------|------|-------------|
+| v4.0.0 | 2026-03-22 | LiveBot initial — 17 symboles, OI divergence, 4 signaux |
+| v4.1.0 | 2026-03-22 | Fix 6 bugs critiques (1ère code review) |
+| v4.2.0 | 2026-03-22 | Full Kelly 25%, max 4 positions |
+| v4.3.0 | 2026-03-22 | Session overnight + fixes dashboard |
+| v4.4.0 | 2026-03-22 | CSV logging signaux (toutes les 60s) |
+| v4.5.0 | 2026-03-22 | CarryBot ajouté (funding carry, port 8096) |
+| v4.6.0 | 2026-03-22 | Smart money = 4ème signal dans le composite |
+| v4.7.0 | 2026-03-22 | 2ème code review : qualité signaux, rotation WS 23h, shutdown propre |
+| v4.7.2 | 2026-03-22 | VERSION affichée dans dashboard + API |
+| v4.8.0 | 2026-03-22 | Restauration trades CSV au redémarrage (plus de perte de données) |
+| v4.9.0 | 2026-03-22 | **Anti-whipsaw** : hold min 10m, cooldown 30m, OI requis pour entrer |
+
+### Leçons de la v4.8 → v4.9 (premiers trades live)
+
+5 trades sous v4.8, résultat : **-$0.68** (archivés dans `livebot_trades_v4.8.csv`).
+
+**Problèmes identifiés :**
+1. Hold time moyen = 5.9 min pour un signal swing 2h → scalping involontaire
+2. 100% des exits par reversal (aucun timeout/stop loss atteint)
+3. Whipsaw BNB : LONG → SHORT immédiat → 2 pertes consécutives (-$1.86)
+4. BCH/BNB entrés sans signal OI (uniquement BTC lead-lag) → perdants
+
+**Corrections v4.9 :**
+- Hold minimum 10 min avant vérification reversal → laisser le signal travailler
+- Cooldown 30 min après exit → empêcher les allers-retours destructeurs
+- OI divergence requis pour entrer → plus de trades sur signal secondaire seul
+
+Compteurs remis à zéro pour la v4.9.
+
+---
+
 ## Décisions prises et justifications
 
 | Décision | Pourquoi |
@@ -310,6 +348,9 @@ http://51.178.27.240:8095
 | Session overnight incluse | Même profil de faible liquidité que l'Asia, couvre le pre-funding 00h UTC |
 | Full Kelly (25% par trade) | Critère de Kelly optimal avec 54% win rate et ratio gain/perte 1.6 |
 | Pas d'auto-optimisation pour l'instant | Attendre 2-3 semaines de données live avant d'automatiser les ajustements |
+| Hold minimum 10 min (v4.9) | Le signal OI divergence est calibré sur 2h — sortir en 2 min ne lui laisse aucune chance |
+| Cooldown 30 min (v4.9) | Évite le whipsaw LONG→SHORT→2 pertes (observé sur BNB en live) |
+| OI requis pour entrer (v4.9) | Trades sans OI = 100% perdants en live. BTC lead-lag seul = insuffisant |
 
 ## Prochaines étapes
 
@@ -347,3 +388,7 @@ http://51.178.27.240:8095
 | 15 altcoins ajoutés | Signaux indépendants (corr ~0.07), même profil OI/volume qu'ADA |
 | Pas de collecteur DB | Inutile — le bot lit Binance directement, économise 2 GB/jour de disque |
 | Leverage dynamique 1-3x | Amplifie les trades à haute confiance sans risquer sur les faibles |
+| Signal OI gradué (v4.7) | Graduation [0.3-1.0] au lieu de binaire ±1 — proportionnel à la divergence |
+| Smart money buffer 30 (v4.7) | z-score sur 5 points = bruit pur, 30 points = 5 min de données L/S distinctes |
+| Rotation WS 23h (v4.7) | Reconnexion proactive avant la limite Binance 24h |
+| Restauration CSV (v4.8) | Plus de perte d'historique au redémarrage du bot |
