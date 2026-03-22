@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "4.7.0"
+VERSION = "4.7.2"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -904,7 +904,7 @@ _html_cache = None
 async def index():
     global _html_cache
     if _html_cache is None:
-        _html_cache = Path(HTML_PATH).read_text()
+        _html_cache = Path(HTML_PATH).read_text().replace("{{VERSION}}", VERSION)
     return _html_cache
 
 @app.get("/api/state")

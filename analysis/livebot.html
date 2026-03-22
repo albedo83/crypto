@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>LiveBot — Multi-Alt</title>
+<title>LiveBot v{{VERSION}} — Multi-Alt</title>
 <script src="https://unpkg.com/lightweight-charts@4.2.1/dist/lightweight-charts.standalone.production.js"></script>
 <style>
 :root{--bg:#0d1117;--card:#161b22;--border:#30363d;--text:#e6edf3;--muted:#7d8590;--accent:#58a6ff;--green:#3fb950;--red:#f85149;--yellow:#d29922;--mono:'SFMono-Regular',Consolas,monospace;}
@@ -49,7 +49,7 @@ td{padding:5px 6px;border-bottom:1px solid var(--border);}
 </style>
 </head>
 <body>
-<h1><span class="dot off" id="dot"></span>LiveBot <span id="v-version">v?</span> — Multi-Alt
+<h1><span class="dot off" id="dot"></span>LiveBot v{{VERSION}} — Multi-Alt
 <span style="color:var(--muted);font-size:12px;font-weight:400;margin-left:auto" id="info"></span></h1>
 
 <div class="header">
@@ -216,7 +216,6 @@ async function refreshState() {
         const s = await sR.json(), t = await tR.json(), p = await pR.json();
 
         window._lastSignals = s.signals || {};
-        if (s.version) document.getElementById('v-version').textContent = 'v' + s.version;
         document.getElementById('dot').className = 'dot ' + (s.ws_connected ? 'on' : 'off');
         const sess = s.session || '?';
         document.getElementById('v-session').innerHTML = `<span class="badge ${sess==='asian'?'asia':sess==='us'?'us':'off'}">${sess.toUpperCase()}</span>`;
