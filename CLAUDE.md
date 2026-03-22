@@ -84,10 +84,21 @@ Selected by OI/volume ratio scan of 544 Binance Futures perpetuals (`study_10_sy
 
 - $1000 virtual capital (paper trading)
 - Max 4 concurrent positions
-- Each position: 25% of capital as margin ($250) — full Kelly criterion
-- With leverage: $250 (1x) to $750 (3x)
+- Each position: 20-30% of capital as margin (proportional to score strength)
+- With leverage: $200 (1x weak) to $900 (3x strong)
 - Max 90% capital exposed
 - When >4 signals: rank by |score|, take top 4
+- Session tuning: Asia/overnight aggressive (score 0.25), US conservative (score 0.35, 0.8x leverage)
+
+### Risk Management
+
+- Volatility filter: block entries when 3-min realized vol > 15 bps
+- Trailing stop: activates at +25 bps peak, exits if drops 15 bps from peak
+- Stop loss: -100 bps leveraged
+- Hold minimum: 10 min before reversal check
+- Cooldown: 30 min after exit on same symbol
+- OI signal required for entry (no trades on secondary signals alone)
+- Funding grab: -20% entry threshold in last 30 min before settlement
 
 ### Key Findings (from 10 analysis studies)
 

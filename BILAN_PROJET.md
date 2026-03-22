@@ -78,10 +78,13 @@ C'est un signal de "qualité du mouvement". On trade contre les mouvements faibl
 | Horizon | 2 heures | Les frais (4 bps) sont négligeables face aux mouvements de 20-40 bps |
 | Stop loss | -100 bps | Limite les pertes sur un trade |
 | Coût simulé | 4 bps roundtrip | Fees maker Binance (0.02% × 2 côtés) |
-| Entry threshold | score > 0.3 | Au moins 1 signal actif |
-| **Hold minimum** | **10 min** | Pas de reversal check avant 10 min — laisse le signal swing travailler (v4.9) |
-| **Cooldown** | **30 min** | Bloque re-entry sur même symbole après exit — anti-whipsaw (v4.9) |
-| **OI requis** | **oui** | Pas d'entrée sans signal OI divergence actif — c'est le signal principal (v4.9) |
+| Entry threshold | score > 0.25 (Asia) / 0.35 (US) | Adapté au edge par session (v5.0) |
+| Hold minimum | 10 min | Pas de reversal check avant 10 min (v4.9) |
+| Cooldown | 30 min | Bloque re-entry après exit — anti-whipsaw (v4.9) |
+| OI requis | oui | Pas d'entrée sans OI divergence actif (v4.9) |
+| Trailing stop | +25 bps / -15 bps | Active au peak, sort si recule de 15 bps (v5.0) |
+| Filtre volatilité | vol 3min < 15 bps | Bloque entrées en marché chaotique (v5.0) |
+| Funding grab | 30 min avant settlement | Seuil -20% près du funding (v5.0) |
 
 ### La gestion du capital
 
@@ -89,11 +92,11 @@ C'est un signal de "qualité du mouvement". On trade contre les mouvements faibl
 |-----------|--------|
 | Capital initial | **$1000** (fictif, paper trading) |
 | Max positions simultanées | **4** |
-| Marge par position | **$250** (25% du capital — full Kelly) |
+| Marge par position | **$200-$300** (20-30%, proportionnel au score) |
 | Max capital exposé | **90%** ($900) |
-| Taille position 1x | **$250** |
-| Taille position 2x | **$500** |
-| Taille position 3x | **$750** |
+| Taille position 1x (score faible) | **$200** |
+| Taille position 2.5x (score fort) | **$750** |
+| Taille position 3x (max) | **$900** |
 
 Si 10 signaux arrivent en même temps, le bot **trie par force du signal** et prend les 4 meilleurs. Les autres sont ignorés.
 
@@ -320,6 +323,7 @@ http://51.178.27.240:8095
 | v4.7.2 | 2026-03-22 | VERSION affichée dans dashboard + API |
 | v4.8.0 | 2026-03-22 | Restauration trades CSV au redémarrage (plus de perte de données) |
 | v4.9.0 | 2026-03-22 | **Anti-whipsaw** : hold min 10m, cooldown 30m, OI requis pour entrer |
+| v5.0.0 | 2026-03-22 | **Version majeure** : filtre volatilité, trailing stop, sessions asymétriques, sizing proportionnel, funding grab |
 
 ### Leçons de la v4.8 → v4.9 (premiers trades live)
 
@@ -338,6 +342,24 @@ http://51.178.27.240:8095
 
 Compteurs remis à zéro pour la v4.9.
 
+### Améliorations v5.0 (analyse approfondie du bot)
+
+Après la v4.9, analyse systématique de ce que le bot pouvait faire mieux :
+
+**1. Filtre de volatilité** — Les études montraient 2.7× meilleur edge en marché calme, mais le bot n'avait aucun filtre. Ajout : mesure de la vol réalisée sur 3 min (std des returns sur 18 ticks de 10s). Si vol > 15 bps → pas d'entrée. Le signal OI divergence a besoin de marchés ordonnés pour fonctionner.
+
+**2. Trailing stop** — Le bot laissait les gains s'évaporer : une position à +40 bps pouvait retomber à +5 bps avant de sortir par reversal. Maintenant : si le P&L atteint +25 bps, un trailing stop s'active et sort si ça recule de 15 bps depuis le peak.
+
+**3. Sessions asymétriques** — Backtest : Asia = +36 bps/trade, US = +27 bps. Avant : même seuil partout (0.3). Maintenant :
+- Asia/Overnight : seuil 0.25, leverage 100% → plus agressif (meilleur edge)
+- US : seuil 0.35, leverage 80% → plus prudent (edge moindre)
+
+**4. Sizing proportionnel au score** — Avant : marge fixe 25% ($250). Maintenant : 20% à 30% selon la force du signal. Score 0.3 → $200, score 0.6+ → $300. Kelly dit : miser proportionnellement à l'avantage.
+
+**5. Funding grab** — L'edge funding est concentré dans les 30 dernières minutes avant le settlement (00h/08h/16h UTC). Dans cette fenêtre, le seuil d'entrée baisse de 20% pour capturer plus d'opportunités.
+
+Compteurs remis à zéro pour la v5.0.
+
 ---
 
 ## Décisions prises et justifications
@@ -351,6 +373,11 @@ Compteurs remis à zéro pour la v4.9.
 | Hold minimum 10 min (v4.9) | Le signal OI divergence est calibré sur 2h — sortir en 2 min ne lui laisse aucune chance |
 | Cooldown 30 min (v4.9) | Évite le whipsaw LONG→SHORT→2 pertes (observé sur BNB en live) |
 | OI requis pour entrer (v4.9) | Trades sans OI = 100% perdants en live. BTC lead-lag seul = insuffisant |
+| Filtre vol 15 bps (v5.0) | Les études montrent 2.7× meilleur edge en marché calme — vol élevée = bruit |
+| Trailing stop +25/-15 bps (v5.0) | Protège les profits acquis au lieu de les rendre par reversal tardif |
+| Asia agressif / US prudent (v5.0) | Asia = +36 bps vs US = +27 bps — adapter le risque au edge réel |
+| Sizing 20-30% par score (v5.0) | Kelly : miser proportionnellement à l'avantage, pas forfaitaire |
+| Funding grab -20% seuil (v5.0) | Edge funding concentré dans les 30 min avant settlement |
 
 ## Prochaines étapes
 
