@@ -1,4 +1,4 @@
-"""LiveBot v4 — Multi-altcoin swing strategy.
+"""LiveBot — Multi-altcoin swing strategy.  (version in VERSION constant)
 
 17 symbols: Tier A + B altcoins ranked by OI/volume ratio.
 Strategy: OI divergence + funding + BTC lead-lag.
@@ -33,6 +33,8 @@ from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
+
+VERSION = "4.7.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -802,6 +804,7 @@ class LiveBot:
             unrealized_usdt += pos.size_usdt * pos.direction * (mid / pos.entry_price - 1)
 
         return {
+            "version": VERSION,
             "running": self.running, "ws_connected": self.ws_connected,
             "ws_connections": self.ws_count,
             "n_symbols": len(TRADE_SYMBOLS_LIST),
@@ -928,7 +931,7 @@ async def main():
     bot.started_at = datetime.now(timezone.utc)
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)
-    log.info("LiveBot v4 — Multi-altcoin swing | Dashboard: http://0.0.0.0:%d", WEB_PORT)
+    log.info("LiveBot v%s — Multi-altcoin swing | Dashboard: http://0.0.0.0:%d", VERSION, WEB_PORT)
     log.info("Trading %d symbols: %s", len(TRADE_SYMBOLS_LIST), ", ".join(TRADE_SYMBOLS_LIST))
     log.info("Reference: BTC, ETH | Sessions: Asia+US | Hold: %dmin | Cost: %.0fbps",
              HOLD_MINUTES, COST_BPS)

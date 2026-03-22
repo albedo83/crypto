@@ -2,7 +2,7 @@
 
 ## Ce qui tourne
 
-**Un seul process** : `analysis/livebot.py` (PID sur le serveur)
+**Un seul process** : `analysis/livebot.py` — version courante : voir constante `VERSION` dans le code (affichée dans le dashboard et `/api/state`)
 
 ```bash
 # Démarrer

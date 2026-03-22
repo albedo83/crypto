@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Crypto trading bot + microstructure analysis for Binance Futures. **Current active system:**
 
-- **LiveBot** (`analysis/livebot.py`): Single asyncio process — Binance WS + REST → in-memory signals → paper trading + built-in web dashboard. No DB dependency.
+- **LiveBot** (`analysis/livebot.py`): Single asyncio process — Binance WS + REST → in-memory signals → paper trading + built-in web dashboard. No DB dependency. Version tracked in `VERSION` constant — increment on each change (semver: major.minor.patch).
 
 **Legacy systems (disabled, kept for reference):**
 - Collector (`src/collector/`): WS → TimescaleDB. Systemd service disabled.
@@ -37,7 +37,7 @@ nohup .venv/bin/python3 -m analysis.livebot > analysis/output/livebot.log 2>&1 &
 
 No test framework, linter, or CI pipeline is configured.
 
-## LiveBot Architecture (v4)
+## LiveBot Architecture
 
 ```
 Binance Futures
@@ -130,3 +130,4 @@ Retention: book_tob 3d, book_levels 3d, trades_raw 7d, most tables 30d, funding 
 - **PAXGUSDT excluded**: Gold token, scored high but behaves differently from crypto altcoins. Removed from Tier A.
 - **No auto-optimization yet**: Wait for 2-3 weeks of live data before implementing self-tuning. Analysis files: `livebot_signals.csv` (every 60s, 17 symbols) + `livebot_trades.csv`. Future: nightly self-review at 8h UTC, disable losing symbols, adjust thresholds.
 - **Two bots run in parallel**: LiveBot (:8095) = OI divergence swing, CarryBot (:8096) = funding carry. Independent capital, independent strategies. CarryBot is market-neutral (no directional risk).
+- **Versioning**: `VERSION` constant in `analysis/livebot.py`. Increment on every change: patch (bugfix), minor (feature), major (breaking). Displayed in dashboard header and `/api/state`. Always `git tag vX.Y.Z` after commit.
