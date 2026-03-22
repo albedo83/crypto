@@ -45,7 +45,7 @@ C'est un signal de "qualité du mouvement". On trade contre les mouvements faibl
 
 ### Les filtres
 
-1. **Session** : on ne trade QUE pendant Asia (0h-8h UTC) et US (14h-21h UTC). La session européenne (8h-14h) est exclue — le signal s'inverse pendant cette session (vérifié par backtest).
+1. **Session** : on trade pendant Asia (0h-8h UTC), US (14h-21h UTC) et Overnight (21h-0h UTC). La session européenne (8h-14h) est exclue — le signal s'inverse pendant cette session (vérifié par backtest). L'overnight précède le settlement funding de 00h UTC = même dynamique que l'Asia.
 
 2. **Funding** : quand le taux de funding est extrême (> 3 bps) et qu'on est à < 2h du settlement (00h, 08h, 16h UTC), le signal est renforcé.
 
@@ -73,12 +73,12 @@ C'est un signal de "qualité du mouvement". On trade contre les mouvements faibl
 | Paramètre | Valeur |
 |-----------|--------|
 | Capital initial | **$1000** (fictif, paper trading) |
-| Max positions simultanées | **5** |
-| Marge par position | **$180** (18% du capital) |
+| Max positions simultanées | **4** |
+| Marge par position | **$250** (25% du capital — full Kelly) |
 | Max capital exposé | **90%** ($900) |
-| Taille position 1x | **$180** |
-| Taille position 2x | **$360** |
-| Taille position 3x | **$540** |
+| Taille position 1x | **$250** |
+| Taille position 2x | **$500** |
+| Taille position 3x | **$750** |
 
 Si 10 signaux arrivent en même temps, le bot **trie par force du signal** et prend les 5 meilleurs. Les autres sont ignorés.
 
@@ -86,9 +86,9 @@ Les frais Binance réels par trade (maker, VIP 0) :
 
 | Taille | Fee aller | Fee retour | Total |
 |--------|-----------|------------|-------|
-| $180 (1x) | $0.036 | $0.036 | **$0.072** |
-| $360 (2x) | $0.072 | $0.072 | **$0.144** |
-| $540 (3x) | $0.108 | $0.108 | **$0.216** |
+| $250 (1x) | $0.050 | $0.050 | **$0.100** |
+| $500 (2x) | $0.100 | $0.100 | **$0.200** |
+| $750 (3x) | $0.150 | $0.150 | **$0.300** |
 
 Le P&L est affiché en dollars sur le dashboard : balance courante, gain/perte par trade, frais déduits.
 
@@ -295,6 +295,8 @@ http://51.178.27.240:8095
 | Décision | Pourquoi |
 |----------|----------|
 | Session européenne exclue | Le signal OI divergence s'inverse (backtest : -32 bps/trade) |
+| Session overnight incluse | Même profil de faible liquidité que l'Asia, couvre le pre-funding 00h UTC |
+| Full Kelly (25% par trade) | Critère de Kelly optimal avec 54% win rate et ratio gain/perte 1.6 |
 | Horizon 2h (pas 30s) | Les frais (4 bps) mangent l'edge micro (1-2 bps) mais pas l'edge swing (20+ bps) |
 | ADA comme symbole principal | Meilleur edge backtesté (+36 bps Asia), ratio OI/volume favorable |
 | 15 altcoins ajoutés | Signaux indépendants (corr ~0.07), même profil OI/volume qu'ADA |

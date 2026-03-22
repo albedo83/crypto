@@ -55,7 +55,7 @@ Binance Futures
     │     $1000 virtual capital, max 5 positions
     │     Rank signals by strength, allocate best first
     ├── TradingLogic
-    │     Sessions: Asia (0-8h) + US (14-21h) only
+    │     Sessions: Asia (0-8h) + US (14-21h) + Overnight (21-24h)
     │     Entry: score > 0.3, ≥ 1 active signal
     │     Exit: 2h timeout / reversal / stop loss -100bps
     │     Leverage: 1x(1sig) → 2x(2sig) → 3x(3sig)
@@ -82,11 +82,11 @@ Selected by OI/volume ratio scan of 544 Binance Futures perpetuals (`study_10_sy
 ### Capital Management
 
 - $1000 virtual capital (paper trading)
-- Max 5 concurrent positions
-- Each position: 18% of capital as margin ($180)
-- With leverage: $180 (1x) to $540 (3x)
+- Max 4 concurrent positions
+- Each position: 25% of capital as margin ($250) — full Kelly criterion
+- With leverage: $250 (1x) to $750 (3x)
 - Max 90% capital exposed
-- When >5 signals: rank by |score|, take top 5
+- When >4 signals: rank by |score|, take top 4
 
 ### Key Findings (from 10 analysis studies)
 
