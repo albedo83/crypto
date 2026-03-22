@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "4.9.0"
+VERSION = "5.0.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -78,15 +78,20 @@ WEB_PORT = 8095
 # ── Capital management (Kelly-optimal) ───────────────────────────────
 CAPITAL_USDT = 1000.0       # capital total simulé
 MAX_POSITIONS = 4           # max 4 positions simultanées
-RISK_PER_TRADE_PCT = 25.0   # full Kelly = 25% par position
+BASE_RISK_PCT = 20.0        # base margin % (scaled by score)
+MAX_RISK_PCT = 30.0         # cap margin % for strongest signals
 MAX_RISK_TOTAL_PCT = 90.0   # jamais plus de 90% du capital exposé
-MIN_SCORE = 0.3             # score minimum pour entrer
 
-# Sessions where we trade (UTC hours)
+# Sessions: different thresholds (Asia = best edge, US = decent, overnight = like Asia)
 TRADE_SESSIONS = {
-    "asian": (0, 8),
-    "us": (14, 21),
-    "overnight": (21, 24),  # low liquidity like Asia, includes pre-00h funding
+    "asian":    (0, 8),
+    "us":       (14, 21),
+    "overnight": (21, 24),
+}
+SESSION_CONFIG = {
+    "asian":    {"min_score": 0.25, "lev_mult": 1.0},   # aggressive
+    "us":       {"min_score": 0.35, "lev_mult": 0.8},   # conservative
+    "overnight": {"min_score": 0.25, "lev_mult": 1.0},  # like Asia
 }
 # European (8-14) excluded — signal inverts
 
@@ -100,6 +105,17 @@ LEVERAGE_MAP = {
 MAX_LEVERAGE = 3.0
 MIN_HOLD_MINUTES = 10          # don't check reversal before 10 min
 COOLDOWN_MINUTES = 30          # block re-entry after exit on same symbol
+
+# Volatility filter: block entries when realized vol > threshold
+VOL_WINDOW = 18                # 18 × 10s ticks = 3 min rolling window
+VOL_MAX_BPS = 15.0             # max 3-min realized vol (bps std) to enter
+
+# Trailing stop: protect profits
+TRAIL_ACTIVATE_BPS = 25.0      # activate trailing after +25 bps peak
+TRAIL_DRAWDOWN_BPS = 15.0      # exit if drops 15 bps from peak
+
+# Funding grab: boost in last 30 min before settlement
+FUNDING_GRAB_MINUTES = 30      # aggressive mode window before settlement
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 TRADES_CSV = os.path.join(OUTPUT_DIR, "livebot_trades.csv")
@@ -161,6 +177,7 @@ class Position:
     signals_detail: dict
     size_usdt: float = 0.0       # notional position size
     margin_usdt: float = 0.0     # capital locked (size / leverage)
+    peak_bps: float = 0.0        # best unrealized P&L (for trailing stop)
 
 
 @dataclass
@@ -600,6 +617,13 @@ class LiveBot:
             comp = sig["composite"]
             held = (now - pos.entry_time).total_seconds() / 60
 
+            unrealized = pos.direction * (mid / pos.entry_price - 1) * 1e4
+            leveraged_unreal = unrealized * pos.leverage
+
+            # Track peak for trailing stop
+            if leveraged_unreal > pos.peak_bps:
+                pos.peak_bps = leveraged_unreal
+
             exit_reason = None
             if held >= HOLD_MINUTES:
                 exit_reason = "timeout"
@@ -607,10 +631,11 @@ class LiveBot:
                 (pos.direction == 1 and comp < -0.3) or (pos.direction == -1 and comp > 0.3)
             ):
                 exit_reason = "reversal"
-            unrealized = pos.direction * (mid / pos.entry_price - 1) * 1e4
-            leveraged_loss = unrealized * pos.leverage
-            if leveraged_loss < -100:  # -100 bps on margin (after leverage)
+            elif leveraged_unreal < -100:  # stop loss
                 exit_reason = "stop_loss"
+            elif (pos.peak_bps >= TRAIL_ACTIVATE_BPS and
+                  leveraged_unreal < pos.peak_bps - TRAIL_DRAWDOWN_BPS):
+                exit_reason = "trail_stop"
 
             if exit_reason:
                 self._close_position(sym, mid, now, exit_reason)
@@ -619,6 +644,20 @@ class LiveBot:
         # ── Step 2: Collect & rank new entry candidates ──────
         if session is None:
             return
+        sess_cfg = SESSION_CONFIG.get(session, {"min_score": 0.35, "lev_mult": 0.8})
+        min_score = sess_cfg["min_score"]
+
+        # Funding grab: lower threshold in last 30 min before settlement
+        funding_grab = False
+        for st in self.states.values():
+            if st.next_funding_ts > 0:
+                mins_to = max(0, (datetime.fromtimestamp(
+                    st.next_funding_ts / 1000, tz=timezone.utc) - now).total_seconds() / 60)
+                if mins_to <= FUNDING_GRAB_MINUTES:
+                    funding_grab = True
+                break
+        if funding_grab:
+            min_score *= 0.8  # 20% more aggressive near settlement
 
         candidates = []
         for sym in TRADE_SYMBOLS_LIST:
@@ -631,13 +670,21 @@ class LiveBot:
             if not sig:
                 continue
             comp = sig["composite"]
-            if abs(comp) < MIN_SCORE:
+            if abs(comp) < min_score:
                 continue
             if sig["active_signals"] < 1:
                 continue
             # Require OI divergence as primary signal
             if abs(sig["oi_signal"]) < 0.1:
                 continue
+            # Volatility filter: skip if symbol too volatile
+            st = self.states.get(sym)
+            if st and len(st.mids) >= VOL_WINDOW:
+                recent = list(st.mids)[-VOL_WINDOW:]
+                returns = [(recent[i] / recent[i-1] - 1) * 1e4 for i in range(1, len(recent))]
+                vol = float(np.std(returns)) if returns else 0
+                if vol > VOL_MAX_BPS:
+                    continue
             candidates.append((sym, sig, abs(comp)))
 
         if not candidates:
@@ -653,13 +700,10 @@ class LiveBot:
 
         pnl = self._total_pnl_usdt
         current_capital = CAPITAL_USDT + pnl
-        margin_per_trade = current_capital * RISK_PER_TRADE_PCT / 100
         remaining_capital = self._available_capital()
+        lev_mult = sess_cfg["lev_mult"]
 
         for rank, (sym, sig, score) in enumerate(candidates[:slots_available], 1):
-            if remaining_capital < margin_per_trade * 0.5:
-                break  # not enough capital
-
             mid = sig["mid"]
             if mid == 0:
                 continue
@@ -671,9 +715,15 @@ class LiveBot:
 
             comp = sig["composite"]
             direction = 1 if comp > 0 else -1
-            leverage = sig["leverage"]
+            leverage = min(sig["leverage"] * lev_mult, MAX_LEVERAGE)
 
-            margin = margin_per_trade
+            # Proportional sizing: scale margin by score strength
+            score_factor = min(score / 0.6, 1.0)  # 0.3→50%, 0.6+→100%
+            risk_pct = BASE_RISK_PCT + (MAX_RISK_PCT - BASE_RISK_PCT) * score_factor
+            margin = current_capital * risk_pct / 100
+
+            if remaining_capital < margin * 0.5:
+                break  # not enough capital
             size_usdt = margin * leverage
             remaining_capital -= margin  # decrement for next iteration
 
