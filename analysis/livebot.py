@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "4.7.2"
+VERSION = "4.8.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -200,6 +200,46 @@ class LiveBot:
         self._msg_window_count = 0
         self._msg_window_start = 0.0
         self._msg_rate = 0.0
+
+    def _load_trades_csv(self):
+        """Reload trade history from CSV to restore P&L state after restart."""
+        if not os.path.exists(TRADES_CSV):
+            return
+        try:
+            with open(TRADES_CSV, "r") as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    trade = Trade(
+                        symbol=row["symbol"],
+                        direction=row["direction"],
+                        entry_time=row["entry_time"],
+                        exit_time=row["exit_time"],
+                        entry_price=float(row["entry_price"]),
+                        exit_price=float(row["exit_price"]),
+                        hold_min=float(row["hold_min"]),
+                        leverage=float(row["leverage"]),
+                        size_usdt=float(row["size_usdt"]),
+                        signals={},
+                        gross_bps=float(row["gross_bps"]),
+                        net_bps=float(row["net_bps"]),
+                        leveraged_net_bps=float(row["leveraged_net_bps"]),
+                        pnl_usdt=float(row["pnl_usdt"]),
+                        reason=row["reason"],
+                        session=row.get("session", "?"),
+                    )
+                    self.trades.append(trade)
+                    self._total_gross += trade.gross_bps
+                    self._total_pnl_usdt += trade.pnl_usdt
+                    self._total_leveraged += trade.leveraged_net_bps
+                    if trade.pnl_usdt > 0:
+                        self._wins += 1
+            n = len(self.trades)
+            if n > 0:
+                balance = CAPITAL_USDT + self._total_pnl_usdt
+                log.info("Restored %d trades from CSV | balance $%.2f | win %.0f%%",
+                         n, balance, self._wins / n * 100)
+        except Exception:
+            log.exception("Failed to load trades CSV")
 
     def _current_session(self) -> str | None:
         h = datetime.now(timezone.utc).hour
@@ -928,6 +968,7 @@ async def api_ticker():
 async def main():
     bot.running = True
     bot._shutdown_event = asyncio.Event()
+    bot._load_trades_csv()
     bot.started_at = datetime.now(timezone.utc)
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)
