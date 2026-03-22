@@ -297,6 +297,29 @@ http://51.178.27.240:8095
 | Session européenne exclue | Le signal OI divergence s'inverse (backtest : -32 bps/trade) |
 | Session overnight incluse | Même profil de faible liquidité que l'Asia, couvre le pre-funding 00h UTC |
 | Full Kelly (25% par trade) | Critère de Kelly optimal avec 54% win rate et ratio gain/perte 1.6 |
+| Pas d'auto-optimisation pour l'instant | Attendre 2-3 semaines de données live avant d'automatiser les ajustements |
+
+## Prochaines étapes
+
+### Après 2-3 semaines de paper trading
+
+1. **Analyser les résultats** : charger `livebot_signals.csv` + `livebot_trades.csv`
+   - Quels symboles gagnent, lesquels perdent → virer les mauvais
+   - Quel seuil de score est optimal → ajuster `MIN_SCORE`
+   - Le Kelly 25% est-il trop agressif → ajuster
+   - Heures exactes qui gagnent → affiner les sessions
+
+2. **Auto-optimisation** : le bot relit ses propres trades chaque nuit à 8h UTC et ajuste :
+   - Symbole avec 5 pertes d'affilée → désactivé 24h
+   - Seuil d'entrée basé sur le score moyen des trades gagnants
+   - Win rate par session → ajuster les heures
+   - Ne pas implémenter avant d'avoir des données live suffisantes
+
+3. **Passage en production** (si paper trading positif) :
+   - Ajouter API key Binance
+   - Remplacer paper trading par vrais ordres limit (maker)
+   - Commencer avec $100-200 de capital réel
+   - Garder le paper trading en parallèle pour comparer
 | Horizon 2h (pas 30s) | Les frais (4 bps) mangent l'edge micro (1-2 bps) mais pas l'edge swing (20+ bps) |
 | ADA comme symbole principal | Meilleur edge backtesté (+36 bps Asia), ratio OI/volume favorable |
 | 15 altcoins ajoutés | Signaux indépendants (corr ~0.07), même profil OI/volume qu'ADA |
