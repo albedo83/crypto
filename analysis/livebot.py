@@ -95,6 +95,7 @@ MAX_LEVERAGE = 3.0
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 TRADES_CSV = os.path.join(OUTPUT_DIR, "livebot_trades.csv")
+SIGNALS_CSV = os.path.join(OUTPUT_DIR, "livebot_signals.csv")
 HTML_PATH = os.path.join(os.path.dirname(__file__), "livebot.html")
 
 # ── Data structures ──────────────────────────────────────────────────
@@ -315,6 +316,7 @@ class LiveBot:
 
     # ── Signal computation ───────────────────────────────────────
     async def signal_loop(self):
+        self._signal_log_counter = 0
         while self.running:
             await asyncio.sleep(SIGNAL_INTERVAL)
             if not self.ws_connected:
@@ -322,6 +324,10 @@ class LiveBot:
             try:
                 self._compute_signals()
                 self._trading_logic()
+                # Log signals to CSV every 60s (6 ticks × 10s)
+                self._signal_log_counter += 1
+                if self._signal_log_counter % 6 == 0:
+                    self._write_signals_csv()
             except Exception:
                 log.exception("Signal error")
 
@@ -623,6 +629,42 @@ class LiveBot:
                        t.entry_price, t.exit_price, t.hold_min, t.leverage,
                        t.size_usdt, t.gross_bps, t.net_bps, t.leveraged_net_bps,
                        t.pnl_usdt, t.reason, t.session, str(t.signals)])
+
+    def _write_signals_csv(self):
+        """Log all signal values every 60s for post-analysis."""
+        now = datetime.now(timezone.utc).isoformat()
+        session = self._current_session() or "excluded"
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        header = not os.path.exists(SIGNALS_CSV)
+        try:
+            with open(SIGNALS_CSV, "a", newline="") as f:
+                w = csv.writer(f)
+                if header:
+                    w.writerow(["timestamp", "session", "symbol", "mid_price", "oi",
+                               "oi_signal", "funding_signal", "leadlag_signal",
+                               "composite", "active_signals", "leverage",
+                               "spread_bps", "basis_bps", "funding_bps",
+                               "tradeable", "in_position", "oi_detail"])
+                for sym, sig in self.signals.items():
+                    w.writerow([
+                        now, session, sym,
+                        sig.get("mid", 0),
+                        sig.get("oi", 0),
+                        sig.get("oi_signal", 0),
+                        sig.get("funding_signal", 0),
+                        sig.get("leadlag_signal", 0),
+                        sig.get("composite", 0),
+                        sig.get("active_signals", 0),
+                        sig.get("leverage", 1),
+                        sig.get("spread_bps", 0),
+                        sig.get("basis_bps", 0),
+                        sig.get("funding_rate_bps", 0),
+                        sig.get("tradeable", False),
+                        sym in self.positions,
+                        sig.get("oi_detail", ""),
+                    ])
+        except Exception:
+            log.exception("Signal CSV write error")
 
     # ── API ──────────────────────────────────────────────────────
     def get_state(self) -> dict:
