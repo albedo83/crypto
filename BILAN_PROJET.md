@@ -51,13 +51,25 @@ C'est un signal de "qualité du mouvement". On trade contre les mouvements faibl
 
 3. **Lead-lag BTC** : quand BTC bouge fortement, les altcoins suivent avec quelques secondes/minutes de retard. Signal additionnel.
 
-### Le leverage dynamique
+4. **Smart money** : Binance publie le ratio long/short des "top traders" (gros comptes) vs la foule. Quand les top traders divergent de la foule → suivre les top traders. rho = 0.43 sur SUI (le signal le plus fort trouvé dans toutes les études). Corrélation avec OI divergence = 0.002 (totalement indépendant).
+
+### Le leverage dynamique (4 signaux)
 
 | Signaux confirmés | Leverage |
 |-------------------|----------|
-| 1 seul (ex: OI divergence) | 1x |
-| 2 (ex: OI + funding) | 2x |
-| 3 (OI + funding + BTC lead) | 3x |
+| 1 seul | 1x |
+| 2 (ex: OI + smart money) | 1.5x |
+| 3 (ex: OI + smart + funding) | 2.5x |
+| 4 (tous : OI + smart + funding + BTC) | 3x |
+
+### Les poids du composite
+
+| Signal | Poids | Source |
+|--------|-------|--------|
+| OI divergence | **35%** | REST polling OI toutes les 60s |
+| Smart money | **30%** | REST polling L/S ratio toutes les 60s |
+| Funding proximity | **20%** | WebSocket markPrice@1s |
+| BTC lead-lag | **15%** | WebSocket bookTicker |
 
 ### Les paramètres
 

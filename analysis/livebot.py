@@ -65,6 +65,8 @@ WS_URLS = _build_ws_urls()
 
 OI_POLL_INTERVAL = 60       # poll OI every 60s
 OI_REST_URL = "https://fapi.binance.com/fapi/v1/openInterest"
+LS_RATIO_URL = "https://fapi.binance.com/futures/data/globalLongShortAccountRatio"
+TOP_LS_URL = "https://fapi.binance.com/futures/data/topLongShortPositionRatio"
 SIGNAL_INTERVAL = 10        # compute signals every 10s
 HOLD_MINUTES = 120          # hold 2 hours
 COST_BPS = 4.0              # maker roundtrip
@@ -85,11 +87,12 @@ TRADE_SESSIONS = {
 }
 # European (8-14) excluded — signal inverts
 
-# Leverage tiers based on signal count
+# Leverage tiers based on signal count (4 signals now)
 LEVERAGE_MAP = {
     1: 1.0,   # 1 signal → 1x
-    2: 2.0,   # 2 signals → 2x
-    3: 3.0,   # 3+ signals → 3x
+    2: 1.5,   # 2 signals → 1.5x
+    3: 2.5,   # 3 signals → 2.5x
+    4: 3.0,   # 4 signals → 3x (max)
 }
 MAX_LEVERAGE = 3.0
 
@@ -122,6 +125,10 @@ class SymbolState:
     open_interest: float = 0.0
     prev_open_interest: float = 0.0
     oi_updated_at: float = 0.0
+    # Long/Short ratio (from REST)
+    crowd_long_pct: float = 0.5
+    top_long_pct: float = 0.5
+    smart_divergence: float = 0.0  # top_long - crowd_long
     # Tick counter (for dashboard activity)
     msg_count: int = 0
     last_trade_price: float = 0.0
@@ -136,6 +143,7 @@ class SymbolState:
     price_history: deque = field(default_factory=lambda: deque(maxlen=60))
     basis_history: deque = field(default_factory=lambda: deque(maxlen=60))
     funding_history: deque = field(default_factory=lambda: deque(maxlen=60))
+    smart_div_history: deque = field(default_factory=lambda: deque(maxlen=60))
 
 
 @dataclass
@@ -287,10 +295,11 @@ class LiveBot:
         if st.index_price > 0:
             st.basis_bps = (st.mark_price - st.index_price) / st.index_price * 1e4
 
-    # ── OI Polling ───────────────────────────────────────────────
+    # ── OI + L/S Ratio Polling ──────────────────────────────────
     async def oi_loop(self):
         async with aiohttp.ClientSession() as session:
             while self.running:
+                # Poll OI for all symbols
                 for sym in ALL_SYMBOLS:
                     if not self.running:
                         break
@@ -311,8 +320,36 @@ class LiveBot:
                                 await asyncio.sleep(120)
                     except Exception as e:
                         log.warning("OI poll error %s: %s", sym.upper(), e)
-                    await asyncio.sleep(0.15)  # ~7/sec to stay under rate limit
-                await asyncio.sleep(max(1, OI_POLL_INTERVAL - len(ALL_SYMBOLS) * 0.15))
+                    await asyncio.sleep(0.15)
+
+                # Poll L/S ratios (global + top) for trade symbols
+                for sym in TRADE_SYMBOLS_LIST:
+                    if not self.running:
+                        break
+                    st = self.states.get(sym)
+                    if not st:
+                        continue
+                    try:
+                        # Global L/S ratio
+                        async with session.get(LS_RATIO_URL, params={"symbol": sym, "period": "5m", "limit": 1}) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                if data:
+                                    st.crowd_long_pct = float(data[-1].get("longAccount", 0.5))
+                        await asyncio.sleep(0.15)
+                        # Top trader L/S ratio
+                        async with session.get(TOP_LS_URL, params={"symbol": sym, "period": "5m", "limit": 1}) as resp:
+                            if resp.status == 200:
+                                data = await resp.json()
+                                if data:
+                                    st.top_long_pct = float(data[-1].get("longAccount", 0.5))
+                        # Smart divergence
+                        st.smart_divergence = st.top_long_pct - st.crowd_long_pct
+                    except Exception as e:
+                        log.warning("L/S poll error %s: %s", sym, e)
+                    await asyncio.sleep(0.15)
+
+                await asyncio.sleep(max(1, OI_POLL_INTERVAL - len(ALL_SYMBOLS) * 0.3))
 
     # ── Signal computation ───────────────────────────────────────
     async def signal_loop(self):
@@ -409,21 +446,39 @@ class LiveBot:
                 else:
                     funding_detail = f"far({mins_to:.0f}min)"
 
-            # ── Signal 3: BTC lead-lag (ADA/ETH only) ────────
+            # ── Signal 3: BTC lead-lag (non-BTC only) ────────
             leadlag_signal = 0.0
             if sym != "BTCUSDT" and abs(btc_ret) > 2:
-                leadlag_signal = np.clip(btc_ret / 10, -1, 1)
+                leadlag_signal = float(np.clip(btc_ret / 10, -1, 1))
 
-            # ── Composite score ──────────────────────────────
-            composite = oi_signal * 0.5 + funding_signal * 0.3 + leadlag_signal * 0.2
+            # ── Signal 4: Smart money divergence ────────────
+            smart_signal = 0.0
+            smart_detail = "no_data"
+            st.smart_div_history.append(st.smart_divergence)
+            if len(st.smart_div_history) >= 5 and st.crowd_long_pct != 0.5:
+                div_arr = np.array(st.smart_div_history)
+                div_std = float(np.std(div_arr))
+                if div_std > 0:
+                    smart_z = float((div_arr[-1] - np.mean(div_arr)) / div_std)
+                    smart_signal = float(np.clip(smart_z / 2, -1, 1))
+                smart_detail = f"top={st.top_long_pct:.0%} crowd={st.crowd_long_pct:.0%} div={st.smart_divergence:+.3f}"
+
+            # ── Composite score (4 signals) ─────────────────
+            composite = (
+                oi_signal * 0.35 +
+                funding_signal * 0.20 +
+                leadlag_signal * 0.15 +
+                smart_signal * 0.30
+            )
 
             # Count confirming signals
             active_signals = sum([
                 abs(oi_signal) > 0.5,
                 abs(funding_signal) > 0.3,
                 abs(leadlag_signal) > 0.3,
+                abs(smart_signal) > 0.3,
             ])
-            leverage = LEVERAGE_MAP.get(active_signals, 1.0)
+            leverage = LEVERAGE_MAP.get(min(active_signals, 4), 1.0)
             leverage = min(leverage, MAX_LEVERAGE)
 
             self.signals[sym] = {
@@ -433,6 +488,8 @@ class LiveBot:
                 "funding_signal": round(funding_signal, 2),
                 "funding_detail": funding_detail,
                 "leadlag_signal": round(leadlag_signal, 2),
+                "smart_signal": round(smart_signal, 2),
+                "smart_detail": smart_detail,
                 "btc_ret": round(btc_ret, 1),
                 "active_signals": active_signals,
                 "leverage": leverage,
@@ -642,9 +699,10 @@ class LiveBot:
                 if header:
                     w.writerow(["timestamp", "session", "symbol", "mid_price", "oi",
                                "oi_signal", "funding_signal", "leadlag_signal",
+                               "smart_signal",
                                "composite", "active_signals", "leverage",
                                "spread_bps", "basis_bps", "funding_bps",
-                               "tradeable", "in_position", "oi_detail"])
+                               "tradeable", "in_position", "oi_detail", "smart_detail"])
                 for sym, sig in self.signals.items():
                     w.writerow([
                         now, session, sym,
@@ -653,6 +711,7 @@ class LiveBot:
                         sig.get("oi_signal", 0),
                         sig.get("funding_signal", 0),
                         sig.get("leadlag_signal", 0),
+                        sig.get("smart_signal", 0),
                         sig.get("composite", 0),
                         sig.get("active_signals", 0),
                         sig.get("leverage", 1),
@@ -662,6 +721,7 @@ class LiveBot:
                         sig.get("tradeable", False),
                         sym in self.positions,
                         sig.get("oi_detail", ""),
+                        sig.get("smart_detail", ""),
                     ])
         except Exception:
             log.exception("Signal CSV write error")

@@ -256,11 +256,11 @@ async function refreshState() {
                 <span style="font-size:11px;color:var(--muted)">${g.session?.toUpperCase()} ${tr ? '✓' : '✗'}</span></h3>
                 <div class="sig-row"><span class="lbl">Score</span><span class="comp ${cc}">${f(co, 2)}</span>
                 ${g.active_signals > 0 ? `<span class="lev-badge">${g.leverage}x</span>` : ''}</div>`;
-            for (const [k, v] of [['OI', g.oi_signal], ['Funding', g.funding_signal], ['BTC', g.leadlag_signal]]) {
+            for (const [k, v] of [['OI', g.oi_signal], ['Smart$', g.smart_signal], ['Funding', g.funding_signal], ['BTC', g.leadlag_signal]]) {
                 const val = v || 0, w = Math.min(Math.abs(val) * 60, 80), bc = val >= 0 ? 'bp' : 'bn';
                 sh += `<div class="sig-row"><span class="lbl">${k}</span><div class="bar ${bc}" style="width:${w}px"></div><span>${f(val)}</span></div>`;
             }
-            sh += `<div class="detail">OI: ${g.oi_detail || '--'}<br>Fund: ${g.funding_detail || '--'}</div></div>`;
+            sh += `<div class="detail">OI: ${g.oi_detail || '--'}<br>Smart: ${g.smart_detail || '--'}<br>Fund: ${g.funding_detail || '--'}</div></div>`;
         }
         document.getElementById('sigs').innerHTML = sh;
 

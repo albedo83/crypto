@@ -48,8 +48,9 @@ Binance Futures
               │
               ▼
     analysis/livebot.py  (single process)
-    ├── SignalEngine (every 10s)
-    │     OI divergence + funding proximity + BTC lead-lag
+    ├── SignalEngine (every 10s, 4 signals)
+    │     OI divergence (35%) + smart money (30%)
+    │     + funding proximity (20%) + BTC lead-lag (15%)
     │     → composite score per symbol
     ├── CapitalManager
     │     $1000 virtual capital, max 5 positions
@@ -91,10 +92,12 @@ Selected by OI/volume ratio scan of 544 Binance Futures perpetuals (`study_10_sy
 ### Key Findings (from 10 analysis studies)
 
 - OI divergence on ADA: +20.9 bps/trade net (37 trades over 7 days)
+- Smart money divergence: rho +0.43 on SUI (strongest signal found, study 13)
+- OI × Smart money correlation: 0.002 (independent → fusion improves +2.9 bps/trade)
 - Asia session = strongest edge (+36 bps/trade), Europe = worst (-32 bps)
 - Signal correlation across symbols: ~0.07 (independent → diversification works)
 - Micro-structure signals (book imbalance, 5-30s) don't survive fees (edge < cost)
-- Swing signals (OI divergence, 2h) survive fees (edge >> cost)
+- Swing signals (OI divergence + smart money, 2h) survive fees (edge >> cost)
 
 ## Legacy Architecture
 
