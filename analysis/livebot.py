@@ -81,6 +81,7 @@ MIN_SCORE = 0.3             # score minimum pour entrer
 TRADE_SESSIONS = {
     "asian": (0, 8),
     "us": (14, 21),
+    "overnight": (21, 24),  # low liquidity like Asia, includes pre-00h funding
 }
 # European (8-14) excluded — signal inverts
 
