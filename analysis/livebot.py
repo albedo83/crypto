@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "4.8.0"
+VERSION = "4.9.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -98,6 +98,8 @@ LEVERAGE_MAP = {
     4: 3.0,   # 4 signals → 3x (max)
 }
 MAX_LEVERAGE = 3.0
+MIN_HOLD_MINUTES = 10          # don't check reversal before 10 min
+COOLDOWN_MINUTES = 30          # block re-entry after exit on same symbol
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 TRADES_CSV = os.path.join(OUTPUT_DIR, "livebot_trades.csv")
@@ -185,6 +187,7 @@ class LiveBot:
     def __init__(self):
         self.states: dict[str, SymbolState] = {s.upper(): SymbolState() for s in ALL_SYMBOLS}
         self.positions: dict[str, Position] = {}
+        self._cooldowns: dict[str, datetime] = {}  # sym → earliest re-entry time
         self.trades: list[Trade] = []
         self.signals: dict[str, dict] = {}
         self.running = False
@@ -600,7 +603,9 @@ class LiveBot:
             exit_reason = None
             if held >= HOLD_MINUTES:
                 exit_reason = "timeout"
-            elif (pos.direction == 1 and comp < -0.3) or (pos.direction == -1 and comp > 0.3):
+            elif held >= MIN_HOLD_MINUTES and (
+                (pos.direction == 1 and comp < -0.3) or (pos.direction == -1 and comp > 0.3)
+            ):
                 exit_reason = "reversal"
             unrealized = pos.direction * (mid / pos.entry_price - 1) * 1e4
             leveraged_loss = unrealized * pos.leverage
@@ -609,6 +614,7 @@ class LiveBot:
 
             if exit_reason:
                 self._close_position(sym, mid, now, exit_reason)
+                self._cooldowns[sym] = now + timedelta(minutes=COOLDOWN_MINUTES)
 
         # ── Step 2: Collect & rank new entry candidates ──────
         if session is None:
@@ -618,6 +624,9 @@ class LiveBot:
         for sym in TRADE_SYMBOLS_LIST:
             if sym in self.positions:
                 continue  # already in position
+            # Anti-whipsaw: respect cooldown after exit
+            if sym in self._cooldowns and now < self._cooldowns[sym]:
+                continue
             sig = self.signals.get(sym)
             if not sig:
                 continue
@@ -625,6 +634,9 @@ class LiveBot:
             if abs(comp) < MIN_SCORE:
                 continue
             if sig["active_signals"] < 1:
+                continue
+            # Require OI divergence as primary signal
+            if abs(sig["oi_signal"]) < 0.1:
                 continue
             candidates.append((sym, sig, abs(comp)))
 
