@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "5.2.0"
+VERSION = "5.3.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -73,6 +73,7 @@ TOP_LS_URL = "https://fapi.binance.com/futures/data/topLongShortPositionRatio"
 SIGNAL_INTERVAL = 10        # compute signals every 10s
 HOLD_MINUTES = 120          # hold 2 hours
 COST_BPS = 4.0              # maker roundtrip (excl. spread)
+SLIPPAGE_BPS = 1.0          # simulated slippage (entry + exit)
 MAX_SPREAD_BPS = 3.0        # skip entry if spread > 3 bps
 OI_LOOKBACK = 18            # 18 ticks × 10s = 180s = 3 OI poll cycles
 STREAK_DISABLE = 3          # disable symbol after 3 consecutive losses
@@ -183,6 +184,8 @@ class Position:
     size_usdt: float = 0.0       # notional position size
     margin_usdt: float = 0.0     # capital locked (size / leverage)
     peak_bps: float = 0.0        # best unrealized P&L (for trailing stop)
+    funding_paid: float = 0.0    # cumulative funding paid/received (USDT)
+    last_funding_ts: int = 0     # last settlement timestamp processed
 
 
 @dataclass
@@ -625,6 +628,21 @@ class LiveBot:
             comp = sig["composite"]
             held = (now - pos.entry_time).total_seconds() / 60
 
+            # Simulate funding payment at settlement
+            st = self.states.get(sym)
+            if st and st.next_funding_ts > 0 and st.next_funding_ts != pos.last_funding_ts:
+                settle = datetime.fromtimestamp(st.next_funding_ts / 1000, tz=timezone.utc)
+                # If settlement just passed (within last 60s), we owe/receive funding
+                secs_since = (now - settle).total_seconds()
+                if 0 < secs_since < 60:
+                    # Long pays funding when rate > 0, short pays when rate < 0
+                    funding_cost = pos.size_usdt * st.funding_rate * pos.direction
+                    pos.funding_paid += funding_cost
+                    pos.last_funding_ts = st.next_funding_ts
+                    log.info("FUNDING %s %s: %+.4f$ (rate=%.1f bps, size=$%.0f)",
+                             sym, "LONG" if pos.direction == 1 else "SHORT",
+                             -funding_cost, st.funding_rate * 1e4, pos.size_usdt)
+
             unrealized = pos.direction * (mid / pos.entry_price - 1) * 1e4
             leveraged_unreal = unrealized * pos.leverage
 
@@ -801,14 +819,17 @@ class LiveBot:
         gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
         hold_min = (now - pos.entry_time).total_seconds() / 60
 
-        # P&L in dollars (correct: computed on leveraged size)
+        # P&L in dollars: gross - fees - slippage - funding
         pnl_usdt = pos.size_usdt * (pos.direction * (exit_price / pos.entry_price - 1))
         fee_usdt = pos.size_usdt * COST_BPS / 1e4
-        net_pnl_usdt = pnl_usdt - fee_usdt
+        slip_usdt = pos.size_usdt * SLIPPAGE_BPS / 1e4
+        funding_usdt = pos.funding_paid  # negative = we paid, positive = we received
+        net_pnl_usdt = pnl_usdt - fee_usdt - slip_usdt - funding_usdt
 
         # Bps metrics (on margin, leverage-aware)
+        total_cost_bps = COST_BPS + SLIPPAGE_BPS
         leveraged_gross_bps = gross_bps * pos.leverage
-        leveraged_net_bps = leveraged_gross_bps - COST_BPS  # bps fee on notional, constant per roundtrip
+        leveraged_net_bps = leveraged_gross_bps - total_cost_bps
 
         self._total_gross += gross_bps
         self._total_pnl_usdt += net_pnl_usdt  # running accumulator (dollars)
@@ -838,12 +859,13 @@ class LiveBot:
         wr = self._wins / n * 100 if n > 0 else 0
         balance = CAPITAL_USDT + self._total_pnl_usdt
         arrow = "+" if net_pnl_usdt > 0 else "-"
+        fund_str = f" fund=${funding_usdt:+.3f}" if abs(funding_usdt) > 0.001 else ""
         log.info(
             "%s EXIT %s %s | %.0fmin | $%.0f (%.0fx) | gross %+.1f bps | "
-            "fee $%.3f | %+.2f$ | balance $%.2f (#%d, win %.0f%%)",
+            "cost $%.3f (fee+slip)%s | %+.2f$ | balance $%.2f (#%d, win %.0f%%)",
             arrow, trade.direction, sym, hold_min,
             pos.size_usdt, pos.leverage, gross_bps,
-            fee_usdt, net_pnl_usdt, balance, n, wr,
+            fee_usdt + slip_usdt, fund_str, net_pnl_usdt, balance, n, wr,
         )
         return net_pnl_usdt
 
@@ -922,6 +944,7 @@ class LiveBot:
                 "hold_min": round((datetime.now(timezone.utc) - pos.entry_time).total_seconds() / 60, 1),
                 "peak_bps": round(pos.peak_bps, 2),
                 "trail_active": pos.peak_bps >= TRAIL_ACTIVATE_BPS,
+                "funding_paid": round(pos.funding_paid, 4),
                 "signals": pos.signals_detail,
             })
         now = datetime.now(timezone.utc)

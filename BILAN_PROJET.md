@@ -100,13 +100,37 @@ C'est un signal de "qualité du mouvement". On trade contre les mouvements faibl
 
 Si 10 signaux arrivent en même temps, le bot **trie par force du signal** et prend les 4 meilleurs. Les autres sont ignorés.
 
-Les frais Binance réels par trade (maker, VIP 0) :
+### Coûts simulés (v5.3 — réalistes pour le passage en prod)
 
-| Taille | Fee aller | Fee retour | Total |
-|--------|-----------|------------|-------|
-| $250 (1x) | $0.050 | $0.050 | **$0.100** |
-| $500 (2x) | $0.100 | $0.100 | **$0.200** |
-| $750 (3x) | $0.150 | $0.150 | **$0.300** |
+Le bot simule maintenant **tous les coûts réels** pour que le P&L paper soit proche du P&L prod :
+
+| Coût | Valeur | Explication |
+|------|--------|-------------|
+| **Fees maker** | 4 bps (0.02% × 2 côtés) | Ordres limit post-only en prod |
+| **Slippage** | 1 bps | Écart entre mid price et prix d'exécution réel |
+| **Funding** | Variable (toutes les 8h) | Long paie quand rate > 0, short paie quand rate < 0 |
+| **Total par trade** | ~5 bps + funding | Avant : 4 bps. Maintenant : réaliste |
+
+Exemple de coûts par taille de position :
+
+| Taille | Fee | Slippage | Total (hors funding) |
+|--------|-----|----------|---------------------|
+| $250 (1x) | $0.100 | $0.025 | **$0.125** |
+| $500 (2x) | $0.200 | $0.050 | **$0.250** |
+| $750 (3x) | $0.300 | $0.075 | **$0.375** |
+
+**Funding** : simulé en temps réel. Si le taux de funding est +5 bps et on est LONG $500, on paie $0.25 au settlement. Si on est SHORT, on reçoit $0.25. Visible dans les logs et le dashboard.
+
+### Piège au passage en prod
+
+| Risque | Impact | Prévention |
+|--------|--------|------------|
+| Ordres market (taker) au lieu de limit | Fees ×2.5 (10 bps au lieu de 4) | Utiliser post-only orders |
+| Slippage réel > 1 bps | P&L réduit | Le 1 bps simulé est conservateur |
+| Min notional ($5-20 selon symbole) | Ordres rejetés | Vérifier via exchangeInfo |
+| Step size / tick size | Ordres rejetés | Arrondir prix/qty aux bons décimales |
+| Leverage par défaut (souvent 20x) | Position trop grosse | Régler leverage par symbole avant 1er trade |
+| Margin mode (Cross vs Isolated) | Liquidation surprise | Utiliser Isolated margin |
 
 Le P&L est affiché en dollars sur le dashboard : balance courante, gain/perte par trade, frais déduits.
 
@@ -324,6 +348,10 @@ http://51.178.27.240:8095
 | v4.8.0 | 2026-03-22 | Restauration trades CSV au redémarrage (plus de perte de données) |
 | v4.9.0 | 2026-03-22 | **Anti-whipsaw** : hold min 10m, cooldown 30m, OI requis pour entrer |
 | v5.0.0 | 2026-03-22 | **Version majeure** : filtre volatilité, trailing stop, sessions asymétriques, sizing proportionnel, funding grab |
+| v5.0.1 | 2026-03-22 | Fix code review : funding grab break, margin cap, trailing stop raw bps |
+| v5.1.0 | 2026-03-22 | OI lookback 60s→180s, cross-symbol filter, spread filter, streak disable |
+| v5.2.0 | 2026-03-22 | Boutons STOP et RAZ sur le dashboard |
+| v5.3.0 | 2026-03-22 | Simulation réaliste : slippage 1 bps + funding en temps réel |
 
 ### Leçons de la v4.8 → v4.9 (premiers trades live)
 

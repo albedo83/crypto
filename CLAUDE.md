@@ -99,6 +99,10 @@ Selected by OI/volume ratio scan of 544 Binance Futures perpetuals (`study_10_sy
 - Cooldown: 30 min after exit on same symbol
 - OI signal required for entry (no trades on secondary signals alone)
 - Funding grab: -20% entry threshold in last 30 min before settlement
+- Spread filter: skip entry if spread > 3 bps
+- Streak disable: symbol disabled 12h after 3 consecutive losses
+- Cross-symbol filter: dampen score ×0.6 if >3 symbols aligned (macro move)
+- Simulated costs: 4 bps fees + 1 bps slippage + real-time funding payments
 
 ### Key Findings (from 10 analysis studies)
 
