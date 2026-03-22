@@ -46,6 +46,7 @@ TRADE_SYMBOLS_LIST = [
     "AVAXUSDT", "XRPUSDT", "XMRUSDT", "XLMUSDT", "TONUSDT", "LTCUSDT",
 ]
 ALL_SYMBOLS = REFERENCE_SYMBOLS + [s.lower() for s in TRADE_SYMBOLS_LIST]
+TRADE_SYMBOLS_SET = set(TRADE_SYMBOLS_LIST)
 
 # Build WS streams — split into chunks of max 50 symbols (150 streams)
 # Binance limit: 200 streams per connection
@@ -185,6 +186,7 @@ class LiveBot:
         self.trades: list[Trade] = []
         self.signals: dict[str, dict] = {}
         self.running = False
+        self._shutdown_event: asyncio.Event | None = None
         self.ws_connected = False
         self.ws_count = 0  # number of active WS connections
         self.started_at: datetime | None = None
@@ -192,6 +194,10 @@ class LiveBot:
         self._total_pnl_usdt = 0.0  # running accumulator (dollars)
         self._total_leveraged = 0.0
         self._wins = 0
+        # Msg rate tracking (reset every signal tick)
+        self._msg_window_count = 0
+        self._msg_window_start = 0.0
+        self._msg_rate = 0.0
 
     def _current_session(self) -> str | None:
         h = datetime.now(timezone.utc).hour
@@ -216,9 +222,14 @@ class LiveBot:
                     self.ws_count += 1
                     self.ws_connected = self.ws_count > 0
                     backoff = 3  # reset on success
+                    connect_time = time.time()
                     log.info("WS[%d] connected (total %d)", idx, self.ws_count)
                     async for raw in ws:
                         if not self.running:
+                            break
+                        # Proactive rotation before Binance 24h limit
+                        if time.time() - connect_time > 82800:  # 23h
+                            log.info("WS[%d] proactive rotation (23h)", idx)
                             break
                         self._on_ws_message(raw)
             except Exception as e:
@@ -238,6 +249,7 @@ class LiveBot:
         data = msg.get("data", {})
         if not data:
             return
+        self._msg_window_count += 1
         if "@bookTicker" in stream:
             self._on_book(data)
         elif "@aggTrade" in stream:
@@ -354,11 +366,19 @@ class LiveBot:
     # ── Signal computation ───────────────────────────────────────
     async def signal_loop(self):
         self._signal_log_counter = 0
+        self._msg_window_start = time.time()
         while self.running:
             await asyncio.sleep(SIGNAL_INTERVAL)
             if not self.ws_connected:
                 continue
             try:
+                # Update msg rate
+                now_t = time.time()
+                elapsed = now_t - self._msg_window_start
+                if elapsed > 0:
+                    self._msg_rate = self._msg_window_count / elapsed
+                self._msg_window_count = 0
+                self._msg_window_start = now_t
                 self._compute_signals()
                 self._trading_logic()
                 # Log signals to CSV every 60s (6 ticks × 10s)
@@ -387,9 +407,7 @@ class LiveBot:
             st.price_history.append(st.mid_price)
             st.basis_history.append(st.basis_bps)
             st.funding_history.append(st.funding_rate)
-            if st.open_interest > 0 and (
-                len(st.oi_history) == 0 or st.open_interest != st.oi_history[-1]
-            ):
+            if st.open_interest > 0:
                 st.oi_history.append(st.open_interest)
 
             # Reset trade accumulators
@@ -398,6 +416,7 @@ class LiveBot:
             st.buy_notional = 0.0
             st.sell_notional = 0.0
             st.trade_count = 0
+            st.volume_1s = 0.0
 
             if len(st.mids) < 6:
                 continue
@@ -405,22 +424,28 @@ class LiveBot:
             # ── Signal 1: OI Divergence ──────────────────────
             oi_signal = 0.0
             oi_detail = "no_data"
-            if len(st.oi_history) >= 3 and len(st.price_history) >= 6:
+            if len(st.oi_history) >= 6 and len(st.price_history) >= 6:
                 oi_now = st.oi_history[-1]
-                oi_prev = st.oi_history[-3] if len(st.oi_history) >= 3 else oi_now
+                oi_prev = st.oi_history[-6]  # same window as price [-6]
                 oi_change = (oi_now - oi_prev) / oi_prev * 100 if oi_prev > 0 else 0
 
                 price_now = st.price_history[-1]
-                price_prev = st.price_history[-6] if len(st.price_history) >= 6 else price_now
+                price_prev = st.price_history[-6]
                 price_change = (price_now / price_prev - 1) * 1e4
+
+                # Graduated strength based on divergence magnitude
+                strength = float(np.clip(
+                    (min(abs(price_change), 20) / 20 + min(abs(oi_change), 0.3) / 0.3) / 2,
+                    0.3, 1.0
+                ))
 
                 # Weak long: price up but OI down → fade (short)
                 if price_change > 3 and oi_change < -0.03:
-                    oi_signal = -1.0
+                    oi_signal = -strength
                     oi_detail = f"weak_long(p={price_change:+.0f},oi={oi_change:+.2f}%)"
                 # Weak short: price down but OI up → fade (long)
                 elif price_change < -3 and oi_change > 0.03:
-                    oi_signal = +1.0
+                    oi_signal = +strength
                     oi_detail = f"weak_short(p={price_change:+.0f},oi={oi_change:+.2f}%)"
                 else:
                     oi_detail = f"neutral(p={price_change:+.0f},oi={oi_change:+.2f}%)"
@@ -454,8 +479,9 @@ class LiveBot:
             # ── Signal 4: Smart money divergence ────────────
             smart_signal = 0.0
             smart_detail = "no_data"
-            st.smart_div_history.append(st.smart_divergence)
-            if len(st.smart_div_history) >= 5 and st.crowd_long_pct != 0.5:
+            if sym in TRADE_SYMBOLS_SET:
+                st.smart_div_history.append(st.smart_divergence)
+            if len(st.smart_div_history) >= 30 and st.crowd_long_pct != 0.5:
                 div_arr = np.array(st.smart_div_history)
                 div_std = float(np.std(div_arr))
                 if div_std > 0:
@@ -634,7 +660,7 @@ class LiveBot:
 
         # Bps metrics (on margin, leverage-aware)
         leveraged_gross_bps = gross_bps * pos.leverage
-        leveraged_net_bps = leveraged_gross_bps - COST_BPS  # fees don't scale with leverage
+        leveraged_net_bps = leveraged_gross_bps - COST_BPS  # bps fee on notional, constant per roundtrip
 
         self._total_gross += gross_bps
         self._total_pnl_usdt += net_pnl_usdt  # running accumulator (dollars)
@@ -823,9 +849,7 @@ class LiveBot:
         """Live market data for dashboard activity feed."""
         now = time.time()
         tickers = {}
-        total_msgs = 0
         for sym, st in self.states.items():
-            total_msgs += st.msg_count
             if st.mid_price == 0:
                 continue
             # Price change over last 60s from tick history
@@ -864,9 +888,7 @@ class LiveBot:
                 "trades_count": st.trade_count,
                 "chart": chart[-60:],  # last 60 points for sparkline
             }
-            st.volume_1s = 0  # reset
-
-        return {"tickers": tickers, "total_msgs_sec": total_msgs // max(1, int(now - self.started_at.timestamp())) if self.started_at else 0}
+        return {"tickers": tickers, "total_msgs_sec": round(self._msg_rate)}
 
 
 # ── FastAPI ──────────────────────────────────────────────────────────
@@ -902,6 +924,7 @@ async def api_ticker():
 # ── Entry point ──────────────────────────────────────────────────────
 async def main():
     bot.running = True
+    bot._shutdown_event = asyncio.Event()
     bot.started_at = datetime.now(timezone.utc)
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)
@@ -910,14 +933,26 @@ async def main():
     log.info("Reference: BTC, ETH | Sessions: Asia+US | Hold: %dmin | Cost: %.0fbps",
              HOLD_MINUTES, COST_BPS)
     log.info("WS connections: %d | Leverage: 1x→2x→3x", len(WS_URLS))
-    await asyncio.gather(server.serve(), bot.ws_loop(), bot.oi_loop(), bot.signal_loop())
+
+    async def _watch_shutdown():
+        await bot._shutdown_event.wait()
+        bot.running = False
+        server.should_exit = True
+
+    await asyncio.gather(
+        server.serve(), bot.ws_loop(), bot.oi_loop(),
+        bot.signal_loop(), _watch_shutdown(),
+    )
 
 
 def entry():
     loop = asyncio.new_event_loop()
     def stop(s, f):
         log.info("Shutting down...")
-        bot.running = False
+        if bot._shutdown_event:
+            loop.call_soon_threadsafe(bot._shutdown_event.set)
+        else:
+            bot.running = False
     signal.signal(signal.SIGINT, stop)
     signal.signal(signal.SIGTERM, stop)
     try:

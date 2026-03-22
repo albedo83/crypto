@@ -205,7 +205,9 @@ async function refreshTicker() {
         if (!tickersBuilt) buildTickers(entries);
         for (const [sym, t] of entries) updateTicker(sym, t);
         document.getElementById('activity').textContent = `~${d.total_msgs_sec || 0} msg/s`;
-    } catch(e) {}
+    } catch(e) {
+        document.getElementById('dot').className = 'dot off';
+    }
 }
 
 async function refreshState() {
