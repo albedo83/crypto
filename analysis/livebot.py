@@ -70,10 +70,10 @@ HOLD_MINUTES = 120          # hold 2 hours
 COST_BPS = 4.0              # maker roundtrip
 WEB_PORT = 8095
 
-# ── Capital management ───────────────────────────────────────────────
+# ── Capital management (Kelly-optimal) ───────────────────────────────
 CAPITAL_USDT = 1000.0       # capital total simulé
-MAX_POSITIONS = 5           # max 5 positions simultanées
-RISK_PER_TRADE_PCT = 18.0   # chaque position = 18% du capital (5 × 18 = 90% max)
+MAX_POSITIONS = 4           # max 4 positions simultanées
+RISK_PER_TRADE_PCT = 25.0   # full Kelly = 25% par position
 MAX_RISK_TOTAL_PCT = 90.0   # jamais plus de 90% du capital exposé
 MIN_SCORE = 0.3             # score minimum pour entrer
 
