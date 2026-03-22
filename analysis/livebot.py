@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "5.3.1"
+VERSION = "5.4.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -127,6 +127,7 @@ FUNDING_GRAB_MINUTES = 30      # aggressive mode window before settlement
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 TRADES_CSV = os.path.join(OUTPUT_DIR, "livebot_trades.csv")
 SIGNALS_CSV = os.path.join(OUTPUT_DIR, "livebot_signals.csv")
+POSITIONS_FILE = os.path.join(OUTPUT_DIR, "livebot_positions.json")
 HTML_PATH = os.path.join(os.path.dirname(__file__), "livebot.html")
 
 # ── Data structures ──────────────────────────────────────────────────
@@ -272,6 +273,50 @@ class LiveBot:
                          n, balance, self._wins / n * 100)
         except Exception:
             log.exception("Failed to load trades CSV")
+
+    def _save_positions(self):
+        """Save open positions to JSON for restart persistence."""
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        data = []
+        for sym, pos in self.positions.items():
+            data.append({
+                "symbol": pos.symbol, "direction": pos.direction,
+                "entry_price": pos.entry_price,
+                "entry_time": pos.entry_time.isoformat(),
+                "leverage": pos.leverage, "signals_detail": pos.signals_detail,
+                "size_usdt": pos.size_usdt, "margin_usdt": pos.margin_usdt,
+                "peak_bps": pos.peak_bps, "funding_paid": pos.funding_paid,
+                "last_funding_ts": pos.last_funding_ts,
+            })
+        with open(POSITIONS_FILE, "wb") as f:
+            f.write(orjson.dumps(data))
+        if data:
+            log.info("Saved %d open positions to disk", len(data))
+
+    def _load_positions(self):
+        """Restore open positions from JSON after restart."""
+        if not os.path.exists(POSITIONS_FILE):
+            return
+        try:
+            with open(POSITIONS_FILE, "rb") as f:
+                data = orjson.loads(f.read())
+            for p in data:
+                pos = Position(
+                    symbol=p["symbol"], direction=p["direction"],
+                    entry_price=p["entry_price"],
+                    entry_time=datetime.fromisoformat(p["entry_time"]),
+                    leverage=p["leverage"], signals_detail=p.get("signals_detail", {}),
+                    size_usdt=p["size_usdt"], margin_usdt=p["margin_usdt"],
+                    peak_bps=p.get("peak_bps", 0.0),
+                    funding_paid=p.get("funding_paid", 0.0),
+                    last_funding_ts=p.get("last_funding_ts", 0),
+                )
+                self.positions[pos.symbol] = pos
+            if self.positions:
+                log.info("Restored %d open positions from disk", len(self.positions))
+            os.remove(POSITIONS_FILE)  # clean up after load
+        except Exception:
+            log.exception("Failed to load positions")
 
     def _current_session(self) -> str | None:
         h = datetime.now(timezone.utc).hour
@@ -1150,6 +1195,7 @@ async def main():
     bot.running = True
     bot._shutdown_event = asyncio.Event()
     bot._load_trades_csv()
+    bot._load_positions()
     bot.started_at = datetime.now(timezone.utc)
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)
@@ -1183,18 +1229,14 @@ def entry():
     try:
         loop.run_until_complete(main())
     finally:
-        # Close any open positions at last known price
-        now = datetime.now(timezone.utc)
-        for sym in list(bot.positions.keys()):
-            st = bot.states.get(sym)
-            if st and st.mid_price > 0:
-                bot._close_position(sym, st.mid_price, now, "shutdown")
-                log.info("  Closed %s at shutdown", sym)
+        # Save open positions for restart (don't close them)
+        bot._save_positions()
         n = len(bot.trades)
-        if n:
+        np = len(bot.positions)
+        if n or np:
             balance = CAPITAL_USDT + bot._total_pnl_usdt
-            log.info("FINAL: %d trades | balance $%.2f | win %.0f%%",
-                     n, balance, bot._wins/n*100 if n else 0)
+            log.info("SHUTDOWN: %d trades | %d open positions saved | balance $%.2f",
+                     n, np, balance)
         loop.close()
 
 if __name__ == "__main__":
