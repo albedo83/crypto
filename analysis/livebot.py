@@ -146,7 +146,6 @@ class Position:
     signals_detail: dict
     size_usdt: float = 0.0       # notional position size
     margin_usdt: float = 0.0     # capital locked (size / leverage)
-    stop_loss_price: float = 0.0
 
 
 @dataclass
@@ -243,6 +242,7 @@ class LiveBot:
             return
         st.bid_price = float(d.get("b", 0))
         ask = float(d.get("a", 0))
+        st.ask_price = ask
         st.bid_qty = float(d.get("B", 0))
         st.ask_qty = float(d.get("A", 0))
         if st.bid_price > 0 and ask > 0:
@@ -343,7 +343,9 @@ class LiveBot:
             st.price_history.append(st.mid_price)
             st.basis_history.append(st.basis_bps)
             st.funding_history.append(st.funding_rate)
-            if st.open_interest > 0:
+            if st.open_interest > 0 and (
+                len(st.oi_history) == 0 or st.open_interest != st.oi_history[-1]
+            ):
                 st.oi_history.append(st.open_interest)
 
             # Reset trade accumulators
@@ -585,7 +587,8 @@ class LiveBot:
             hold_min=round(hold_min, 1), leverage=pos.leverage,
             size_usdt=round(pos.size_usdt, 2),
             signals=pos.signals_detail,
-            gross_bps=round(gross_bps, 2), net_bps=round(leveraged_net_bps, 2),
+            gross_bps=round(gross_bps, 2),
+            net_bps=round(gross_bps - COST_BPS, 2),  # unleveraged net (for chart)
             leveraged_net_bps=round(leveraged_net_bps, 2),
             pnl_usdt=round(net_pnl_usdt, 2),
             reason=reason, session=session,
@@ -627,14 +630,17 @@ class LiveBot:
         for sym, pos in self.positions.items():
             mid = self.signals.get(sym, {}).get("mid", pos.entry_price)
             unrealized = pos.direction * (mid / pos.entry_price - 1) * 1e4
+            leveraged_bps = unrealized * pos.leverage
+            pnl_usdt = pos.size_usdt * pos.direction * (mid / pos.entry_price - 1)
             positions.append({
                 "symbol": sym,
                 "direction": "LONG" if pos.direction == 1 else "SHORT",
                 "entry_price": pos.entry_price,
                 "entry_time": pos.entry_time.isoformat(),
-                "unrealized_bps": round(unrealized, 2),
+                "size_usdt": round(pos.size_usdt, 2),
+                "unrealized_bps": round(leveraged_bps, 2),  # leveraged bps on margin
+                "pnl_usdt": round(pnl_usdt, 2),
                 "leverage": pos.leverage,
-                "leveraged_unrealized": round(unrealized * pos.leverage, 2),
                 "hold_min": round((datetime.now(timezone.utc) - pos.entry_time).total_seconds() / 60, 1),
                 "signals": pos.signals_detail,
             })
@@ -647,7 +653,7 @@ class LiveBot:
         for st in self.states.values():
             if st.next_funding_ts > 0:
                 nf = datetime.fromtimestamp(st.next_funding_ts / 1000, tz=timezone.utc)
-                mins = (nf - now).total_seconds() / 60
+                mins = max(0, (nf - now).total_seconds() / 60)
                 if next_fund_min is None or mins < next_fund_min:
                     next_fund_min = round(mins, 0)
             if st.funding_rate != 0:

@@ -206,12 +206,12 @@ async function refreshState() {
         document.getElementById('pos-section').style.display = pos.length > 0 ? 'block' : 'none';
         if (pos.length > 0) {
             document.getElementById('pos').innerHTML = pos.map(p => {
-                const pnlUsd = (p.size_usdt||180) * (p.unrealized_bps||0) / 1e4;
+                const pu = p.pnl_usdt||0;
                 return `<tr><td>${p.symbol.replace('USDT','')}</td><td>${p.direction}</td>
                 <td>$${(p.size_usdt||0).toFixed(0)}</td><td class="y">${p.leverage}x</td>
                 <td>${p.entry_price.toFixed(p.entry_price<1?5:2)}</td>
                 <td class="${c(p.unrealized_bps)}">${f(p.unrealized_bps)}bps</td>
-                <td class="${c(pnlUsd)}">${pnlUsd>=0?'+':''}$${pnlUsd.toFixed(2)}</td>
+                <td class="${c(pu)}" style="font-weight:700">${pu>=0?'+':''}$${pu.toFixed(2)}</td>
                 <td>${p.hold_min.toFixed(0)}m</td></tr>`;
             }).join('');
         }
@@ -236,13 +236,15 @@ async function refreshState() {
         document.getElementById('trades-section').style.display = t.length > 0 ? 'block' : 'none';
         if (t.length > 0) {
             document.getElementById('tr').innerHTML = t.map(x => {
-                const fees = ((x.size_usdt||180) * 4 / 1e4).toFixed(2);
+                const sz = x.size_usdt||0;
+                const fee = (sz * 4 / 1e4);  // 4bps on notional
+                const pu = x.pnl_usdt||0;
                 return `<tr><td>${new Date(x.exit_time).toLocaleTimeString()}</td><td>${x.symbol.replace('USDT','')}</td><td>${x.direction}</td>
-                <td>$${(x.size_usdt||0).toFixed(0)}</td><td class="y">${x.leverage}x</td><td>${x.hold_min}m</td>
+                <td>$${sz.toFixed(0)}</td><td class="y">${x.leverage}x</td><td>${x.hold_min}m</td>
                 <td class="${c(x.gross_bps)}">${f(x.gross_bps)}bps</td>
-                <td style="color:var(--red)">-$${fees}</td>
-                <td class="${c(x.net_bps)}">${f(x.net_bps)}bps</td>
-                <td class="${c(x.pnl_usdt||0)}" style="font-weight:700">${(x.pnl_usdt||0)>=0?'+':''}$${(x.pnl_usdt||0).toFixed(2)}</td>
+                <td style="color:var(--red)">-$${fee.toFixed(3)}</td>
+                <td class="${c(x.leveraged_net_bps||0)}">${f(x.leveraged_net_bps||0)}bps</td>
+                <td class="${c(pu)}" style="font-weight:700">${pu>=0?'+':''}$${pu.toFixed(2)}</td>
                 <td>${x.reason}</td></tr>`;
             }).join('');
         }
