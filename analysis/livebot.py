@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "5.5.0"
+VERSION = "5.6.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -83,6 +83,8 @@ OI_LOOKBACK = 18            # 18 ticks × 10s = 180s = 3 OI poll cycles
 STREAK_DISABLE = 3          # disable symbol after 3 consecutive losses
 STREAK_COOLDOWN_H = 12      # re-enable after 12 hours
 CORRELATION_MAX = 3          # if >3 symbols aligned, reduce confidence
+TREND_LOOKBACK = 90          # 90 ticks × 10s = 15 min
+TREND_THRESHOLD_BPS = 50     # don't fade a move > 50 bps over 15 min
 WEB_PORT = 8095
 
 # ── Capital management (Kelly-optimal) ───────────────────────────────
@@ -795,6 +797,17 @@ class LiveBot:
                 vol = float(np.std(returns, ddof=1)) if len(returns) > 1 else 0
                 if vol > VOL_MAX_BPS:
                     log.info("VOL SKIP %s: %.1f bps > %.1f limit", sym, vol, VOL_MAX_BPS)
+                    continue
+            # Trend filter: don't fade a real trend
+            direction = 1 if comp > 0 else -1
+            if st and len(st.mids) >= TREND_LOOKBACK:
+                trend_bps = (st.mids[-1] / st.mids[-TREND_LOOKBACK] - 1) * 1e4
+                # Long into a downtrend or short into an uptrend = fading a real move
+                if direction == 1 and trend_bps < -TREND_THRESHOLD_BPS:
+                    log.info("TREND SKIP %s LONG: trend %.0f bps (15m)", sym, trend_bps)
+                    continue
+                if direction == -1 and trend_bps > TREND_THRESHOLD_BPS:
+                    log.info("TREND SKIP %s SHORT: trend +%.0f bps (15m)", sym, trend_bps)
                     continue
             candidates.append((sym, sig, effective_score))
 
