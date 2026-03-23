@@ -97,32 +97,32 @@ async def download_klines(session: aiohttp.ClientSession, sem: asyncio.Semaphore
 
 async def download_oi(session: aiohttp.ClientSession, sem: asyncio.Semaphore,
                       symbol: str, start_ms: int, end_ms: int) -> list[dict]:
-    """Download 5m OI history. Binance limits to ~30 days, so we chunk by 28 days."""
+    """Download 5m OI history. Binance limits to ~27 days max, 500 rows per request."""
     url = BASE + ENDPOINTS["oi"]
-    rows = []
-    chunk_ms = 28 * 86400 * 1000  # 28 days
+    all_rows = []
     limit = 500
+    max_hist_ms = 27 * 86400 * 1000
+    effective_start = max(start_ms, end_ms - max_hist_ms)
+    effective_start = effective_start - (effective_start % 300000)
 
-    chunk_start = start_ms
-    while chunk_start < end_ms:
-        chunk_end = min(chunk_start + chunk_ms, end_ms)
-        current = chunk_start
-        while current < chunk_end:
-            params = {"symbol": symbol, "period": "5m", "startTime": current,
-                      "endTime": chunk_end, "limit": limit}
-            data = await fetch_json(session, url, params, sem)
-            if not data:
-                break
-            for d in data:
-                rows.append({
-                    "timestamp": int(d.get("timestamp", 0)),
-                    "oi": float(d.get("sumOpenInterest", 0)),
-                })
-            current = int(data[-1].get("timestamp", current)) + 300000
-            if len(data) < limit:
-                break
-        chunk_start = chunk_end
-    return rows
+    # Paginate forward in time using startTime + endTime windows
+    window_ms = limit * 300000  # 500 * 5min = ~1.7 days per request
+    current = effective_start
+    while current < end_ms:
+        window_end = min(current + window_ms, end_ms)
+        params = {"symbol": symbol, "period": "5m", "startTime": current,
+                  "endTime": window_end, "limit": limit}
+        data = await fetch_json(session, url, params, sem)
+        if not data:
+            current = window_end
+            continue
+        for d in data:
+            all_rows.append({
+                "timestamp": int(d.get("timestamp", 0)),
+                "oi": float(d.get("sumOpenInterest", 0)),
+            })
+        current = int(data[-1].get("timestamp", 0)) + 300000
+    return all_rows
 
 
 async def download_funding(session: aiohttp.ClientSession, sem: asyncio.Semaphore,
@@ -152,32 +152,31 @@ async def download_funding(session: aiohttp.ClientSession, sem: asyncio.Semaphor
 async def download_ls_ratio(session: aiohttp.ClientSession, sem: asyncio.Semaphore,
                             symbol: str, start_ms: int, end_ms: int,
                             endpoint_key: str) -> list[dict]:
-    """Download long/short ratio history. Binance limits to ~30 days, chunk by 28."""
+    """Download long/short ratio history. Binance limits to ~27 days max."""
     url = BASE + ENDPOINTS[endpoint_key]
-    rows = []
-    chunk_ms = 28 * 86400 * 1000
+    all_rows = []
     limit = 500
+    max_hist_ms = 27 * 86400 * 1000
+    effective_start = max(start_ms, end_ms - max_hist_ms)
+    effective_start = effective_start - (effective_start % 300000)
 
-    chunk_start = start_ms
-    while chunk_start < end_ms:
-        chunk_end = min(chunk_start + chunk_ms, end_ms)
-        current = chunk_start
-        while current < chunk_end:
-            params = {"symbol": symbol, "period": "5m", "startTime": current,
-                      "endTime": chunk_end, "limit": limit}
-            data = await fetch_json(session, url, params, sem)
-            if not data:
-                break
-            for d in data:
-                rows.append({
-                    "timestamp": int(d.get("timestamp", 0)),
-                    "long_account": float(d.get("longAccount", 0.5)),
-                })
-            current = int(data[-1].get("timestamp", current)) + 300000
-            if len(data) < limit:
-                break
-        chunk_start = chunk_end
-    return rows
+    window_ms = limit * 300000
+    current = effective_start
+    while current < end_ms:
+        window_end = min(current + window_ms, end_ms)
+        params = {"symbol": symbol, "period": "5m", "startTime": current,
+                  "endTime": window_end, "limit": limit}
+        data = await fetch_json(session, url, params, sem)
+        if not data:
+            current = window_end
+            continue
+        for d in data:
+            all_rows.append({
+                "timestamp": int(d.get("timestamp", 0)),
+                "long_account": float(d.get("longAccount", 0.5)),
+            })
+        current = int(data[-1].get("timestamp", 0)) + 300000
+    return all_rows
 
 
 def save_csv(rows: list[dict], filepath: str):
