@@ -60,7 +60,61 @@ Backtest sur données historiques Binance. Klines 90j, OI/LS 27j, Funding 90j.
 
 **P&L simulation**: +$53 sur 90j à $250/trade = +$17.6/mois
 
+## Backtest 1 AN — Extreme Reversion (signal principal validé)
+
+**Période** : 23 mars 2025 → 23 mars 2026 (365 jours, 10 symboles)
+
+### Résultats bruts signal
+
+| Signal | Net/trade | Trades/jour | Win% | Robustesse |
+|---|---|---|---|---|
+| **Extreme Reversion >150bps** | **+7.5 bps** | 85 | 53% | ✓ 1 an, 31182 trades |
+| Funding Sniper >3bps | +1.2 bps | 0.8 | 54% | ⚠ fragile sur 1 an |
+| Combiné | +7.4 bps | 86 | 53% | ✓ |
+
+### Funding Sniper : edge instable dans le temps
+
+| Période | Net/trade |
+|---|---|
+| 27 jours | +24.8 bps |
+| 90 jours | +19.9 bps |
+| **1 an** | **+1.2 bps** ← quasi-nul |
+
+Le funding sniper surperformait sur la période récente mais ne tient pas sur 1 an. L'extreme reversion est le vrai moteur.
+
+### Par mois (combiné, hold 120m)
+
+| Mois | Trades | Net bps | Résultat |
+|---|---|---|---|
+| 2025-03 | 839 | -9.7 | ✗ |
+| 2025-04 | 3142 | +6.4 | ✓ |
+| 2025-05 | 3426 | -6.9 | ✗ |
+| 2025-06 | 2002 | -8.4 | ✗ |
+| 2025-07 | 3068 | -14.8 | ✗ |
+| 2025-08 | 2292 | +14.3 | ✓ |
+| 2025-09 | 1275 | -14.3 | ✗ |
+| 2025-10 | 2889 | +52.8 | ✓✓ |
+| 2025-11 | 3565 | +10.7 | ✓ |
+| 2025-12 | 1612 | -22.1 | ✗ |
+| 2026-01 | 2469 | -9.2 | ✗ |
+| 2026-02 | 3618 | +38.2 | ✓✓ |
+| 2026-03 | 1263 | +17.1 | ✓ |
+
+**6 mois perdants / 13** — mais les gagnants gagnent plus que les perdants perdent.
+
+### Par symbole (1 an)
+
+Tous positifs sauf AVAXUSDT (-1.5 bps). BNB est le meilleur (+23 bps).
+
+### Estimation P&L réaliste
+
+- Max ~22 trades/jour (4 positions × 11h / 2h hold)
+- 22 × $250 × 7.4 bps = **~$4/jour = $123/mois = 12%/mois**
+- Max drawdown : important (>$1000 en simulation brute)
+- **6 mois perdants sur 13** — nécessite un circuit breaker ou filtre de régime
+
 ## Pistes ouvertes
-- Combiner Funding Sniper avec Extreme Reversion pour plus de trades
-- Détecter le DÉBUT d'un gros move (pas le milieu) — insight du Multi-TF
-- Filtrer les symboles perdants (TRX, BCH, TON) du Funding Sniper
+- Filtre de régime pour réduire les mois perdants
+- Circuit breaker (stop après N pertes/jour)
+- Retirer AVAXUSDT (seul perdant sur 1 an)
+- Le Funding Sniper ne vaut pas la peine sur le long terme
