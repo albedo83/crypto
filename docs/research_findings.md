@@ -113,8 +113,31 @@ Tous positifs sauf AVAXUSDT (-1.5 bps). BNB est le meilleur (+23 bps).
 - Max drawdown : important (>$1000 en simulation brute)
 - **6 mois perdants sur 13** — nécessite un circuit breaker ou filtre de régime
 
+## Delta-Neutral Funding Carry — Analyse 1 an
+
+### Sans basis risk (funding seul)
+- 1 pair × 3x : **+3.6%/mois, 0 mois perdants** (trop beau)
+- Le funding est mécanique : XMR (mean +1.62 bps) + ZRO (mean -0.89 bps)
+
+### Avec basis risk (réaliste)
+- Carry seul : **+$232/an = +1.8%/mois** mais **7 mois perdants**
+- La divergence de prix entre les deux legs détruit les gains de funding
+- Le basis risk est le vrai problème du carry delta-neutral
+
+### Combo Carry + Extreme Reversion (simulation complète)
+- **Résultat : -$782 sur 1 an** → le combo ne marche pas
+- Le carry fait +$232, l'extreme reversion fait -$1014
+- L'extreme reversion perd en simulation avec hold fixe 2h (pas de trailing stop)
+
+### Leçon clé
+Le carry sans gestion du basis risk promet 3.6%/mois mais livre 1.8%.
+L'extreme reversion a un signal valide (+7.5 bps) mais la gestion de position doit
+inclure un trailing stop pour capturer l'edge.
+
+**Test en cours** : extreme reversion avec trailing stop + stop loss réels, 9 configs × 1 an.
+
 ## Pistes ouvertes
-- Filtre de régime pour réduire les mois perdants
+- Extreme reversion avec trailing stop (en cours de backtest)
 - Circuit breaker (stop après N pertes/jour)
-- Retirer AVAXUSDT (seul perdant sur 1 an)
-- Le Funding Sniper ne vaut pas la peine sur le long terme
+- Carry pur (sans extreme) comme base à ~2%/mois
+- Réduire le basis risk du carry (rebalance plus fréquent, stop si divergence > seuil)
