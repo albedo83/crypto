@@ -492,8 +492,19 @@ Compteurs remis à zéro pour la v5.5.
    **Option A : Résidence Suisse** (recommandé si possible)
    - Binance Futures **autorisé** — pas de restriction FINMA sur les dérivés crypto
    - Le bot fonctionne tel quel, aucune migration nécessaire
-   - Fiscalité : gains en capital **exonérés** pour les particuliers (sauf trader pro)
    - KYC Binance avec adresse suisse → accès complet Futures
+   - Fiscalité très avantageuse :
+
+   | | France | Suisse |
+   |---|---|---|
+   | Binance Futures | Interdit (AMF) | **Autorisé** (FINMA) |
+   | Impôt gains crypto | 30% flat (PFU) | **0%** (particulier) |
+   | Seuil requalification pro | Dès le 1er € | Volume très élevé |
+   | Déclaration | Obligatoire (3916-bis) | Fortune uniquement |
+
+   Gains en capital = **exonérés** tant qu'on n'est pas qualifié "trader professionnel"
+   (critères AFC : volume très élevé + levier + activité principale + emprunt).
+   Un bot sur $1-10k en gestion privée → aucun risque de requalification.
 
    **Option B : DEX depuis la France**
 
