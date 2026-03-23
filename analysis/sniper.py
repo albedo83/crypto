@@ -35,7 +35,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [SNP] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("sniper")
 
-VERSION = "6.0.0"
+VERSION = "6.0.1"
 
 # ── Config ───────────────────────────────────────────────────────────
 REFERENCE_SYMBOLS = ["btcusdt", "ethusdt"]
@@ -68,8 +68,8 @@ HOLD_MINUTES = 120
 
 # Costs
 BNB_FEE_DISCOUNT = True
-COST_BPS = 3.0 if BNB_FEE_DISCOUNT else 4.0
-SLIPPAGE_BPS = 1.0
+COST_BPS = 3.0 if BNB_FEE_DISCOUNT else 4.0  # roundtrip (entry+exit): 0.015%×2 with BNB
+SLIPPAGE_BPS = 1.0                           # roundtrip slippage estimate (entry+exit)
 
 # ── Signal 1: Funding Sniper ─────────────────────────────────────────
 FUNDING_THRESH_BPS = 3.0       # min |funding rate| to trigger
@@ -134,6 +134,7 @@ class Position:
     margin_usdt: float
     signal_type: str         # "funding" or "extreme"
     detail: str
+    entry_session: str = ""
     peak_bps: float = 0.0
     funding_paid: float = 0.0
     last_funding_ts: int = 0
@@ -197,7 +198,7 @@ class SniperBot:
                         entry_time=row["entry_time"], exit_time=row["exit_time"],
                         entry_price=float(row["entry_price"]), exit_price=float(row["exit_price"]),
                         hold_min=float(row["hold_min"]), leverage=float(row["leverage"]),
-                        size_usdt=float(row["size_usdt"]), signals={},
+                        size_usdt=float(row["size_usdt"]),
                         gross_bps=float(row["gross_bps"]), net_bps=float(row["net_bps"]),
                         leveraged_net_bps=float(row["leveraged_net_bps"]),
                         pnl_usdt=float(row["pnl_usdt"]), reason=row["reason"],
@@ -224,7 +225,8 @@ class SniperBot:
                 "entry_price": pos.entry_price, "entry_time": pos.entry_time.isoformat(),
                 "leverage": pos.leverage, "size_usdt": pos.size_usdt,
                 "margin_usdt": pos.margin_usdt, "signal_type": pos.signal_type,
-                "detail": pos.detail, "peak_bps": pos.peak_bps,
+                "detail": pos.detail, "entry_session": pos.entry_session,
+                "peak_bps": pos.peak_bps,
                 "funding_paid": pos.funding_paid, "last_funding_ts": pos.last_funding_ts,
             })
         with open(POSITIONS_FILE, "wb") as f:
@@ -245,13 +247,14 @@ class SniperBot:
                     entry_time=datetime.fromisoformat(p["entry_time"]),
                     leverage=p["leverage"], size_usdt=p["size_usdt"],
                     margin_usdt=p["margin_usdt"], signal_type=p.get("signal_type", "?"),
-                    detail=p.get("detail", ""), peak_bps=p.get("peak_bps", 0),
+                    detail=p.get("detail", ""), entry_session=p.get("entry_session", ""),
+                    peak_bps=p.get("peak_bps", 0),
                     funding_paid=p.get("funding_paid", 0), last_funding_ts=p.get("last_funding_ts", 0),
                 )
                 self.positions[pos.symbol] = pos
             if self.positions:
                 log.info("Restored %d positions from disk", len(self.positions))
-            os.remove(POSITIONS_FILE)
+            os.rename(POSITIONS_FILE, POSITIONS_FILE + ".loaded")
         except Exception:
             log.exception("Failed to load positions")
 
@@ -431,6 +434,10 @@ class SniperBot:
             st = self.states.get(sym)
             if not st or st.mid_price == 0 or st.next_funding_ts == 0:
                 continue
+            if time.time() - st.tick_ts > 30:  # stale price
+                continue
+            if st.spread_bps > 5.0:  # illiquid
+                continue
 
             rate_bps = st.funding_rate * 1e4
             if abs(rate_bps) < FUNDING_THRESH_BPS:
@@ -453,7 +460,7 @@ class SniperBot:
                 symbol=sym, direction=direction, entry_price=st.mid_price,
                 entry_time=now, leverage=FUNDING_LEVERAGE,
                 size_usdt=size, margin_usdt=margin,
-                signal_type="funding", detail=detail,
+                signal_type="funding", detail=detail, entry_session=session,
             )
             remaining -= margin
             log.info("→ FUNDING %s %s @ %.4f | $%.0f (%.0fx) | %s | %d/%d",
@@ -469,10 +476,14 @@ class SniperBot:
             st = self.states.get(sym)
             if not st or st.mid_price == 0:
                 continue
+            if time.time() - st.tick_ts > 30:  # stale price
+                continue
+            if st.spread_bps > 5.0:  # illiquid
+                continue
             if len(st.price_1m) < EXTREME_LOOKBACK:
                 continue
 
-            price_now = st.price_1m[-1]
+            price_now = st.mid_price  # live price, not buffered
             price_1h_ago = st.price_1m[-EXTREME_LOOKBACK]
             move_bps = (price_now / price_1h_ago - 1) * 1e4
 
@@ -492,7 +503,7 @@ class SniperBot:
                 symbol=sym, direction=direction, entry_price=st.mid_price,
                 entry_time=now, leverage=EXTREME_LEVERAGE,
                 size_usdt=size, margin_usdt=margin,
-                signal_type="extreme", detail=detail,
+                signal_type="extreme", detail=detail, entry_session=session,
             )
             remaining -= margin
             log.info("→ EXTREME %s %s @ %.4f | $%.0f (%.0fx) | %s | %d/%d",
@@ -506,11 +517,11 @@ class SniperBot:
         hold_min = (now - pos.entry_time).total_seconds() / 60
 
         pnl_usdt = pos.size_usdt * pos.direction * (exit_price / pos.entry_price - 1)
-        fee_usdt = pos.size_usdt * COST_BPS / 1e4
-        slip_usdt = pos.size_usdt * SLIPPAGE_BPS / 1e4
+        fee_usdt = pos.size_usdt * COST_BPS / 1e4          # COST_BPS = roundtrip (both legs)
+        slip_usdt = pos.size_usdt * SLIPPAGE_BPS / 1e4     # SLIPPAGE_BPS = roundtrip estimate
         net_pnl = pnl_usdt - fee_usdt - slip_usdt - pos.funding_paid
 
-        total_cost = COST_BPS + SLIPPAGE_BPS
+        total_cost = COST_BPS + SLIPPAGE_BPS  # already roundtrip
         lev_gross = gross_bps * pos.leverage
         lev_net = lev_gross - total_cost
 
@@ -528,7 +539,7 @@ class SniperBot:
             net_bps=round(gross_bps - total_cost, 2),
             leveraged_net_bps=round(lev_net, 2), pnl_usdt=round(net_pnl, 2),
             reason=reason, signal_type=pos.signal_type,
-            session=self._current_session() or "?",
+            session=pos.entry_session or self._current_session() or "?",
         )
         self.trades.append(trade)
         self._write_csv(trade)
