@@ -155,9 +155,7 @@ function buildTickers(entries) {
 function updateTicker(sym, t) {
     const el = document.getElementById('tk-' + sym);
     if (!el) return;
-    const stateSignals = window._lastSignals || {};
-    const sigData = stateSignals[sym];
-    const isActive = sigData && Math.abs(sigData.composite||0) >= 0.3 && sigData.tradeable;
+    const isExtreme = Math.abs(t.ret_1h_bps||0) >= 150;
 
     // Flash background briefly on price change
     if (prevPrices[sym] && t.price !== prevPrices[sym]) {
@@ -167,21 +165,22 @@ function updateTicker(sym, t) {
     }
     prevPrices[sym] = t.price;
 
-    el.className = 'ticker' + (isActive ? ' active' : '');
+    el.className = 'ticker' + (isExtreme ? ' active' : '');
 
-    // Update values in place (no innerHTML on parent)
-    el.querySelector('.tk-score').innerHTML = sigData ? `<span class="${c(sigData.composite)}" style="font-weight:700">${f(sigData.composite,2)}</span>` : '';
-    el.querySelector('.tk-meta2').textContent = `basis ${t.basis_bps} | fund ${t.funding_bps}bps`;
+    // Update values
+    const ret1h = t.ret_1h_bps||0;
+    el.querySelector('.tk-score').innerHTML = `<span class="${c(ret1h)}" style="font-weight:700">${f(ret1h,0)}bps</span>`;
+    el.querySelector('.tk-meta2').textContent = `fund ${t.funding_bps}bps | basis ${t.basis_bps}`;
     const priceEl = el.querySelector('.tk-price');
     priceEl.textContent = fmtPrice(t.price);
 
     const c1 = el.querySelector('.tk-c1');
-    c1.textContent = '1m: ' + f(t.change_1m_bps) + 'bps';
-    c1.className = 'tk-c1 ' + (t.change_1m_bps >= 0 ? 'p' : 'n');
+    c1.textContent = '1h: ' + f(ret1h) + 'bps';
+    c1.className = 'tk-c1 ' + (ret1h >= 0 ? 'p' : 'n');
 
     const c5 = el.querySelector('.tk-c5');
-    c5.textContent = '5m: ' + f(t.change_5m_bps) + 'bps';
-    c5.className = 'tk-c5 ' + (t.change_5m_bps >= 0 ? 'p' : 'n');
+    c5.textContent = 'fund: ' + f(t.funding_bps,1) + 'bps';
+    c5.className = 'tk-c5 ' + (t.funding_bps >= 0 ? 'p' : 'n');
 
     const side = el.querySelector('.tk-side');
     side.textContent = t.last_side;
@@ -205,15 +204,9 @@ async function refreshTicker() {
     try {
         const res = await fetch('/api/ticker');
         const d = await res.json();
-        const stateSignals = window._lastSignals || {};
         const entries = Object.entries(d.tickers || {});
-        // Sort: tradeable first, then by score
-        entries.sort((a,b) => {
-            const sa = stateSignals[a[0]], sb = stateSignals[b[0]];
-            const ta = sa?.tradeable?1:0, tb = sb?.tradeable?1:0;
-            if (ta !== tb) return tb - ta;
-            return Math.abs(sb?.composite||0) - Math.abs(sa?.composite||0);
-        });
+        // Sort by absolute 1h return (biggest moves first)
+        entries.sort((a,b) => Math.abs(b[1].ret_1h_bps||0) - Math.abs(a[1].ret_1h_bps||0));
         // Build DOM once, then update in place
         if (!tickersBuilt) buildTickers(entries);
         for (const [sym, t] of entries) updateTicker(sym, t);
