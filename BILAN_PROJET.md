@@ -485,8 +485,28 @@ Compteurs remis à zéro pour la v5.5.
    - Commandes : `python3 -m analysis.carrybot`
 
 4. **Passage en production** (si paper trading positif) :
-   - Ajouter API key Binance
-   - Remplacer paper trading par vrais ordres limit (maker)
+
+   **⚠ Binance Futures interdit aux résidents français** depuis 2022 (AMF).
+   Le paper trading actuel utilise des données publiques (pas de compte) = pas de problème.
+   Pour passer en prod avec de vrais ordres, il faut changer de plateforme.
+
+   **Plateformes alternatives :**
+
+   | Plateforme | Type | Perpétuels | OI | Funding | KYC | Adaptation |
+   |---|---|---|---|---|---|---|
+   | **Hyperliquid** | DEX | Oui | Oui (API) | Oui | Non | Moyenne |
+   | **DYDX v4** | DEX | Oui | Oui (API) | Oui | Non | Moyenne |
+   | **Bybit** | CEX | Oui | Oui (API) | Oui | Oui | Facile |
+
+   **Recommandation : Hyperliquid** — DEX le plus liquide, pas de KYC, API REST+WS,
+   OI et funding disponibles. La stratégie reste la même, seuls les endpoints changent.
+
+   **Plan de migration :**
+   1. Valider le paper trading sur Binance (2-3 semaines)
+   2. Adapter les endpoints WS/REST à Hyperliquid
+   3. Paper trading sur Hyperliquid (1 semaine)
+   4. Prod avec petit capital ($100-200)
+   5. Monter progressivement si rentable
    - Commencer avec $100-200 de capital réel
    - Garder le paper trading en parallèle pour comparer
 | Horizon 2h (pas 30s) | Les frais (4 bps) mangent l'edge micro (1-2 bps) mais pas l'edge swing (20+ bps) |
