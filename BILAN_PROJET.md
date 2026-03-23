@@ -488,9 +488,14 @@ Compteurs remis à zéro pour la v5.5.
 
    **⚠ Binance Futures interdit aux résidents français** depuis 2022 (AMF).
    Le paper trading actuel utilise des données publiques (pas de compte) = pas de problème.
-   Pour passer en prod avec de vrais ordres, il faut changer de plateforme.
 
-   **Plateformes alternatives :**
+   **Option A : Résidence Suisse** (recommandé si possible)
+   - Binance Futures **autorisé** — pas de restriction FINMA sur les dérivés crypto
+   - Le bot fonctionne tel quel, aucune migration nécessaire
+   - Fiscalité : gains en capital **exonérés** pour les particuliers (sauf trader pro)
+   - KYC Binance avec adresse suisse → accès complet Futures
+
+   **Option B : DEX depuis la France**
 
    | Plateforme | Type | Perpétuels | OI | Funding | KYC | Adaptation |
    |---|---|---|---|---|---|---|
@@ -498,14 +503,13 @@ Compteurs remis à zéro pour la v5.5.
    | **DYDX v4** | DEX | Oui | Oui (API) | Oui | Non | Moyenne |
    | **Bybit** | CEX | Oui | Oui (API) | Oui | Oui | Facile |
 
-   **Recommandation : Hyperliquid** — DEX le plus liquide, pas de KYC, API REST+WS,
-   OI et funding disponibles. La stratégie reste la même, seuls les endpoints changent.
+   Recommandation DEX : **Hyperliquid** — le plus liquide, pas de KYC, API REST+WS.
 
    **Plan de migration :**
    1. Valider le paper trading sur Binance (2-3 semaines)
-   2. Adapter les endpoints WS/REST à Hyperliquid
-   3. Paper trading sur Hyperliquid (1 semaine)
-   4. Prod avec petit capital ($100-200)
+   2. Si Suisse : créer compte Binance avec KYC suisse → prod directe
+   3. Si France : adapter endpoints à Hyperliquid → paper 1 semaine → prod
+   4. Commencer avec petit capital ($100-200)
    5. Monter progressivement si rentable
    - Commencer avec $100-200 de capital réel
    - Garder le paper trading en parallèle pour comparer
