@@ -134,7 +134,31 @@ Le carry sans gestion du basis risk promet 3.6%/mois mais livre 1.8%.
 L'extreme reversion a un signal valide (+7.5 bps) mais la gestion de position doit
 inclure un trailing stop pour capturer l'edge.
 
-**Test en cours** : extreme reversion avec trailing stop + stop loss réels, 9 configs × 1 an.
+## Extreme Reversion avec gestion de position réelle — 1 an, 9 configs
+
+**Résultat : TOUTES les configs perdent.**
+
+| Config | Trades | Win% | P&L | %/mois | Losing months |
+|---|---|---|---|---|---|
+| Baseline (trail 25/15, sl -50, 150bps) | 4018 | 45% | -$360 | -2.8% | 9/13 |
+| Tight (trail 15/10, sl -40) | 4413 | 43% | -$317 | -2.4% | 9/13 |
+| Wide (trail 35/20, sl -60) | 3638 | 47% | -$362 | -2.8% | 8/13 |
+| **Thresh 200 (meilleur)** | **2334** | **46%** | **-$173** | **-1.3%** | **8/13** |
+| No trail, sl only | 2456 | 29% | -$169 | -1.3% | 8/13 |
+
+### Pattern identique dans toutes les configs :
+- Trail stop : **84% win, +$4348** → le trailing stop capture bien
+- Stop loss : **0% win, -$5116** → les stop loss mangent TOUT le profit
+- Le stop loss perd plus que le trailing stop gagne → net négatif
+
+### Par symbole (config thresh 200) :
+- Gagnants : XLM (+$84), SUI (+$28), ADA (+$23)
+- Perdants : ZRO (-$241), XMR (-$231), AAVE (-$186)
+
+### Conclusion
+L'extreme reversion mean-reversion **ne fonctionne pas sur 1 an** même avec trailing stop.
+Le signal raw (+7.5 bps) ne survit pas à la gestion de position (stop loss trop fréquents).
+Le marché trend plus qu'il ne mean-revert sur ces timeframes.
 
 ## Pistes ouvertes
 - Extreme reversion avec trailing stop (en cours de backtest)
