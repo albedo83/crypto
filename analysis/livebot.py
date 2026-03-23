@@ -34,7 +34,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("livebot")
 
-VERSION = "5.4.0"
+VERSION = "5.5.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 # BTC/ETH = reference (lead-lag, not traded)
@@ -42,10 +42,13 @@ VERSION = "5.4.0"
 REFERENCE_SYMBOLS = ["btcusdt", "ethusdt"]
 TRADE_SYMBOLS_LIST = [
     # Tier A (score > 0.8)
-    "ADAUSDT", "BNBUSDT", "BCHUSDT", "TRXUSDT", "HYPEUSDT",
-    "ZROUSDT", "AAVEUSDT", "LINKUSDT", "SUIUSDT",
+    "ADAUSDT", "BNBUSDT", "BCHUSDT", "TRXUSDT",
+    "ZROUSDT", "AAVEUSDT", "SUIUSDT",
     # Tier B (score 0.75-0.8)
     "AVAXUSDT", "XRPUSDT", "XMRUSDT", "XLMUSDT", "TONUSDT", "LTCUSDT",
+    # Disabled after live analysis (v5.5):
+    # "HYPEUSDT" — 17% win rate, -$3.57 over 6 trades
+    # "LINKUSDT" — 0% win rate, -$5.90 over 3 trades
 ]
 ALL_SYMBOLS = REFERENCE_SYMBOLS + [s.lower() for s in TRADE_SYMBOLS_LIST]
 TRADE_SYMBOLS_SET = set(TRADE_SYMBOLS_LIST)
@@ -703,7 +706,7 @@ class LiveBot:
                 (pos.direction == 1 and comp < -0.3) or (pos.direction == -1 and comp > 0.3)
             ):
                 exit_reason = "reversal"
-            elif leveraged_unreal < -100:  # stop loss on leveraged bps
+            elif leveraged_unreal < -40:  # stop loss on leveraged bps (tightened from -100 in v5.5)
                 exit_reason = "stop_loss"
             elif held >= MIN_HOLD_MINUTES and (
                 pos.peak_bps >= TRAIL_ACTIVATE_BPS and

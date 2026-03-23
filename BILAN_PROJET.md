@@ -352,6 +352,9 @@ http://51.178.27.240:8095
 | v5.1.0 | 2026-03-22 | OI lookback 60s→180s, cross-symbol filter, spread filter, streak disable |
 | v5.2.0 | 2026-03-22 | Boutons STOP et RAZ sur le dashboard |
 | v5.3.0 | 2026-03-22 | Simulation réaliste : slippage 1 bps + funding en temps réel |
+| v5.3.1 | 2026-03-22 | BNB fee discount (4→3 bps maker roundtrip) |
+| v5.4.0 | 2026-03-22 | Persistance des positions ouvertes au redémarrage (JSON) |
+| v5.5.0 | 2026-03-23 | **Post-analyse 129 trades** : stop loss -100→-40 bps, disable LINK/HYPE |
 
 ### Leçons de la v4.8 → v4.9 (premiers trades live)
 
@@ -388,6 +391,50 @@ Après la v4.9, analyse systématique de ce que le bot pouvait faire mieux :
 
 Compteurs remis à zéro pour la v5.0.
 
+### Première nuit live v5.4 (22-23 mars 2026) — 129 trades
+
+**Résultat : -$10.55 (-1.05%)** sur $1000, 129 trades en ~14h (overnight + asia + us).
+
+| Métrique | Valeur |
+|----------|--------|
+| Trades | 129 |
+| Win rate | 56% |
+| Hold moyen | 18 min |
+| Gross moyen | +1.7 bps |
+| Max drawdown | $16.35 |
+
+**Par session :**
+
+| Session | Trades | Win | P&L |
+|---------|--------|-----|-----|
+| Overnight | 34 | 56% | -$1.04 |
+| Asia | 57 | 60% | -$3.43 |
+| US | 38 | 50% | -$6.08 |
+
+**Par type de sortie :**
+
+| Exit | Trades | Win | Total P&L | Commentaire |
+|------|--------|-----|-----------|-------------|
+| **trail_stop** | 50 | **98%** | **+$34.12** | Machine à cash — fonctionne parfaitement |
+| reversal | 69 | 33% | -$16.33 | Signal se retourne → pertes |
+| **stop_loss** | 10 | **0%** | **-$28.34** | Trop large à -100 bps → grosses pertes |
+
+**Le problème principal** : le stop loss à -100 bps leviérés perd en moyenne -$2.83 par trade. 10 stop loss = -$28, ce qui mange les +$34 du trailing stop.
+
+**Ratio gain/perte : 0.65x** — les pertes sont 50% plus grosses que les gains. Le trailing coupe les gagnants à +25 bps peak mais le stop loss laisse courir jusqu'à -100 bps.
+
+**Top symboles :** AVAX (+$5.65), XMR (+$4.29), XLM (+$3.29)
+**Flop symboles :** LINK (-$5.90, 0% win), HYPE (-$3.57, 17% win), SUI (-$3.78)
+
+**Corrections v5.5 :**
+1. Stop loss resserré de **-100 bps à -40 bps** leviérés → coupe les pertes 2.5× plus tôt
+2. **LINKUSDT désactivé** — 0% win rate sur 3 trades, -$5.90
+3. **HYPEUSDT désactivé** — 17% win rate sur 6 trades, -$3.57
+
+**Impact estimé si appliqué aux 129 trades** : ~+$20 (bot serait à +$10 au lieu de -$10).
+
+Compteurs remis à zéro pour la v5.5.
+
 ---
 
 ## Décisions prises et justifications
@@ -406,6 +453,10 @@ Compteurs remis à zéro pour la v5.0.
 | Asia agressif / US prudent (v5.0) | Asia = +36 bps vs US = +27 bps — adapter le risque au edge réel |
 | Sizing 20-30% par score (v5.0) | Kelly : miser proportionnellement à l'avantage, pas forfaitaire |
 | Funding grab -20% seuil (v5.0) | Edge funding concentré dans les 30 min avant settlement |
+| Stop loss -100→-40 bps (v5.5) | 10 stop loss = -$28 en une nuit. Pertes 2.5× plus grosses que gains → resserrer |
+| LINKUSDT désactivé (v5.5) | 0% win rate, -$5.90 sur 3 trades en live |
+| HYPEUSDT désactivé (v5.5) | 17% win rate, -$3.57 sur 6 trades en live |
+| 15→13 symboles (v5.5) | Mieux vaut moins de symboles rentables que plus de symboles qui saignent |
 
 ## Prochaines étapes
 
