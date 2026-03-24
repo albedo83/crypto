@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Multi-Signal Bot v{{VERSION}}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;font-size:13px}
+.header{padding:12px 20px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.header h1{font-size:16px;color:#58a6ff}
+.tag{padding:2px 8px;border-radius:4px;font-size:11px}
+.tag.live{background:#238636;color:#fff}.tag.paused{background:#da3633;color:#fff}
+.info{color:#7d8590;font-size:12px}
+.cards{display:flex;gap:10px;flex-wrap:wrap;padding:14px 20px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 14px;min-width:120px;flex:1}
+.card .label{font-size:10px;color:#7d8590;text-transform:uppercase;letter-spacing:1px}
+.card .value{font-size:20px;font-weight:700;margin-top:4px}
+.card .sub{font-size:11px;color:#7d8590;margin-top:2px}
+.green{color:#3fb950}.red{color:#f85149}.blue{color:#58a6ff}.yellow{color:#d29922}.dim{color:#7d8590}
+.section{padding:10px 20px}
+.section h2{font-size:13px;color:#7d8590;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+table{width:100%;border-collapse:collapse;background:#161b22;border-radius:8px;overflow:hidden}
+th{text-align:left;padding:6px 10px;background:#1c2128;color:#7d8590;font-size:11px;text-transform:uppercase}
+td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
+.signal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
+.sig-card{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:10px;position:relative}
+.sig-card.triggered{border-color:#d29922}
+.sig-card.in-pos{border-color:#238636;border-width:2px}
+.sig-card .sym{font-weight:700;font-size:14px}
+.sig-card .ret{font-size:18px;margin:4px 0}
+.sig-card .bar{height:6px;border-radius:3px;background:#21262d;margin-top:6px;overflow:hidden}
+.sig-card .bar .fill{height:100%;border-radius:3px;transition:width 0.5s}
+.sig-card .badge{position:absolute;top:6px;right:6px;font-size:10px;padding:1px 5px;border-radius:3px}
+.badge.long{background:#238636;color:#fff}.badge.short{background:#da3633;color:#fff}
+.badge.signal{background:#d29922;color:#000}
+.controls{display:flex;gap:8px;padding:4px 20px 10px}
+.btn{padding:5px 14px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#e6edf3;cursor:pointer;font-size:12px;font-family:inherit}
+.btn:hover{background:#30363d}.btn.danger{border-color:#da3633;color:#f85149}
+.btn.danger:hover{background:#da3633;color:#fff}
+.btn.success{border-color:#238636;color:#3fb950}
+.btn.success:hover{background:#238636;color:#fff}
+.pnl-chart{width:100%;height:180px;background:#161b22;border:1px solid #30363d;border-radius:8px;position:relative;overflow:hidden}
+.pnl-line{position:absolute;bottom:0;left:0;width:100%;height:100%}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>📊 Multi-Signal Bot v{{VERSION}}</h1>
+  <span class="tag live" id="tag">LIVE</span>
+  <span class="info" id="uptime"></span>
+  <span class="info" id="params"></span>
+</div>
+
+<div class="cards">
+  <div class="card"><div class="label">Balance</div><div class="value" id="balance">$1,000</div></div>
+  <div class="card"><div class="label">P&L</div><div class="value" id="pnl">$0.00</div><div class="sub" id="pnl-pct">+0.0%</div></div>
+  <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
+  <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">—</div></div>
+  <div class="card"><div class="label">Today</div><div class="value" id="today-pnl">$0.00</div></div>
+</div>
+
+<div class="controls">
+  <button class="btn danger" onclick="fetch('/api/pause',{method:'POST'}).then(r)">⏸ STOP</button>
+  <button class="btn success" onclick="fetch('/api/resume',{method:'POST'}).then(r)">▶ RESUME</button>
+  <button class="btn danger" onclick="if(confirm('Reset?'))fetch('/api/reset',{method:'POST'}).then(r)">🗑 RAZ</button>
+</div>
+
+<div class="section">
+  <h2>Open Positions</h2>
+  <table><thead><tr>
+    <th>Symbol</th><th>Strat</th><th>Side</th><th>Entry</th><th>Current</th><th>Signal</th><th>Unrealized</th><th>P&L</th><th>Hold</th><th>Remaining</th>
+  </tr></thead><tbody id="pos-body"></tbody></table>
+</div>
+
+<div class="section">
+  <h2>P&L Curve</h2>
+  <div class="pnl-chart"><canvas id="pnl-canvas" width="800" height="180"></canvas></div>
+</div>
+
+<div class="section">
+  <h2>Signals (S1: BTC rip | S2: Alt crash | S4: Vol contraction)</h2>
+  <div class="signal-grid" id="signals"></div>
+</div>
+
+<div class="section">
+  <h2>Trade History</h2>
+  <table><thead><tr>
+    <th>Time</th><th>Symbol</th><th>Strat</th><th>Side</th><th>Gross</th><th>Net</th><th>P&L</th><th>Hold</th><th>Exit</th>
+  </tr></thead><tbody id="trades-body"></tbody></table>
+</div>
+
+<script>
+const r=()=>refresh();
+const cls=v=>v>=0?'green':'red';
+const fmt=(v,d=2)=>(v>=0?'+':'')+v.toFixed(d);
+
+function refresh(){
+  fetch('/api/state').then(r=>r.json()).then(s=>{
+    document.getElementById('balance').textContent='$'+s.balance.toFixed(2);
+    const pnlEl=document.getElementById('pnl');
+    pnlEl.textContent='$'+fmt(s.total_pnl);
+    pnlEl.className='value '+cls(s.total_pnl);
+    document.getElementById('pnl-pct').textContent=fmt(s.total_pnl/10,2)+'%';
+    document.getElementById('pos-count').textContent=s.n_positions+'/'+s.max_positions;
+
+    const nL=s.positions.filter(p=>p.direction==='LONG').length;
+    const nS=s.positions.filter(p=>p.direction==='SHORT').length;
+    document.getElementById('pos-detail').textContent=nL+'L / '+nS+'S';
+
+    document.getElementById('trades-count').textContent=s.total_trades;
+    document.getElementById('win-rate').textContent=s.total_trades>0?(s.win_rate*100).toFixed(0)+'% win':'—';
+
+    const tag=document.getElementById('tag');
+    if(s.paused){tag.textContent='PAUSED';tag.className='tag paused'}
+    else{tag.textContent='LIVE';tag.className='tag live'}
+
+    const up=s.uptime_s;
+    const h=Math.floor(up/3600),m=Math.floor((up%3600)/60);
+    document.getElementById('uptime').textContent='Up: '+h+'h'+m+'m';
+    document.getElementById('params').textContent=
+      'Hold: '+s.params.hold_h+'h | Stop: '+s.params.stop_bps+'bps | Cost: '+s.params.cost_bps+'bps | Max: '+s.params.max_pos+'pos';
+
+    // Positions table
+    const pb=document.getElementById('pos-body');
+    pb.innerHTML='';
+    s.positions.forEach(p=>{
+      const tr=document.createElement('tr');
+      const sideClass=p.direction==='LONG'?'green':'red';
+      tr.innerHTML=`
+        <td><b>${p.symbol}</b></td>
+        <td class="dim">${p.strategy||'?'}</td>
+        <td class="${sideClass}">${p.direction}</td>
+        <td>$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
+        <td>$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
+        <td class="dim">${p.signal_info||''}</td>
+        <td class="${cls(p.unrealized_bps)}">${fmt(p.unrealized_bps,1)}bps</td>
+        <td class="${cls(p.pnl_usdt)}">$${fmt(p.pnl_usdt)}</td>
+        <td>${p.hold_hours.toFixed(1)}h</td>
+        <td>${p.remaining_hours.toFixed(0)}h</td>`;
+      pb.appendChild(tr);
+    });
+    if(!s.positions.length)
+      pb.innerHTML='<tr><td colspan="10" style="text-align:center;color:#7d8590">No positions — waiting for signals</td></tr>';
+
+    // Today P&L (from trades with today's date)
+    const today=new Date().toISOString().slice(0,10);
+    const unrealTotal=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);
+    document.getElementById('today-pnl').textContent='$'+fmt(unrealTotal);
+    document.getElementById('today-pnl').className='value '+cls(unrealTotal);
+  });
+}
+
+function refreshSignals(){
+  fetch('/api/signals').then(r=>r.json()).then(d=>{
+    const el=document.getElementById('signals');
+    el.innerHTML='';
+    // Header: market conditions
+    const hdr=document.createElement('div');
+    hdr.style.cssText='padding:4px 8px;color:#7d8590;font-size:12px;grid-column:1/-1';
+    hdr.textContent=`BTC 30d: ${fmt(d.btc_30d||0,0)}bps ${d.btc_30d>2000?'→ S1 LONG ✓':''}  |  Alt Index: ${fmt(d.alt_index||0,0)}bps ${d.alt_index<-1000?'→ S2 LONG ✓':''}`;
+    el.appendChild(hdr);
+
+    const sorted=Object.entries(d.signals).sort((a,b)=>Math.abs(b[1].ret_7d_bps)-Math.abs(a[1].ret_7d_bps));
+    sorted.forEach(([sym,s])=>{
+      const div=document.createElement('div');
+      let cls2='sig-card';
+      if(s.in_position) cls2+=' in-pos';
+      else if(s.triggered&&s.triggered.length>0) cls2+=' triggered';
+      div.className=cls2;
+
+      const ret=s.ret_7d_bps;
+      const barW=Math.min(100,Math.abs(ret)/2000*100);
+      const barColor=ret>=0?'#f85149':'#3fb950';
+      const retClass=ret>=0?'red':'green';
+
+      let badge='';
+      if(s.in_position) badge=`<span class="badge ${s.position_strategy==='S4'?'short':'long'}">${s.position_strategy}</span>`;
+      else if(s.triggered&&s.triggered.length>0) badge=`<span class="badge signal">${s.triggered.join(' ')}</span>`;
+
+      div.innerHTML=`
+        ${badge}
+        <div class="sym">${sym}</div>
+        <div class="ret ${retClass}">${fmt(ret,0)} bps</div>
+        <div style="font-size:11px;color:#7d8590">$${s.price.toFixed(s.price>10?2:4)} | vr=${s.vol_ratio} rng=${s.range_bps}bp</div>
+        <div class="bar"><div class="fill" style="width:${barW}%;background:${barColor}"></div></div>`;
+      el.appendChild(div);
+    });
+  });
+}
+
+function refreshTrades(){
+  fetch('/api/trades').then(r=>r.json()).then(trades=>{
+    const tb=document.getElementById('trades-body');
+    tb.innerHTML='';
+    trades.forEach(t=>{
+      const tr=document.createElement('tr');
+      const sc=t.direction==='LONG'?'green':'red';
+      const time=t.exit_time.replace('T',' ').slice(5,16);
+      tr.innerHTML=`
+        <td class="dim">${time}</td>
+        <td><b>${t.symbol}</b></td>
+        <td class="dim">${t.strategy||'?'}</td>
+        <td class="${sc}">${t.direction}</td>
+        <td>${fmt(t.gross_bps,1)}</td>
+        <td class="${cls(t.net_bps)}">${fmt(t.net_bps,1)}</td>
+        <td class="${cls(t.pnl_usdt)}"><b>$${fmt(t.pnl_usdt)}</b></td>
+        <td>${t.hold_hours.toFixed(0)}h</td>
+        <td>${t.reason}</td>`;
+      tb.appendChild(tr);
+    });
+    if(!trades.length)
+      tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:#7d8590">No trades yet — first exits in ~72h</td></tr>';
+  });
+
+  // P&L curve
+  fetch('/api/pnl').then(r=>r.json()).then(pts=>{
+    const canvas=document.getElementById('pnl-canvas');
+    const ctx=canvas.getContext('2d');
+    canvas.width=canvas.parentElement.clientWidth;
+    canvas.height=180;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    if(pts.length<2) return;
+    const pnls=pts.map(p=>p.cum_pnl);
+    const minP=Math.min(0,...pnls);
+    const maxP=Math.max(0,...pnls);
+    const range=Math.max(maxP-minP,1);
+    const w=canvas.width;
+    const h=canvas.height-20;
+    const zeroY=h-(0-minP)/range*h+10;
+
+    // Zero line
+    ctx.strokeStyle='#30363d';ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,zeroY);ctx.lineTo(w,zeroY);ctx.stroke();
+
+    // P&L line
+    ctx.strokeStyle=pnls[pnls.length-1]>=0?'#3fb950':'#f85149';
+    ctx.lineWidth=2;ctx.beginPath();
+    pts.forEach((p,i)=>{
+      const x=i/(pts.length-1)*w;
+      const y=h-(p.cum_pnl-minP)/range*h+10;
+      if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+
+    // Fill
+    ctx.lineTo(w,zeroY);ctx.lineTo(0,zeroY);ctx.closePath();
+    ctx.fillStyle=pnls[pnls.length-1]>=0?'rgba(63,185,80,0.1)':'rgba(248,81,73,0.1)';
+    ctx.fill();
+
+    // Labels
+    ctx.fillStyle='#7d8590';ctx.font='11px monospace';
+    ctx.fillText('$'+fmt(maxP),4,14);
+    ctx.fillText('$'+fmt(minP),4,h+8);
+    ctx.fillText('$'+fmt(pnls[pnls.length-1]),w-60,pnls[pnls.length-1]>=0?14:h+8);
+  });
+}
+
+refresh();refreshSignals();refreshTrades();
+setInterval(refresh,5000);
+setInterval(refreshSignals,15000);
+setInterval(refreshTrades,30000);
+</script>
+</body>
+</html>

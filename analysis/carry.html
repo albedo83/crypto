@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Carry Bot v{{VERSION}}</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;font-size:13px}
+.header{padding:12px 20px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.header h1{font-size:16px;color:#58a6ff}
+.header .tag{padding:2px 8px;border-radius:4px;font-size:11px}
+.tag.live{background:#238636;color:#fff}
+.tag.paused{background:#da3633;color:#fff}
+.cards{display:flex;gap:12px;flex-wrap:wrap;padding:16px 20px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 16px;min-width:140px;flex:1}
+.card .label{font-size:10px;color:#7d8590;text-transform:uppercase;letter-spacing:1px}
+.card .value{font-size:20px;font-weight:700;margin-top:4px}
+.card .sub{font-size:11px;color:#7d8590;margin-top:2px}
+.green{color:#3fb950}.red{color:#f85149}.blue{color:#58a6ff}.yellow{color:#d29922}
+.section{padding:12px 20px}
+.section h2{font-size:14px;color:#7d8590;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+table{width:100%;border-collapse:collapse;background:#161b22;border-radius:8px;overflow:hidden}
+th{text-align:left;padding:8px 12px;background:#1c2128;color:#7d8590;font-size:11px;text-transform:uppercase;letter-spacing:0.5px}
+td{padding:8px 12px;border-top:1px solid #21262d;white-space:nowrap}
+.ticker-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:10px}
+.ticker-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px;position:relative}
+.ticker-card.active{border-color:#238636}
+.ticker-card .sym{font-weight:700;font-size:14px}
+.ticker-card .price{font-size:18px;margin:4px 0}
+.ticker-card .meta{display:flex;gap:12px;font-size:11px;color:#7d8590}
+.ticker-card .meta .val{color:#e6edf3}
+.ticker-card .badge{position:absolute;top:8px;right:8px;font-size:10px;padding:2px 6px;border-radius:3px;background:#238636;color:#fff}
+.fund-bar{height:4px;border-radius:2px;margin-top:6px;background:#21262d;position:relative;overflow:hidden}
+.fund-bar .fill{height:100%;border-radius:2px;transition:width 0.3s}
+.controls{display:flex;gap:8px;padding:0 20px 12px}
+.btn{padding:6px 16px;border:1px solid #30363d;border-radius:6px;background:#21262d;color:#e6edf3;cursor:pointer;font-size:12px;font-family:inherit}
+.btn:hover{background:#30363d}
+.btn.danger{border-color:#da3633;color:#f85149}
+.btn.danger:hover{background:#da3633;color:#fff}
+.btn.success{border-color:#238636;color:#3fb950}
+.btn.success:hover{background:#238636;color:#fff}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>🏦 Carry Bot v{{VERSION}}</h1>
+  <span class="tag live" id="status-tag">LIVE</span>
+  <span style="color:#7d8590;font-size:12px" id="uptime"></span>
+  <span style="color:#7d8590;font-size:12px" id="next-fund"></span>
+</div>
+
+<div class="cards">
+  <div class="card"><div class="label">Balance</div><div class="value" id="balance">$1000.00</div><div class="sub">Capital: $1000</div></div>
+  <div class="card"><div class="label">Total P&L</div><div class="value" id="pnl">$0.00</div><div class="sub" id="pnl-pct">+0.00%</div></div>
+  <div class="card"><div class="label">Funding Collected</div><div class="value green" id="funding">$0.0000</div><div class="sub" id="funding-sub">0 settlements</div></div>
+  <div class="card"><div class="label">Costs Paid</div><div class="value red" id="costs">$0.0000</div><div class="sub">entry + exit fees</div></div>
+  <div class="card"><div class="label">Positions</div><div class="value blue" id="positions">0/3</div><div class="sub" id="leverage-sub">3x leverage</div></div>
+  <div class="card"><div class="label">Next Rebalance</div><div class="value" id="rebal">—</div><div class="sub">every 7 days</div></div>
+</div>
+
+<div class="controls">
+  <button class="btn danger" onclick="fetch('/api/pause',{method:'POST'}).then(()=>refresh())">⏸ STOP</button>
+  <button class="btn success" onclick="fetch('/api/resume',{method:'POST'}).then(()=>refresh())">▶ RESUME</button>
+  <button class="btn danger" onclick="if(confirm('Reset all data?'))fetch('/api/reset',{method:'POST'}).then(()=>refresh())">🗑 RAZ</button>
+</div>
+
+<div class="section">
+  <h2>Carry Positions</h2>
+  <table id="pos-table">
+    <thead><tr><th>Symbol</th><th>Notional</th><th>Rate (now)</th><th>Mean Rate</th><th>Funding $</th><th>Settlements</th><th>Hold</th><th>$/day</th></tr></thead>
+    <tbody id="pos-body"></tbody>
+  </table>
+</div>
+
+<div class="section">
+  <h2>Funding Rates</h2>
+  <div class="ticker-grid" id="tickers"></div>
+</div>
+
+<div class="section">
+  <h2>Closed Trades</h2>
+  <table id="trades-table">
+    <thead><tr><th>Symbol</th><th>Hold</th><th>Notional</th><th>Funding</th><th>Settlements</th><th>Costs</th><th>Net P&L</th><th>Reason</th></tr></thead>
+    <tbody id="trades-body"></tbody>
+  </table>
+</div>
+
+<script>
+function $(id){return document.getElementById(id)}
+function cls(v){return v>=0?'green':'red'}
+function fmt(v,d=2){return v>=0?'+'+v.toFixed(d):v.toFixed(d)}
+function fmtH(h){if(h<24)return h.toFixed(1)+'h';return (h/24).toFixed(1)+'d'}
+
+function refresh(){
+  fetch('/api/state').then(r=>r.json()).then(s=>{
+    $('balance').textContent='$'+s.balance.toFixed(2);
+    $('pnl').textContent='$'+fmt(s.total_pnl);
+    $('pnl').className='value '+(s.total_pnl>=0?'green':'red');
+    $('pnl-pct').textContent=fmt(s.total_pnl/10,2)+'%';
+    $('funding').textContent='$'+s.total_funding.toFixed(4);
+    $('costs').textContent='$'+s.total_costs.toFixed(4);
+    $('positions').textContent=s.n_positions+'/'+s.max_pairs;
+    $('leverage-sub').textContent=s.leverage+'x leverage';
+
+    let tag=$('status-tag');
+    if(s.paused){tag.textContent='PAUSED';tag.className='tag paused'}
+    else{tag.textContent='LIVE';tag.className='tag live'}
+
+    if(s.next_funding_min!==null)$('next-fund').textContent='Next funding: '+s.next_funding_min+'min';
+    if(s.next_rebalance_h!==null)$('rebal').textContent=s.next_rebalance_h.toFixed(0)+'h';
+
+    let up=s.uptime_s;
+    let h=Math.floor(up/3600),m=Math.floor((up%3600)/60);
+    $('uptime').textContent='Up: '+h+'h'+m+'m';
+
+    // Funding count
+    let totalSettlements=s.positions.reduce((a,p)=>a+p.funding_count,0);
+    $('funding-sub').textContent=totalSettlements+' settlements';
+
+    // Positions table
+    let pb=$('pos-body');pb.innerHTML='';
+    s.positions.forEach(p=>{
+      let r=document.createElement('tr');
+      r.innerHTML=`<td><b>${p.symbol.replace('USDT','')}</b></td>
+        <td>$${p.notional.toFixed(0)}</td>
+        <td class="${cls(p.current_rate_bps)}">${fmt(p.current_rate_bps,3)} bps</td>
+        <td>${p.last_rate_bps?fmt(p.last_rate_bps,3)+' bps':'—'}</td>
+        <td class="${cls(p.funding_collected)}">${fmt(p.funding_collected,4)}</td>
+        <td>${p.funding_count}</td>
+        <td>${fmtH(p.hold_hours)}</td>
+        <td class="${cls(p.daily_rate)}">$${fmt(p.daily_rate,4)}</td>`;
+      pb.appendChild(r);
+    });
+    if(!s.positions.length){pb.innerHTML='<tr><td colspan="8" style="text-align:center;color:#7d8590">Waiting for entry...</td></tr>'}
+  });
+}
+
+function refreshTicker(){
+  fetch('/api/ticker').then(r=>r.json()).then(d=>{
+    let el=$('tickers');el.innerHTML='';
+    let sorted=Object.entries(d.tickers).sort((a,b)=>b[1].funding_bps-a[1].funding_bps);
+    sorted.forEach(([sym,t])=>{
+      let active=t.in_position;
+      let div=document.createElement('div');
+      div.className='ticker-card'+(active?' active':'');
+      let barW=Math.min(100,Math.abs(t.funding_bps)/5*100);
+      let barColor=t.funding_bps>=0?'#3fb950':'#f85149';
+      div.innerHTML=`
+        <div class="sym">${sym.replace('USDT','')}</div>
+        ${active?'<div class="badge">ACTIVE</div>':''}
+        <div class="price">$${t.price.toFixed(t.price>100?2:4)}</div>
+        <div class="meta">
+          <span>Fund: <span class="val ${cls(t.funding_bps)}">${fmt(t.funding_bps,3)} bps</span></span>
+          <span>Ann: <span class="val ${cls(t.ann_pct)}">${fmt(t.ann_pct,1)}%</span></span>
+          <span>Spread: <span class="val">${t.spread_bps.toFixed(1)}</span></span>
+        </div>
+        <div class="fund-bar"><div class="fill" style="width:${barW}%;background:${barColor}"></div></div>`;
+      el.appendChild(div);
+    });
+  });
+}
+
+function refreshTrades(){
+  fetch('/api/trades').then(r=>r.json()).then(trades=>{
+    let tb=$('trades-body');tb.innerHTML='';
+    trades.forEach(t=>{
+      let r=document.createElement('tr');
+      let costs=(t.entry_cost+t.exit_cost).toFixed(4);
+      r.innerHTML=`<td><b>${t.symbol.replace('USDT','')}</b></td>
+        <td>${fmtH(t.hold_hours)}</td>
+        <td>$${t.notional_usdt.toFixed(0)}</td>
+        <td class="${cls(t.funding_collected)}">${fmt(t.funding_collected,4)}</td>
+        <td>${t.funding_count}</td>
+        <td class="red">-$${costs}</td>
+        <td class="${cls(t.net_pnl)}">$${fmt(t.net_pnl,4)}</td>
+        <td>${t.reason}</td>`;
+      tb.appendChild(r);
+    });
+    if(!trades.length){tb.innerHTML='<tr><td colspan="8" style="text-align:center;color:#7d8590">No trades yet</td></tr>'}
+  });
+}
+
+refresh();refreshTicker();refreshTrades();
+setInterval(refresh,5000);
+setInterval(refreshTicker,3000);
+setInterval(refreshTrades,30000);
+</script>
+</body>
+</html>

@@ -157,6 +157,11 @@ class BtConfig:
     trail_drawdown: float = TRAIL_DRAWDOWN_BPS
     oi_lookback: int = OI_LOOKBACK
     trend_threshold: float = TREND_THRESHOLD_BPS
+    # Entry selectivity
+    min_score_override: float | None = None  # override session min_score
+    min_oi_pct: float = 0.03      # min OI change % to trigger signal
+    min_price_bps: float = 3.0    # min price change bps to trigger signal
+    min_active_signals: int = 1   # min confirming signals to enter
 
 
 def get_session(ts: pd.Timestamp) -> str | None:
@@ -268,9 +273,9 @@ def run_backtest(data: dict[str, pd.DataFrame], config: BtConfig | None = None) 
                     0.3, 1.0
                 ))
 
-                if price_change > 3 and oi_change < -0.03:
+                if price_change > cfg.min_price_bps and oi_change < -cfg.min_oi_pct:
                     oi_signal = -strength
-                elif price_change < -3 and oi_change > 0.03:
+                elif price_change < -cfg.min_price_bps and oi_change > cfg.min_oi_pct:
                     oi_signal = +strength
 
             # ── Signal 2: Funding proximity ──
@@ -426,7 +431,7 @@ def run_backtest(data: dict[str, pd.DataFrame], config: BtConfig | None = None) 
             continue
 
         sess_cfg = SESSION_CONFIG.get(session, {"min_score": 0.35, "lev_mult": 0.8})
-        min_score = sess_cfg["min_score"]
+        min_score = cfg.min_score_override if cfg.min_score_override is not None else sess_cfg["min_score"]
         lev_mult = sess_cfg["lev_mult"]
 
         # Funding grab
@@ -452,7 +457,7 @@ def run_backtest(data: dict[str, pd.DataFrame], config: BtConfig | None = None) 
             comp = sig["composite"]
             if abs(comp) < min_score:
                 continue
-            if sig["active_signals"] < 1:
+            if sig["active_signals"] < cfg.min_active_signals:
                 continue
             if abs(sig["oi_signal"]) < 0.1:
                 continue
