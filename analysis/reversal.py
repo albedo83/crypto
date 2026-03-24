@@ -73,7 +73,7 @@ CANDLES_NEEDED = 180 + 6  # 30 days warmup + margin
 # Sectors (for S5 divergence)
 SECTORS = {
     "L1":     ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI"],
-    "DeFi":   ["AAVE", "MKR", "CRV", "SNX", "PENDLE", "COMP", "DYDX", "LDO"],
+    "DeFi":   ["AAVE", "MKR", "CRV", "SNX", "PENDLE", "COMP", "DYDX", "LDO", "GMX"],
     "Gaming": ["GALA", "IMX", "SAND"],
     "Infra":  ["LINK", "PYTH", "STX", "INJ", "ARB", "OP"],
     "Meme":   ["DOGE", "WLD", "BLUR", "MINA"],
@@ -123,7 +123,7 @@ OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 TRADES_CSV = os.path.join(OUTPUT_DIR, "reversal_trades.csv")
 STATE_FILE = os.path.join(OUTPUT_DIR, "reversal_state.json")
 HTML_PATH = os.path.join(os.path.dirname(__file__), "reversal.html")
-WEB_PORT = 8095
+WEB_PORT = 8097
 
 
 def strat_size(strat_name: str, capital: float) -> float:
@@ -179,9 +179,10 @@ class MultiSignalBot:
     def __init__(self):
         self.states: dict[str, SymbolState] = {s: SymbolState() for s in ALL_SYMBOLS}
         self.positions: dict[str, Position] = {}
-        self.trades: list[Trade] = []
+        self.trades: deque[Trade] = deque(maxlen=500)
         self.running = False
         self._paused = False
+        self._feature_cache: dict[str, dict | None] = {}  # symbol → features (refreshed each scan)
         self._shutdown_event: asyncio.Event | None = None
         self.started_at: datetime | None = None
         self._total_pnl = 0.0
@@ -231,6 +232,8 @@ class MultiSignalBot:
                 candles = json.loads(resp.read())
 
             st = self.states[symbol]
+            if not candles:
+                return
             st.candles_4h.clear()
             for c in candles:
                 st.candles_4h.append({
@@ -322,49 +325,6 @@ class MultiSignalBot:
 
         return f
 
-    def _detect_liquidation(self, symbol: str) -> dict | None:
-        """Detect liquidation cascade on latest candle.
-
-        Returns {direction, range_bps, wick_ratio} if cascade detected.
-        """
-        st = self.states.get(symbol)
-        if not st or len(st.candles_4h) < 50:
-            return None
-
-        candles = list(st.candles_4h)
-        i = len(candles) - 1
-        c = candles[i]
-
-        total_range = c["h"] - c["l"]
-        if total_range <= 0 or c["c"] <= 0:
-            return None
-
-        range_bps = total_range / c["c"] * 1e4
-        body = abs(c["c"] - c["o"])
-        wick_ratio = (total_range - body) / total_range
-
-        # Average range over last 42 candles
-        avg_range = float(np.mean([
-            (candles[j]["h"] - candles[j]["l"]) / candles[j]["c"] * 1e4
-            for j in range(max(0, i - 42), i)
-            if candles[j]["c"] > 0
-        ])) or 1.0
-
-        if range_bps < avg_range * S6_RANGE_MULT:
-            return None
-        if wick_ratio < S6_WICK_MIN:
-            return None
-
-        # Bounce direction: opposite of the crash
-        direction = 1 if c["c"] < c["o"] else -1  # red candle → long bounce
-
-        return {
-            "direction": direction,
-            "range_bps": range_bps,
-            "avg_range": avg_range,
-            "wick_ratio": wick_ratio,
-        }
-
     def _fetch_dxy(self) -> float:
         """Fetch DXY 7-day return. Returns bps or 0 on failure."""
         try:
@@ -399,14 +359,14 @@ class MultiSignalBot:
                 if len(daily) >= 6:
                     return (daily[-1]["c"] / daily[-6]["c"] - 1) * 1e4
         except Exception as e:
-            log.debug("DXY fetch: %s", e)
+            log.warning("DXY unavailable — S4 disabled: %s", e)
         return 0.0
 
     def _compute_alt_index(self) -> float:
-        """Compute alt-index: mean 7d return across all alts."""
+        """Compute alt-index: mean 7d return across all alts (uses cache)."""
         rets = []
         for sym in TRADE_SYMBOLS:
-            f = self._compute_features(sym)
+            f = self._get_cached_features(sym) or self._compute_features(sym)
             if f and "ret_42h" in f:
                 rets.append(f["ret_42h"])
         return float(np.mean(rets)) if rets else 0
@@ -447,6 +407,13 @@ class MultiSignalBot:
             "vol_z": own_f.get("vol_z", 0),
             "sector": sector,
         }
+
+    def _refresh_feature_cache(self):
+        """Recompute all features once per scan cycle."""
+        self._feature_cache = {sym: self._compute_features(sym) for sym in TRADE_SYMBOLS}
+
+    def _get_cached_features(self, symbol: str) -> dict | None:
+        return self._feature_cache.get(symbol)
 
     # ── Signal Detection ─────────────────────────────────────────
 
@@ -550,6 +517,11 @@ class MultiSignalBot:
             current_capital = CAPITAL_USDT + self._total_pnl
             size = strat_size(sig["strategy"], current_capital)
 
+            # Capital exposure limit: max 90% of capital as margin
+            used_margin = sum(p.size_usdt for p in self.positions.values())
+            if used_margin + size > current_capital * 0.90:
+                continue
+
             self.positions[sym] = Position(
                 symbol=sym, direction=sig["direction"],
                 strategy=sig["strategy"],
@@ -602,7 +574,7 @@ class MultiSignalBot:
         pos = self.positions.pop(sym)
         hold_h = (now - pos.entry_time).total_seconds() / 3600
         gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4 * LEVERAGE
-        effective_cost = COST_BPS + (LEVERAGE - 1) * 2  # extra funding for leverage
+        effective_cost = COST_BPS * LEVERAGE  # fees/slippage scale with notional
         net_bps = gross_bps - effective_cost
         pnl = pos.size_usdt * net_bps / 1e4
 
@@ -663,8 +635,10 @@ class MultiSignalBot:
                 "target_exit": p.target_exit.isoformat(),
             } for p in self.positions.values()],
         }
-        with open(STATE_FILE, "wb") as f:
+        tmp = STATE_FILE + ".tmp"
+        with open(tmp, "wb") as f:
             f.write(orjson.dumps(data))
+        os.replace(tmp, STATE_FILE)  # atomic on POSIX
 
     def _load_state(self):
         if not os.path.exists(STATE_FILE):
@@ -676,6 +650,9 @@ class MultiSignalBot:
             self._wins = data.get("wins", 0)
             self._cooldowns = data.get("cooldowns", {})
             for p in data.get("positions", []):
+                if p["symbol"] not in self.states:
+                    log.warning("Skipping unknown symbol from state: %s", p["symbol"])
+                    continue
                 self.positions[p["symbol"]] = Position(
                     symbol=p["symbol"], direction=p["direction"],
                     strategy=p.get("strategy", "?"),
@@ -814,7 +791,11 @@ class MultiSignalBot:
             if alt_idx < -1000:
                 triggered.append("S2:LONG")
             if f.get("vol_ratio", 2) < 1.0 and f.get("range_pct", 999) < 200:
-                triggered.append("S4:SHORT")
+                dxy_val = self._fetch_dxy()
+                if dxy_val > DXY_BOOST_THRESHOLD:
+                    triggered.append("S4:SHORT")
+                else:
+                    triggered.append("S4:OFF(DXY)")
             sd = self._compute_sector_divergence(sym)
             if sd and abs(sd["divergence"]) >= S5_DIV_THRESHOLD and sd["vol_z"] >= S5_VOL_Z_MIN:
                 d = "LONG" if sd["divergence"] > 0 else "SHORT"
@@ -860,6 +841,8 @@ class MultiSignalBot:
                     for sym in ALL_SYMBOLS:
                         await asyncio.to_thread(self._fetch_candles, sym)
                         await asyncio.sleep(0.2)
+
+                    self._refresh_feature_cache()
 
                     exits = self._check_exits()
                     if exits:
@@ -978,9 +961,9 @@ async def run():
     def _sig(sig, frame):
         log.info("Shutdown signal")
         bot.running = False
-        bot._save_state()
         if bot._shutdown_event:
             bot._shutdown_event.set()
+        # _save_state called after event.wait() in run(), not here (avoid I/O in signal handler)
 
     signal.signal(signal.SIGINT, _sig)
     signal.signal(signal.SIGTERM, _sig)
