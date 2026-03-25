@@ -51,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.1.0"
+VERSION = "10.1.1"
 
 # ── Config ───────────────────────────────────────────────────────────
 
@@ -121,8 +121,9 @@ SLIPPAGE_BPS = 3.0
 FUNDING_DRAG_BPS = 2.0
 COST_BPS = TAKER_FEE_BPS + SLIPPAGE_BPS + FUNDING_DRAG_BPS  # 12 bps
 
-# Catastrophe stop (-25%)
-STOP_LOSS_BPS = -2500.0
+# Stop loss per strategy (leveraged bps)
+STOP_LOSS_BPS = -2500.0        # default catastrophe guard (-25% leveraged = -12.5% price)
+STOP_LOSS_S8 = -1500.0         # S8 backtested with -1500 (-15% leveraged = -7.5% price)
 
 # Timing
 SCAN_INTERVAL = 3600      # check signals every hour (candles are 4h)
@@ -606,10 +607,13 @@ class MultiSignalBot:
 
             unrealized = pos.direction * (st.price / pos.entry_price - 1) * 1e4 * LEVERAGE
 
+            # Per-strategy stop loss (S8 backtested with tighter stop)
+            stop = STOP_LOSS_S8 if pos.strategy == "S8" else STOP_LOSS_BPS
+
             exit_reason = None
             if now >= pos.target_exit:
                 exit_reason = "timeout"
-            elif unrealized < STOP_LOSS_BPS:
+            elif unrealized < stop:
                 exit_reason = "catastrophe_stop"
 
             if exit_reason:
@@ -1041,12 +1045,13 @@ async def run():
 
     log.info("Multi-Signal Bot v%s | $%.0f capital | %dx leverage | %d symbols | port %d",
              VERSION, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
-    log.info("Sizing: 15%% capital, z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f (at $%.0f)",
+    log.info("Sizing: 15%% capital, z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f (at $%.0f)",
              strat_size("S1", CAPITAL_USDT), strat_size("S2", CAPITAL_USDT),
-             strat_size("S4", CAPITAL_USDT), strat_size("S5", CAPITAL_USDT), CAPITAL_USDT)
-    log.info("Hold: %dh (S5: %dh) | Stop: %d bps | Lev: %.0fx | Max: %d pos / %d dir",
-             HOLD_HOURS_DEFAULT, HOLD_HOURS_S5,
-             STOP_LOSS_BPS, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION)
+             strat_size("S4", CAPITAL_USDT), strat_size("S5", CAPITAL_USDT),
+             strat_size("S8", CAPITAL_USDT), CAPITAL_USDT)
+    log.info("Hold: %dh (S5: %dh, S8: %dh) | Stop: %d bps (S8: %d) | Lev: %.0fx | Max: %d pos / %d dir",
+             HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
+             STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION)
 
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)

@@ -84,7 +84,7 @@ All 5 survived train/test split + Monte Carlo validation. 1500+ rules tested, on
 - **Leverage**: 2x (optimal from parameter sweep — 3x = ruin from compounding losses)
 - **Sizing**: 15% of current capital, z-weighted (stronger signal = bigger position)
 - **Compounding**: Yes (capital grows/shrinks with P&L)
-- **Stop loss**: -25% catastrophe guard (leveraged)
+- **Stop loss**: -25% catastrophe guard (S1/S2/S4/S5), -15% for S8 (matches backtest)
 - **Max positions**: 6 (max 4 same direction)
 - **Capital exposure**: max 90%
 - **Costs**: 12 bps (7 taker + 3 slippage + 2 funding) × leverage

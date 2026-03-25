@@ -76,7 +76,7 @@ BTC et ETH servent de référence mais ne sont pas tradés.
 | **Sizing** | 15% du capital | Chaque position utilise 15% du capital actuel, pondéré par la fiabilité du signal. |
 | **Compounding** | Oui | Quand le capital monte, les mises augmentent. Quand il baisse, elles diminuent. |
 | **Duree des trades** | 72h (S1/S2/S4), 48h (S5), 60h (S8) | Chaque position est fermee automatiquement apres ce delai. |
-| **Stop loss** | -25% | Filet de sécurité en cas de crash extrême. Ne se déclenche presque jamais. |
+| **Stop loss** | -25% (S1/S2/S4/S5), -15% (S8) | S8 a un stop plus serré car backtesté avec -15%. -25% leveraged = -12.5% de mouvement de prix. |
 | **Max positions** | 6 simultanées | Max 4 dans la même direction (4 LONG ou 4 SHORT). |
 | **Exposition max** | 90% du capital | Le bot ne met jamais plus de 90% du capital en jeu. |
 | **Frais simulés** | 24 bps par trade | 12 bps de frais réels × 2 pour le levier. Conservateur (les vrais frais Hyperliquid sont plus bas). |
@@ -161,10 +161,13 @@ BTC et ETH servent de référence mais ne sont pas tradés.
 Avec un drawdown max de -54%, un investissement de $1,000 peut temporairement descendre à **$460** avant de remonter. Il faut être psychologiquement prêt à voir ce chiffre et ne pas paniquer.
 
 ### Risque de modèle
-Les 4 signaux ont été découverts sur des données passées. Le marché crypto évolue. Ce qui marchait en 2024-2025 pourrait ne plus marcher en 2027. C'est pour ça qu'on fait du paper trading d'abord.
+Les 5 signaux ont ete decouverts sur des donnees passees. Le marche crypto evolue. Ce qui marchait en 2024-2025 pourrait ne plus marcher en 2027. C'est pour ca qu'on fait du paper trading d'abord.
+
+### Risque de liquidite sur S8
+S8 achete pendant un flush de liquidation — exactement le moment ou les carnets d'ordres se vident sur un DEX. Le slippage reel peut etre 5-10x plus eleve que les 3 bps simules. Un trade gagnant sur papier peut devenir perdant en reel a cause de l'ecart entre le prix affiche et le prix d'execution. Ce risque est specifique a S8 et n'affecte pas les autres signaux qui operent dans des conditions de marche normales.
 
 ### Risque de plateforme
-Hyperliquid est un exchange décentralisé. Il pourrait avoir des bugs, des hacks, ou des problèmes de liquidité. L'argent sur Hyperliquid n'est pas protégé par une assurance.
+Hyperliquid est un exchange decentralise. Il pourrait avoir des bugs, des hacks, ou des problemes de liquidite. L'argent sur Hyperliquid n'est pas protege par une assurance.
 
 ### Risque technique
 Le bot tourne sur un serveur. Si le serveur tombe ou si l'API Hyperliquid est indisponible, les positions restent ouvertes sans surveillance. Le stop à -25% est la dernière protection.
@@ -182,9 +185,9 @@ Hyperliquid REST API
             │
             ▼
     reversal.py (processus unique)
-    ├── Features (22 indicateurs par token)
-    ├── 4 signaux (S1, S2, S4, S5)
-    ├── Position manager (max 6, stop -25%)
+    ├── Features (24 indicateurs par token)
+    ├── 5 signaux (S1, S2, S4, S5, S8)
+    ├── Position manager (max 6, stop -25%/-15%)
     ├── State persistence (JSON + CSV)
     └── Dashboard FastAPI (:8097)
 ```
