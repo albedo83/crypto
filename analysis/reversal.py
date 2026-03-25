@@ -135,6 +135,7 @@ COOLDOWN_HOURS = 24       # 24h cooldown per symbol after exit
 
 OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
 TRADES_CSV = os.path.join(OUTPUT_DIR, "reversal_trades.csv")
+MARKET_CSV = os.path.join(OUTPUT_DIR, "reversal_market.csv")
 STATE_FILE = os.path.join(OUTPUT_DIR, "reversal_state.json")
 HTML_PATH = os.path.join(os.path.dirname(__file__), "reversal.html")
 WEB_PORT = 8097
@@ -825,6 +826,35 @@ class MultiSignalBot:
                        t.entry_price, t.exit_price, t.hold_hours, t.size_usdt,
                        t.signal_info, t.gross_bps, t.net_bps, t.pnl_usdt, t.reason])
 
+    def _log_market_snapshot(self):
+        """Append hourly snapshot of OI/funding/premium/crowding for all tokens to CSV.
+
+        This data is lost on restart (rolling deques). Persisting it enables
+        future analysis of OI delta vs trade quality without needing a database.
+        """
+        os.makedirs(OUTPUT_DIR, exist_ok=True)
+        header = not os.path.exists(MARKET_CSV)
+        ts = datetime.now(timezone.utc).isoformat(timespec="seconds")
+        try:
+            with open(MARKET_CSV, "a", newline="") as f:
+                w = csv.writer(f)
+                if header:
+                    w.writerow(["timestamp", "symbol", "price", "oi", "oi_delta_1h",
+                                "funding", "premium", "crowding", "vol_z"])
+                for sym in TRADE_SYMBOLS:
+                    st = self.states.get(sym)
+                    if not st or st.price == 0:
+                        continue
+                    oi_f = self._compute_oi_features(sym)
+                    feat = self._get_cached_features(sym)
+                    crowd = self._compute_crowding_score(sym)
+                    w.writerow([ts, sym, round(st.price, 6), round(st.oi, 2),
+                                oi_f["oi_delta_1h"], round(st.funding * 1e6, 2),
+                                round(st.premium * 1e6, 2), crowd,
+                                round(feat.get("vol_z", 0), 2) if feat else 0])
+        except Exception:
+            log.exception("Market snapshot write failed")
+
     # ── Persistence ─────────────────────────────────────────────
 
     def _save_state(self):
@@ -1112,6 +1142,7 @@ class MultiSignalBot:
 
                     self._last_scan = now
                     self._save_state()
+                    self._log_market_snapshot()
 
                     # Log status
                     n = len(self.trades)
