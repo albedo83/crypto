@@ -1,250 +1,366 @@
-# Multi-Signal Bot v10.1.0
+# Multi-Signal Bot v10.1.1
 
-## Qu'est-ce que c'est ?
-
-Un bot de trading automatique qui surveille 28 cryptomonnaies sur Hyperliquid (un exchange décentralisé accessible depuis la France) et prend des positions quand il détecte des situations précises qui ont historiquement été rentables.
-
-Le bot fonctionne en **paper trading** (argent virtuel) pour valider ses résultats avant tout investissement réel.
+Bot de trading automatique sur Hyperliquid (DEX, accessible depuis la France). Paper trading.
 
 ---
 
-## Comment ça marche
+## Philosophie
 
-Le bot vérifie le marché toutes les heures. Il cherche **5 situations** :
+Le bot est **contrarien**. Il achete quand les autres paniquent (S2, S8), profite de l'inertie des alts derriere BTC (S1), exploite la derive en marche calme (S4), et suit les ruptures de secteur (S5). Ce n'est pas du trend-following. La volatilite est le carburant, pas l'ennemi.
 
-### Signal 1 — "BTC explose" (S1)
-- **Condition** : Bitcoin a monté de plus de +20% sur les 30 derniers jours
-- **Action** : Acheter des altcoins (LONG)
-- **Logique** : Quand BTC pump fort, les alts suivent toujours avec du retard. On profite de ce retard.
-- **Fréquence** : Rare — quelques fois par an
-- **Fiabilité** : La plus élevée (z-score 6.42)
-- **Mise** : $241 sur un capital de $1,000 (la plus grosse car le plus fiable)
+Tout a ete teste systematiquement : 1500+ regles, algorithmes genetiques, programmation genetique, machine learning, Monte Carlo. 5 signaux survivent. Le reste est du bruit.
 
-### Signal 2 — "Les alts crashent" (S2)
-- **Condition** : La moyenne des altcoins a baissé de plus de -10% en 7 jours
-- **Action** : Acheter (LONG)
-- **Logique** : Après un gros crash, les alts rebondissent. On achète la panique des autres.
-- **Fréquence** : Quelques fois par mois
-- **Fiabilité** : Bonne (z-score 4.00)
-- **Mise** : $150
+---
 
-### Signal 3 — "Calme plat + dollar fort" (S4)
-- **Condition** : La volatilité d'un altcoin est basse + la bougie est petite + le dollar américain monte
-- **Action** : Vendre à découvert (SHORT)
-- **Logique** : En crypto, quand c'est calme et que le dollar se renforce, les alts dérivent lentement vers le bas. On parie sur cette dérive.
-- **Filtre DXY** : Ce signal est DÉSACTIVÉ quand le dollar baisse (pour éviter de shorter en bull market)
-- **Fréquence** : Variable — dépend du dollar
-- **Fiabilité** : Correcte (z-score 2.95)
-- **Mise** : $111
+## Les 5 signaux
 
-### Signal 4 — "Un token casse de son groupe" (S5)
-- **Condition** : Un token diverge de plus de 10% par rapport à la moyenne de son secteur (L1, DeFi, Gaming, etc.), avec un volume au-dessus de la normale
-- **Action** : Suivre le mouvement (LONG si ça monte, SHORT si ça baisse)
-- **Logique** : Quand un token casse de son secteur avec du volume, le mouvement continue. Ce n'est pas du bruit, c'est un vrai signal.
-- **Fréquence** : 10-20 fois par mois
-- **Fiabilité** : Bonne (z-score 3.67)
-- **Mise** : $138
+### S1 — BTC explose (+20% sur 30 jours)
 
-### Signal 5 — "Flush de liquidation" (S8)
-- **Condition** : Un alt a perdu plus de -40% par rapport a son plus haut de 30 jours + le volume explose + le prix continue de baisser + BTC est aussi en baisse de -3% sur 7 jours
-- **Action** : Acheter (LONG)
-- **Logique** : Quand tout tombe en meme temps (alt crash + volume anormal + BTC faible), c'est un flush de liquidation force. Les traders en levier se font liquider, ce qui pousse le prix encore plus bas que sa valeur reelle. Le rebond qui suit est violent et rapide.
-- **Frequence** : Rare — ~1 fois par mois en portfolio
-- **Fiabilite** : Tres elevee (z-score 6.99, le plus haut de tous les signaux)
-- **Mise** : $262 (la plus grosse car z-score le plus eleve)
-- **Risque** : 30% des trades perdent (stop loss a -15%). En avril 2024, 7 pertes consecutives (-$265).
+| | |
+|---|---|
+| **Condition** | `btc_30d > 2000 bps` (+20%) |
+| **Action** | LONG altcoins |
+| **Logique** | Quand BTC pump de +20% sur un mois, les alts suivent avec un retard de quelques jours. On achete ce retard. |
+| **Hold** | 72h |
+| **Stop** | -25% (leveraged) |
+| **z-score** | 6.42 |
+| **Mise** | $241 (z-weighted, la 2eme plus grosse) |
+| **Frequence** | Rare — quelques fois par an |
+| **Backtest** | +$1,480 sur 208 trades |
 
-### Les 5 secteurs surveilles
+### S2 — Les alts crashent (-10% en 7 jours)
+
+| | |
+|---|---|
+| **Condition** | `alt_index_7d < -1000 bps` (moyenne des 28 alts < -10%) |
+| **Action** | LONG |
+| **Logique** | Apres un crash generalisé, les alts rebondissent. On achete la panique collective. Fonctionne en bull ET en bear — le regime gating a ete teste et degrade le signal. |
+| **Hold** | 72h |
+| **Stop** | -25% (leveraged) |
+| **z-score** | 4.00 |
+| **Mise** | $150 |
+| **Frequence** | Quelques fois par mois |
+| **Backtest** | +$1,706 sur 552 trades |
+
+### S4 — Calme plat + dollar fort
+
+| | |
+|---|---|
+| **Conditions** | `vol_ratio < 1.0` (volatilite 7j < 30j, marche calme) AND `range_pct < 200 bps` (petite bougie) AND `DXY 7d > +100 bps` (dollar en hausse) |
+| **Action** | SHORT |
+| **Logique** | En crypto, quand c'est calme et que le dollar se renforce, les alts derivent vers le bas. Le filtre DXY est critique : sans lui, le signal shorte en bull market et perd. |
+| **Hold** | 72h |
+| **Stop** | -25% (leveraged) |
+| **z-score** | 2.95 |
+| **Mise** | $111 (la plus petite, z-score le plus faible) |
+| **Frequence** | Variable — depend de la force du dollar |
+| **DXY** | Source : Yahoo Finance, cache 6h dans `output/pairs_data/macro_DXY.json`. Retour 5 jours de trading (`closes[-6]`). Si l'API echoue, S4 est desactive silencieusement (warning dans les logs). |
+| **Backtest** | +$2,609 sur 1,185 trades |
+| **Seul signal SHORT** | 378 variantes SHORT testees, aucune autre ne depasse z > 2.0. Shorter les alts est structurellement difficile. |
+
+### S5 — Un token casse de son secteur
+
+| | |
+|---|---|
+| **Conditions** | Divergence > 1000 bps (+10%) par rapport a la moyenne du secteur AND `vol_z >= 1.0` (volume au-dessus de la normale) |
+| **Action** | FOLLOW (LONG si le token monte, SHORT si il baisse) |
+| **Logique** | Quand un token diverge de son secteur avec du volume, le mouvement continue. C'est un vrai signal, pas du bruit. Le "fade" (jouer contre le mouvement) a ete teste et ne marche pas. |
+| **Hold** | 48h (plus court, les rotations de secteur sont rapides) |
+| **Stop** | -25% (leveraged) |
+| **z-score** | 3.67 |
+| **Mise** | $138 |
+| **Frequence** | 10-20 fois par mois |
+| **Backtest** | +$2,022 sur 467 trades (FOLLOW), +$470 (FADE — rejete) |
+
+**Secteurs** :
 
 | Secteur | Tokens |
 |---|---|
-| L1 (blockchains) | SOL, AVAX, SUI, APT, NEAR, SEI |
+| L1 | SOL, AVAX, SUI, APT, NEAR, SEI |
 | DeFi | AAVE, MKR, CRV, SNX, PENDLE, COMP, DYDX, LDO, GMX |
 | Gaming | GALA, IMX, SAND |
 | Infra | LINK, PYTH, STX, INJ, ARB, OP |
 | Meme | DOGE, WLD, BLUR, MINA |
 
-BTC et ETH servent de référence mais ne sont pas tradés.
+### S8 — Flush de liquidation
+
+| | |
+|---|---|
+| **Conditions** | `drawdown < -4000 bps` (-40% du plus haut 30j) AND `vol_z > 1.0` (volume anormal) AND `ret_6h < -50 bps` (le prix saigne encore) AND `btc_7d < -300 bps` (BTC aussi en baisse de -3%) |
+| **Action** | LONG |
+| **Logique** | Quand un alt a crash de 40%+, que le volume explose, que le prix continue de tomber, ET que BTC est aussi faible — c'est un flush de liquidation force. Les traders en levier se font liquider en cascade, poussant le prix bien en dessous de sa valeur. Le rebond est violent. |
+| **Hold** | 60h |
+| **Stop** | **-15%** (leveraged) — plus serre que les autres signaux car backteste avec ce stop. -15% leveraged = mouvement de prix de -7.5%. |
+| **z-score** | 6.99 (le plus eleve de tous les signaux) |
+| **Mise** | $262 (la plus grosse, z-score le plus haut) |
+| **Frequence** | Rare — ~1/mois en portfolio, ~5-6/mois en solo |
+| **Backtest** | +$1,984 sur 192 trades, 70% win rate, 16/18 mois gagnants |
+| **Pire scenario observe** | 7 pertes consecutives en avril 2024, drawdown -$265 |
+| **Risque de liquidite** | S8 achete exactement quand les carnets d'ordres se vident. Le slippage reel peut etre 5-10x plus eleve que les 3 bps simules. En production, utiliser des ordres limit (maker) pour etre le filet qui attrape les liquidations au lieu de subir le spread. |
 
 ---
 
-## Paramètres techniques
+## Parametres
 
-| Paramètre | Valeur | Explication |
+| Parametre | Valeur | Detail |
 |---|---|---|
-| **Levier** | 2x | Chaque dollar travaille comme deux. Double les gains ET les pertes. |
-| **Sizing** | 15% du capital | Chaque position utilise 15% du capital actuel, pondéré par la fiabilité du signal. |
-| **Compounding** | Oui | Quand le capital monte, les mises augmentent. Quand il baisse, elles diminuent. |
-| **Duree des trades** | 72h (S1/S2/S4), 48h (S5), 60h (S8) | Chaque position est fermee automatiquement apres ce delai. |
-| **Stop loss** | -25% (S1/S2/S4/S5), -15% (S8) | S8 a un stop plus serré car backtesté avec -15%. -25% leveraged = -12.5% de mouvement de prix. |
-| **Max positions** | 6 simultanées | Max 4 dans la même direction (4 LONG ou 4 SHORT). |
-| **Exposition max** | 90% du capital | Le bot ne met jamais plus de 90% du capital en jeu. |
-| **Frais simulés** | 24 bps par trade | 12 bps de frais réels × 2 pour le levier. Conservateur (les vrais frais Hyperliquid sont plus bas). |
-| **Cooldown** | 24h par token | Après avoir fermé une position sur un token, le bot attend 24h avant de re-trader le même. |
+| **Levier** | 2x | Optimal d'un sweep 1x-3x. 3x = ruine par effet de compounding des pertes. |
+| **Sizing** | 15% du capital, z-weighted | `size = capital * 0.15 * min(2.0, max(0.5, z/4.0))`. Plus le signal est fiable, plus la mise est grosse. |
+| **Compounding** | Oui | `capital_courant = $1000 + P&L cumule`. Apres des gains, les mises grossissent. Apres des pertes, elles retrecissent. |
+| **Hold** | 72h (S1/S2/S4), 48h (S5), 60h (S8) | Timeout automatique. Pas de stop de profit (teste : degrade les resultats). |
+| **Stop loss** | -2500 bps (S1/S2/S4/S5), -1500 bps (S8) | En leveraged. Soit -12.5% de mouvement de prix (defaut) ou -7.5% (S8). Filet de securite, ne se declenche que dans les crashs extremes. |
+| **Max positions** | 6 simultanees, max 4 meme direction | Evite la concentration directionnelle. |
+| **Exposition** | Max 90% du capital | `used_margin + new_size <= capital * 0.90`. |
+| **Frais simules** | 12 bps × leverage = 24 bps/trade | 7 taker + 3 slippage + 2 funding. Conservateur (frais reels Hyperliquid plus bas). |
+| **Cooldown** | 24h par token apres exit | Empeche de re-entrer immediatement sur le meme token. |
+| **Scan** | Toutes les heures | Bougies 4h, mais scan horaire pour reagir plus vite. |
 
----
+### Sizing par signal (capital = $1,000)
 
-## Ce que la recherche a montré
-
-### La méthode
-- **1500+ regles** testees systematiquement sur 24 indicateurs et 28 tokens
-- **Algorithmes génétiques** et **programmation génétique** (évolution de formules mathématiques)
-- **Machine Learning** (Random Forest, Gradient Boosting) avec validation walk-forward
-- **Monte Carlo** : chaque signal comparé à du timing aléatoire (même nombre de trades, même direction, dates aléatoires)
-- **Train/test split** : signaux trouvés sur 2024, validés sur 2025-2026 (pas sur les mêmes données)
-
-### Ce qui a été éliminé
-- Momentum (acheter les gagnants, vendre les perdants) → bruit
-- Mean-reversion cross-sectionnelle → pire stratégie testée
-- Effets calendaires (mardi meilleur que dimanche) → instable
-- Carry (collecter le funding) → taux trop bas sur Hyperliquid
-- Token unlocks → biais de marché bear
-- Pairs trading → toutes les configs perdent
-- On-chain (whales, stablecoins) → pas prédictif
-- Programmation génétique → overfit systématique
-- Liquidation bounce → perd en portfolio malgré un excellent score solo
-
-### Ce qui a ete elimine (2eme vague de recherche)
-- 6 nouvelles strategies multi-conditions testees (S7, S9, S10, SX, SY) → echouent train/test
-- 8 strategies SHORT (378 variantes) → aucune ne depasse z=2.0
-- Regime gating (activer signaux selon bull/bear) → degrade tous les signaux existants
-- Signal de liquidation comme filtre (au lieu de signal) → pas d'amelioration
-
-### Ce qui a survecu
-5 signaux sur 1500+ testes passent tous les filtres (profit en train ET test, Monte Carlo significatif). Ce sont les 5 signaux du bot.
-
----
-
-## Perspectives de gain
-
-### Backtest (36 mois, données réelles Hyperliquid)
-
-| Année | Contexte marché | Performance | Capital |
+| Signal | z-score | weight | Mise |
 |---|---|---|---|
-| 2023 (5 mois) | Bear | +8% | $1,000 → $1,081 |
-| 2024 | Bull | +528% | $1,081 → $6,786 |
-| 2025 | Bear/latéral | +145% | $6,786 → $16,646 |
-| 2026 (3 mois) | Latéral | -33% | $16,646 → $11,214 |
-| **Total** | **35 mois** | **+1,021%** | **$1,000 → $11,214** |
+| S8 | 6.99 | 1.75 | $262 |
+| S1 | 6.42 | 1.61 | $241 |
+| S2 | 4.00 | 1.00 | $150 |
+| S5 | 3.67 | 0.92 | $138 |
+| S4 | 2.95 | 0.74 | $111 |
 
-### Ce que ça veut dire selon le marché
+Formule : `weight = clamp(z / 4.0, 0.5, 2.0)`, `size = $1000 * 15% * weight`.
 
-| Scénario | Rendement annuel estimé | Ce qui se passe |
-|---|---|---|
-| **Bull market** | +200% à +500% | S1 (BTC rip) se déclenche, S5 (secteur) en soutien. Les gains composent vite. |
-| **Bear market** | +50% à +150% | S4 (short) et S5 (secteur) portent les gains. S2 (alt crash) fournit des rebonds. |
-| **Marché calme** | -10% à +20% | Peu de signaux, le bot dort. Petites pertes en frais sur les rares trades. |
-| **Crash prolongé** | -20% à -50% | Les dips ne rebondissent pas (S2 perd), le calme plat ne mène pas à une baisse (S4 perd). |
+### Ce qui a ete teste et rejete pour les parametres
 
-### Les chiffres honnêtes
+| Idee | Resultat |
+|---|---|
+| Stop loss serre (-7% au lieu de -25%) | Detruit la valeur — les trades gagnants passent souvent par un drawdown temporaire avant de remonter |
+| Trailing stop (activer a +25 bps, couper a -15 du peak) | Pire que timeout fixe |
+| Signal exit (sortir quand le signal s'inverse) | Perd de l'argent |
+| Sizing ATR (reduire la taille quand le marche est volatile) | P&L -27%, ratio gain/DD pire. La volatilite est le carburant des signaux S2/S8, pas un risque. |
+| Regime gating (bull-only S2, bear-only S4) | Degrade tous les signaux. S2 marche en bull ET en bear. |
+| HMM / Markov regimes | Meme logique que le regime gating — reduire l'exposition en crash = couper S2/S8 exactement quand ils doivent tirer |
+| Leverage 3x | Ruine par compounding des pertes. 2x est le sweet spot. |
+| Max 10 positions au lieu de 6 | Performance identique (pas assez de signaux simultanement) |
+| Smart priority (scoring + reservation + remplacement) | Aucune amelioration |
 
-- **Rendement moyen estimé** : +50% à +150%/an (très variable selon le marché)
-- **Bon mois** : +$500 à +$5,000 (sur un capital de $5,000+)
-- **Mauvais mois** : -$200 à -$4,000
-- **Pire drawdown observé** : -54% (tu perds la moitié avant que ça remonte)
-- **Pire série** : 3 mois perdants consécutifs (Q1 2026)
-- **Mois gagnants** : 57% du temps (20 sur 35)
-- **Bot inactif** : ~26% du temps (aucun signal, pas de trade)
+---
 
-### Ce que le bot ne peut PAS faire
+## Recherche
 
-- Garantir un gain mensuel. 43% des mois sont perdants.
-- Protéger contre un crash de -50% en quelques heures (le stop à -25% limite les dégâts mais pas à zéro).
-- Performer dans un marché totalement plat pendant des mois.
-- Prédire l'avenir. Il exploite des patterns statistiques qui ont fonctionné par le passé.
+### Methode de validation (3 filtres obligatoires)
+
+Chaque signal doit passer les 3 :
+
+1. **Train/test split** — Trouve sur 2024 (train), valide sur 2025-2026 (test). Profitable sur les deux periodes.
+2. **Monte Carlo** — Compare a du timing aleatoire avec le meme nombre de trades, meme direction, meme distribution par token. z-score > 2.0 requis.
+3. **Portfolio integration** — Ajoute aux signaux existants et verifie que le P&L total augmente (pas de cannibalisation).
+
+### Ce qui a ete teste et elimine
+
+**1ere vague (700+ regles)** :
+- Momentum (acheter les gagnants) — bruit
+- Mean-reversion cross-sectionnelle — pire strategie testee
+- Effets calendaires (mardi > dimanche) — instable, n'existe qu'en bear
+- Carry / funding — taux Hyperliquid trop bas (0.001 bps vs 1.6 bps Binance)
+- Token unlocks — biais bear
+- Pairs trading — toutes les configs perdent
+- On-chain (whales, stablecoins) — pas predictif
+- Programmation genetique (expression trees) — overfit systematique sur train
+- ML walk-forward (RF + GBT) — confirme les features mais n'ajoute aucun signal nouveau
+
+**2eme vague (800+ regles multi-conditions)** :
+- S7 BTC-Alt recouple (`alt_vs_btc_7d < -1500 AND btc_7d > 300`) — echoue train/test
+- S9 Exhaustion reversal (`consec_dn >= 5`) — echoue train/test
+- S10 Vol compression + recovery — echoue train/test
+- SX BTC-ETH spread divergence — echoue train/test
+- SY Dispersion warning — echoue train/test
+- 8 strategies SHORT (378 variantes : alt fade, BTC weakness, dead cat, bubble top, etc.) — aucune z > 2.0
+- Regime gating (btc_30d, alt_index, combinaisons) — degrade S1, S2, S4
+- Liquidation comme filtre (au lieu de signal) — pas d'amelioration
+
+**Resultat** : 5 signaux sur 1500+ testes passent les 3 filtres.
+
+### Backtest (27 mois, donnees reelles Hyperliquid)
+
+| Annee | Contexte | Performance | Capital |
+|---|---|---|---|
+| 2023 (5 mois) | Bear | +8% | $1,000 -> $1,081 |
+| 2024 | Bull | +528% | $1,081 -> $6,786 |
+| 2025 | Bear/lateral | +145% | $6,786 -> $16,646 |
+| 2026 (3 mois) | Lateral | -33% | $16,646 -> $11,214 |
+| **Total** | **35 mois** | **+1,021%** | **$1,000 -> $11,214** |
+
+- 20/35 mois gagnants (57%)
+- Drawdown max : -54%
+- Meilleur mois : +$3,040 (nov 2024)
+- Pire mois : -$4,432 (jan 2026)
+
+### S8 en detail (le nouveau signal)
+
+| Metrique | Valeur |
+|---|---|
+| P&L total | +$1,984 |
+| Trades | 192 |
+| Win rate | 70% |
+| Gain moyen | +413 bps/trade |
+| Gain median | +512 bps |
+| Pire trade | -1512 bps (stop loss) |
+| Meilleur trade | +3072 bps |
+| Mois gagnants | 16/18 (89%) |
+| Max drawdown | -$265 |
+| Ratio gain/DD | 7.5x |
+| Max pertes consecutives | 7 (avril 2024, crash crypto prolonge) |
+| En portfolio (+S1/S2/S4) | +$442 additionnel (+10%), z passe de 5.38 a 6.07 |
 
 ---
 
 ## Risques
 
-### Risque de perte
-Avec un drawdown max de -54%, un investissement de $1,000 peut temporairement descendre à **$460** avant de remonter. Il faut être psychologiquement prêt à voir ce chiffre et ne pas paniquer.
+### Perte en capital
+Drawdown max observe : -54%. Un investissement de $1,000 peut tomber a **$460** avant de remonter. 43% des mois sont perdants.
 
-### Risque de modèle
-Les 5 signaux ont ete decouverts sur des donnees passees. Le marche crypto evolue. Ce qui marchait en 2024-2025 pourrait ne plus marcher en 2027. C'est pour ca qu'on fait du paper trading d'abord.
+### Risque de modele
+Les 5 signaux viennent de donnees passees (2023-2026). Le marche evolue. Ce qui marchait pourrait cesser de marcher. Le paper trading valide le modele en conditions reelles avant tout capital reel.
 
-### Risque de liquidite sur S8
-S8 achete pendant un flush de liquidation — exactement le moment ou les carnets d'ordres se vident sur un DEX. Le slippage reel peut etre 5-10x plus eleve que les 3 bps simules. Un trade gagnant sur papier peut devenir perdant en reel a cause de l'ecart entre le prix affiche et le prix d'execution. Ce risque est specifique a S8 et n'affecte pas les autres signaux qui operent dans des conditions de marche normales.
+### Risque de liquidite (S8)
+S8 achete pendant les flushes de liquidation — exactement quand les carnets d'ordres se vident. Le slippage reel peut etre 5-10x plus eleve que les 3 bps simules. Un trade gagnant sur papier peut devenir perdant en reel. Mitigation en production : ordres limit (maker) au lieu de market (taker).
 
 ### Risque de plateforme
-Hyperliquid est un exchange decentralise. Il pourrait avoir des bugs, des hacks, ou des problemes de liquidite. L'argent sur Hyperliquid n'est pas protege par une assurance.
+Hyperliquid est un DEX sans assurance. Risques : bugs smart contract, hack, perte de fonds.
 
 ### Risque technique
-Le bot tourne sur un serveur. Si le serveur tombe ou si l'API Hyperliquid est indisponible, les positions restent ouvertes sans surveillance. Le stop à -25% est la dernière protection.
+Si le serveur tombe ou l'API est indisponible, les positions restent ouvertes. Le stop loss est le dernier filet.
+
+### Scenarios de perte prolongee
+- **Marche lateral prolonge** : peu de signaux, les rares trades perdent en frais. Bot inactif ~26% du temps.
+- **Crash qui ne rebondit pas** : S2 et S8 achetent les dips, mais si le dip continue pendant des semaines (bear market structurel), les stops se font toucher en serie.
+- **Dollar faible prolonge** : S4 (le seul SHORT) est desactive quand le dollar baisse. Le bot devient 100% LONG.
 
 ---
 
-## Fonctionnement technique
+## Architecture technique
 
-### Architecture
 ```
 Hyperliquid REST API
-    ├── Prix (toutes les 60s)
-    ├── Bougies 4h (toutes les heures, 30 tokens)
-    └── Yahoo Finance DXY (toutes les 6h)
+    ├── metaAndAssetCtxs (prix + OI, toutes les 60s)
+    ├── candleSnapshot (bougies 4h, toutes les heures, 30 tokens)
+    └── Yahoo Finance (DXY, toutes les 6h, cache local)
             │
             ▼
-    reversal.py (processus unique)
-    ├── Features (24 indicateurs par token)
+    reversal.py  (processus asyncio unique)
+    ├── 24 features par token (returns, vol, drawdown, recovery,
+    │   consec, BTC/ETH relative, alt index, dispersion, rank, vol_z)
     ├── 5 signaux (S1, S2, S4, S5, S8)
-    ├── Position manager (max 6, stop -25%/-15%)
-    ├── State persistence (JSON + CSV)
+    │     S1: btc_30d > +20%              → LONG 72h
+    │     S2: alt_index < -10%            → LONG 72h
+    │     S4: vol_ratio < 1 + range < 2% + DXY > +1% → SHORT 72h
+    │     S5: sector div > 10% + vol_z > 1 → FOLLOW 48h
+    │     S8: drawdown < -40% + vol_z > 1 + ret_6h < -0.5% + btc_7d < -3% → LONG 60h
+    ├── Position manager
+    │     Max 6 positions, max 4 meme direction
+    │     Stop: -25% leveraged (S8: -15%)
+    │     Timeout: 48-72h selon signal
+    │     Cooldown: 24h par token apres exit
+    │     Exposure: max 90% du capital
+    ├── State persistence
+    │     JSON atomic writes (tmp + os.replace)
+    │     CSV trades log
+    │     Positions survivent aux redemarrages
     └── Dashboard FastAPI (:8097)
+          Point vert pulsant + countdown prochain scan
+          Prix live toutes les 5s
+          Signaux toutes les 15s
 ```
 
+### Cycle de scan (toutes les heures)
+
+1. `_fetch_prices()` — prix de tous les tokens via `metaAndAssetCtxs`
+2. `_fetch_candles(sym)` — bougies 4h pour les 30 tokens (28 traded + BTC + ETH)
+3. `_refresh_feature_cache()` — calcule les 24 features pour chaque token
+4. `_check_exits()` — ferme les positions en timeout ou en stop loss
+5. `_scan_signals()` — detecte S1/S2/S4/S5/S8, trie par z-score, ouvre les positions
+6. `_save_state()` — sauvegarde atomique JSON
+
+Entre les scans : prix rafraichis toutes les 60s, exits verifies (stop loss peut declencher hors scan).
+
+### Features calculees (24)
+
+| # | Feature | Description | Utilise par |
+|---|---|---|---|
+| 1 | ret_6h | Retour 6 bougies (1 jour) | S8 |
+| 2 | ret_42h | Retour 42 bougies (7 jours) | tous |
+| 3 | vol_7d | Volatilite realisee 7 jours | S4 |
+| 4 | vol_30d | Volatilite realisee 30 jours | S4 |
+| 5 | vol_ratio | vol_7d / vol_30d | S4 |
+| 6 | range_pct | (high - low) / close de la bougie courante | S4 |
+| 7 | drawdown | Prix actuel vs plus haut 30j | S8 |
+| 8 | vol_z | Z-score du volume (actuel vs moyenne 30j) | S5, S8 |
+| 9 | btc_30d | Retour BTC 30 jours | S1 |
+| 10 | btc_7d | Retour BTC 7 jours | S8 |
+| 11 | alt_index_7d | Moyenne des retours 7j des 28 alts | S2 |
+| 12 | sector_divergence | Retour du token - moyenne de son secteur | S5 |
+| 13 | DXY 7d | Retour du dollar index 7 jours (Yahoo Finance) | S4 |
+
+(Les features 14-24 sont calculees dans le backtest mais seules celles ci-dessus sont utilisees en production.)
+
 ### Fichiers
-| Fichier | Rôle |
+
+| Fichier | Role |
 |---|---|
-| `analysis/reversal.py` | Le bot (code principal) |
-| `analysis/reversal.html` | Dashboard web |
+| `analysis/reversal.py` | Le bot (~1100 lignes) |
+| `analysis/reversal.html` | Dashboard web (pulse, countdown, charts) |
+| `analysis/output/reversal_state.json` | Etat des positions (atomic writes) |
 | `analysis/output/reversal_trades.csv` | Historique des trades |
-| `analysis/output/reversal_state.json` | État des positions (pour les redémarrages) |
 | `analysis/output/reversal_v10.log` | Logs |
+| `analysis/output/pairs_data/macro_DXY.json` | Cache DXY (6h TTL) |
+| `analysis/output/pairs_data/*.json` | Bougies 4h par token |
 | `docs/research_findings.md` | Journal de recherche complet |
 | `docs/bot.md` | Ce fichier |
 
+### API
+
+| Endpoint | Description |
+|---|---|
+| `GET /` | Dashboard HTML (cache en memoire, restart pour mise a jour) |
+| `GET /api/state` | Balance, positions, signaux actifs, timing (prix age, next scan) |
+| `GET /api/signals` | 28 tokens avec features, signaux declenches, positions |
+| `GET /api/trades` | Historique (deque maxlen=500, `list()` avant slicing) |
+| `GET /api/pnl` | Courbe P&L cumulative |
+| `POST /api/pause` | Ferme toutes les positions + pause |
+| `POST /api/resume` | Reprend (force scan immediat via `_last_scan = 0`) |
+| `POST /api/reset` | Reset capital, ferme tout, backup CSV |
+
 ### Commandes
+
 ```bash
-# Lancer le bot
+# Lancer
 nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 
 # Dashboard
 # http://0.0.0.0:8097
 
-# Arrêter
+# Arreter
 fuser -k 8097/tcp
 
-# Logs en direct
+# Logs
 tail -f analysis/output/reversal_v10.log
-
-# Trades
-cat analysis/output/reversal_trades.csv
 ```
-
-### API
-| Endpoint | Description |
-|---|---|
-| `GET /` | Dashboard HTML |
-| `GET /api/state` | État du bot (balance, positions, signaux actifs) |
-| `GET /api/signals` | Tous les tokens avec leurs signaux |
-| `GET /api/trades` | Historique des trades |
-| `GET /api/pnl` | Courbe de P&L |
-| `POST /api/pause` | Ferme toutes les positions et met en pause |
-| `POST /api/resume` | Reprend le trading |
-| `POST /api/reset` | Remet tout à zéro |
 
 ---
 
-## Prochaines étapes
+## Plan de production
 
-1. **Paper trading 1-2 mois** — Vérifier que le comportement réel colle au backtest
-2. **Comparer** — Le P&L réel doit être dans la fourchette du backtest (en tenant compte que les frais réels sont plus bas que simulés)
-3. **Si ça colle** — Mettre un petit capital réel ($100-500) sur Hyperliquid et activer le trading réel
-4. **Surveiller** — Vérifier le dashboard chaque jour, lire les logs en cas de trade
+### Phase 1 — Paper trading (en cours)
+- Objectif : 4-8 semaines de trades pour comparer real vs backtest
+- Metriques a suivre : nombre de trades/mois, win rate, P&L moyen par signal
+- Alerte si : 0 trades en 2 semaines, ou P&L < -20% du capital
 
-### Améliorations futures possibles
-- **Ordres limit** (maker) au lieu de market (taker) → frais divisés par 5, mais risque de rater des trades
-- **Bougies 1h** → plus de trades pour S4 et S5 (testé, prometteur mais pas assez d'historique pour valider)
-- **Plus de tokens** → pas d'impact avec les signaux actuels (ils sont globaux, pas token-spécifiques)
-- **Liquidation map Hyperliquid** → exploiter la transparence du DEX pour anticiper les cascades de liquidation
-- **Signaux macro** → le DXY est déjà utilisé comme filtre, le VIX pourrait être ajouté
+### Phase 2 — Passage en reel
+- Capital initial : $100-500
+- Changements necessaires :
+  - **Ordres limit (maker)** au lieu de market, surtout pour S2/S8 (crash buying = on fournit la liquidite aux liquides). Frais : 7 bps taker → ~1 bps maker (rebate Hyperliquid).
+  - **Verification croisee** : comparer `state.json` avec `clearinghouseState` de l'API Hyperliquid pour detecter les divergences.
+  - **Alertes Telegram** : notification a chaque entry/exit/erreur.
+  - **Slippage S8** : surveiller le slippage reel vs simule. Si > 20 bps consistamment, reduire la mise S8.
+
+### Phase 3 — Scaling
+- Si 2+ mois reels coherents avec backtest : augmenter le capital progressivement
+- Ne jamais mettre plus que ce qu'on peut perdre entierement (drawdown -54% observe)
