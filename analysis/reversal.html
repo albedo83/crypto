@@ -9,11 +9,19 @@
 body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;font-size:13px}
 .header{padding:12px 20px;background:#161b22;border-bottom:1px solid #30363d;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .header h1{font-size:16px;color:#58a6ff}
-.tag{padding:2px 8px;border-radius:4px;font-size:11px}
+.tag{padding:2px 8px;border-radius:4px;font-size:11px;display:inline-flex;align-items:center;gap:6px}
 .tag.live{background:#238636;color:#fff}.tag.paused{background:#da3633;color:#fff}
+.pulse{width:8px;height:8px;border-radius:50%;background:#3fb950;display:inline-block;animation:pulse 2s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(63,185,80,0.6)}50%{opacity:0.6;box-shadow:0 0 0 6px rgba(63,185,80,0)}}
 .info{color:#7d8590;font-size:12px}
+.activity-bar{background:#0d1117;border-bottom:1px solid #21262d;padding:6px 20px;display:flex;align-items:center;gap:16px;font-size:11px;color:#7d8590;overflow:hidden}
+.activity-bar .ticker{display:flex;gap:12px;overflow:hidden;flex:1}
+.activity-bar .tick{white-space:nowrap;transition:opacity 0.3s}
+.countdown{font-size:11px;color:#7d8590;white-space:nowrap}
+.countdown .time{color:#58a6ff;font-weight:700}
 .cards{display:flex;gap:10px;flex-wrap:wrap;padding:14px 20px}
-.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 14px;min-width:120px;flex:1}
+.card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 14px;min-width:120px;flex:1;transition:border-color 0.3s}
+.card.flash{border-color:#58a6ff}
 .card .label{font-size:10px;color:#7d8590;text-transform:uppercase;letter-spacing:1px}
 .card .value{font-size:20px;font-weight:700;margin-top:4px}
 .card .sub{font-size:11px;color:#7d8590;margin-top:2px}
@@ -24,7 +32,7 @@ table{width:100%;border-collapse:collapse;background:#161b22;border-radius:8px;o
 th{text-align:left;padding:6px 10px;background:#1c2128;color:#7d8590;font-size:11px;text-transform:uppercase}
 td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 .signal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
-.sig-card{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:10px;position:relative}
+.sig-card{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:10px;position:relative;transition:border-color 0.3s}
 .sig-card.triggered{border-color:#d29922}
 .sig-card.in-pos{border-color:#238636;border-width:2px}
 .sig-card .sym{font-weight:700;font-size:14px}
@@ -42,29 +50,38 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 .btn.success:hover{background:#238636;color:#fff}
 .pnl-chart{width:100%;height:180px;background:#161b22;border:1px solid #30363d;border-radius:8px;position:relative;overflow:hidden}
 .pnl-line{position:absolute;bottom:0;left:0;width:100%;height:100%}
+.progress-bar{width:100%;height:3px;background:#21262d;margin-top:2px;border-radius:2px;overflow:hidden}
+.progress-bar .fill{height:100%;background:#58a6ff;transition:width 1s linear;border-radius:2px}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>📊 Multi-Signal Bot v{{VERSION}}</h1>
-  <span class="tag live" id="tag">LIVE</span>
+  <h1>Multi-Signal Bot v{{VERSION}}</h1>
+  <span class="tag live" id="tag"><span class="pulse" id="pulse"></span> LIVE</span>
   <span class="info" id="uptime"></span>
   <span class="info" id="params"></span>
 </div>
 
+<div class="activity-bar">
+  <span class="countdown">Prices: <span class="time" id="price-age">--</span></span>
+  <span class="countdown">Next scan: <span class="time" id="scan-countdown">--</span></span>
+  <div class="progress-bar"><div class="fill" id="scan-progress"></div></div>
+  <span class="countdown" id="last-update">--</span>
+</div>
+
 <div class="cards">
-  <div class="card"><div class="label">Balance</div><div class="value" id="balance">$1,000</div></div>
-  <div class="card"><div class="label">P&L</div><div class="value" id="pnl">$0.00</div><div class="sub" id="pnl-pct">+0.0%</div></div>
+  <div class="card" id="card-balance"><div class="label">Balance</div><div class="value" id="balance">$1,000</div></div>
+  <div class="card" id="card-pnl"><div class="label">P&L</div><div class="value" id="pnl">$0.00</div><div class="sub" id="pnl-pct">+0.0%</div></div>
   <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
-  <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">—</div></div>
-  <div class="card"><div class="label">Today</div><div class="value" id="today-pnl">$0.00</div></div>
+  <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">--</div></div>
+  <div class="card" id="card-total"><div class="label">Total (real+unreal)</div><div class="value" id="today-pnl">$0.00</div></div>
 </div>
 
 <div class="controls">
-  <button class="btn danger" onclick="fetch('/api/pause',{method:'POST'}).then(r)">⏸ STOP</button>
-  <button class="btn success" onclick="fetch('/api/resume',{method:'POST'}).then(r)">▶ RESUME</button>
-  <button class="btn danger" onclick="if(confirm('Reset?'))fetch('/api/reset',{method:'POST'}).then(r)">🗑 RAZ</button>
+  <button class="btn danger" onclick="fetch('/api/pause',{method:'POST'}).then(r)">STOP</button>
+  <button class="btn success" onclick="fetch('/api/resume',{method:'POST'}).then(r)">RESUME</button>
+  <button class="btn danger" onclick="if(confirm('Reset?'))fetch('/api/reset',{method:'POST'}).then(r)">RAZ</button>
 </div>
 
 <div class="section">
@@ -80,7 +97,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="section">
-  <h2>Signals (S1: BTC rip | S2: Alt crash | S4: Vol contraction)</h2>
+  <h2>Signals (S1: BTC rip | S2: Alt crash | S4: Vol contraction | S5: Sector divergence)</h2>
   <div class="signal-grid" id="signals"></div>
 </div>
 
@@ -96,13 +113,56 @@ const r=()=>refresh();
 const cls=v=>v>=0?'green':'red';
 const fmt=(v,d=2)=>(v>=0?'+':'')+v.toFixed(d);
 
+// Live counters (tick every second)
+let _lastFetch=0;
+let _priceAge=null;
+let _nextScan=null;
+let _scanInterval=3600;
+let _prevPnl=null;
+
+function tickCounters(){
+  const now=Date.now()/1000;
+  // Last update age
+  if(_lastFetch>0){
+    const ago=Math.floor(now-_lastFetch);
+    document.getElementById('last-update').textContent=ago+'s ago';
+  }
+  // Price age
+  if(_priceAge!==null){
+    const elapsed=Math.floor(now-_lastFetch)+Math.floor(_priceAge);
+    document.getElementById('price-age').textContent=elapsed+'s';
+    document.getElementById('price-age').style.color=elapsed>120?'#f85149':'#58a6ff';
+  }
+  // Scan countdown
+  if(_nextScan!==null){
+    const remaining=Math.max(0,Math.floor(_nextScan-(now-_lastFetch)));
+    const mm=Math.floor(remaining/60);
+    const ss=remaining%60;
+    document.getElementById('scan-countdown').textContent=mm+'m'+String(ss).padStart(2,'0')+'s';
+    const pct=Math.max(0,Math.min(100,(1-remaining/_scanInterval)*100));
+    document.getElementById('scan-progress').style.width=pct+'%';
+  }
+}
+
+function flashCard(id){
+  const el=document.getElementById(id);
+  if(!el)return;
+  el.classList.add('flash');
+  setTimeout(()=>el.classList.remove('flash'),600);
+}
+
 function refresh(){
   fetch('/api/state').then(r=>r.json()).then(s=>{
+    _lastFetch=Date.now()/1000;
+    _priceAge=s.last_price_s;
+    _nextScan=s.next_scan_s;
+    _scanInterval=s.scan_interval||3600;
+
     document.getElementById('balance').textContent='$'+s.balance.toFixed(2);
     const pnlEl=document.getElementById('pnl');
     pnlEl.textContent='$'+fmt(s.total_pnl);
     pnlEl.className='value '+cls(s.total_pnl);
-    document.getElementById('pnl-pct').textContent=fmt(s.total_pnl/10,2)+'%';
+    document.getElementById('pnl-pct').textContent=fmt(s.total_pnl/s.balance*100,2)+'%';
     document.getElementById('pos-count').textContent=s.n_positions+'/'+s.max_positions;
 
     const nL=s.positions.filter(p=>p.direction==='LONG').length;
@@ -110,11 +170,12 @@ function refresh(){
     document.getElementById('pos-detail').textContent=nL+'L / '+nS+'S';
 
     document.getElementById('trades-count').textContent=s.total_trades;
-    document.getElementById('win-rate').textContent=s.total_trades>0?(s.win_rate*100).toFixed(0)+'% win':'—';
+    document.getElementById('win-rate').textContent=s.total_trades>0?(s.win_rate*100).toFixed(0)+'% win':'--';
 
     const tag=document.getElementById('tag');
-    if(s.paused){tag.textContent='PAUSED';tag.className='tag paused'}
-    else{tag.textContent='LIVE';tag.className='tag live'}
+    const pulse=document.getElementById('pulse');
+    if(s.paused){tag.innerHTML='PAUSED';tag.className='tag paused'}
+    else{tag.innerHTML='<span class="pulse"></span> LIVE';tag.className='tag live'}
 
     const up=s.uptime_s;
     const h=Math.floor(up/3600),m=Math.floor((up%3600)/60);
@@ -142,14 +203,19 @@ function refresh(){
       pb.appendChild(tr);
     });
     if(!s.positions.length)
-      pb.innerHTML='<tr><td colspan="10" style="text-align:center;color:#7d8590">No positions — waiting for signals</td></tr>';
+      pb.innerHTML='<tr><td colspan="10" style="text-align:center;color:#7d8590">No positions -- waiting for signals</td></tr>';
 
-    // Today P&L (from trades with today's date)
-    const today=new Date().toISOString().slice(0,10);
+    // Total P&L (realized + unrealized)
     const unrealTotal=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);
-    document.getElementById('today-pnl').textContent='$'+fmt(unrealTotal);
-    document.getElementById('today-pnl').className='value '+cls(unrealTotal);
-  });
+    const todayTotal=s.total_pnl+unrealTotal;
+    document.getElementById('today-pnl').textContent='$'+fmt(todayTotal);
+    document.getElementById('today-pnl').className='value '+cls(todayTotal);
+
+    // Flash cards on change
+    if(_prevPnl!==null && Math.abs(todayTotal-_prevPnl)>0.01) flashCard('card-total');
+    _prevPnl=todayTotal;
+
+  }).catch(e=>console.warn('state fetch error:',e));
 }
 
 function refreshSignals(){
@@ -159,7 +225,7 @@ function refreshSignals(){
     // Header: market conditions
     const hdr=document.createElement('div');
     hdr.style.cssText='padding:4px 8px;color:#7d8590;font-size:12px;grid-column:1/-1';
-    hdr.textContent=`BTC 30d: ${fmt(d.btc_30d||0,0)}bps ${d.btc_30d>2000?'→ S1 LONG ✓':''}  |  Alt Index: ${fmt(d.alt_index||0,0)}bps ${d.alt_index<-1000?'→ S2 LONG ✓':''}`;
+    hdr.textContent=`BTC 30d: ${fmt(d.btc_30d||0,0)}bps ${d.btc_30d>2000?'-> S1 LONG':''}  |  Alt Index: ${fmt(d.alt_index||0,0)}bps ${d.alt_index<-1000?'-> S2 LONG':''}`;
     el.appendChild(hdr);
 
     const sorted=Object.entries(d.signals).sort((a,b)=>Math.abs(b[1].ret_7d_bps)-Math.abs(a[1].ret_7d_bps));
@@ -187,7 +253,7 @@ function refreshSignals(){
         <div class="bar"><div class="fill" style="width:${barW}%;background:${barColor}"></div></div>`;
       el.appendChild(div);
     });
-  });
+  }).catch(e=>console.warn('signals fetch error:',e));
 }
 
 function refreshTrades(){
@@ -211,8 +277,8 @@ function refreshTrades(){
       tb.appendChild(tr);
     });
     if(!trades.length)
-      tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:#7d8590">No trades yet — first exits in ~72h</td></tr>';
-  });
+      tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:#7d8590">No trades yet</td></tr>';
+  }).catch(e=>console.warn('trades fetch error:',e));
 
   // P&L curve
   fetch('/api/pnl').then(r=>r.json()).then(pts=>{
@@ -255,13 +321,14 @@ function refreshTrades(){
     ctx.fillText('$'+fmt(maxP),4,14);
     ctx.fillText('$'+fmt(minP),4,h+8);
     ctx.fillText('$'+fmt(pnls[pnls.length-1]),w-60,pnls[pnls.length-1]>=0?14:h+8);
-  });
+  }).catch(e=>console.warn('pnl fetch error:',e));
 }
 
 refresh();refreshSignals();refreshTrades();
 setInterval(refresh,5000);
 setInterval(refreshSignals,15000);
 setInterval(refreshTrades,30000);
+setInterval(tickCounters,1000);
 </script>
 </body>
 </html>

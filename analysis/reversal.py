@@ -32,6 +32,7 @@ import csv
 import json
 import logging
 import os
+import shutil
 import signal
 import time
 import urllib.request
@@ -49,7 +50,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.0.0"
+VERSION = "10.0.3"
 
 # ── Config ───────────────────────────────────────────────────────────
 
@@ -188,6 +189,7 @@ class MultiSignalBot:
         self._total_pnl = 0.0
         self._wins = 0
         self._last_scan: float = 0
+        self._last_price_fetch: float = 0
         self._cooldowns: dict[str, float] = {}  # symbol → earliest re-entry epoch
 
     # ── Price Data ──────────────────────────────────────────────
@@ -203,6 +205,9 @@ class MultiSignalBot:
 
             meta = data[0]
             ctxs = data[1]
+            if len(meta["universe"]) != len(ctxs):
+                log.warning("API mismatch: %d universe vs %d ctxs", len(meta["universe"]), len(ctxs))
+                return
             now = time.time()
 
             for i, asset in enumerate(meta["universe"]):
@@ -274,13 +279,19 @@ class MultiSignalBot:
 
         # Volatility ratio
         if i >= 42:
-            rets_7d = np.diff(closes[max(0, i-42):i+1]) / closes[max(0, i-42):i]
+            denom_7d = closes[max(0, i-42):i]
+            if (denom_7d == 0).any():
+                return None
+            rets_7d = np.diff(closes[max(0, i-42):i+1]) / denom_7d
             f["vol_7d"] = float(np.std(rets_7d) * 1e4) if len(rets_7d) > 1 else 0
         else:
             f["vol_7d"] = 0
 
         if i >= 180:
-            rets_30d = np.diff(closes[i-180:i+1]) / closes[i-180:i]
+            denom_30d = closes[i-180:i]
+            if (denom_30d == 0).any():
+                return None
+            rets_30d = np.diff(closes[i-180:i+1]) / denom_30d
             f["vol_30d"] = float(np.std(rets_30d) * 1e4) if len(rets_30d) > 1 else 0
         elif i >= 42:
             f["vol_30d"] = f["vol_7d"]  # fallback
@@ -336,7 +347,7 @@ class MultiSignalBot:
                         daily = json.load(f)
                     if len(daily) >= 10:
                         closes = [d["c"] for d in daily[-10:]]
-                        return (closes[-1] / closes[-5] - 1) * 1e4 if closes[-5] > 0 else 0
+                        return (closes[-1] / closes[-6] - 1) * 1e4 if closes[-6] > 0 else 0
 
             # Fetch fresh from Yahoo Finance
             end_ts = int(time.time())
@@ -353,6 +364,7 @@ class MultiSignalBot:
 
             daily = [{"t": ts * 1000, "c": c} for ts, c in zip(timestamps, closes) if c]
             if daily:
+                os.makedirs(os.path.dirname(DXY_CACHE), exist_ok=True)
                 with open(DXY_CACHE, "w") as f:
                     json.dump(daily, f)
                 # 7d return (5 trading days)
@@ -435,7 +447,7 @@ class MultiSignalBot:
             if sym in self._cooldowns and time.time() < self._cooldowns[sym]:
                 continue
 
-            f = self._compute_features(sym)
+            f = self._get_cached_features(sym) or self._compute_features(sym)
             if not f:
                 continue
 
@@ -664,7 +676,8 @@ class MultiSignalBot:
                 )
             if self.positions or self._total_pnl:
                 log.info("Restored: %d positions, P&L $%.2f", len(self.positions), self._total_pnl)
-            os.rename(STATE_FILE, STATE_FILE + ".loaded")
+            # Keep backup but don't remove original — next _save_state() overwrites it
+            shutil.copy2(STATE_FILE, STATE_FILE + ".loaded")
         except Exception:
             log.exception("Load state failed")
 
@@ -771,6 +784,10 @@ class MultiSignalBot:
                        "cost_bps": COST_BPS, "stop_bps": STOP_LOSS_BPS,
                        "max_pos": MAX_POSITIONS},
             "uptime_s": (now - self.started_at).total_seconds() if self.started_at else 0,
+            "last_price_s": time.time() - self._last_price_fetch if self._last_price_fetch else None,
+            "last_scan_s": time.time() - self._last_scan if self._last_scan else None,
+            "next_scan_s": max(0, SCAN_INTERVAL - (time.time() - self._last_scan)) if self._last_scan else 0,
+            "scan_interval": SCAN_INTERVAL,
         }
 
     def get_signals(self) -> dict:
@@ -781,7 +798,7 @@ class MultiSignalBot:
 
         for sym in TRADE_SYMBOLS:
             st = self.states.get(sym)
-            f = self._compute_features(sym)
+            f = self._get_cached_features(sym) or self._compute_features(sym)
             if not st or not f:
                 continue
 
@@ -836,6 +853,7 @@ class MultiSignalBot:
                 now = time.time()
 
                 await asyncio.to_thread(self._fetch_prices)
+                self._last_price_fetch = time.time()
 
                 if now - self._last_scan >= SCAN_INTERVAL:
                     log.info("Scanning signals...")
