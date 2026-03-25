@@ -178,6 +178,22 @@ Chaque signal doit passer les 3 :
 
 **Resultat** : 5 signaux sur 1500+ testes passent les 3 filtres.
 
+### 4eme filtre : Walk-forward rolling
+
+Au-dela du train/test simple, chaque signal est teste en **walk-forward** : train 12 mois, test 3 mois, avancer de 3 mois. Si un signal ne gagne pas > 50% des fenetres, il est fragile.
+
+| Signal | Fenetres gagnantes | Stabilite |
+|---|---|---|
+| S8 | 8/9 (89%) | Tres stable |
+| S1 | 3/4 (75%) | Stable (peu de fenetres car signal rare) |
+| S4 | 7/10 (70%) | Stable |
+| S2 | 5/9 (56%) | Borderline — perd presque 1 trimestre sur 2, mais gains compensent |
+| S5 | ~50% | Difficile a evaluer (le vrai calcul sectoriel n'est pas reproductible en walk-forward simple) |
+
+S8 est le signal le plus robuste out-of-sample. S2 est le plus fragile.
+
+Test complementaire **Leave-5-tokens-out** (exclure 5 tokens au hasard, 10 iterations) : aucun signal ne depend de tokens specifiques. La robustesse vient des patterns de marche, pas de coins individuels.
+
 ### Backtest (32 mois, donnees reelles Hyperliquid)
 
 | Annee | Contexte | Performance | Capital |
@@ -209,6 +225,65 @@ Chaque signal doit passer les 3 :
 | Ratio gain/DD | 7.5x |
 | Max pertes consecutives | 7 (avril 2024, crash crypto prolonge) |
 | En portfolio (+S1/S2/S4) | +$442 additionnel (+10%), z passe de 5.38 a 6.07 |
+
+---
+
+## Estimations de gain (sur $1,000)
+
+### Par scenario de marche
+
+| Scenario | P&L annuel estime | Capital fin d'annee | Probabilite |
+|---|---|---|---|
+| **Bull (comme 2024)** | +$2,000 a +$5,000 | $3,000 - $6,000 | ~25% du temps |
+| **Mixte** | +$500 a +$2,000 | $1,500 - $3,000 | ~40% du temps |
+| **Lateral calme** | -$100 a +$200 | $900 - $1,200 | ~20% du temps |
+| **Crash prolonge** | -$200 a -$500 | $500 - $800 | ~15% du temps |
+
+### Backtest compound (sizing v10.2.0 : 12%+3%, haircut)
+
+Mises ~20% plus petites que le backtest original (15%) :
+- Estimation : **$1,000 → $7,000-$9,000 sur 32 mois**
+- Soit ~**+300%/an compose** dans les meilleures conditions
+
+### Les vrais chiffres honnetes
+
+- **Rendement annuel moyen** : +$1,000 a +$2,000 sur $1,000 en conditions normales
+- **63% des mois gagnants**, 37% perdants
+- **Pire mois** : -$4,432 (a haut capital, jan 2026)
+- **Pire drawdown** : -54% du peak (tu perds la moitie avant que ca remonte)
+- **Pire trimestre** : -33% (Q1 2026, marche lateral)
+- **Bot inactif** : ~26% du temps (aucun signal)
+- Le rendement varie de **-30% a +500%/an** selon le marche
+- La moyenne cache une variance enorme
+
+### Ce qui n'est PAS dans les chiffres
+
+- **Slippage reel S8** : peut manger 20-50 bps de plus que les 3 bps simules (carnets d'ordres vides pendant les flushes)
+- **Frais reels Hyperliquid** : plutot MEILLEURS que simule (maker rebates). Les deux s'annulent partiellement.
+- **Data snooping residuel** : malgre les 4 filtres (train/test, Monte Carlo, portfolio, walk-forward), 1500+ regles testees = certains faux positifs sont possibles. Le paper trading est le test ultime.
+
+### Ne PAS s'attendre a
+
+- Un gain chaque mois. 37% des mois sont perdants.
+- Une protection contre un crash de -50% en quelques heures.
+- Des gains en marche totalement plat.
+- Que les performances passees se repetent exactement.
+
+---
+
+## Protections du portfolio (v10.2.0)
+
+| Protection | Detail |
+|---|---|
+| **Max 6 positions** | Limite absolue, jamais depassee |
+| **Max 4 meme direction** | Empeche d'etre 100% LONG ou 100% SHORT |
+| **Max 2 par secteur** | Empeche 4 LONG DeFi deguises en "diversification" |
+| **Exposition max 90%** | Le bot garde toujours 10% de cash |
+| **Stop loss** | -25% leveraged (S1/S2/S4/S5), -15% (S8) |
+| **Kill-switch** | Auto-pause si P&L total < -$300 (-30% du capital) |
+| **Loss streak** | 3 pertes consecutives → sizing divise par 2 pendant 24h |
+| **Cooldown** | 24h par token apres exit |
+| **Mode degrade** | Bandeau rouge sur le dashboard si DXY indisponible (S4 desactive) |
 
 ---
 
@@ -255,8 +330,10 @@ Hyperliquid REST API
     │     S5: sector div > 10% + vol_z > 1 → FOLLOW 48h
     │     S8: drawdown < -40% + vol_z > 1 + ret_6h < -0.5% + btc_7d < -3% → LONG 60h
     ├── Position manager
-    │     Max 6 positions, max 4 meme direction
+    │     Max 6 positions, max 4 meme direction, max 2 par secteur
     │     Stop: -25% leveraged (S8: -15%)
+    │     Kill-switch: auto-pause si P&L < -$300
+    │     Loss streak: 3 pertes → sizing /2 pendant 24h
     │     Timeout: 48-72h selon signal
     │     Cooldown: 24h par token apres exit
     │     Exposure: max 90% du capital
