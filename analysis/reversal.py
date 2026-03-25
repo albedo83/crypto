@@ -159,9 +159,10 @@ class SymbolState:
     candles_4h: deque = field(default_factory=lambda: deque(maxlen=200))
     last_candle_ts: int = 0
     price_ticks: deque = field(default_factory=lambda: deque(maxlen=300))
-    # OI + funding tracking (collected every 60s, not used for signals yet — observation phase)
+    # OI + funding + premium tracking (collected every 60s — observation phase)
     oi: float = 0.0
     funding: float = 0.0
+    premium: float = 0.0
     oi_history: deque = field(default_factory=lambda: deque(maxlen=360))  # 6h @ 60s
 
 
@@ -247,7 +248,8 @@ class MultiSignalBot:
                     if oi > 0:
                         st.oi = oi
                         st.oi_history.append((now, oi))
-                    st.funding = float(ctxs[i].get("funding", 0))
+                    st.funding = float(ctxs[i].get("funding") or 0)
+                    st.premium = float(ctxs[i].get("premium") or 0)
         except Exception as e:
             log.warning("Price fetch error: %s", e)
 
@@ -376,6 +378,39 @@ class MultiSignalBot:
             "oi_delta_4h": round(delta_4h, 2),
             "funding_bps": round(funding_bps, 3),
         }
+
+    def _compute_crowding_score(self, symbol: str) -> int:
+        """Score 0-100 measuring leverage stress / flush quality.
+
+        Higher = more likely a genuine liquidation flush (good for S2/S8).
+        Lower = simple price decline without deleveraging.
+        Observation only — not used for signal decisions yet.
+        """
+        score = 0
+        oi_f = self._compute_oi_features(symbol)
+        st = self.states.get(symbol)
+        f = self._get_cached_features(symbol)
+
+        # OI dropping = positions closing = deleveraging
+        d1h = oi_f["oi_delta_1h"]
+        if d1h < -1.0:
+            score += 30
+        if d1h < -3.0:
+            score += 20
+
+        # Funding very negative = shorts overcrowded, squeeze potential
+        if st and st.funding < -0.00005:  # -0.005%
+            score += 20
+
+        # Volume spike = stress
+        if f and f.get("vol_z", 0) > 1.5:
+            score += 15
+
+        # Premium negative = perp trading below oracle = forced selling
+        if st and st.premium < -0.0005:  # -0.05%
+            score += 15
+
+        return min(100, score)
 
     def _compute_btc_features(self) -> dict:
         """Compute BTC-level features."""
@@ -553,9 +588,10 @@ class MultiSignalBot:
             if not st or st.price == 0:
                 continue
 
-            # OI features for all signals (observation — logged, not used for decisions)
+            # OI + crowding features (observation — logged, not used for decisions)
             oi_f = self._compute_oi_features(sym)
-            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% f={oi_f['funding_bps']:+.1f}bp"
+            crowd = self._compute_crowding_score(sym)
+            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd}"
 
             # S1: btc_30d > 2000 bps → LONG
             if btc_30d > 2000:
@@ -653,6 +689,20 @@ class MultiSignalBot:
             # Loss streak penalty
             if time.time() < self._loss_streak_until:
                 size = round(size * LOSS_STREAK_MULTIPLIER, 2)
+
+            # Signal health quarantine (based on rolling win rate)
+            drift = self._compute_signal_drift()
+            health = drift.get(sig["strategy"], {})
+            if health.get("n", 0) >= 10:
+                wr = health["win_rate"]
+                if wr < 0.20:
+                    log.critical("QUARANTINE: %s win rate %.0f%% on last %d trades — skipping",
+                                 sig["strategy"], wr * 100, health["n"])
+                    continue
+                elif wr < 0.30:
+                    size = round(size * 0.5, 2)
+                    log.warning("DEGRADED: %s win rate %.0f%% — sizing halved",
+                                sig["strategy"], wr * 100)
 
             # Capital exposure limit: max 90% of capital as margin
             used_margin = sum(p.size_usdt for p in self.positions.values())
@@ -1002,6 +1052,7 @@ class MultiSignalBot:
                 triggered.append("S8:LONG")
 
             oi_f = self._compute_oi_features(sym)
+            crowd = self._compute_crowding_score(sym)
             signals[sym] = {
                 "price": st.price,
                 "ret_7d_bps": round(f.get("ret_42h", 0), 1),
@@ -1011,6 +1062,7 @@ class MultiSignalBot:
                 "sector_div": round(sd["divergence"], 0) if sd else 0,
                 "oi_delta_1h": oi_f["oi_delta_1h"],
                 "funding_bps": oi_f["funding_bps"],
+                "crowding": crowd,
                 "triggered": triggered,
                 "in_position": sym in self.positions,
                 "position_strategy": self.positions[sym].strategy if sym in self.positions else None,
