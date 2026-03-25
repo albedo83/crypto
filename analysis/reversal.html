@@ -259,6 +259,7 @@ function refreshSignals(){
         <div class="sym">${sym}</div>
         <div class="ret ${retClass}">${fmt(ret,0)} bps</div>
         <div style="font-size:11px;color:#7d8590">$${s.price.toFixed(s.price>10?2:4)} | vr=${s.vol_ratio} rng=${s.range_bps}bp</div>
+        <div style="font-size:10px;color:${s.oi_delta_1h<-0.5?'#f85149':s.oi_delta_1h>0.5?'#3fb950':'#7d8590'}">OI ${s.oi_delta_1h>0?'+':''}${(s.oi_delta_1h||0).toFixed(1)}% | fund ${(s.funding_bps||0).toFixed(2)}bp</div>
         <div class="bar"><div class="fill" style="width:${barW}%;background:${barColor}"></div></div>`;
       el.appendChild(div);
     });

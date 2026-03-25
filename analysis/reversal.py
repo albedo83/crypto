@@ -51,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.2.0"
+VERSION = "10.3.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 
@@ -164,6 +164,10 @@ class SymbolState:
     candles_4h: deque = field(default_factory=lambda: deque(maxlen=200))
     last_candle_ts: int = 0
     price_ticks: deque = field(default_factory=lambda: deque(maxlen=300))
+    # OI + funding tracking (collected every 60s, not used for signals yet — observation phase)
+    oi: float = 0.0
+    funding: float = 0.0
+    oi_history: deque = field(default_factory=lambda: deque(maxlen=360))  # 6h @ 60s
 
 
 @dataclass
@@ -243,6 +247,12 @@ class MultiSignalBot:
                     st.price = price
                     st.updated_at = now
                     st.price_ticks.append((now, price))
+                    # Collect OI + funding (observation phase — not used for signals yet)
+                    oi = float(ctxs[i].get("openInterest", 0))
+                    if oi > 0:
+                        st.oi = oi
+                        st.oi_history.append((now, oi))
+                    st.funding = float(ctxs[i].get("funding", 0))
         except Exception as e:
             log.warning("Price fetch error: %s", e)
 
@@ -348,6 +358,29 @@ class MultiSignalBot:
             f["vol_z"] = 0
 
         return f
+
+    def _compute_oi_features(self, symbol: str) -> dict:
+        """Compute OI delta features from live 60s samples. Observation only — not used for signals."""
+        st = self.states.get(symbol)
+        if not st or len(st.oi_history) < 10:
+            return {"oi_delta_1h": 0.0, "oi_delta_4h": 0.0, "funding_bps": 0.0}
+        history = list(st.oi_history)
+        now_oi = history[-1][1]
+        # 1h delta (~60 samples)
+        idx_1h = max(0, len(history) - 60)
+        oi_1h = history[idx_1h][1]
+        delta_1h = (now_oi / oi_1h - 1) * 100 if oi_1h > 0 else 0.0
+        # 4h delta (~240 samples)
+        idx_4h = max(0, len(history) - 240)
+        oi_4h = history[idx_4h][1]
+        delta_4h = (now_oi / oi_4h - 1) * 100 if oi_4h > 0 else 0.0
+        # Funding in bps (hourly rate × 10000)
+        funding_bps = st.funding * 1e4
+        return {
+            "oi_delta_1h": round(delta_1h, 2),
+            "oi_delta_4h": round(delta_4h, 2),
+            "funding_bps": round(funding_bps, 3),
+        }
 
     def _compute_btc_features(self) -> dict:
         """Compute BTC-level features."""
@@ -509,10 +542,11 @@ class MultiSignalBot:
 
             # S2: alt_index_7d < -1000 bps → LONG
             if alt_index < -1000:
+                oi_f = self._compute_oi_features(sym)
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S2",
                     "z": STRAT_Z["S2"],
-                    "info": f"AltIdx={alt_index:+.0f}bps",
+                    "info": f"AltIdx={alt_index:+.0f}bps OI1h={oi_f['oi_delta_1h']:+.1f}%",
                     "strength": abs(alt_index),
                     "hold_hours": HOLD_HOURS_DEFAULT,
                 })
@@ -546,10 +580,11 @@ class MultiSignalBot:
                     and f.get("vol_z", 0) > S8_VOL_Z_MIN
                     and f.get("ret_6h", 0) < S8_RET_6H_THRESH
                     and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
+                oi_f = self._compute_oi_features(sym)
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S8",
                     "z": STRAT_Z["S8"],
-                    "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r6h={f['ret_6h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f}",
+                    "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r6h={f['ret_6h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f} OI1h={oi_f['oi_delta_1h']:+.1f}%",
                     "strength": abs(f["drawdown"]),
                     "hold_hours": HOLD_HOURS_S8,
                 })
@@ -877,6 +912,8 @@ class MultiSignalBot:
                 "btc_30d": round(btc_f.get("btc_30d", 0), 0),
                 "alt_index_7d": round(alt_idx, 0),
                 "dxy_7d": round(dxy_7d, 0),
+                "oi_falling": sum(1 for s in TRADE_SYMBOLS if self._compute_oi_features(s)["oi_delta_1h"] < -0.5),
+                "oi_rising": sum(1 for s in TRADE_SYMBOLS if self._compute_oi_features(s)["oi_delta_1h"] > 0.5),
             },
             "params": {"hold_h": HOLD_HOURS_DEFAULT, "hold_s5_h": HOLD_HOURS_S5,
                        "cost_bps": COST_BPS, "stop_bps": STOP_LOSS_BPS,
@@ -921,6 +958,7 @@ class MultiSignalBot:
                     and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
                 triggered.append("S8:LONG")
 
+            oi_f = self._compute_oi_features(sym)
             signals[sym] = {
                 "price": st.price,
                 "ret_7d_bps": round(f.get("ret_42h", 0), 1),
@@ -928,6 +966,8 @@ class MultiSignalBot:
                 "range_bps": round(f.get("range_pct", 0), 0),
                 "sector": TOKEN_SECTOR.get(sym, "?"),
                 "sector_div": round(sd["divergence"], 0) if sd else 0,
+                "oi_delta_1h": oi_f["oi_delta_1h"],
+                "funding_bps": oi_f["funding_bps"],
                 "triggered": triggered,
                 "in_position": sym in self.positions,
                 "position_strategy": self.positions[sym].strategy if sym in self.positions else None,
