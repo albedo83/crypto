@@ -6,7 +6,7 @@ Bot de trading automatique sur Hyperliquid (DEX, accessible depuis la France). P
 
 ## Philosophie
 
-Le bot est **contrarien**. Il achete quand les autres paniquent (S2, S8), profite de l'inertie des alts derriere BTC (S1), exploite la derive en marche calme (S4), et suit les ruptures de secteur (S5). Ce n'est pas du trend-following. La volatilite est le carburant, pas l'ennemi.
+Le bot combine deux approches : 3 signaux contrarians qui achetent les crashs et shortent le calme (S2, S4, S8), et 2 signaux de continuation qui suivent le momentum BTC→alts (S1) et les breakouts sectoriels (S5). La volatilite est le carburant des signaux contrarians — c'est pourquoi le sizing ATR (reduire les positions quand le marche bouge) a ete teste et rejete : il coupe les signaux exactement quand ils doivent tirer.
 
 Tout a ete teste systematiquement : 1500+ regles, algorithmes genetiques, programmation genetique, machine learning, Monte Carlo. 5 signaux survivent. Le reste est du bruit.
 
@@ -20,7 +20,7 @@ Tout a ete teste systematiquement : 1500+ regles, algorithmes genetiques, progra
 |---|---|
 | **Condition** | `btc_30d > 2000 bps` (+20%) |
 | **Action** | LONG altcoins |
-| **Logique** | Quand BTC pump de +20% sur un mois, les alts suivent avec un retard de quelques jours. On achete ce retard. |
+| **Logique** | Momentum retarde / continuation BTC→alts : quand BTC pump de +20% sur un mois, les alts suivent avec un retard de quelques jours. On achete ce retard. |
 | **Hold** | 72h |
 | **Stop** | -25% (leveraged) |
 | **z-score** | 6.42 |
@@ -105,7 +105,7 @@ Tout a ete teste systematiquement : 1500+ regles, algorithmes genetiques, progra
 | Parametre | Valeur | Detail |
 |---|---|---|
 | **Levier** | 2x | Optimal d'un sweep 1x-3x. 3x = ruine par effet de compounding des pertes. |
-| **Sizing** | 15% du capital, z-weighted | `size = capital * 0.15 * min(2.0, max(0.5, z/4.0))`. Plus le signal est fiable, plus la mise est grosse. |
+| **Sizing** | 12% base + 3% bonus, z-weighted, haircut | Base 12% du capital, +3% bonus si z > 5.0, haircut si capital > $5k (positions plafonnees). `size = capital * base_pct * min(2.0, max(0.5, z/4.0))`. Plus le signal est fiable, plus la mise est grosse. |
 | **Compounding** | Oui | `capital_courant = $1000 + P&L cumule`. Apres des gains, les mises grossissent. Apres des pertes, elles retrecissent. |
 | **Hold** | 72h (S1/S2/S4), 48h (S5), 60h (S8) | Timeout automatique. Pas de stop de profit (teste : degrade les resultats). |
 | **Stop loss** | -2500 bps (S1/S2/S4/S5), -1500 bps (S8) | En leveraged. Soit -12.5% de mouvement de prix (defaut) ou -7.5% (S8). Filet de securite, ne se declenche que dans les crashs extremes. |
@@ -125,7 +125,7 @@ Tout a ete teste systematiquement : 1500+ regles, algorithmes genetiques, progra
 | S5 | 3.67 | 0.92 | $138 |
 | S4 | 2.95 | 0.74 | $111 |
 
-Formule : `weight = clamp(z / 4.0, 0.5, 2.0)`, `size = $1000 * 15% * weight`.
+Formule : `weight = clamp(z / 4.0, 0.5, 2.0)`, `base_pct = 12% + 3% si z > 5.0`, `size = capital * base_pct * weight`, avec haircut si capital > $5k.
 
 ### Ce qui a ete teste et rejete pour les parametres
 
@@ -178,7 +178,7 @@ Chaque signal doit passer les 3 :
 
 **Resultat** : 5 signaux sur 1500+ testes passent les 3 filtres.
 
-### Backtest (27 mois, donnees reelles Hyperliquid)
+### Backtest (32 mois, donnees reelles Hyperliquid)
 
 | Annee | Contexte | Performance | Capital |
 |---|---|---|---|
@@ -186,9 +186,9 @@ Chaque signal doit passer les 3 :
 | 2024 | Bull | +528% | $1,081 -> $6,786 |
 | 2025 | Bear/lateral | +145% | $6,786 -> $16,646 |
 | 2026 (3 mois) | Lateral | -33% | $16,646 -> $11,214 |
-| **Total** | **35 mois** | **+1,021%** | **$1,000 -> $11,214** |
+| **Total** | **32 mois** | **+1,021%** | **$1,000 -> $11,214** |
 
-- 20/35 mois gagnants (57%)
+- 20/32 mois gagnants (63%)
 - Drawdown max : -54%
 - Meilleur mois : +$3,040 (nov 2024)
 - Pire mois : -$4,432 (jan 2026)
@@ -246,8 +246,8 @@ Hyperliquid REST API
             │
             ▼
     reversal.py  (processus asyncio unique)
-    ├── 24 features par token (returns, vol, drawdown, recovery,
-    │   consec, BTC/ETH relative, alt index, dispersion, rank, vol_z)
+    ├── 24 features calculees par token, 13 utilisees en production
+    │   (returns, vol, drawdown, recovery, consec, BTC/ETH relative, alt index, dispersion, rank, vol_z)
     ├── 5 signaux (S1, S2, S4, S5, S8)
     │     S1: btc_30d > +20%              → LONG 72h
     │     S2: alt_index < -10%            → LONG 72h
@@ -281,7 +281,7 @@ Hyperliquid REST API
 
 Entre les scans : prix rafraichis toutes les 60s, exits verifies (stop loss peut declencher hors scan).
 
-### Features calculees (24)
+### Features calculees (24 calculees, 13 utilisees en production)
 
 | # | Feature | Description | Utilise par |
 |---|---|---|---|

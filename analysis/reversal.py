@@ -51,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.1.1"
+VERSION = "10.2.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 
@@ -106,14 +106,17 @@ DXY_BOOST_THRESHOLD = 100  # DXY 7d > +1% → S4 active
 # Leverage: 2x (optimal from boost backtest — $1k→$17.7k, DD -54%)
 LEVERAGE = 2.0
 
-# Sizing: compounding 15% of capital, z-weighted
-SIZE_PCT = 0.15           # 15% of current capital per position
+# Sizing: compounding 12% base + 3% bonus for high-z, z-weighted
+SIZE_PCT = 0.12           # 12% of current capital per position (reduced from 15%)
+SIZE_BONUS = 0.03         # bonus for high-z signals (z > 4)
 STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67, "S8": 6.99}
+LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 operates in thin markets
 
 # Capital
 CAPITAL_USDT = 1000.0
 MAX_POSITIONS = 6
 MAX_SAME_DIRECTION = 4
+MAX_PER_SECTOR = 2
 
 # Costs
 TAKER_FEE_BPS = 7.0
@@ -124,6 +127,12 @@ COST_BPS = TAKER_FEE_BPS + SLIPPAGE_BPS + FUNDING_DRAG_BPS  # 12 bps
 # Stop loss per strategy (leveraged bps)
 STOP_LOSS_BPS = -2500.0        # default catastrophe guard (-25% leveraged = -12.5% price)
 STOP_LOSS_S8 = -1500.0         # S8 backtested with -1500 (-15% leveraged = -7.5% price)
+
+# Portfolio kill-switch
+DAILY_LOSS_CAP = -300.0        # auto-pause if total P&L drops below this
+LOSS_STREAK_THRESHOLD = 3      # reduce sizing after N consecutive losses
+LOSS_STREAK_MULTIPLIER = 0.5   # halve position size during loss streak
+LOSS_STREAK_COOLDOWN = 24 * 3600  # 24h before returning to normal sizing
 
 # Timing
 SCAN_INTERVAL = 3600      # check signals every hour (candles are 4h)
@@ -137,11 +146,13 @@ WEB_PORT = 8097
 
 
 def strat_size(strat_name: str, capital: float) -> float:
-    """15% of capital, z-weighted. More capital on stronger signals."""
+    """12% base + 3% bonus if z>4, z-weighted, with liquidity haircut."""
     z = STRAT_Z.get(strat_name, 3.0)
     weight = max(0.5, min(2.0, z / 4.0))
-    base = capital * SIZE_PCT
-    return round(max(10, base * weight), 2)
+    pct = SIZE_PCT + (SIZE_BONUS if z > 4.0 else 0)
+    base = capital * pct
+    haircut = LIQUIDITY_HAIRCUT.get(strat_name, 1.0)
+    return round(max(10, base * weight * haircut), 2)
 
 
 # ── Data Structures ──────────────────────────────────────────────────
@@ -200,6 +211,9 @@ class MultiSignalBot:
         self._last_scan: float = 0
         self._last_price_fetch: float = 0
         self._cooldowns: dict[str, float] = {}  # symbol → earliest re-entry epoch
+        self._degraded: list[str] = []
+        self._consecutive_losses = 0
+        self._loss_streak_until: float = 0  # epoch when streak penalty expires
 
     # ── Price Data ──────────────────────────────────────────────
 
@@ -393,9 +407,13 @@ class MultiSignalBot:
                     json.dump(daily, f)
                 # 7d return (5 trading days)
                 if len(daily) >= 6:
+                    if "DXY" in self._degraded:
+                        self._degraded.remove("DXY")
                     return (daily[-1]["c"] / daily[-6]["c"] - 1) * 1e4
         except Exception as e:
             log.warning("DXY unavailable — S4 disabled: %s", e)
+            if "DXY" not in self._degraded:
+                self._degraded.append("DXY")
         return 0.0
 
     def _compute_alt_index(self) -> float:
@@ -560,11 +578,21 @@ class MultiSignalBot:
             if sig["direction"] == -1 and n_shorts >= MAX_SAME_DIRECTION:
                 continue
 
+            # Sector concentration limit
+            sym_sector = TOKEN_SECTOR.get(sym)
+            if sym_sector:
+                sector_count = sum(1 for p in self.positions.values() if TOKEN_SECTOR.get(p.symbol) == sym_sector)
+                if sector_count >= MAX_PER_SECTOR:
+                    continue
+
             st = self.states[sym]
             hold_h = sig.get("hold_hours", HOLD_HOURS_DEFAULT)
             target_exit = now + timedelta(hours=hold_h)
             current_capital = CAPITAL_USDT + self._total_pnl
             size = strat_size(sig["strategy"], current_capital)
+            # Loss streak penalty
+            if time.time() < self._loss_streak_until:
+                size = round(size * LOSS_STREAK_MULTIPLIER, 2)
 
             # Capital exposure limit: max 90% of capital as margin
             used_margin = sum(p.size_usdt for p in self.positions.values())
@@ -633,6 +661,22 @@ class MultiSignalBot:
         self._total_pnl += pnl
         if pnl > 0:
             self._wins += 1
+
+        # Track consecutive losses for kill-switch
+        if pnl > 0:
+            self._consecutive_losses = 0
+        else:
+            self._consecutive_losses += 1
+            if self._consecutive_losses >= LOSS_STREAK_THRESHOLD:
+                self._loss_streak_until = time.time() + LOSS_STREAK_COOLDOWN
+                log.warning("Loss streak: %d consecutive losses — sizing reduced for 24h",
+                             self._consecutive_losses)
+
+        # Daily loss cap
+        if self._total_pnl <= DAILY_LOSS_CAP:
+            self._paused = True
+            log.critical("KILL-SWITCH: P&L $%.2f below cap $%.0f — auto-paused",
+                         self._total_pnl, DAILY_LOSS_CAP)
 
         # Cooldown
         self._cooldowns[sym] = time.time() + COOLDOWN_HOURS * 3600
@@ -819,6 +863,9 @@ class MultiSignalBot:
         return {
             "version": VERSION, "strategy": "Multi-Signal (S1+S2+S4+S5+S8)",
             "paused": self._paused, "running": self.running,
+            "degraded": list(self._degraded),
+            "loss_streak": self._consecutive_losses,
+            "kill_switch_active": self._total_pnl <= DAILY_LOSS_CAP,
             "balance": round(balance, 2),
             "total_pnl": round(self._total_pnl, 2),
             "total_trades": n,
@@ -1045,13 +1092,16 @@ async def run():
 
     log.info("Multi-Signal Bot v%s | $%.0f capital | %dx leverage | %d symbols | port %d",
              VERSION, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
-    log.info("Sizing: 15%% capital, z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f (at $%.0f)",
+    log.info("Sizing: %d%%+%d%% base, z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f (at $%.0f)",
+             SIZE_PCT * 100, SIZE_BONUS * 100,
              strat_size("S1", CAPITAL_USDT), strat_size("S2", CAPITAL_USDT),
              strat_size("S4", CAPITAL_USDT), strat_size("S5", CAPITAL_USDT),
              strat_size("S8", CAPITAL_USDT), CAPITAL_USDT)
-    log.info("Hold: %dh (S5: %dh, S8: %dh) | Stop: %d bps (S8: %d) | Lev: %.0fx | Max: %d pos / %d dir",
+    log.info("Hold: %dh (S5: %dh, S8: %dh) | Stop: %d bps (S8: %d) | Lev: %.0fx | Max: %d pos / %d dir / %d sect",
              HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
-             STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION)
+             STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION, MAX_PER_SECTOR)
+    log.info("Kill-switch: loss cap $%.0f | streak threshold %d → %.0f%% sizing for %dh",
+             DAILY_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER * 100, LOSS_STREAK_COOLDOWN // 3600)
 
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)

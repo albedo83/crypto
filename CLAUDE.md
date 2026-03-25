@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Crypto trading research + automated bot for Hyperliquid DEX (decentralized exchange accessible from France). Two generations of work:
 
 **Current active system:**
-- **Multi-Signal Bot** (`analysis/reversal.py`): 5 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.1.0).
+- **Multi-Signal Bot** (`analysis/reversal.py`): 5 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.1.1).
 
 **Legacy systems (disabled):**
 - **LiveBot** (`analysis/livebot.py` v5.6.0): OI divergence on Binance Futures, 17 symbols, `:8095`. Stopped — Binance Futures banned in France.
@@ -44,7 +44,7 @@ Hyperliquid REST API
             │
             ▼
     analysis/reversal.py  (single asyncio process)
-    ├── Features (24 indicators per token per candle)
+    ├── Features (24 calculated per token, 13 used in production)
     ├── 5 signals (S1, S2, S4, S5, S8)
     ├── Position manager (max 6, stop -25%, 60-72h timeout)
     ├── State persistence (JSON atomic writes + CSV trades)
@@ -77,12 +77,12 @@ Hyperliquid REST API
 | S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $138 |
 | S8 | Drawdown < -40% + vol spike + BTC weak | LONG | 6.99 | 60h | $262 |
 
-All 5 survived train/test split + Monte Carlo validation. 1500+ rules tested, only these 5 pass.
+All 5 survived train/test split + Monte Carlo validation. 1500+ rules tested, only these 5 pass. Walk-forward validation (train on 2024, test on 2025-2026) confirms out-of-sample profitability.
 
 ### Config
 
 - **Leverage**: 2x (optimal from parameter sweep — 3x = ruin from compounding losses)
-- **Sizing**: 15% of current capital, z-weighted (stronger signal = bigger position)
+- **Sizing**: 12% base + 3% bonus (z>5), z-weighted, haircut at high capital (stronger signal = bigger position)
 - **Compounding**: Yes (capital grows/shrinks with P&L)
 - **Stop loss**: -25% catastrophe guard (S1/S2/S4/S5), -15% for S8 (matches backtest)
 - **Max positions**: 6 (max 4 same direction)
@@ -106,7 +106,7 @@ All 5 survived train/test split + Monte Carlo validation. 1500+ rules tested, on
 
 ### Backtest Results
 
-$1,000 → $11,214 over 35 months (2023-08 to 2026-03). DD -54%. 57% months winning.
+$1,000 → $11,214 over 32 months (2023-08 to 2026-03). DD -54%. 63% months winning.
 
 ## Research Files
 

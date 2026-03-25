@@ -69,6 +69,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   <div class="progress-bar"><div class="fill" id="scan-progress"></div></div>
   <span class="countdown" id="last-update">--</span>
 </div>
+<div id="degraded-bar" style="display:none;background:#da3633;color:#fff;padding:6px 20px;font-size:12px;font-weight:700;align-items:center;gap:8px"></div>
 
 <div class="cards">
   <div class="card" id="card-balance"><div class="label">Balance</div><div class="value" id="balance">$1,000</div></div>
@@ -176,6 +177,14 @@ function refresh(){
     const pulse=document.getElementById('pulse');
     if(s.paused){tag.innerHTML='PAUSED';tag.className='tag paused'}
     else{tag.innerHTML='<span class="pulse"></span> LIVE';tag.className='tag live'}
+
+    // Degraded mode banner
+    if(s.degraded && s.degraded.length > 0){
+      document.getElementById('degraded-bar').style.display='flex';
+      document.getElementById('degraded-bar').textContent='DEGRADED: '+s.degraded.join(', ')+' unavailable';
+    } else {
+      document.getElementById('degraded-bar').style.display='none';
+    }
 
     const up=s.uptime_s;
     const h=Math.floor(up/3600),m=Math.floor((up%3600)/60);
