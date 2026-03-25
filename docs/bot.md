@@ -1,4 +1,4 @@
-# Multi-Signal Bot v10.3.0
+# Multi-Signal Bot v10.3.1
 
 Bot de trading automatique sur Hyperliquid (DEX, accessible depuis la France). Paper trading.
 
@@ -233,7 +233,7 @@ Test complementaire **Leave-5-tokens-out** (exclure 5 tokens au hasard, 10 itera
 
 ### Ce que dit le backtest (fait historique)
 
-32 mois de donnees Hyperliquid (aout 2023 → mars 2026), sizing v10.3.0 :
+32 mois de donnees Hyperliquid (aout 2023 → mars 2026), sizing v10.3.1 :
 - **$1,000 → ~$7,000-$9,000** avec compounding (mises ~20% plus petites que le backtest 15%)
 - 20/32 mois gagnants (63%), 12 perdants (37%)
 - Drawdown max : -54% du peak
@@ -273,7 +273,7 @@ En degradant le backtest de ~50% pour tenir compte du data snooping residuel, du
 
 ---
 
-## Protections du portfolio (v10.2.0)
+## Protections du portfolio (v10.3.1)
 
 | Protection | Detail |
 |---|---|
@@ -284,8 +284,9 @@ En degradant le backtest de ~50% pour tenir compte du data snooping residuel, du
 | **Stop loss** | -25% leveraged (S1/S2/S4/S5), -15% (S8) |
 | **Kill-switch** | Auto-pause si P&L total < -$300 (-30% du capital) |
 | **Loss streak** | 3 pertes consecutives → sizing divise par 2 pendant 24h |
+| **Signal quarantine** | Win rate < 20% sur 10 derniers trades → signal coupe (QUARANTINE). Win rate < 30% → sizing /2 (DEGRADED). Le bot sait se mettre en retrait quand un signal se degrade. |
 | **Cooldown** | 24h par token apres exit |
-| **Mode degrade** | Bandeau sur le dashboard : "DXY_STALE" (cache 6-48h, S4 actif avec donnees anciennes) ou "DXY" (cache >48h, S4 desactive) |
+| **Mode degrade DXY** | Cache frais < 6h (normal). Fallback stale 6-48h (bandeau "DXY_STALE", S4 actif avec donnees anciennes). Cache > 48h ou absent (bandeau "DXY", S4 desactive). Yahoo peut tomber 2 jours sans tuer S4. |
 
 ---
 
@@ -322,43 +323,52 @@ Hyperliquid REST API
     └── Yahoo Finance (DXY, toutes les 6h, cache local)
             │
             ▼
-    reversal.py  (processus asyncio unique)
-    ├── 24 features calculees par token, 13 utilisees en production
-    │   (returns, vol, drawdown, recovery, consec, BTC/ETH relative, alt index, dispersion, rank, vol_z)
+    reversal.py  (processus asyncio unique, ~1300 lignes)
+    ├── 24 features calculees par token, 13 utilisees pour les signaux
+    │   (returns, vol, drawdown, recovery, BTC/ETH relative, alt index, sector div, vol_z)
+    ├── Collecte OI + funding + premium (toutes les 60s, observation)
+    │     oi_delta_1h/4h, funding_bps, premium
+    │     Crowding score 0-100 par token (mesure la surchauffe du levier)
     ├── 5 signaux (S1, S2, S4, S5, S8)
     │     S1: btc_30d > +20%              → LONG 72h
     │     S2: alt_index < -10%            → LONG 72h
     │     S4: vol_ratio < 1 + range < 2% + DXY > +1% → SHORT 72h
     │     S5: sector div > 10% + vol_z > 1 → FOLLOW 48h
     │     S8: drawdown < -40% + vol_z > 1 + ret_6h < -0.5% + btc_7d < -3% → LONG 60h
+    │     Chaque entree logue OI delta + crowding score (pas utilise pour decisions, observation)
     ├── Position manager
     │     Max 6 positions, max 4 meme direction, max 2 par secteur
     │     Stop: -25% leveraged (S8: -15%)
     │     Kill-switch: auto-pause si P&L < -$300
     │     Loss streak: 3 pertes → sizing /2 pendant 24h
+    │     Signal quarantine: win rate < 20% → signal coupe
     │     Timeout: 48-72h selon signal
     │     Cooldown: 24h par token apres exit
     │     Exposure: max 90% du capital
+    ├── Monitoring
+    │     Signal drift: win rate + avg bps rolling par signal (20 derniers trades)
+    │     Market CSV: snapshot horaire OI/funding/premium/crowding pour les 28 tokens
     ├── State persistence
     │     JSON atomic writes (tmp + os.replace)
-    │     CSV trades log
+    │     CSV trades log + CSV market snapshots
     │     Positions survivent aux redemarrages
     └── Dashboard FastAPI (:8097)
           Point vert pulsant + countdown prochain scan
-          Prix live toutes les 5s
-          Signaux toutes les 15s
+          Crowding score par token + OI delta
+          Bandeau rouge/jaune mode degrade
 ```
 
 ### Cycle de scan (toutes les heures)
 
-1. `_fetch_prices()` — prix de tous les tokens via `metaAndAssetCtxs`
+1. `_fetch_prices()` — prix + OI + funding + premium via `metaAndAssetCtxs`
 2. `_fetch_candles(sym)` — bougies 4h pour les 30 tokens (28 traded + BTC + ETH)
-3. `_refresh_feature_cache()` — calcule les 24 features pour chaque token
+3. `_refresh_feature_cache()` — calcule les 24 features + OI summary pour chaque token
 4. `_check_exits()` — ferme les positions en timeout ou en stop loss
-5. `_scan_signals()` — detecte S1/S2/S4/S5/S8, trie par z-score, ouvre les positions
+5. `_scan_signals()` — detecte S1/S2/S4/S5/S8, applique quarantaine, trie par z-score, ouvre les positions (chaque entree logue OI delta + crowding score)
 6. `_save_state()` — sauvegarde atomique JSON
+7. `_log_market_snapshot()` — 28 lignes dans `reversal_market.csv` (OI, funding, premium, crowding, vol_z)
 
-Entre les scans : prix rafraichis toutes les 60s, exits verifies (stop loss peut declencher hors scan).
+Entre les scans : prix + OI + funding rafraichis toutes les 60s, exits verifies (stop loss peut declencher hors scan).
 
 ### Features calculees (24 calculees, 13 utilisees en production)
 
@@ -384,12 +394,13 @@ Entre les scans : prix rafraichis toutes les 60s, exits verifies (stop loss peut
 
 | Fichier | Role |
 |---|---|
-| `analysis/reversal.py` | Le bot (~1100 lignes) |
-| `analysis/reversal.html` | Dashboard web (pulse, countdown, charts) |
+| `analysis/reversal.py` | Le bot (~1300 lignes) |
+| `analysis/reversal.html` | Dashboard web (pulse, countdown, crowding scores) |
 | `analysis/output/reversal_state.json` | Etat des positions (atomic writes) |
-| `analysis/output/reversal_trades.csv` | Historique des trades |
+| `analysis/output/reversal_trades.csv` | Historique des trades (signal_info inclut OI delta + crowding) |
+| `analysis/output/reversal_market.csv` | Snapshots horaires : OI, funding, premium, crowding par token (~15 MB/an) |
 | `analysis/output/reversal_v10.log` | Logs |
-| `analysis/output/pairs_data/macro_DXY.json` | Cache DXY (6h TTL) |
+| `analysis/output/pairs_data/macro_DXY.json` | Cache DXY (frais 6h, stale jusqu'a 48h) |
 | `analysis/output/pairs_data/*.json` | Bougies 4h par token |
 | `docs/research_findings.md` | Journal de recherche complet |
 | `docs/bot.md` | Ce fichier |
@@ -399,8 +410,8 @@ Entre les scans : prix rafraichis toutes les 60s, exits verifies (stop loss peut
 | Endpoint | Description |
 |---|---|
 | `GET /` | Dashboard HTML (cache en memoire, restart pour mise a jour) |
-| `GET /api/state` | Balance, positions, signaux actifs, timing (prix age, next scan) |
-| `GET /api/signals` | 28 tokens avec features, signaux declenches, positions |
+| `GET /api/state` | Balance, positions, signaux actifs, timing, signal_drift, degraded, OI summary |
+| `GET /api/signals` | 28 tokens avec features, OI delta, crowding score, signaux declenches |
 | `GET /api/trades` | Historique (deque maxlen=500, `list()` avant slicing) |
 | `GET /api/pnl` | Courbe P&L cumulative |
 | `POST /api/pause` | Ferme toutes les positions + pause |

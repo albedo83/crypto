@@ -46,7 +46,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.3.0"
+VERSION = "10.3.1"
 
 # ── Config ───────────────────────────────────────────────────────────
 

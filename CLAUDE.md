@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Crypto trading research + automated bot for Hyperliquid DEX (decentralized exchange accessible from France). Two generations of work:
 
 **Current active system:**
-- **Multi-Signal Bot** (`analysis/reversal.py`): 5 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.3.0).
+- **Multi-Signal Bot** (`analysis/reversal.py`): 5 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.3.1).
 
 **Legacy systems (disabled):**
 - **LiveBot** (`analysis/livebot.py` v5.6.0): OI divergence on Binance Futures, 17 symbols, `:8095`. Stopped — Binance Futures banned in France.
@@ -147,8 +147,8 @@ Legacy collector/dashboard/migrations in `src/` and `migrations/`. PostgreSQL sc
 
 ## Gotchas
 
-- **DXY filter is critical for S4**: S4 SHORT only active when DXY 7d > +100 bps. Without it, S4 shorts in bull markets and loses. Yahoo Finance API can fail silently — check logs for "DXY unavailable" warnings.
-- **DXY cache**: Stored in `analysis/output/pairs_data/macro_DXY.json`, refreshed every 6h. Cache uses 5-trading-day return (`closes[-6]`).
+- **DXY filter is critical for S4**: S4 SHORT only active when DXY 7d > +100 bps. Without it, S4 shorts in bull markets and loses. DXY has 3-tier fallback: fresh < 6h, stale 6-48h (S4 stays active), expired > 48h (S4 disabled + degraded banner).
+- **DXY cache**: Stored in `analysis/output/pairs_data/macro_DXY.json`. Cache uses 5-trading-day return (`closes[-6]`).
 - **Feature cache**: `_refresh_feature_cache()` runs once per hourly scan. `_scan_signals()` and `get_signals()` use cached features. Cache is empty on startup until first scan completes.
 - **State persistence**: Atomic writes (write to `.tmp` then `os.replace()`). On load, original is preserved (copy to `.loaded`). Positions survive restarts.
 - **Compounding effect**: `current_capital = CAPITAL_USDT + _total_pnl`. After big losses, position sizes shrink dramatically. After big wins, positions grow and DD risk increases.
@@ -159,3 +159,8 @@ Legacy collector/dashboard/migrations in `src/` and `migrations/`. PostgreSQL sc
 - **S6 was removed**: Liquidation bounce signal had z=8.04 in isolation but loses -$627 to -$1,552 in portfolio. Standalone backtest was misleading (simpler backtester, no position limits).
 - **S8 capitulation is rare**: Fires ~1/month in portfolio (drawdown > -40% is extreme). When it fires, 70% win rate with avg +413 bps. Max 7 consecutive losses observed (April 2024 crash).
 - **SHORT signals are hard**: 378 short variants tested, none pass z > 2.0. S4+DXY remains the only viable short. Altcoin markets have structural long bias.
+- **OI/funding/premium collected but not used for signals**: Observation phase. Data logged in `reversal_market.csv` (hourly snapshots, ~15 MB/year) and in each trade's `signal_info`. Will be analyzed after 50+ trades to determine if OI delta improves S2/S8 quality.
+- **Crowding score (0-100)**: Measures leverage stress per token (OI delta + funding + premium + vol_z). Displayed in dashboard, logged in trades. Not used for decisions yet.
+- **Signal quarantine**: If a signal's rolling win rate drops below 20% on last 10 trades, it's auto-disabled. Below 30% → sizing halved. Prevents silent degradation.
+- **Signal drift**: `/api/state` exposes `signal_drift` with rolling stats per signal (win rate, avg bps, P&L on last 20 trades).
+- **Detailed bot documentation**: `docs/bot.md` contains the full bot description — signals, parameters, research, estimates, risks, architecture, production plan. Keep it in sync with code changes.
