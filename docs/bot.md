@@ -54,7 +54,7 @@ Tout a ete teste systematiquement : 1500+ regles, algorithmes genetiques, progra
 | **z-score** | 2.95 |
 | **Mise** | $111 (la plus petite, z-score le plus faible) |
 | **Frequence** | Variable — depend de la force du dollar |
-| **DXY** | Source : Yahoo Finance, cache 6h dans `output/pairs_data/macro_DXY.json`. Retour 5 jours de trading (`closes[-6]`). Si l'API echoue, S4 est desactive silencieusement (warning dans les logs). |
+| **DXY** | Source : Yahoo Finance, cache dans `output/pairs_data/macro_DXY.json`. Cache frais < 6h, fallback stale 6-48h (bandeau jaune "DXY_STALE"), desactive > 48h (bandeau rouge "DXY"). S4 reste actif tant que le cache a < 48h. |
 | **Backtest** | +$2,609 sur 1,185 trades |
 | **Seul signal SHORT** | 378 variantes SHORT testees, aucune autre ne depasse z > 2.0. Shorter les alts est structurellement difficile. |
 
@@ -145,13 +145,14 @@ Formule : `weight = clamp(z / 4.0, 0.5, 2.0)`, `base_pct = 12% + 3% si z > 4.0`,
 
 ## Recherche
 
-### Methode de validation (3 filtres obligatoires)
+### Methode de validation (4 filtres obligatoires)
 
-Chaque signal doit passer les 3 :
+Chaque signal doit passer les 4 :
 
 1. **Train/test split** — Trouve sur 2024 (train), valide sur 2025-2026 (test). Profitable sur les deux periodes.
 2. **Monte Carlo** — Compare a du timing aleatoire avec le meme nombre de trades, meme direction, meme distribution par token. z-score > 2.0 requis.
 3. **Portfolio integration** — Ajoute aux signaux existants et verifie que le P&L total augmente (pas de cannibalisation).
+4. **Walk-forward rolling** — Train 12 mois, test 3 mois, avancer de 3 mois. Le signal doit etre profitable dans > 50% des fenetres.
 
 ### Ce qui a ete teste et elimine
 
@@ -232,7 +233,7 @@ Test complementaire **Leave-5-tokens-out** (exclure 5 tokens au hasard, 10 itera
 
 ### Ce que dit le backtest (fait historique)
 
-32 mois de donnees Hyperliquid (aout 2023 → mars 2026), sizing v10.2.0 :
+32 mois de donnees Hyperliquid (aout 2023 → mars 2026), sizing v10.3.0 :
 - **$1,000 → ~$7,000-$9,000** avec compounding (mises ~20% plus petites que le backtest 15%)
 - 20/32 mois gagnants (63%), 12 perdants (37%)
 - Drawdown max : -54% du peak
@@ -284,7 +285,7 @@ En degradant le backtest de ~50% pour tenir compte du data snooping residuel, du
 | **Kill-switch** | Auto-pause si P&L total < -$300 (-30% du capital) |
 | **Loss streak** | 3 pertes consecutives → sizing divise par 2 pendant 24h |
 | **Cooldown** | 24h par token apres exit |
-| **Mode degrade** | Bandeau rouge sur le dashboard si DXY indisponible (S4 desactive) |
+| **Mode degrade** | Bandeau sur le dashboard : "DXY_STALE" (cache 6-48h, S4 actif avec donnees anciennes) ou "DXY" (cache >48h, S4 desactive) |
 
 ---
 

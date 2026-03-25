@@ -403,19 +403,34 @@ class MultiSignalBot:
         return f
 
     def _fetch_dxy(self) -> float:
-        """Fetch DXY 7-day return. Returns bps or 0 on failure."""
-        try:
-            # Try cached data first
-            if os.path.exists(DXY_CACHE):
-                age_h = (time.time() - os.path.getmtime(DXY_CACHE)) / 3600
-                if age_h < 6:
-                    with open(DXY_CACHE) as f:
-                        daily = json.load(f)
-                    if len(daily) >= 10:
-                        closes = [d["c"] for d in daily[-10:]]
-                        return (closes[-1] / closes[-6] - 1) * 1e4 if closes[-6] > 0 else 0
+        """Fetch DXY 7-day return. Cache 6h fresh, 48h stale fallback, then 0."""
+        def _read_cache() -> tuple[float | None, float]:
+            """Returns (dxy_bps or None, age_hours)."""
+            if not os.path.exists(DXY_CACHE):
+                return None, 999
+            age_h = (time.time() - os.path.getmtime(DXY_CACHE)) / 3600
+            try:
+                with open(DXY_CACHE) as f:
+                    daily = json.load(f)
+                if len(daily) >= 10:
+                    closes = [d["c"] for d in daily[-10:]]
+                    if closes[-6] > 0:
+                        return (closes[-1] / closes[-6] - 1) * 1e4, age_h
+            except Exception:
+                pass
+            return None, age_h
 
-            # Fetch fresh from Yahoo Finance
+        # 1. Try fresh cache (< 6h)
+        cached, age_h = _read_cache()
+        if cached is not None and age_h < 6:
+            # Clear any degraded state
+            for tag in ["DXY", "DXY_STALE"]:
+                if tag in self._degraded:
+                    self._degraded.remove(tag)
+            return cached
+
+        # 2. Try fresh fetch from Yahoo Finance
+        try:
             end_ts = int(time.time())
             start_ts = end_ts - 30 * 86400
             url = (f"https://query1.finance.yahoo.com/v8/finance/chart/DX-Y.NYB"
@@ -429,19 +444,32 @@ class MultiSignalBot:
             closes = result["indicators"]["quote"][0]["close"]
 
             daily = [{"t": ts * 1000, "c": c} for ts, c in zip(timestamps, closes) if c]
-            if daily:
+            if daily and len(daily) >= 6:
                 os.makedirs(os.path.dirname(DXY_CACHE), exist_ok=True)
                 with open(DXY_CACHE, "w") as f:
                     json.dump(daily, f)
-                # 7d return (5 trading days)
-                if len(daily) >= 6:
-                    if "DXY" in self._degraded:
-                        self._degraded.remove("DXY")
-                    return (daily[-1]["c"] / daily[-6]["c"] - 1) * 1e4
+                for tag in ["DXY", "DXY_STALE"]:
+                    if tag in self._degraded:
+                        self._degraded.remove(tag)
+                return (daily[-1]["c"] / daily[-6]["c"] - 1) * 1e4
         except Exception as e:
-            log.warning("DXY unavailable — S4 disabled: %s", e)
-            if "DXY" not in self._degraded:
-                self._degraded.append("DXY")
+            log.warning("DXY fetch failed: %s", e)
+
+        # 3. Stale cache fallback (6h-48h)
+        if cached is not None and age_h < 48:
+            if "DXY_STALE" not in self._degraded:
+                self._degraded.append("DXY_STALE")
+            if "DXY" in self._degraded:
+                self._degraded.remove("DXY")
+            log.warning("DXY stale (%.0fh old) — using cached value", age_h)
+            return cached
+
+        # 4. No data at all — S4 disabled
+        if "DXY" not in self._degraded:
+            self._degraded.append("DXY")
+        if "DXY_STALE" in self._degraded:
+            self._degraded.remove("DXY_STALE")
+        log.warning("DXY unavailable (cache >48h or missing) — S4 disabled")
         return 0.0
 
     def _compute_alt_index(self) -> float:
@@ -525,23 +553,26 @@ class MultiSignalBot:
             if not st or st.price == 0:
                 continue
 
+            # OI features for all signals (observation — logged, not used for decisions)
+            oi_f = self._compute_oi_features(sym)
+            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% f={oi_f['funding_bps']:+.1f}bp"
+
             # S1: btc_30d > 2000 bps → LONG
             if btc_30d > 2000:
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S1",
                     "z": STRAT_Z["S1"],
-                    "info": f"BTC 30d={btc_30d:+.0f}bps",
+                    "info": f"BTC 30d={btc_30d:+.0f}bps{oi_tag}",
                     "strength": abs(btc_30d),
                     "hold_hours": HOLD_HOURS_DEFAULT,
                 })
 
             # S2: alt_index_7d < -1000 bps → LONG
             if alt_index < -1000:
-                oi_f = self._compute_oi_features(sym)
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S2",
                     "z": STRAT_Z["S2"],
-                    "info": f"AltIdx={alt_index:+.0f}bps OI1h={oi_f['oi_delta_1h']:+.1f}%",
+                    "info": f"AltIdx={alt_index:+.0f}bps{oi_tag}",
                     "strength": abs(alt_index),
                     "hold_hours": HOLD_HOURS_DEFAULT,
                 })
@@ -553,7 +584,7 @@ class MultiSignalBot:
                 signals.append({
                     "symbol": sym, "direction": -1, "strategy": "S4",
                     "z": STRAT_Z["S4"],
-                    "info": f"VolR={f['vol_ratio']:.2f} Rng={f['range_pct']:.0f} DXY={dxy_7d:+.0f}",
+                    "info": f"VolR={f['vol_ratio']:.2f} Rng={f['range_pct']:.0f} DXY={dxy_7d:+.0f}{oi_tag}",
                     "strength": (1.0 - f["vol_ratio"]) * 1000,
                     "hold_hours": HOLD_HOURS_DEFAULT,
                 })
@@ -565,7 +596,7 @@ class MultiSignalBot:
                 signals.append({
                     "symbol": sym, "direction": direction, "strategy": "S5",
                     "z": STRAT_Z["S5"],
-                    "info": f"{sd['sector']} div={sd['divergence']:+.0f} vz={sd['vol_z']:.1f}",
+                    "info": f"{sd['sector']} div={sd['divergence']:+.0f} vz={sd['vol_z']:.1f}{oi_tag}",
                     "strength": abs(sd["divergence"]),
                     "hold_hours": HOLD_HOURS_S5,
                 })
@@ -575,11 +606,10 @@ class MultiSignalBot:
                     and f.get("vol_z", 0) > S8_VOL_Z_MIN
                     and f.get("ret_6h", 0) < S8_RET_6H_THRESH
                     and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
-                oi_f = self._compute_oi_features(sym)
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S8",
                     "z": STRAT_Z["S8"],
-                    "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r6h={f['ret_6h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f} OI1h={oi_f['oi_delta_1h']:+.1f}%",
+                    "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r6h={f['ret_6h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f}{oi_tag}",
                     "strength": abs(f["drawdown"]),
                     "hold_hours": HOLD_HOURS_S8,
                 })
@@ -822,6 +852,23 @@ class MultiSignalBot:
 
     # ── API ─────────────────────────────────────────────────────
 
+    def _compute_signal_drift(self) -> dict:
+        """Rolling stats per signal (last 20 trades). Detects degradation."""
+        by_strat: dict[str, list] = defaultdict(list)
+        for t in self.trades:
+            by_strat[t.strategy].append(t)
+        result = {}
+        for strat, trades in by_strat.items():
+            recent = trades[-20:]
+            if recent:
+                result[strat] = {
+                    "n": len(recent),
+                    "win_rate": round(sum(1 for t in recent if t.pnl_usdt > 0) / len(recent), 2),
+                    "avg_bps": round(sum(t.net_bps for t in recent) / len(recent), 1),
+                    "total_pnl": round(sum(t.pnl_usdt for t in recent), 2),
+                }
+        return result
+
     def get_state(self) -> dict:
         now = datetime.now(timezone.utc)
         n = len(self.trades)
@@ -918,6 +965,7 @@ class MultiSignalBot:
             "last_scan_s": time.time() - self._last_scan if self._last_scan else None,
             "next_scan_s": max(0, SCAN_INTERVAL - (time.time() - self._last_scan)) if self._last_scan else 0,
             "scan_interval": SCAN_INTERVAL,
+            "signal_drift": self._compute_signal_drift(),
         }
 
     def get_signals(self) -> dict:
