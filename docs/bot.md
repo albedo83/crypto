@@ -1,4 +1,4 @@
-# Multi-Signal Bot v10.0.0
+# Multi-Signal Bot v10.1.0
 
 ## Qu'est-ce que c'est ?
 
@@ -10,7 +10,7 @@ Le bot fonctionne en **paper trading** (argent virtuel) pour valider ses résult
 
 ## Comment ça marche
 
-Le bot vérifie le marché toutes les heures. Il cherche **4 situations** :
+Le bot vérifie le marché toutes les heures. Il cherche **5 situations** :
 
 ### Signal 1 — "BTC explose" (S1)
 - **Condition** : Bitcoin a monté de plus de +20% sur les 30 derniers jours
@@ -45,7 +45,16 @@ Le bot vérifie le marché toutes les heures. Il cherche **4 situations** :
 - **Fiabilité** : Bonne (z-score 3.67)
 - **Mise** : $138
 
-### Les 5 secteurs surveillés
+### Signal 5 — "Flush de liquidation" (S8)
+- **Condition** : Un alt a perdu plus de -40% par rapport a son plus haut de 30 jours + le volume explose + le prix continue de baisser + BTC est aussi en baisse de -3% sur 7 jours
+- **Action** : Acheter (LONG)
+- **Logique** : Quand tout tombe en meme temps (alt crash + volume anormal + BTC faible), c'est un flush de liquidation force. Les traders en levier se font liquider, ce qui pousse le prix encore plus bas que sa valeur reelle. Le rebond qui suit est violent et rapide.
+- **Frequence** : Rare — ~1 fois par mois en portfolio
+- **Fiabilite** : Tres elevee (z-score 6.99, le plus haut de tous les signaux)
+- **Mise** : $262 (la plus grosse car z-score le plus eleve)
+- **Risque** : 30% des trades perdent (stop loss a -15%). En avril 2024, 7 pertes consecutives (-$265).
+
+### Les 5 secteurs surveilles
 
 | Secteur | Tokens |
 |---|---|
@@ -66,7 +75,7 @@ BTC et ETH servent de référence mais ne sont pas tradés.
 | **Levier** | 2x | Chaque dollar travaille comme deux. Double les gains ET les pertes. |
 | **Sizing** | 15% du capital | Chaque position utilise 15% du capital actuel, pondéré par la fiabilité du signal. |
 | **Compounding** | Oui | Quand le capital monte, les mises augmentent. Quand il baisse, elles diminuent. |
-| **Durée des trades** | 72h (S1/S2/S4), 48h (S5) | Chaque position est fermée automatiquement après ce délai. |
+| **Duree des trades** | 72h (S1/S2/S4), 48h (S5), 60h (S8) | Chaque position est fermee automatiquement apres ce delai. |
 | **Stop loss** | -25% | Filet de sécurité en cas de crash extrême. Ne se déclenche presque jamais. |
 | **Max positions** | 6 simultanées | Max 4 dans la même direction (4 LONG ou 4 SHORT). |
 | **Exposition max** | 90% du capital | Le bot ne met jamais plus de 90% du capital en jeu. |
@@ -78,7 +87,7 @@ BTC et ETH servent de référence mais ne sont pas tradés.
 ## Ce que la recherche a montré
 
 ### La méthode
-- **700+ règles** testées systématiquement sur 22 indicateurs et 28 tokens
+- **1500+ regles** testees systematiquement sur 24 indicateurs et 28 tokens
 - **Algorithmes génétiques** et **programmation génétique** (évolution de formules mathématiques)
 - **Machine Learning** (Random Forest, Gradient Boosting) avec validation walk-forward
 - **Monte Carlo** : chaque signal comparé à du timing aléatoire (même nombre de trades, même direction, dates aléatoires)
@@ -95,8 +104,14 @@ BTC et ETH servent de référence mais ne sont pas tradés.
 - Programmation génétique → overfit systématique
 - Liquidation bounce → perd en portfolio malgré un excellent score solo
 
-### Ce qui a survécu
-Seulement 4 signaux sur 700+ testés passent tous les filtres (profit en train ET test, Monte Carlo significatif). Ce sont les 4 signaux du bot.
+### Ce qui a ete elimine (2eme vague de recherche)
+- 6 nouvelles strategies multi-conditions testees (S7, S9, S10, SX, SY) → echouent train/test
+- 8 strategies SHORT (378 variantes) → aucune ne depasse z=2.0
+- Regime gating (activer signaux selon bull/bear) → degrade tous les signaux existants
+- Signal de liquidation comme filtre (au lieu de signal) → pas d'amelioration
+
+### Ce qui a survecu
+5 signaux sur 1500+ testes passent tous les filtres (profit en train ET test, Monte Carlo significatif). Ce sont les 5 signaux du bot.
 
 ---
 

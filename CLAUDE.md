@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Crypto trading research + automated bot for Hyperliquid DEX (decentralized exchange accessible from France). Two generations of work:
 
 **Current active system:**
-- **Multi-Signal Bot** (`analysis/reversal.py`): 4 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.0.3).
+- **Multi-Signal Bot** (`analysis/reversal.py`): 5 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.1.0).
 
 **Legacy systems (disabled):**
 - **LiveBot** (`analysis/livebot.py` v5.6.0): OI divergence on Binance Futures, 17 symbols, `:8095`. Stopped — Binance Futures banned in France.
@@ -44,9 +44,9 @@ Hyperliquid REST API
             │
             ▼
     analysis/reversal.py  (single asyncio process)
-    ├── Features (22 indicators per token per candle)
-    ├── 4 signals (S1, S2, S4, S5)
-    ├── Position manager (max 6, stop -25%, 72h/48h timeout)
+    ├── Features (24 indicators per token per candle)
+    ├── 5 signals (S1, S2, S4, S5, S8)
+    ├── Position manager (max 6, stop -25%, 60-72h timeout)
     ├── State persistence (JSON atomic writes + CSV trades)
     └── Dashboard (FastAPI on :8097, live counters)
 ```
@@ -75,8 +75,9 @@ Hyperliquid REST API
 | S2 | Alt index 7d < -10% | LONG | 4.00 | 72h | $150 |
 | S4 | Vol contraction + DXY rising > +1% | SHORT | 2.95 | 72h | $111 |
 | S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $138 |
+| S8 | Drawdown < -40% + vol spike + BTC weak | LONG | 6.99 | 60h | $262 |
 
-All 4 survived train/test split + Monte Carlo validation. 700+ rules tested, only these 4 pass.
+All 5 survived train/test split + Monte Carlo validation. 1500+ rules tested, only these 5 pass.
 
 ### Config
 
@@ -109,12 +110,16 @@ $1,000 → $11,214 over 35 months (2023-08 to 2026-03). DD -54%. 57% months winn
 
 ## Research Files
 
-All in `analysis/`. The backtest files document the exhaustive search that led to the 4 signals:
+All in `analysis/`. The backtest files document the exhaustive search that led to the 5 signals:
 
 | File | What it tested | Result |
 |------|---------------|--------|
 | `backtest_genetic.py` | Exhaustive scan 700+ rules + genetic algo | Found S1, S2, S4 |
 | `backtest_sector.py` | Sector divergence (fade vs follow) | Found S5 (follow works) |
+| `backtest_newcombos.py` | Multi-condition combos (S7-S10 + shorts) | Found S8 (capitulation) |
+| `backtest_deep_s8.py` | Deep S8 threshold sweep + 4th condition | S8 + btc_7d < -300 best (z=6.99) |
+| `backtest_short_search.py` | 8 SHORT signal ideas, 378 variants | No SHORT passes z>2.0 |
+| `backtest_regime.py` | Regime gating (bull/bear filter on S1-S4) | Regime gating hurts all signals |
 | `backtest_optimize.py` | Stop loss, trailing, signal exit, z-sizing | No stop is best, z-weight helps |
 | `backtest_boost.py` | Leverage, sizing, hold, max positions sweep | 2x optimal |
 | `backtest_gp.py` | Genetic programming (expression trees) | All overfit |
@@ -152,3 +157,5 @@ Legacy collector/dashboard/migrations in `src/` and `migrations/`. PostgreSQL sc
 - **Versioning**: `VERSION` constant in `analysis/reversal.py`. Increment on every change (semver). Displayed in dashboard header and `/api/state`.
 - **Two bot generations**: LiveBot (Binance, disabled) and Multi-Signal Bot (Hyperliquid, active) are independent. Don't confuse ports (:8095 vs :8097) or trade files.
 - **S6 was removed**: Liquidation bounce signal had z=8.04 in isolation but loses -$627 to -$1,552 in portfolio. Standalone backtest was misleading (simpler backtester, no position limits).
+- **S8 capitulation is rare**: Fires ~1/month in portfolio (drawdown > -40% is extreme). When it fires, 70% win rate with avg +413 bps. Max 7 consecutive losses observed (April 2024 crash).
+- **SHORT signals are hard**: 378 short variants tested, none pass z > 2.0. S4+DXY remains the only viable short. Altcoin markets have structural long bias.

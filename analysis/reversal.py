@@ -1,10 +1,11 @@
-"""Multi-Signal Bot v10.0.0 — Four strategies + DXY filter + 2x leverage.
+"""Multi-Signal Bot v10.1.0 — Five strategies + DXY filter + 2x leverage.
 
 Strategies (all validated in combined portfolio backtest):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
   S2: alt_index_7d < -10% → LONG              (z=4.00, buy alt crashes)
   S4: vol contraction + DXY rising → SHORT     (z=2.95, filtered by dollar)
   S5: sector divergence > 10% + volume → FOLLOW (z=3.67, sector breakout)
+  S8: capitulation flush + BTC weak → LONG     (z=6.99, buy market-wide flushes)
 
 Config:
   Leverage: 2x (optimal from parameter sweep)
@@ -50,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.0.3"
+VERSION = "10.1.0"
 
 # ── Config ───────────────────────────────────────────────────────────
 
@@ -91,6 +92,13 @@ S5_VOL_Z_MIN = 1.0        # minimum volume z-score to confirm
 # S6 REMOVED — z=8.04 in isolation but LOSES in portfolio (-$627 to -$1,552)
 # Standalone backtest was misleading (simpler backtester, no position limits)
 
+# S8 params (capitulation flush + BTC weakness)
+S8_DRAWDOWN_THRESH = -4000   # -40% from 30d high
+S8_VOL_Z_MIN = 1.0           # volume spike confirmation
+S8_RET_6H_THRESH = -50       # still bleeding (6h return < -0.5%)
+S8_BTC_7D_THRESH = -300      # BTC also weak (7d < -3%)
+HOLD_HOURS_S8 = 60           # 60h hold (15 candles)
+
 # DXY filter for S4
 DXY_CACHE = os.path.join(os.path.dirname(__file__), "output", "pairs_data", "macro_DXY.json")
 DXY_BOOST_THRESHOLD = 100  # DXY 7d > +1% → S4 active
@@ -100,7 +108,7 @@ LEVERAGE = 2.0
 
 # Sizing: compounding 15% of capital, z-weighted
 SIZE_PCT = 0.15           # 15% of current capital per position
-STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67}
+STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67, "S8": 6.99}
 
 # Capital
 CAPITAL_USDT = 1000.0
@@ -304,7 +312,17 @@ class MultiSignalBot:
         c = candles[i]
         f["range_pct"] = (c["h"] - c["l"]) / c["c"] * 1e4 if c["c"] > 0 else 0
 
-        # Volume z-score (needed for S5)
+        # Drawdown from 30d high (needed for S8)
+        high_30d = float(np.max(highs[max(0, i-180):i+1]))
+        f["drawdown"] = (closes[i] / high_30d - 1) * 1e4 if high_30d > 0 else 0
+
+        # Return over 6 candles / 1 day (needed for S8)
+        if i >= 6 and closes[i - 6] > 0:
+            f["ret_6h"] = (closes[i] / closes[i - 6] - 1) * 1e4
+        else:
+            f["ret_6h"] = 0
+
+        # Volume z-score (needed for S5, S8)
         volumes = np.array([c["v"] for c in candles])
         if i >= 42:
             vol_window = volumes[max(0, i-180):i]
@@ -333,6 +351,11 @@ class MultiSignalBot:
             f["btc_30d"] = (closes[-1] / closes[n - 42] - 1) * 1e4
         else:
             f["btc_30d"] = 0
+
+        if n >= 42 and closes[n - 42] > 0:
+            f["btc_7d"] = (closes[-1] / closes[n - 42] - 1) * 1e4
+        else:
+            f["btc_7d"] = 0
 
         return f
 
@@ -497,6 +520,19 @@ class MultiSignalBot:
                     "info": f"{sd['sector']} div={sd['divergence']:+.0f} vz={sd['vol_z']:.1f}",
                     "strength": abs(sd["divergence"]),
                     "hold_hours": HOLD_HOURS_S5,
+                })
+
+            # S8: capitulation flush — drawdown < -40% + vol spike + bleeding + BTC weak → LONG
+            if (f.get("drawdown", 0) < S8_DRAWDOWN_THRESH
+                    and f.get("vol_z", 0) > S8_VOL_Z_MIN
+                    and f.get("ret_6h", 0) < S8_RET_6H_THRESH
+                    and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
+                signals.append({
+                    "symbol": sym, "direction": 1, "strategy": "S8",
+                    "z": STRAT_Z["S8"],
+                    "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r6h={f['ret_6h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f}",
+                    "strength": abs(f["drawdown"]),
+                    "hold_hours": HOLD_HOURS_S8,
                 })
 
             # S6 REMOVED — loses in portfolio despite z=8.04 in isolation
@@ -765,8 +801,19 @@ class MultiSignalBot:
                 s5_syms.append(f"{sym}({d})")
         if s5_syms:
             active_signals.append(f"S5: {', '.join(s5_syms[:5])} sector divergence")
+        # S8 capitulation flush
+        s8_syms = []
+        for sym in TRADE_SYMBOLS:
+            f = self._get_cached_features(sym) or self._compute_features(sym)
+            if (f and f.get("drawdown", 0) < S8_DRAWDOWN_THRESH
+                    and f.get("vol_z", 0) > S8_VOL_Z_MIN
+                    and f.get("ret_6h", 0) < S8_RET_6H_THRESH
+                    and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
+                s8_syms.append(sym)
+        if s8_syms:
+            active_signals.append(f"S8: {', '.join(s8_syms[:5])} capitulation flush")
         return {
-            "version": VERSION, "strategy": "Multi-Signal (S1+S2+S4+S5)",
+            "version": VERSION, "strategy": "Multi-Signal (S1+S2+S4+S5+S8)",
             "paused": self._paused, "running": self.running,
             "balance": round(balance, 2),
             "total_pnl": round(self._total_pnl, 2),
@@ -817,6 +864,11 @@ class MultiSignalBot:
             if sd and abs(sd["divergence"]) >= S5_DIV_THRESHOLD and sd["vol_z"] >= S5_VOL_Z_MIN:
                 d = "LONG" if sd["divergence"] > 0 else "SHORT"
                 triggered.append(f"S5:{d}")
+            if (f.get("drawdown", 0) < S8_DRAWDOWN_THRESH
+                    and f.get("vol_z", 0) > S8_VOL_Z_MIN
+                    and f.get("ret_6h", 0) < S8_RET_6H_THRESH
+                    and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
+                triggered.append("S8:LONG")
 
             signals[sym] = {
                 "price": st.price,
