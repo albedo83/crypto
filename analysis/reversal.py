@@ -816,7 +816,8 @@ class MultiSignalBot:
                 "alt_index": round(alt_idx, 0)}
 
     def get_trades_list(self, limit=50) -> list:
-        return [t.__dict__ for t in self.trades[-limit:][::-1]]
+        trades = list(self.trades)  # deque doesn't support slicing
+        return [t.__dict__ for t in trades[-limit:][::-1]]
 
     def get_pnl_curve(self) -> list:
         cum = 0.0
