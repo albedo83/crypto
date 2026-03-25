@@ -4,145 +4,151 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Crypto trading bot + microstructure analysis for Binance Futures. **Current active system:**
+Crypto trading research + automated bot for Hyperliquid DEX (decentralized exchange accessible from France). Two generations of work:
 
-- **LiveBot** (`analysis/livebot.py`): Single asyncio process — Binance WS + REST → in-memory signals → paper trading + built-in web dashboard. No DB dependency. Version tracked in `VERSION` constant — increment on each change (semver: major.minor.patch).
+**Current active system:**
+- **Multi-Signal Bot** (`analysis/reversal.py`): 4 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.0.3).
 
-**Legacy systems (disabled, kept for reference):**
-- Collector (`src/collector/`): WS → TimescaleDB. Systemd service disabled.
-- Dashboard (`src/dashboard/`): FastAPI + htmx. Systemd service disabled.
-- PostgreSQL: idle, contains historical analysis data (7 days, March 15-22 2026).
+**Legacy systems (disabled):**
+- **LiveBot** (`analysis/livebot.py` v5.6.0): OI divergence on Binance Futures, 17 symbols, `:8095`. Stopped — Binance Futures banned in France.
+- **CarryBot** (`analysis/carrybot.py`): Funding carry on Binance, `:8096`. Stopped.
+- **Collector** (`src/collector/`): Binance WS → TimescaleDB. Systemd service disabled.
+- **Dashboard** (`src/dashboard/`): FastAPI + htmx for collector. Systemd service disabled.
+- **PostgreSQL**: Idle, historical data from March 15-22 2026.
 
 ## Commands
 
 ```bash
-# LiveBot (the one that matters)
-nohup .venv/bin/python3 -m analysis.livebot > analysis/output/livebot.log 2>&1 &
-# Dashboard: http://0.0.0.0:8095
-# Stop: fuser -k 8095/tcp
-# Logs: tail -f analysis/output/livebot.log
-# Trades: analysis/output/livebot_trades.csv
+# Multi-Signal Bot (the one running)
+nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
+# Dashboard: http://0.0.0.0:8097
+# Stop: fuser -k 8097/tcp
+# Logs: tail -f analysis/output/reversal_v10.log
+# Trades: analysis/output/reversal_trades.csv
+# State: analysis/output/reversal_state.json
 
-# Analysis studies (use PostgreSQL, need collector data)
-.venv/bin/python3 -m analysis.study_06_swing
-.venv/bin/python3 -m analysis.study_07_asia_edge
-.venv/bin/python3 -m analysis.study_10_symbol_scan
-
-# Legacy collector/dashboard (disabled)
-# sudo systemctl start crypto-collector crypto-dashboard
-
-# Database migrations (legacy)
-.venv/bin/alembic upgrade head
+# Legacy LiveBot (disabled)
+# nohup .venv/bin/python3 -m analysis.livebot > analysis/output/livebot.log 2>&1 &
+# Dashboard: http://0.0.0.0:8095 — Stop: fuser -k 8095/tcp
 ```
 
 No test framework, linter, or CI pipeline is configured.
 
-## LiveBot Architecture
+## Multi-Signal Bot Architecture
 
 ```
-Binance Futures
-    ├── WebSocket (68 streams, 1 connection)
-    │     bookTicker + aggTrade + markPrice@1s × 17 symbols
-    └── REST (every 60s)
-          openInterest × 17 symbols
-              │
-              ▼
-    analysis/livebot.py  (single process)
-    ├── SignalEngine (every 10s, 4 signals)
-    │     OI divergence (35%) + smart money (30%)
-    │     + funding proximity (20%) + BTC lead-lag (15%)
-    │     → composite score per symbol
-    ├── CapitalManager
-    │     $1000 virtual capital, max 4 positions
-    │     Rank signals by strength, allocate best first
-    ├── TradingLogic
-    │     Sessions: Asia (0-8h) + US (14-21h) + Overnight (21-24h)
-    │     Entry: score > 0.3, OI signal required, cooldown 30min
-    │     Exit: 2h timeout / reversal (after 10min hold) / stop -100bps
-    │     Leverage: 1x(1sig) → 1.5x(2) → 2.5x(3) → 3x(4)
-    ├── Dashboard (FastAPI on :8095)
-    │     Ticker 1s / State 5s / Trades 10s
-    └── CSV logger → analysis/output/livebot_trades.csv
+Hyperliquid REST API
+    ├── metaAndAssetCtxs (prices, every 60s)
+    ├── candleSnapshot (4h candles, every hour, 30 symbols)
+    └── Yahoo Finance (DXY, every 6h, cached)
+            │
+            ▼
+    analysis/reversal.py  (single asyncio process)
+    ├── Features (22 indicators per token per candle)
+    ├── 4 signals (S1, S2, S4, S5)
+    ├── Position manager (max 6, stop -25%, 72h/48h timeout)
+    ├── State persistence (JSON atomic writes + CSV trades)
+    └── Dashboard (FastAPI on :8097, live counters)
 ```
 
-### Symbols
+### Symbols (28 traded + 2 reference)
 
-**Traded (15):** ADAUSDT, BNBUSDT, BCHUSDT, TRXUSDT, HYPEUSDT, ZROUSDT, AAVEUSDT, LINKUSDT, SUIUSDT, AVAXUSDT, XRPUSDT, XMRUSDT, XLMUSDT, TONUSDT, LTCUSDT
+**Traded:** ARB, OP, AVAX, SUI, APT, SEI, NEAR, AAVE, MKR, COMP, SNX, PENDLE, DYDX, DOGE, WLD, BLUR, LINK, PYTH, SOL, INJ, CRV, LDO, STX, GMX, IMX, SAND, GALA, MINA
 
-**Reference (2):** BTCUSDT, ETHUSDT (for BTC lead-lag signal, not traded)
+**Reference:** BTC, ETH (for BTC lead-lag features, not traded)
 
-Selected by OI/volume ratio scan of 544 Binance Futures perpetuals (`study_10_symbol_scan.py`).
+### Sectors (for S5 signal)
 
-### Strategy: OI Divergence
+| Sector | Tokens |
+|--------|--------|
+| L1 | SOL, AVAX, SUI, APT, NEAR, SEI |
+| DeFi | AAVE, MKR, CRV, SNX, PENDLE, COMP, DYDX, LDO, GMX |
+| Gaming | GALA, IMX, SAND |
+| Infra | LINK, PYTH, STX, INJ, ARB, OP |
+| Meme | DOGE, WLD, BLUR, MINA |
 
-- Price up + OI down = "weak long" → short (fade the move)
-- Price down + OI up = "weak short" → long (fade the move)
-- Boosted by funding rate proximity (< 2h to settlement) and BTC lead-lag
-- European session (8-14h UTC) excluded — signal inverts there
+### Strategies
 
-### Capital Management
+| Signal | Condition | Action | z-score | Hold | Size ($1k) |
+|--------|-----------|--------|---------|------|------------|
+| S1 | BTC 30d > +20% | LONG alts | 6.42 | 72h | $241 |
+| S2 | Alt index 7d < -10% | LONG | 4.00 | 72h | $150 |
+| S4 | Vol contraction + DXY rising > +1% | SHORT | 2.95 | 72h | $111 |
+| S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $138 |
 
-- $1000 virtual capital (paper trading)
-- Max 4 concurrent positions
-- Each position: 20-30% of capital as margin (proportional to score strength)
-- With leverage: $200 (1x weak) to $900 (3x strong)
-- Max 90% capital exposed
-- When >4 signals: rank by |score|, take top 4
-- Session tuning: Asia/overnight aggressive (score 0.25), US conservative (score 0.35, 0.8x leverage)
+All 4 survived train/test split + Monte Carlo validation. 700+ rules tested, only these 4 pass.
 
-### Risk Management
+### Config
 
-- Volatility filter: block entries when 3-min realized vol > 15 bps
-- Trailing stop: activates at +25 bps peak, exits if drops 15 bps from peak
-- Stop loss: -100 bps leveraged
-- Hold minimum: 10 min before reversal check
-- Cooldown: 30 min after exit on same symbol
-- OI signal required for entry (no trades on secondary signals alone)
-- Funding grab: -20% entry threshold in last 30 min before settlement
-- Spread filter: skip entry if spread > 3 bps
-- Streak disable: symbol disabled 12h after 3 consecutive losses
-- Cross-symbol filter: dampen score ×0.6 if >3 symbols aligned (macro move)
-- Simulated costs: 4 bps fees + 1 bps slippage + real-time funding payments
+- **Leverage**: 2x (optimal from parameter sweep — 3x = ruin from compounding losses)
+- **Sizing**: 15% of current capital, z-weighted (stronger signal = bigger position)
+- **Compounding**: Yes (capital grows/shrinks with P&L)
+- **Stop loss**: -25% catastrophe guard (leveraged)
+- **Max positions**: 6 (max 4 same direction)
+- **Capital exposure**: max 90%
+- **Costs**: 12 bps (7 taker + 3 slippage + 2 funding) × leverage
+- **Cooldown**: 24h per symbol after exit
+- **Scan interval**: Every hour (candles are 4h)
 
-### Key Findings (from 10 analysis studies)
+### API Endpoints
 
-- OI divergence on ADA: +20.9 bps/trade net (37 trades over 7 days)
-- Smart money divergence: rho +0.43 on SUI (strongest signal found, study 13)
-- OI × Smart money correlation: 0.002 (independent → fusion improves +2.9 bps/trade)
-- Asia session = strongest edge (+36 bps/trade), Europe = worst (-32 bps)
-- Signal correlation across symbols: ~0.07 (independent → diversification works)
-- Micro-structure signals (book imbalance, 5-30s) don't survive fees (edge < cost)
-- Swing signals (OI divergence + smart money, 2h) survive fees (edge >> cost)
+| Endpoint | Description |
+|----------|-------------|
+| `GET /` | Dashboard HTML (cached on startup) |
+| `GET /api/state` | Balance, positions, signals, timing counters |
+| `GET /api/signals` | All 28 tokens with features and triggered signals |
+| `GET /api/trades` | Trade history (deque maxlen=500) |
+| `GET /api/pnl` | Cumulative P&L curve |
+| `POST /api/pause` | Close all positions + pause |
+| `POST /api/resume` | Resume trading (forces immediate scan) |
+| `POST /api/reset` | Close all + reset capital to $1000 |
 
-## Legacy Architecture
+### Backtest Results
 
-### Collector Pipeline (disabled)
+$1,000 → $11,214 over 35 months (2023-08 to 2026-03). DD -54%. 57% months winning.
+
+## Research Files
+
+All in `analysis/`. The backtest files document the exhaustive search that led to the 4 signals:
+
+| File | What it tested | Result |
+|------|---------------|--------|
+| `backtest_genetic.py` | Exhaustive scan 700+ rules + genetic algo | Found S1, S2, S4 |
+| `backtest_sector.py` | Sector divergence (fade vs follow) | Found S5 (follow works) |
+| `backtest_optimize.py` | Stop loss, trailing, signal exit, z-sizing | No stop is best, z-weight helps |
+| `backtest_boost.py` | Leverage, sizing, hold, max positions sweep | 2x optimal |
+| `backtest_gp.py` | Genetic programming (expression trees) | All overfit |
+| `backtest_explore2*.py` | Cross-sectional, calendar, momentum, ML | Nothing new |
+| `backtest_explore3.py` | Liquidation cascades, macro, candle offsets | Nothing survives |
+| `backtest_smart.py` | Smart priority (scored, reservation, replacement) | No improvement |
+| `backtest_1h.py` | 1h candle resolution | No new discoveries |
+| `backtest_v920.py` | Full portfolio backtest all signals combined | Final validation |
+| `backtest_genetic_final.py` | Combined portfolio with compounding | Final numbers |
+
+Full research journal: `docs/research_findings.md`
+Bot documentation (French): `docs/bot.md`
+
+## Legacy LiveBot Architecture
 
 ```
-Binance WS → WSManager → Dispatcher → Handler → BatchWriter → PostgreSQL
+Binance Futures WS + REST → analysis/livebot.py (:8095)
+├── 4 signals: OI divergence + smart money + funding proximity + BTC lead-lag
+├── 17 symbols, sessions Asia/US/Overnight
+├── $1000 virtual, max 4 positions, 2h timeout, -100bps stop
+└── CSV: livebot_trades.csv, livebot_signals.csv
 ```
 
-WSManager, Dispatcher, Handlers, BatchWriter, Engine, HealthMonitor — all in `src/collector/`.
-
-### Legacy Dashboard (disabled)
-
-FastAPI app factory in `src/dashboard/app.py`. Six routers: status, streams, data, metrics, alerts, paper.
-
-### Database Schema
-
-9 hypertables: trades_raw, book_tob, book_levels, mark_index, funding, open_interest, liquidations, heartbeat, collector_events. Plus 4 matviews (trades_1m, book_tob_1m, order_flow_1m, book_imbalance_1s), 2 SQL functions, paper_trades, paper_state.
-
-Retention: book_tob 3d, book_levels 3d, trades_raw 7d, most tables 30d, funding 90d.
-
-7 migrations in `migrations/versions/` (001-007).
+Legacy collector/dashboard/migrations in `src/` and `migrations/`. PostgreSQL schema: 9 hypertables, 4 matviews, 7 migrations.
 
 ## Gotchas
 
-- **Session filter is critical**: European session (8-14h UTC) inverts the OI divergence signal. Never remove this filter.
-- **OI polling rate**: 17 symbols × 0.15s delay = ~2.5s per cycle. Binance rate limit is ~10 req/s.
-- **Binance WS limit**: 200 streams per connection. Current 68 streams fits in 1 connection.
-- **Capital grows/shrinks**: P&L adjusts the capital for position sizing (compound effect).
-- **PAXGUSDT excluded**: Gold token, scored high but behaves differently from crypto altcoins. Removed from Tier A.
-- **No auto-optimization yet**: Wait for 2-3 weeks of live data before implementing self-tuning. Analysis files: `livebot_signals.csv` (every 60s, 17 symbols) + `livebot_trades.csv`. Future: nightly self-review at 8h UTC, disable losing symbols, adjust thresholds.
-- **Two bots run in parallel**: LiveBot (:8095) = OI divergence swing, CarryBot (:8096) = funding carry. Independent capital, independent strategies. CarryBot is market-neutral (no directional risk).
-- **Versioning**: `VERSION` constant in `analysis/livebot.py`. Increment on every change: patch (bugfix), minor (feature), major (breaking). Displayed in dashboard header and `/api/state`. Always `git tag vX.Y.Z` after commit.
+- **DXY filter is critical for S4**: S4 SHORT only active when DXY 7d > +100 bps. Without it, S4 shorts in bull markets and loses. Yahoo Finance API can fail silently — check logs for "DXY unavailable" warnings.
+- **DXY cache**: Stored in `analysis/output/pairs_data/macro_DXY.json`, refreshed every 6h. Cache uses 5-trading-day return (`closes[-6]`).
+- **Feature cache**: `_refresh_feature_cache()` runs once per hourly scan. `_scan_signals()` and `get_signals()` use cached features. Cache is empty on startup until first scan completes.
+- **State persistence**: Atomic writes (write to `.tmp` then `os.replace()`). On load, original is preserved (copy to `.loaded`). Positions survive restarts.
+- **Compounding effect**: `current_capital = CAPITAL_USDT + _total_pnl`. After big losses, position sizes shrink dramatically. After big wins, positions grow and DD risk increases.
+- **HTML cache**: Dashboard HTML is cached in memory on first request. Restart bot to pick up HTML changes.
+- **Trades deque**: `self.trades` is `deque(maxlen=500)`. Use `list(self.trades)` before slicing (deque doesn't support slicing).
+- **Versioning**: `VERSION` constant in `analysis/reversal.py`. Increment on every change (semver). Displayed in dashboard header and `/api/state`.
+- **Two bot generations**: LiveBot (Binance, disabled) and Multi-Signal Bot (Hyperliquid, active) are independent. Don't confuse ports (:8095 vs :8097) or trade files.
+- **S6 was removed**: Liquidation bounce signal had z=8.04 in isolation but loses -$627 to -$1,552 in portfolio. Standalone backtest was misleading (simpler backtester, no position limits).
