@@ -65,7 +65,6 @@ ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
 # Strategy configs
 HOLD_HOURS_DEFAULT = 72   # 3 days (18 × 4h candles) for S1, S2, S4
 HOLD_HOURS_S5 = 48        # 2 days (12 × 4h candles) for S5 sector
-CANDLES_NEEDED = 180 + 6  # 30 days warmup + margin
 
 # Sectors (for S5 divergence)
 SECTORS = {
@@ -205,6 +204,7 @@ class MultiSignalBot:
         self.running = False
         self._paused = False
         self._feature_cache: dict[str, dict | None] = {}  # symbol → features (refreshed each scan)
+        self._oi_summary: dict = {"falling": 0, "rising": 0}  # refreshed each scan
         self._shutdown_event: asyncio.Event | None = None
         self.started_at: datetime | None = None
         self._total_pnl = 0.0
@@ -245,7 +245,7 @@ class MultiSignalBot:
                     st.updated_at = now
                     st.price_ticks.append((now, price))
                     # Collect OI + funding (observation phase — not used for signals yet)
-                    oi = float(ctxs[i].get("openInterest", 0))
+                    oi = float(ctxs[i].get("openInterest") or 0)
                     if oi > 0:
                         st.oi = oi
                         st.oi_history.append((now, oi))
@@ -360,7 +360,7 @@ class MultiSignalBot:
     def _compute_oi_features(self, symbol: str) -> dict:
         """Compute OI delta features from live 60s samples. Observation only — not used for signals."""
         st = self.states.get(symbol)
-        if not st or len(st.oi_history) < 10:
+        if not st or len(st.oi_history) < 30:  # need ~30min of data for meaningful delta
             return {"oi_delta_1h": 0.0, "oi_delta_4h": 0.0, "funding_bps": 0.0}
         history = list(st.oi_history)
         now_oi = history[-1][1]
@@ -380,7 +380,7 @@ class MultiSignalBot:
             "funding_bps": round(funding_bps, 3),
         }
 
-    def _compute_crowding_score(self, symbol: str) -> int:
+    def _compute_crowding_score(self, symbol: str, oi_f: dict | None = None) -> int:
         """Score 0-100 measuring leverage stress / flush quality.
 
         Higher = more likely a genuine liquidation flush (good for S2/S8).
@@ -388,7 +388,8 @@ class MultiSignalBot:
         Observation only — not used for signal decisions yet.
         """
         score = 0
-        oi_f = self._compute_oi_features(symbol)
+        if oi_f is None:
+            oi_f = self._compute_oi_features(symbol)
         st = self.states.get(symbol)
         f = self._get_cached_features(symbol)
 
@@ -557,6 +558,15 @@ class MultiSignalBot:
     def _refresh_feature_cache(self):
         """Recompute all features once per scan cycle."""
         self._feature_cache = {sym: self._compute_features(sym) for sym in TRADE_SYMBOLS}
+        # OI summary (avoid recomputing per dashboard poll)
+        falling = rising = 0
+        for sym in TRADE_SYMBOLS:
+            d = self._compute_oi_features(sym)["oi_delta_1h"]
+            if d < -0.5:
+                falling += 1
+            elif d > 0.5:
+                rising += 1
+        self._oi_summary = {"falling": falling, "rising": rising}
 
     def _get_cached_features(self, symbol: str) -> dict | None:
         return self._feature_cache.get(symbol)
@@ -661,6 +671,7 @@ class MultiSignalBot:
 
         entries = 0
         seen_symbols = set()
+        drift = self._compute_signal_drift()  # compute once, not per candidate
         for sig in signals:
             if len(self.positions) >= MAX_POSITIONS:
                 break
@@ -692,7 +703,6 @@ class MultiSignalBot:
                 size = round(size * LOSS_STREAK_MULTIPLIER, 2)
 
             # Signal health quarantine (based on rolling win rate)
-            drift = self._compute_signal_drift()
             health = drift.get(sig["strategy"], {})
             if health.get("n", 0) >= 10:
                 wr = health["win_rate"]
@@ -839,15 +849,15 @@ class MultiSignalBot:
             with open(MARKET_CSV, "a", newline="") as f:
                 w = csv.writer(f)
                 if header:
-                    w.writerow(["timestamp", "symbol", "price", "oi", "oi_delta_1h",
-                                "funding", "premium", "crowding", "vol_z"])
+                    w.writerow(["timestamp", "symbol", "price", "oi", "oi_delta_1h_pct",
+                                "funding_ppm", "premium_ppm", "crowding", "vol_z"])
                 for sym in TRADE_SYMBOLS:
                     st = self.states.get(sym)
                     if not st or st.price == 0:
                         continue
                     oi_f = self._compute_oi_features(sym)
                     feat = self._get_cached_features(sym)
-                    crowd = self._compute_crowding_score(sym)
+                    crowd = self._compute_crowding_score(sym, oi_f=oi_f)
                     w.writerow([ts, sym, round(st.price, 6), round(st.oi, 2),
                                 oi_f["oi_delta_1h"], round(st.funding * 1e6, 2),
                                 round(st.premium * 1e6, 2), crowd,
@@ -1034,8 +1044,8 @@ class MultiSignalBot:
                 "btc_30d": round(btc_f.get("btc_30d", 0), 0),
                 "alt_index_7d": round(alt_idx, 0),
                 "dxy_7d": round(dxy_7d, 0),
-                "oi_falling": sum(1 for s in TRADE_SYMBOLS if self._compute_oi_features(s)["oi_delta_1h"] < -0.5),
-                "oi_rising": sum(1 for s in TRADE_SYMBOLS if self._compute_oi_features(s)["oi_delta_1h"] > 0.5),
+                "oi_falling": self._oi_summary["falling"],
+                "oi_rising": self._oi_summary["rising"],
             },
             "params": {"hold_h": HOLD_HOURS_DEFAULT, "hold_s5_h": HOLD_HOURS_S5,
                        "cost_bps": COST_BPS, "stop_bps": STOP_LOSS_BPS,
@@ -1082,7 +1092,7 @@ class MultiSignalBot:
                 triggered.append("S8:LONG")
 
             oi_f = self._compute_oi_features(sym)
-            crowd = self._compute_crowding_score(sym)
+            crowd = self._compute_crowding_score(sym, oi_f=oi_f)
             signals[sym] = {
                 "price": st.price,
                 "ret_7d_bps": round(f.get("ret_42h", 0), 1),
