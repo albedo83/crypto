@@ -230,44 +230,45 @@ Test complementaire **Leave-5-tokens-out** (exclure 5 tokens au hasard, 10 itera
 
 ## Estimations de gain (sur $1,000)
 
-### Par scenario de marche
+### Ce que dit le backtest (fait historique)
 
-| Scenario | P&L annuel estime | Capital fin d'annee | Probabilite |
-|---|---|---|---|
-| **Bull (comme 2024)** | +$2,000 a +$5,000 | $3,000 - $6,000 | ~25% du temps |
-| **Mixte** | +$500 a +$2,000 | $1,500 - $3,000 | ~40% du temps |
-| **Lateral calme** | -$100 a +$200 | $900 - $1,200 | ~20% du temps |
-| **Crash prolonge** | -$200 a -$500 | $500 - $800 | ~15% du temps |
+32 mois de donnees Hyperliquid (aout 2023 → mars 2026), sizing v10.2.0 :
+- **$1,000 → ~$7,000-$9,000** avec compounding (mises ~20% plus petites que le backtest 15%)
+- 20/32 mois gagnants (63%), 12 perdants (37%)
+- Drawdown max : -54% du peak
+- Meilleur mois : +$3,040 (nov 2024, bull). Pire mois : -$4,432 (jan 2026, lateral)
+- Bot inactif ~26% du temps (aucun signal)
 
-### Backtest compound (sizing v10.2.0 : 12%+3%, haircut)
+Ces chiffres viennent du passe. Ils incluent une periode exceptionnelle (2024, +528%). Rien ne garantit qu'ils se reproduiront.
 
-Mises ~20% plus petites que le backtest original (15%) :
-- Estimation : **$1,000 → $7,000-$9,000 sur 32 mois**
-- Soit ~**+300%/an compose** dans les meilleures conditions
+### Projection prudente (scenario central)
 
-### Les vrais chiffres honnetes
+En degradant le backtest de ~50% pour tenir compte du data snooping residuel, du slippage reel, et de l'incertitude :
+- **Rendement annuel estime : +50% a +100%** dans des conditions normales (melange bull/bear)
+- Sur $1,000 : +$500 a +$1,000/an
+- C'est une estimation, pas une promesse
 
-- **Rendement annuel moyen** : +$1,000 a +$2,000 sur $1,000 en conditions normales
-- **63% des mois gagnants**, 37% perdants
-- **Pire mois** : -$4,432 (a haut capital, jan 2026)
-- **Pire drawdown** : -54% du peak (tu perds la moitie avant que ca remonte)
-- **Pire trimestre** : -33% (Q1 2026, marche lateral)
-- **Bot inactif** : ~26% du temps (aucun signal)
-- Le rendement varie de **-30% a +500%/an** selon le marche
-- La moyenne cache une variance enorme
+### Scenarios extremes (pas centraux)
+
+| Scenario | P&L annuel | Quand ca arrive |
+|---|---|---|
+| Bull exceptionnel (comme 2024) | +$2,000 a +$5,000 | BTC +100%, alts suivent, S1 se declenche |
+| Marche lateral prolonge | -$100 a +$200 | Peu de signaux, bot dort, frais grignottent |
+| Crash qui ne rebondit pas | -$200 a -$500 | S2/S8 achetent les dips, les dips continuent |
 
 ### Ce qui n'est PAS dans les chiffres
 
-- **Slippage reel S8** : peut manger 20-50 bps de plus que les 3 bps simules (carnets d'ordres vides pendant les flushes)
-- **Frais reels Hyperliquid** : plutot MEILLEURS que simule (maker rebates). Les deux s'annulent partiellement.
-- **Data snooping residuel** : malgre les 4 filtres (train/test, Monte Carlo, portfolio, walk-forward), 1500+ regles testees = certains faux positifs sont possibles. Le paper trading est le test ultime.
+- **Slippage reel S8** : peut manger 20-50 bps de plus que simule (carnets vides pendant les flushes)
+- **Frais reels Hyperliquid** : meilleurs que simule (maker rebates). Les deux s'annulent partiellement.
+- **Data snooping residuel** : 1500+ regles testees = certains faux positifs possibles malgre 4 filtres de validation. Le paper trading est le test ultime.
+- **S2 est le signal le plus fragile** : 5/9 fenetres walk-forward gagnantes (borderline). Il gagne gros quand il gagne, mais perd presque 1 trimestre sur 2. A surveiller en priorite.
 
 ### Ne PAS s'attendre a
 
 - Un gain chaque mois. 37% des mois sont perdants.
-- Une protection contre un crash de -50% en quelques heures.
-- Des gains en marche totalement plat.
-- Que les performances passees se repetent exactement.
+- Que le backtest se reproduise a l'identique. Les conditions de marche changent.
+- Des gains en marche totalement plat pendant des mois.
+- Que le bot protege contre un flash crash de -50% en quelques heures.
 
 ---
 
@@ -290,7 +291,7 @@ Mises ~20% plus petites que le backtest original (15%) :
 ## Risques
 
 ### Perte en capital
-Drawdown max observe : -54%. Un investissement de $1,000 peut tomber a **$460** avant de remonter. 43% des mois sont perdants.
+Drawdown max observe : -54%. Un investissement de $1,000 peut tomber a **$460** avant de remonter. 37% des mois sont perdants.
 
 ### Risque de modele
 Les 5 signaux viennent de donnees passees (2023-2026). Le marche evolue. Ce qui marchait pourrait cesser de marcher. Le paper trading valide le modele en conditions reelles avant tout capital reel.
@@ -426,18 +427,58 @@ tail -f analysis/output/reversal_v10.log
 ## Plan de production
 
 ### Phase 1 — Paper trading (en cours)
-- Objectif : 4-8 semaines de trades pour comparer real vs backtest
-- Metriques a suivre : nombre de trades/mois, win rate, P&L moyen par signal
-- Alerte si : 0 trades en 2 semaines, ou P&L < -20% du capital
+
+Le paper trading se mesure en **occurrences par signal**, pas en duree calendaire :
+
+| Signal | Frequence estimee | Trades minimum | Duree estimee |
+|---|---|---|---|
+| S1 | ~2-3/an | Inestimable en paper court — accepter l'incertitude | - |
+| S2 | ~5-10/mois | 15+ trades | 2-3 mois |
+| S4 | Variable (depend DXY) | 30+ trades | 3-6 mois |
+| S5 | ~10-20/mois | 30+ trades | 2-3 mois |
+| S8 | ~1/mois en portfolio | 5+ trades | 5+ mois |
+
+**Critere de passage** : minimum **3 mois ET 50 trades cumules**, le plus tard des deux. Comparer par signal : win rate reel vs backtest, P&L moyen reel vs simule. Ecart > 2x = signal a investiguer.
+
+Alertes :
+- 0 trades en 2 semaines → verifier que le bot scanne
+- P&L < -20% du capital → verifier les signaux, pas forcement arreter
+- S2 win rate < 40% sur 15+ trades → reduire la mise S2
 
 ### Phase 2 — Passage en reel
-- Capital initial : $100-500
-- Changements necessaires :
-  - **Ordres limit (maker)** au lieu de market, surtout pour S2/S8 (crash buying = on fournit la liquidite aux liquides). Frais : 7 bps taker → ~1 bps maker (rebate Hyperliquid).
-  - **Verification croisee** : comparer `state.json` avec `clearinghouseState` de l'API Hyperliquid pour detecter les divergences.
-  - **Alertes Telegram** : notification a chaque entry/exit/erreur.
-  - **Slippage S8** : surveiller le slippage reel vs simule. Si > 20 bps consistamment, reduire la mise S8.
+
+Capital initial : $100-500
+
+**Politique d'execution (pas juste "ordres limit")** :
+
+| Aspect | Regle |
+|---|---|
+| **Mode par defaut** | Limit order (maker), TTL 30 secondes |
+| **Fallback** | Si non fill apres TTL → market order (taker). Pas de chasing. |
+| **Partial fills** | Accepter si > 70% du fill. Annuler le reste. |
+| **S2/S8 specifique** | Limit a -0.3% sous le mid (profiter du flush). TTL 60s. On est le filet qui attrape les liquides. |
+| **S4 (short calme)** | Limit au-dessus du mid (+0.1%). Marche calme = liquidite dispo, pas de probleme. |
+| **Annulation** | Si le prix s'eloigne de > 1% du prix cible pendant le TTL, annuler. |
+
+**Metriques a tracker en production** :
+
+| Metrique | Objectif |
+|---|---|
+| Fill rate (% ordres executes) | > 80% maker, 100% avec fallback taker |
+| Slippage reel vs simule | < 10 bps ecart (sauf S8) |
+| Slippage S8 specifique | Si > 20 bps consistamment → reduire mise S8 |
+| MAE (Max Adverse Excursion) | Combien un trade perd avant de remonter — valide le stop loss |
+| MFE (Max Favorable Excursion) | Combien un trade gagne avant de redescendre — valide le hold time |
+| Temps de fill | < 30s pour maker, < 5s pour taker |
+
+**Autres pre-requis** :
+- Verification croisee : comparer `state.json` avec `clearinghouseState` de l'API Hyperliquid
+- Alertes Telegram : notification a chaque entry/exit/erreur
+- Persistence : SQLite au lieu de JSON pour la production (journalisation, reconciliation)
 
 ### Phase 3 — Scaling
-- Si 2+ mois reels coherents avec backtest : augmenter le capital progressivement
-- Ne jamais mettre plus que ce qu'on peut perdre entierement (drawdown -54% observe)
+
+- Minimum 2 mois reels coherents avec backtest avant d'augmenter
+- Augmentation progressive : $500 → $1,000 → $2,000 → $5,000
+- A chaque palier, re-evaluer : le slippage a-t-il augmente ? Les fills sont-ils bons ?
+- Ne jamais mettre plus que ce qu'on est pret a perdre en totalite (drawdown -54% observe)
