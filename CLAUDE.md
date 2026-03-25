@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 Crypto trading research + automated bot for Hyperliquid DEX (decentralized exchange accessible from France). Two generations of work:
 
 **Current active system:**
-- **Multi-Signal Bot** (`analysis/reversal.py`): 5 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.1.1).
+- **Multi-Signal Bot** (`analysis/reversal.py`): 5 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.3.0).
 
 **Legacy systems (disabled):**
 - **LiveBot** (`analysis/livebot.py` v5.6.0): OI divergence on Binance Futures, 17 symbols, `:8095`. Stopped — Binance Futures banned in France.
@@ -46,7 +46,7 @@ Hyperliquid REST API
     analysis/reversal.py  (single asyncio process)
     ├── Features (24 calculated per token, 13 used in production)
     ├── 5 signals (S1, S2, S4, S5, S8)
-    ├── Position manager (max 6, stop -25%, 60-72h timeout)
+    ├── Position manager (max 6/4dir/2sect, stop -25%/-15%, 48-72h timeout)
     ├── State persistence (JSON atomic writes + CSV trades)
     └── Dashboard (FastAPI on :8097, live counters)
 ```

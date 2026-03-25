@@ -1,6 +1,6 @@
-"""Multi-Signal Bot v10.1.0 — Five strategies + DXY filter + 2x leverage.
+"""Multi-Signal Bot v10.3.0 — Five strategies + DXY filter + 2x leverage + OI observation.
 
-Strategies (all validated in combined portfolio backtest):
+Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
   S2: alt_index_7d < -10% → LONG              (z=4.00, buy alt crashes)
   S4: vol contraction + DXY rising → SHORT     (z=2.95, filtered by dollar)
@@ -9,21 +9,16 @@ Strategies (all validated in combined portfolio backtest):
 
 Config:
   Leverage: 2x (optimal from parameter sweep)
-  Hold: 72h (S1/S2/S4), 48h (S5)
-  Sizing: 15% capital, z-weighted
-  Stop: -25% catastrophe guard only (leveraged)
-  Max 6 positions, max 4 same direction
+  Hold: 72h (S1/S2/S4), 48h (S5), 60h (S8)
+  Sizing: 12% base + 3% bonus (z>4), z-weighted, S8 haircut 0.8
+  Stop: -25% leveraged (S1/S2/S4/S5), -15% (S8)
+  Max 6 positions, max 4 same direction, max 2 per sector
+  Kill-switch: auto-pause if P&L < -$300, sizing /2 after 3 losses
   DXY filter: S4 only active when dollar rising (+1%/7d)
-
-Combined backtest with 2x: $1000 → $17,768 over 36 months. DD -54%.
-Annualized: ~180%/year. 20/35 months winning.
-  Cost model: 12 bps (7 taker + 3 slippage + 2 funding)
-
-Validated on 27 months of Hyperliquid data (2024-01 to 2026-03).
-Train: 2024 (+$3,568), Test: 2025-2026 (+$396). z=5.39 vs random.
+  OI + funding: collected for observation, not used for signals yet
 
 Run:       python3 -m analysis.reversal
-Dashboard: http://0.0.0.0:8095
+Dashboard: http://0.0.0.0:8097
 """
 
 from __future__ import annotations
