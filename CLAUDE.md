@@ -4,17 +4,26 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Crypto trading bot for Hyperliquid DEX (accessible from France). Paper trading on 28 altcoins.
+Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trading on 28 altcoins.
 
-**The bot is 2 files** : `analysis/reversal.py` (~1450 lines) + `analysis/reversal.html`. Everything else is research/backtests.
+**The bot is 2 files** : `analysis/reversal.py` (~1600 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-Version in `VERSION` constant (currently 10.3.4). Dashboard on `:8097`.
+Version in `VERSION` constant (currently 10.4.0). Dashboard on `:8097`.
+
+### Execution Modes
+
+- **Paper** (`HL_MODE=paper`, default): simulates positions in memory, reads prices from Hyperliquid public API
+- **Live** (`HL_MODE=live`): places real orders via `hyperliquid-python-sdk`, reconciles with exchange every scan
+
+Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_CHAT_ID`.
 
 ## Commands
 
 ```bash
-# Multi-Signal Bot
+# Multi-Signal Bot (paper mode — default)
 nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
+
+# Live mode: set HL_MODE=live in .env, then same command
 # Dashboard: http://0.0.0.0:8097
 # Stop: fuser -k 8097/tcp
 # Logs: tail -f analysis/output/reversal_v10.log
@@ -27,7 +36,7 @@ No test framework, linter, or CI pipeline is configured.
 ## Bot Architecture
 
 ```
-Hyperliquid REST API
+Hyperliquid REST API (read)
     ├── metaAndAssetCtxs (prices + OI + funding + premium, every 60s)
     ├── candleSnapshot (4h candles, every hour, 30 symbols)
     └── Yahoo Finance (DXY, every 6h, cached 48h)
@@ -39,9 +48,18 @@ Hyperliquid REST API
     ├── Crowding engine (OI + funding + premium → score 0-100)
     ├── Position manager (max 6/4dir/2sect, stop -25%/-15%, 48-72h timeout)
     ├── Signal quarantine (win rate < 20% → auto-disable)
+    ├── Execution (paper or live via hyperliquid-python-sdk)
+    ├── Reconciliation (bot state vs exchange, every scan)
+    ├── Telegram alerts (entry/exit/error/kill-switch)
     ├── State persistence (JSON atomic writes + CSV trades + CSV market + CSV trajectories)
     ├── 12 observation dimensions per trade (OI, crowding, stress, disp, shock, clean, lead, conf, session, age, retest)
     └── Dashboard (FastAPI on :8097, live counters)
+            │
+            ▼ (live mode only)
+Hyperliquid SDK (write)
+    ├── market_open / market_close (taker orders)
+    ├── update_leverage (2x cross on all symbols)
+    └── user_state (reconciliation)
 ```
 
 ### Symbols (28 traded + 2 reference)
@@ -62,13 +80,13 @@ Hyperliquid REST API
 
 ### Strategies
 
-| Signal | Condition | Action | z-score | Hold | Size ($1k) |
-|--------|-----------|--------|---------|------|------------|
-| S1 | BTC 30d > +20% | LONG alts | 6.42 | 72h | $241 |
-| S2 | Alt index 7d < -10% | LONG | 4.00 | 72h | $150 |
-| S4 | Vol contraction + DXY rising > +1% | SHORT | 2.95 | 72h | $111 |
-| S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $138 |
-| S8 | Drawdown < -40% + vol spike + BTC weak | LONG | 6.99 | 60h | $262 |
+| Signal | Condition | Action | z-score | Hold | Size ($100) |
+|--------|-----------|--------|---------|------|-------------|
+| S1 | BTC 30d > +20% | LONG alts | 6.42 | 72h | $24 |
+| S2 | Alt index 7d < -10% | LONG | 4.00 | 72h | $15 |
+| S4 | Vol contraction + DXY rising > +1% | SHORT | 2.95 | 72h | $11 |
+| S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $14 |
+| S8 | Drawdown < -40% + vol spike + BTC weak | LONG | 6.99 | 60h | $26 |
 
 All 5 survived train/test split + Monte Carlo + portfolio integration + walk-forward validation.
 
@@ -143,4 +161,9 @@ Bot documentation (French): `docs/bot.md`
 - **Crowding score (0-100)**: Measures leverage stress per token (OI delta + funding + premium + vol_z). Displayed in dashboard, logged in trades. Not used for decisions yet.
 - **Signal quarantine**: If a signal's rolling win rate drops below 20% on last 10 trades, it's auto-disabled. Below 30% → sizing halved. Prevents silent degradation.
 - **Signal drift**: `/api/state` exposes `signal_drift` with rolling stats per signal (win rate, avg bps, P&L on last 20 trades).
+- **Execution mode**: `HL_MODE` in `.env`. Default `paper` simulates in memory. `live` places real orders via SDK. Mode shown in startup log and `/api/state`. **Never push .env to git**.
+- **SDK lazy import**: `eth_account` + `hyperliquid` only imported when `HL_MODE=live`. Paper mode has zero SDK dependency.
+- **Reconciliation**: Every hourly scan, bot compares its position dict vs `user_state()` from exchange. Mismatches (orphans/ghosts) trigger Telegram alert but NO auto-fix.
+- **Telegram**: Uses raw urllib POST (no dependency). Fire-and-forget, never blocks the bot. Events: open, close, error, kill-switch, startup, reconciliation mismatch.
+- **Order sizing**: SDK expects size in coin units, not USDT. Conversion: `sz = size_usdt / price`, rounded to `szDecimals` from exchange metadata.
 - **Detailed bot documentation**: `docs/bot.md` contains the full bot description — signals, parameters, research, estimates, risks, architecture, production plan. Keep it in sync with code changes.

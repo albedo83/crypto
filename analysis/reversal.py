@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.3.4 — Five strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.4.0 — Five strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -39,14 +39,34 @@ from datetime import datetime, timezone, timedelta
 import numpy as np
 import orjson
 import uvicorn
-from fastapi import FastAPI
+import secrets as _secrets
+from fastapi import Depends, FastAPI, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.3.4"
+VERSION = "10.4.0"
+
+# ── Environment (.env) ──────────────────────────────────────────────
+_env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _ef:
+        for _line in _ef:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                _v = _v.strip().strip("'\"")  # strip quotes around values
+                os.environ.setdefault(_k.strip(), _v)
+
+EXECUTION_MODE = os.environ.get("HL_MODE", "paper")      # "paper" or "live"
+HL_PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
+TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
+TG_CHAT_ID = os.environ.get("TG_CHAT_ID", "")
+DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "")    # empty = no auth
+DASHBOARD_PASS = os.environ.get("DASHBOARD_PASS", "")
 
 # ── Config ───────────────────────────────────────────────────────────
 
@@ -118,7 +138,7 @@ STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67, "S8": 6.99}
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
 
 # ── Capital & Position Limits ────────────────────────────────────────
-CAPITAL_USDT = 1000.0
+CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))
 MAX_POSITIONS = 6
 MAX_SAME_DIRECTION = 4    # prevents all-long or all-short concentration
 MAX_PER_SECTOR = 2        # prevents overexposure to correlated tokens
@@ -145,12 +165,12 @@ LOSS_STREAK_COOLDOWN = 24 * 3600  # 24h before returning to normal sizing
 SCAN_INTERVAL = 3600      # check signals every hour (candles are 4h)
 COOLDOWN_HOURS = 24       # 24h cooldown per symbol after exit
 
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output")
+OUTPUT_DIR = os.environ.get("HL_OUTPUT_DIR", os.path.join(os.path.dirname(__file__), "output"))
 TRADES_CSV = os.path.join(OUTPUT_DIR, "reversal_trades.csv")
 MARKET_CSV = os.path.join(OUTPUT_DIR, "reversal_market.csv")
 STATE_FILE = os.path.join(OUTPUT_DIR, "reversal_state.json")
 HTML_PATH = os.path.join(os.path.dirname(__file__), "reversal.html")
-WEB_PORT = 8097
+WEB_PORT = int(os.environ.get("WEB_PORT", "8097"))
 
 
 def strat_size(strat_name: str, capital: float) -> float:
@@ -243,6 +263,134 @@ class MultiSignalBot:
         self._consecutive_losses = 0
         self._signal_first_seen: dict[str, float] = {}  # "S2:ARB" → epoch when first detected
         self._loss_streak_until: float = 0       # epoch when streak penalty expires
+
+        # ── Live execution (only when HL_MODE=live) ─────────────
+        self._exchange = None
+        self._hl_info = None
+        self._hl_address = ""
+        self._sz_decimals: dict[str, int] = {}
+        if EXECUTION_MODE == "live":
+            self._init_exchange()
+
+    def _init_exchange(self):
+        """Initialize Hyperliquid SDK for live trading."""
+        from eth_account import Account
+        from hyperliquid.exchange import Exchange
+        from hyperliquid.info import Info as HLInfo
+        if not HL_PRIVATE_KEY:
+            log.critical("HL_MODE=live but HL_PRIVATE_KEY not set — aborting")
+            raise SystemExit(1)
+        wallet = Account.from_key(HL_PRIVATE_KEY)
+        self._exchange = Exchange(wallet)
+        self._hl_info = HLInfo(skip_ws=True)
+        self._hl_address = wallet.address
+        # Load szDecimals for proper order size rounding
+        meta = self._hl_info.meta()
+        for asset in meta["universe"]:
+            self._sz_decimals[asset["name"]] = asset["szDecimals"]
+        # Set leverage 2x cross on all traded symbols
+        for sym in TRADE_SYMBOLS:
+            try:
+                self._exchange.update_leverage(int(LEVERAGE), sym, is_cross=True)
+            except Exception as e:
+                log.warning("Leverage set failed for %s: %s", sym, e)
+        log.info("LIVE MODE: wallet %s…, leverage %dx set on %d symbols",
+                 self._hl_address[:10], int(LEVERAGE), len(TRADE_SYMBOLS))
+
+    # ── Telegram Alerts ────────────────────────────────────────
+
+    def _send_telegram(self, msg: str):
+        """Send alert via Telegram Bot API. Fire-and-forget."""
+        if not TG_BOT_TOKEN or not TG_CHAT_ID:
+            return
+        try:
+            payload = json.dumps({"chat_id": TG_CHAT_ID, "text": msg}).encode()
+            req = urllib.request.Request(
+                f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage",
+                data=payload, headers={"Content-Type": "application/json"})
+            urllib.request.urlopen(req, timeout=5)
+        except Exception as e:
+            log.warning("Telegram error: %s", e)
+
+    # ── Live Execution Wrappers ────────────────────────────────
+
+    def _execute_open(self, sym: str, is_buy: bool, size_usdt: float, price: float) -> float:
+        """Place market order on Hyperliquid. Returns fill price or raises."""
+        sz = size_usdt / price
+        dec = self._sz_decimals.get(sym, 2)
+        sz = round(sz, dec)
+        if sz <= 0 or sz * price < 10:
+            raise ValueError(f"Order too small: {sz} {sym} = ${sz * price:.1f}")
+        side_str = "BUY" if is_buy else "SELL"
+        log.info("EXEC OPEN: %s %s sz=%s (~$%.0f)", side_str, sym, sz, sz * price)
+        result = self._exchange.market_open(sym, is_buy, sz, slippage=0.01)
+        # Validate response
+        statuses = result.get("response", {}).get("data", {}).get("statuses", [])
+        if not statuses:
+            raise RuntimeError(f"Order returned empty statuses: {result}")
+        first = statuses[0]
+        if "error" in str(first).lower():
+            raise RuntimeError(f"Order error: {first}")
+        # Get fill price from recent fills
+        try:
+            fills = self._hl_info.user_fills_by_time(
+                self._hl_address, int((time.time() - 30) * 1000))
+            for f in reversed(fills):
+                if f.get("coin") == sym:
+                    return float(f["px"])
+        except Exception as e:
+            log.warning("Fill lookup failed: %s — using market price", e)
+        return price  # fallback
+
+    def _execute_close(self, sym: str) -> float | None:
+        """Close position on Hyperliquid. Returns fill price or raises."""
+        log.info("EXEC CLOSE: %s", sym)
+        result = self._exchange.market_close(sym, slippage=0.01)
+        statuses = result.get("response", {}).get("data", {}).get("statuses", [])
+        if not statuses:
+            raise RuntimeError(f"Close returned empty statuses: {result}")
+        first = statuses[0]
+        if "error" in str(first).lower():
+            raise RuntimeError(f"Close error: {first}")
+        try:
+            fills = self._hl_info.user_fills_by_time(
+                self._hl_address, int((time.time() - 30) * 1000))
+            for f in reversed(fills):
+                if f.get("coin") == sym:
+                    return float(f["px"])
+        except Exception as e:
+            log.warning("Fill lookup failed: %s", e)
+        return None  # caller uses st.price as fallback
+
+    # ── Reconciliation ─────────────────────────────────────────
+
+    def _reconcile(self):
+        """Compare bot positions vs exchange. Log and alert on discrepancies."""
+        if not self._hl_info:
+            return
+        try:
+            state = self._hl_info.user_state(self._hl_address)
+            exchange_positions = set()
+            for pos in state.get("assetPositions", []):
+                p = pos["position"]
+                sz = float(p.get("szi", 0))
+                if abs(sz) > 0:
+                    exchange_positions.add(p["coin"])
+
+            bot_syms = set(self.positions.keys())
+            orphans = exchange_positions - bot_syms
+            ghosts = bot_syms - exchange_positions
+
+            if orphans:
+                log.warning("RECONCILE: orphan positions on exchange: %s", orphans)
+                self._send_telegram(f"⚠️ Orphan on exchange (not in bot): {orphans}")
+            if ghosts:
+                log.warning("RECONCILE: ghost positions in bot (not on exchange): %s", ghosts)
+                self._send_telegram(f"⚠️ Ghost in bot (not on exchange): {ghosts}")
+            if not orphans and not ghosts:
+                log.debug("Reconcile OK: %d positions match", len(bot_syms))
+        except Exception as e:
+            log.warning("Reconcile error: %s", e)
 
     # ── Price Data ──────────────────────────────────────────────
 
@@ -864,10 +1012,23 @@ class MultiSignalBot:
                           sig["strategy"], side, sym, used_margin, size, current_capital * 0.90)
                 continue
 
+            # Execute order (live) or use market price (paper)
+            entry_price = st.price
+            side = "LONG" if sig["direction"] == 1 else "SHORT"
+            if self._exchange:
+                try:
+                    entry_price = self._execute_open(sym, sig["direction"] == 1, size, st.price)
+                    self._send_telegram(
+                        f"🟢 {sig['strategy']} {side} {sym} @ ${entry_price:.4f} | ${size:.0f}")
+                except Exception as e:
+                    log.error("EXEC OPEN FAILED %s %s: %s", sym, sig["strategy"], e)
+                    self._send_telegram(f"❌ Open failed {sym} {sig['strategy']}: {e}")
+                    continue
+
             self.positions[sym] = Position(
                 symbol=sym, direction=sig["direction"],
                 strategy=sig["strategy"],
-                entry_price=st.price, entry_time=now,
+                entry_price=entry_price, entry_time=now,
                 size_usdt=size, signal_info=sig["info"],
                 target_exit=target_exit,
                 trajectory=[(0.0, 0.0)],  # t=0 anchor point
@@ -879,9 +1040,8 @@ class MultiSignalBot:
                 n_shorts += 1
             entries += 1
 
-            side = "LONG" if sig["direction"] == 1 else "SHORT"
             log.info("→ %s %s %s @ $%.4f | %s | $%.0f | exit ~%s | %d/%d pos",
-                     sig["strategy"], side, sym, st.price, sig["info"],
+                     sig["strategy"], side, sym, entry_price, sig["info"],
                      size, target_exit.strftime("%m-%d %H:%M"),
                      len(self.positions), MAX_POSITIONS)
 
@@ -932,6 +1092,17 @@ class MultiSignalBot:
     def _close_position(self, sym: str, exit_price: float, now: datetime, reason: str):
         """Exit a position, record the trade, and update portfolio state."""
         pos = self.positions.pop(sym)
+
+        # Execute close on exchange (live mode)
+        if self._exchange:
+            try:
+                fill_px = self._execute_close(sym)
+                if fill_px:
+                    exit_price = fill_px
+            except Exception as e:
+                log.error("EXEC CLOSE FAILED %s: %s — position may be orphaned!", sym, e)
+                self._send_telegram(f"❌ Close failed {sym}: {e} — CHECK EXCHANGE!")
+
         hold_h = (now - pos.entry_time).total_seconds() / 3600
         # P&L calc: direction * price change * leverage, then subtract round-trip costs.
         # Costs scale with leverage because notional = size * leverage.
@@ -961,6 +1132,8 @@ class MultiSignalBot:
             self._paused = True
             log.critical("KILL-SWITCH: P&L $%.2f below cap $%.0f — auto-paused",
                          self._total_pnl, TOTAL_LOSS_CAP)
+            self._send_telegram(
+                f"🛑 KILL-SWITCH: P&L ${self._total_pnl:.2f} < cap ${TOTAL_LOSS_CAP:.0f} — bot paused")
 
         # Cooldown
         self._cooldowns[sym] = time.time() + COOLDOWN_HOURS * 3600
@@ -988,6 +1161,9 @@ class MultiSignalBot:
         log.info("%s %s %s %s | %.0fh | %s | gross %+.1f | net %+.1f | $%+.2f | mae %+.0f | mfe %+.0f | bal $%.0f (#%d %.0f%%)",
                  arrow, pos.strategy, trade.direction, sym, hold_h, reason,
                  gross_bps, net_bps, pnl, pos.mae_bps, pos.mfe_bps, balance, n, wr)
+        emoji = "✅" if pnl > 0 else "🔴"
+        self._send_telegram(
+            f"{emoji} {pos.strategy} {trade.direction} {sym} | {net_bps:+.0f} bps | ${pnl:+.2f} | bal ${balance:.0f}")
 
     def _write_csv(self, t: Trade):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -1239,6 +1415,7 @@ class MultiSignalBot:
             active_signals.append(f"S8: {', '.join(s8_syms[:5])} capitulation flush")
         return {
             "version": VERSION, "strategy": "Multi-Signal (S1+S2+S4+S5+S8)",
+            "execution_mode": EXECUTION_MODE,
             "paused": self._paused, "running": self.running,
             "degraded": list(self._degraded),
             "loss_streak": self._consecutive_losses,
@@ -1355,13 +1532,14 @@ class MultiSignalBot:
                         await asyncio.sleep(0.2)
 
                     self._refresh_feature_cache()
+                    await asyncio.to_thread(self._reconcile)
 
-                    exits = self._check_exits()
+                    exits = await asyncio.to_thread(self._check_exits)
                     if exits:
                         self._save_state()
 
                     if not self._paused:
-                        n_new = self._scan_signals()
+                        n_new = await asyncio.to_thread(self._scan_signals)
                         if n_new:
                             log.info("Opened %d new positions", n_new)
 
@@ -1380,7 +1558,7 @@ class MultiSignalBot:
                              btc_f.get("btc_30d", 0), alt_idx)
                 else:
                     # Between scans: only check exits (stop losses can trigger any minute)
-                    exits = self._check_exits()
+                    exits = await asyncio.to_thread(self._check_exits)
                     if exits:
                         self._save_state()
 
@@ -1393,7 +1571,21 @@ class MultiSignalBot:
 # ── FastAPI ──────────────────────────────────────────────────────────
 
 bot = MultiSignalBot()
-app = FastAPI()
+
+# ── Dashboard Auth (HTTP Basic, optional) ──────────────────────────
+_security = HTTPBasic(auto_error=False)
+
+def _check_auth(credentials: HTTPBasicCredentials | None = Depends(_security)):
+    if not DASHBOARD_USER:
+        return  # no auth configured
+    if credentials is None:
+        raise HTTPException(status_code=401, headers={"WWW-Authenticate": "Basic"})
+    ok = (_secrets.compare_digest(credentials.username, DASHBOARD_USER)
+          and _secrets.compare_digest(credentials.password, DASHBOARD_PASS))
+    if not ok:
+        raise HTTPException(status_code=401, headers={"WWW-Authenticate": "Basic"})
+
+app = FastAPI(dependencies=[Depends(_check_auth)] if DASHBOARD_USER else [])
 _html_cache = None  # HTML cached in memory on first request — restart bot to pick up HTML changes
 
 
@@ -1493,8 +1685,9 @@ async def run():
     signal.signal(signal.SIGINT, _sig)
     signal.signal(signal.SIGTERM, _sig)
 
-    log.info("Multi-Signal Bot v%s | $%.0f capital | %dx leverage | %d symbols | port %d",
-             VERSION, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
+    mode_tag = "LIVE 🔴" if EXECUTION_MODE == "live" else "PAPER"
+    log.info("Multi-Signal Bot v%s | %s | $%.0f capital | %dx leverage | %d symbols | port %d",
+             VERSION, mode_tag, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
     log.info("Sizing: %d%%+%d%% base, z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f (at $%.0f)",
              SIZE_PCT * 100, SIZE_BONUS * 100,
              strat_size("S1", CAPITAL_USDT), strat_size("S2", CAPITAL_USDT),
@@ -1505,6 +1698,8 @@ async def run():
              STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION, MAX_PER_SECTOR)
     log.info("Kill-switch: loss cap $%.0f | streak threshold %d → %.0f%% sizing for %dh",
              TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER * 100, LOSS_STREAK_COOLDOWN // 3600)
+    bot._send_telegram(
+        f"🤖 Bot v{VERSION} started | {mode_tag} | ${CAPITAL_USDT:.0f} | {len(bot.positions)} pos")
 
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)
