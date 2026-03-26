@@ -667,7 +667,10 @@ class MultiSignalBot:
             # Shock ratio: how much of the 30d move happened in last 24h (0=slow drift, 1=flash crash)
             dd = abs(f.get("drawdown", 0))
             shock = round(abs(f.get("ret_24h", 0)) / dd, 2) if dd > 100 else 0
-            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress} disp={disp_24h:.0f}/{disp_7d:.0f} shk={shock:.2f}"
+            # Move cleanliness: last candle range vs 24h move (high=hysteric, low=clean)
+            r24 = abs(f.get("ret_24h", 0))
+            clean = round(f.get("range_pct", 0) / r24, 2) if r24 > 50 else 0
+            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress} disp={disp_24h:.0f}/{disp_7d:.0f} shk={shock:.2f} cln={clean:.1f}"
 
             # S1: BTC momentum spills over to alts — when BTC rallies >20%/30d,
             # altcoins follow with a lag. Rare but high-conviction (z=6.42).
