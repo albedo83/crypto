@@ -737,18 +737,37 @@ class MultiSignalBot:
 
             # S6 REMOVED — loses in portfolio despite z=8.04 in isolation
 
-        # Track signal age: how many scans since first detection (observation only)
+        # Track signal age + retest detection (observation only)
         now_ts = time.time()
         current_keys = set()
         for sig in signals:
             key = f"{sig['strategy']}:{sig['symbol']}"
             current_keys.add(key)
-            if key not in self._signal_first_seen:
+            prev = self._signal_first_seen.get(key)
+            if prev is None:
+                # Brand new signal
                 self._signal_first_seen[key] = now_ts
-            age_h = (now_ts - self._signal_first_seen[key]) / 3600
-            sig["info"] += f" age={age_h:.0f}h"
-        # Prune signals that disappeared
-        self._signal_first_seen = {k: v for k, v in self._signal_first_seen.items() if k in current_keys}
+                age_h = 0
+                retest = 0
+            elif prev < 0:
+                # Was gone (negative = epoch when it disappeared), now back = retest
+                self._signal_first_seen[key] = now_ts
+                age_h = 0
+                retest = 1
+            else:
+                # Still active
+                age_h = (now_ts - prev) / 3600
+                retest = 0
+            sig["info"] += f" age={age_h:.0f}h rt={retest}"
+        # Mark disappeared signals (keep for 7 days to detect retests)
+        for k in list(self._signal_first_seen.keys()):
+            if k not in current_keys:
+                if self._signal_first_seen[k] > 0:
+                    # Just disappeared — mark with negative timestamp
+                    self._signal_first_seen[k] = -now_ts
+                elif now_ts - abs(self._signal_first_seen[k]) > 7 * 86400:
+                    # Gone for >7 days — prune
+                    del self._signal_first_seen[k]
 
         # ── Signal Ranking & Position Entry ──────────────────────────
         # Priority: highest z-score first (strongest statistical edge), then
