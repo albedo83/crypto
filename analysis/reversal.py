@@ -685,7 +685,12 @@ class MultiSignalBot:
                 n_stress_global >= 5,                 # broad panic
                 oi_f["oi_delta_1h"] < -1.0,           # OI dropping
             ])
-            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress} disp={disp_24h:.0f}/{disp_7d:.0f} shk={shock:.2f} cln={clean:.1f} lead={lead:.1f} conf={conf}"
+            # Time bucket: Asia(0-8) / EU(8-14) / US(14-21) / Night(21-24) + weekend
+            _h = now.hour
+            _session = "Asia" if _h < 8 else "EU" if _h < 14 else "US" if _h < 21 else "Night"
+            if now.weekday() >= 5:
+                _session = "WE"  # weekend
+            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress} disp={disp_24h:.0f}/{disp_7d:.0f} shk={shock:.2f} cln={clean:.1f} lead={lead:.1f} conf={conf} ses={_session}"
 
             # S1: BTC momentum spills over to alts — when BTC rallies >20%/30d,
             # altcoins follow with a lag. Rare but high-conviction (z=6.42).
