@@ -1,3 +1,0 @@
-[console_scripts]
-collector = src.collector.main:main
-dashboard = src.dashboard.main:main

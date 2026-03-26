@@ -4,50 +4,43 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Crypto trading research + automated bot for Hyperliquid DEX (decentralized exchange accessible from France). Two generations of work:
+Crypto trading bot for Hyperliquid DEX (accessible from France). Paper trading on 28 altcoins.
 
-**Current active system:**
-- **Multi-Signal Bot** (`analysis/reversal.py`): 5 validated strategies on 28 altcoins, 2x leverage, paper trading on Hyperliquid. Dashboard on `:8097`. Version in `VERSION` constant (currently 10.3.1).
+**The bot is 2 files** : `analysis/reversal.py` (~1450 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-**Legacy systems (disabled):**
-- **LiveBot** (`analysis/livebot.py` v5.6.0): OI divergence on Binance Futures, 17 symbols, `:8095`. Stopped — Binance Futures banned in France.
-- **CarryBot** (`analysis/carrybot.py`): Funding carry on Binance, `:8096`. Stopped.
-- **Collector** (`src/collector/`): Binance WS → TimescaleDB. Systemd service disabled.
-- **Dashboard** (`src/dashboard/`): FastAPI + htmx for collector. Systemd service disabled.
-- **PostgreSQL**: Idle, historical data from March 15-22 2026.
+Version in `VERSION` constant (currently 10.3.3). Dashboard on `:8097`.
 
 ## Commands
 
 ```bash
-# Multi-Signal Bot (the one running)
+# Multi-Signal Bot
 nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 # Dashboard: http://0.0.0.0:8097
 # Stop: fuser -k 8097/tcp
 # Logs: tail -f analysis/output/reversal_v10.log
 # Trades: analysis/output/reversal_trades.csv
 # State: analysis/output/reversal_state.json
-
-# Legacy LiveBot (disabled)
-# nohup .venv/bin/python3 -m analysis.livebot > analysis/output/livebot.log 2>&1 &
-# Dashboard: http://0.0.0.0:8095 — Stop: fuser -k 8095/tcp
 ```
 
 No test framework, linter, or CI pipeline is configured.
 
-## Multi-Signal Bot Architecture
+## Bot Architecture
 
 ```
 Hyperliquid REST API
-    ├── metaAndAssetCtxs (prices, every 60s)
+    ├── metaAndAssetCtxs (prices + OI + funding + premium, every 60s)
     ├── candleSnapshot (4h candles, every hour, 30 symbols)
-    └── Yahoo Finance (DXY, every 6h, cached)
+    └── Yahoo Finance (DXY, every 6h, cached 48h)
             │
             ▼
     analysis/reversal.py  (single asyncio process)
     ├── Features (24 calculated per token, 13 used in production)
     ├── 5 signals (S1, S2, S4, S5, S8)
+    ├── Crowding engine (OI + funding + premium → score 0-100)
     ├── Position manager (max 6/4dir/2sect, stop -25%/-15%, 48-72h timeout)
-    ├── State persistence (JSON atomic writes + CSV trades)
+    ├── Signal quarantine (win rate < 20% → auto-disable)
+    ├── State persistence (JSON atomic writes + CSV trades + CSV market + CSV trajectories)
+    ├── 12 observation dimensions per trade (OI, crowding, stress, disp, shock, clean, lead, conf, session, age, retest)
     └── Dashboard (FastAPI on :8097, live counters)
 ```
 
@@ -77,15 +70,15 @@ Hyperliquid REST API
 | S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $138 |
 | S8 | Drawdown < -40% + vol spike + BTC weak | LONG | 6.99 | 60h | $262 |
 
-All 5 survived train/test split + Monte Carlo validation. 1500+ rules tested, only these 5 pass. Walk-forward validation (train on 2024, test on 2025-2026) confirms out-of-sample profitability.
+All 5 survived train/test split + Monte Carlo + portfolio integration + walk-forward validation.
 
 ### Config
 
 - **Leverage**: 2x (optimal from parameter sweep — 3x = ruin from compounding losses)
-- **Sizing**: 12% base + 3% bonus (z>5), z-weighted, haircut at high capital (stronger signal = bigger position)
+- **Sizing**: 12% base + 3% bonus (z>4), z-weighted, haircut S8 ×0.8 (stronger signal = bigger position)
 - **Compounding**: Yes (capital grows/shrinks with P&L)
 - **Stop loss**: -25% catastrophe guard (S1/S2/S4/S5), -15% for S8 (matches backtest)
-- **Max positions**: 6 (max 4 same direction)
+- **Max positions**: 6 (max 4 same direction, max 2 per sector)
 - **Capital exposure**: max 90%
 - **Costs**: 12 bps (7 taker + 3 slippage + 2 funding) × leverage
 - **Cooldown**: 24h per symbol after exit
@@ -96,13 +89,13 @@ All 5 survived train/test split + Monte Carlo validation. 1500+ rules tested, on
 | Endpoint | Description |
 |----------|-------------|
 | `GET /` | Dashboard HTML (cached on startup) |
-| `GET /api/state` | Balance, positions, signals, timing counters |
-| `GET /api/signals` | All 28 tokens with features and triggered signals |
+| `GET /api/state` | Balance, positions, signals, timing, drift, degraded, OI summary |
+| `GET /api/signals` | All 28 tokens with features, OI, crowding, triggered signals |
 | `GET /api/trades` | Trade history (deque maxlen=500) |
 | `GET /api/pnl` | Cumulative P&L curve |
 | `POST /api/pause` | Close all positions + pause |
 | `POST /api/resume` | Resume trading (forces immediate scan) |
-| `POST /api/reset` | Close all + reset capital to $1000 |
+| `POST /api/reset` | Close all + reset all state to zero |
 
 ### Backtest Results
 
@@ -129,33 +122,20 @@ All in `analysis/`. The backtest files document the exhaustive search that led t
 | `backtest_1h.py` | 1h candle resolution | No new discoveries |
 | `backtest_v920.py` | Full portfolio backtest all signals combined | Final validation |
 | `backtest_genetic_final.py` | Combined portfolio with compounding | Final numbers |
+| `backtest_robustness.py` | Walk-forward rolling + leave-N-tokens-out | Confirms all signals |
 
-Full research journal: `docs/research_findings.md`
 Bot documentation (French): `docs/bot.md`
-
-## Legacy LiveBot Architecture
-
-```
-Binance Futures WS + REST → analysis/livebot.py (:8095)
-├── 4 signals: OI divergence + smart money + funding proximity + BTC lead-lag
-├── 17 symbols, sessions Asia/US/Overnight
-├── $1000 virtual, max 4 positions, 2h timeout, -100bps stop
-└── CSV: livebot_trades.csv, livebot_signals.csv
-```
-
-Legacy collector/dashboard/migrations in `src/` and `migrations/`. PostgreSQL schema: 9 hypertables, 4 matviews, 7 migrations.
 
 ## Gotchas
 
 - **DXY filter is critical for S4**: S4 SHORT only active when DXY 7d > +100 bps. Without it, S4 shorts in bull markets and loses. DXY has 3-tier fallback: fresh < 6h, stale 6-48h (S4 stays active), expired > 48h (S4 disabled + degraded banner).
 - **DXY cache**: Stored in `analysis/output/pairs_data/macro_DXY.json`. Cache uses 5-trading-day return (`closes[-6]`).
 - **Feature cache**: `_refresh_feature_cache()` runs once per hourly scan. `_scan_signals()` and `get_signals()` use cached features. Cache is empty on startup until first scan completes.
-- **State persistence**: Atomic writes (write to `.tmp` then `os.replace()`). On load, original is preserved (copy to `.loaded`). Positions survive restarts.
+- **State persistence**: Atomic writes (write to `.tmp` then `os.replace()`). On load, original is preserved (copy to `.loaded`). Positions, paused state, loss streak, MAE/MFE, and trajectories survive restarts.
 - **Compounding effect**: `current_capital = CAPITAL_USDT + _total_pnl`. After big losses, position sizes shrink dramatically. After big wins, positions grow and DD risk increases.
 - **HTML cache**: Dashboard HTML is cached in memory on first request. Restart bot to pick up HTML changes.
 - **Trades deque**: `self.trades` is `deque(maxlen=500)`. Use `list(self.trades)` before slicing (deque doesn't support slicing).
-- **Versioning**: `VERSION` constant in `analysis/reversal.py`. Increment on every change (semver). Displayed in dashboard header and `/api/state`. **ALWAYS bump VERSION when modifying reversal.py** — patch for bugfixes, minor for features, major for breaking changes. Update the version in the docstring (line 1), `bot.md` title, and `CLAUDE.md` (this file) at the same time.
-- **Two bot generations**: LiveBot (Binance, disabled) and Multi-Signal Bot (Hyperliquid, active) are independent. Don't confuse ports (:8095 vs :8097) or trade files.
+- **Versioning**: `VERSION` constant in `analysis/reversal.py`. **ALWAYS bump VERSION when modifying reversal.py** — patch for bugfixes, minor for features, major for breaking changes. Update the version in the docstring (line 1), `bot.md` title, and `CLAUDE.md` (this file) at the same time.
 - **S6 was removed**: Liquidation bounce signal had z=8.04 in isolation but loses -$627 to -$1,552 in portfolio. Standalone backtest was misleading (simpler backtester, no position limits).
 - **S8 capitulation is rare**: Fires ~1/month in portfolio (drawdown > -40% is extreme). When it fires, 70% win rate with avg +413 bps. Max 7 consecutive losses observed (April 2024 crash).
 - **SHORT signals are hard**: 378 short variants tested, none pass z > 2.0. S4+DXY remains the only viable short. Altcoin markets have structural long bias.
