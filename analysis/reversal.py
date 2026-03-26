@@ -46,7 +46,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.3.1"
+VERSION = "10.3.2"
 
 # ── Config ───────────────────────────────────────────────────────────
 
@@ -799,6 +799,7 @@ class MultiSignalBot:
                 entry_price=st.price, entry_time=now,
                 size_usdt=size, signal_info=sig["info"],
                 target_exit=target_exit,
+                trajectory=[(0.0, 0.0)],  # t=0 anchor point
             )
 
             if sig["direction"] == 1:
@@ -1227,7 +1228,7 @@ class MultiSignalBot:
             crowd = self._compute_crowding_score(sym, oi_f=oi_f)
             signals[sym] = {
                 "price": st.price,
-                "ret_7d_bps": round(f.get("ret_42h", 0), 1),
+                "ret_7d_bps": round(f.get("ret_42h", 0), 1),  # ret_42h = 42 candles × 4h = 7 days
                 "vol_ratio": round(f.get("vol_ratio", 0), 2),
                 "range_bps": round(f.get("range_pct", 0), 0),
                 "sector": TOKEN_SECTOR.get(sym, "?"),
@@ -1366,6 +1367,7 @@ async def api_pause():
 async def api_resume():
     bot._paused = False
     bot._last_scan = 0  # force immediate scan on next loop iteration
+    bot._save_state()   # persist unpaused state — crash after resume won't reload paused=True
     return JSONResponse({"status": "resumed"})
 
 @app.post("/api/reset")
