@@ -89,7 +89,7 @@ S5_VOL_Z_MIN = 1.0        # minimum volume z-score to confirm
 # S8 params (capitulation flush + BTC weakness)
 S8_DRAWDOWN_THRESH = -4000   # -40% from 30d high
 S8_VOL_Z_MIN = 1.0           # volume spike confirmation
-S8_RET_6H_THRESH = -50       # still bleeding (6h return < -0.5%)
+S8_RET_24H_THRESH = -50      # still bleeding (24h return < -0.5%, 6 candles × 4h)
 S8_BTC_7D_THRESH = -300      # BTC also weak (7d < -3%)
 HOLD_HOURS_S8 = 60           # 60h hold (15 candles)
 
@@ -339,11 +339,11 @@ class MultiSignalBot:
         high_30d = float(np.max(highs[max(0, i-180):i+1]))
         f["drawdown"] = (closes[i] / high_30d - 1) * 1e4 if high_30d > 0 else 0
 
-        # Return over 6 candles / 1 day (needed for S8)
+        # Return over 6 candles = 24 hours (needed for S8)
         if i >= 6 and closes[i - 6] > 0:
-            f["ret_6h"] = (closes[i] / closes[i - 6] - 1) * 1e4
+            f["ret_24h"] = (closes[i] / closes[i - 6] - 1) * 1e4
         else:
-            f["ret_6h"] = 0
+            f["ret_24h"] = 0
 
         # Volume z-score (needed for S5, S8)
         volumes = np.array([c["v"] for c in candles])
@@ -527,7 +527,7 @@ class MultiSignalBot:
         if not sector:
             return None
 
-        own_f = self._compute_features(symbol)
+        own_f = self._get_cached_features(symbol) or self._compute_features(symbol)
         if not own_f or "ret_42h" not in own_f:
             return None
 
@@ -537,7 +537,7 @@ class MultiSignalBot:
         for peer in peers:
             if peer == symbol:
                 continue
-            pf = self._compute_features(peer)
+            pf = self._get_cached_features(peer) or self._compute_features(peer)
             if pf and "ret_42h" in pf:
                 peer_rets.append(pf["ret_42h"])
 
@@ -651,12 +651,12 @@ class MultiSignalBot:
             # S8: capitulation flush — drawdown < -40% + vol spike + bleeding + BTC weak → LONG
             if (f.get("drawdown", 0) < S8_DRAWDOWN_THRESH
                     and f.get("vol_z", 0) > S8_VOL_Z_MIN
-                    and f.get("ret_6h", 0) < S8_RET_6H_THRESH
+                    and f.get("ret_24h", 0) < S8_RET_24H_THRESH
                     and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S8",
                     "z": STRAT_Z["S8"],
-                    "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r6h={f['ret_6h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f}{oi_tag}",
+                    "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r6h={f['ret_24h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f}{oi_tag}",
                     "strength": abs(f["drawdown"]),
                     "hold_hours": HOLD_HOURS_S8,
                 })
@@ -1007,7 +1007,7 @@ class MultiSignalBot:
         # S4 only when DXY rising
         if dxy_active:
             s4_count = sum(1 for sym in TRADE_SYMBOLS
-                           if (f := self._compute_features(sym)) and
+                           if (f := self._get_cached_features(sym) or self._compute_features(sym)) and
                            f.get("vol_ratio", 2) < 1.0 and f.get("range_pct", 999) < 200)
             if s4_count > 0:
                 active_signals.append(f"S4: {s4_count} quiet + DXY={dxy_7d:+.0f}bp → SHORT")
@@ -1028,7 +1028,7 @@ class MultiSignalBot:
             f = self._get_cached_features(sym) or self._compute_features(sym)
             if (f and f.get("drawdown", 0) < S8_DRAWDOWN_THRESH
                     and f.get("vol_z", 0) > S8_VOL_Z_MIN
-                    and f.get("ret_6h", 0) < S8_RET_6H_THRESH
+                    and f.get("ret_24h", 0) < S8_RET_24H_THRESH
                     and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
                 s8_syms.append(sym)
         if s8_syms:
@@ -1093,7 +1093,7 @@ class MultiSignalBot:
                 triggered.append(f"S5:{d}")
             if (f.get("drawdown", 0) < S8_DRAWDOWN_THRESH
                     and f.get("vol_z", 0) > S8_VOL_Z_MIN
-                    and f.get("ret_6h", 0) < S8_RET_6H_THRESH
+                    and f.get("ret_24h", 0) < S8_RET_24H_THRESH
                     and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
                 triggered.append("S8:LONG")
 

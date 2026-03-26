@@ -86,7 +86,7 @@ Tout a ete teste systematiquement : 1500+ regles, algorithmes genetiques, progra
 
 | | |
 |---|---|
-| **Conditions** | `drawdown < -4000 bps` (-40% du plus haut 30j) AND `vol_z > 1.0` (volume anormal) AND `ret_6h < -50 bps` (le prix saigne encore) AND `btc_7d < -300 bps` (BTC aussi en baisse de -3%) |
+| **Conditions** | `drawdown < -4000 bps` (-40% du plus haut 30j) AND `vol_z > 1.0` (volume anormal) AND `ret_24h < -50 bps` (le prix saigne encore) AND `btc_7d < -300 bps` (BTC aussi en baisse de -3%) |
 | **Action** | LONG |
 | **Logique** | Quand un alt a crash de 40%+, que le volume explose, que le prix continue de tomber, ET que BTC est aussi faible — c'est un flush de liquidation force. Les traders en levier se font liquider en cascade, poussant le prix bien en dessous de sa valeur. Le rebond est violent. |
 | **Hold** | 60h |
@@ -334,7 +334,7 @@ Hyperliquid REST API
     │     S2: alt_index < -10%            → LONG 72h
     │     S4: vol_ratio < 1 + range < 2% + DXY > +1% → SHORT 72h
     │     S5: sector div > 10% + vol_z > 1 → FOLLOW 48h
-    │     S8: drawdown < -40% + vol_z > 1 + ret_6h < -0.5% + btc_7d < -3% → LONG 60h
+    │     S8: drawdown < -40% + vol_z > 1 + ret_24h < -0.5% + btc_7d < -3% → LONG 60h
     │     Chaque entree logue OI delta + crowding score (pas utilise pour decisions, observation)
     ├── Position manager
     │     Max 6 positions, max 4 meme direction, max 2 par secteur
@@ -374,7 +374,7 @@ Entre les scans : prix + OI + funding rafraichis toutes les 60s, exits verifies 
 
 | # | Feature | Description | Utilise par |
 |---|---|---|---|
-| 1 | ret_6h | Retour 6 bougies (1 jour) | S8 |
+| 1 | ret_24h | Retour 6 bougies = 24 heures (i-6 × 4h) | S8 |
 | 2 | ret_42h | Retour 42 bougies (7 jours) | tous |
 | 3 | vol_7d | Volatilite realisee 7 jours | S4 |
 | 4 | vol_30d | Volatilite realisee 30 jours | S4 |
