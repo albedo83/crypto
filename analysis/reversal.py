@@ -1382,6 +1382,10 @@ async def api_reset():
     bot._cooldowns.clear()
     bot.trades.clear()
     bot._paused = False
+    bot._degraded.clear()
+    bot._feature_cache.clear()
+    bot._oi_summary = {"falling": 0, "rising": 0}
+    bot._last_scan = 0  # force immediate rescan
     if os.path.exists(TRADES_CSV):
         os.rename(TRADES_CSV, TRADES_CSV + f".bak.{int(time.time())}")
     bot._save_state()  # persist clean state — prevents reload of old data on restart
