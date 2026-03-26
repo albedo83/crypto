@@ -1,4 +1,4 @@
-# Multi-Signal Bot v10.3.1
+# Multi-Signal Bot v10.3.4
 
 Bot de trading automatique sur 28 altcoins Hyperliquid. Paper trading. Un seul fichier Python, pas de base de donnees.
 

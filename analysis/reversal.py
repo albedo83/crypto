@@ -46,7 +46,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.3.3"
+VERSION = "10.3.4"
 
 # ── Config ───────────────────────────────────────────────────────────
 
@@ -197,7 +197,7 @@ class Position:
     target_exit: datetime
     mae_bps: float = 0.0    # Max Adverse Excursion (worst unrealized during trade)
     mfe_bps: float = 0.0    # Max Favorable Excursion (best unrealized during trade)
-    trajectory: list = field(default_factory=list)  # [(hours_since_entry, unrealized_bps), ...]
+    trajectory: list = field(default_factory=list)  # [(hours_since_entry, unrealized_bps), ...] capped at 200
 
 
 @dataclass
@@ -661,7 +661,7 @@ class MultiSignalBot:
 
             # OI + crowding + stress context (observation — logged, not used for decisions)
             oi_f = self._compute_oi_features(sym)
-            crowd = self._compute_crowding_score(sym)
+            crowd = self._compute_crowding_score(sym, oi_f=oi_f)
             sym_sector = TOKEN_SECTOR.get(sym, "?")
             sect_stress = stress_by_sector.get(sym_sector, 0)
             # Shock ratio: how much of the 30d move happened in last 24h (0=slow drift, 1=flash crash)
@@ -911,7 +911,8 @@ class MultiSignalBot:
             hours_held = (now - pos.entry_time).total_seconds() / 3600
             last_h = pos.trajectory[-1][0] if pos.trajectory else -1
             if hours_held - last_h >= 0.95:  # ~1h interval
-                pos.trajectory.append((round(hours_held, 1), round(unrealized, 1)))
+                if len(pos.trajectory) < 200:  # cap to prevent unbounded growth
+                    pos.trajectory.append((round(hours_held, 1), round(unrealized, 1)))
 
             # Per-strategy stop loss (S8 backtested with tighter stop)
             stop = STOP_LOSS_S8 if pos.strategy == "S8" else STOP_LOSS_BPS
@@ -991,17 +992,20 @@ class MultiSignalBot:
     def _write_csv(self, t: Trade):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         header = not os.path.exists(TRADES_CSV)
-        with open(TRADES_CSV, "a", newline="") as f:
-            w = csv.writer(f)
-            if header:
-                w.writerow(["symbol", "direction", "strategy", "entry_time", "exit_time",
-                           "entry_price", "exit_price", "hold_hours", "size_usdt",
-                           "signal_info", "gross_bps", "net_bps", "pnl_usdt",
-                           "mae_bps", "mfe_bps", "reason"])
-            w.writerow([t.symbol, t.direction, t.strategy, t.entry_time, t.exit_time,
-                       t.entry_price, t.exit_price, t.hold_hours, t.size_usdt,
-                       t.signal_info, t.gross_bps, t.net_bps, t.pnl_usdt,
-                       t.mae_bps, t.mfe_bps, t.reason])
+        try:
+            with open(TRADES_CSV, "a", newline="") as f:
+                w = csv.writer(f)
+                if header:
+                    w.writerow(["symbol", "direction", "strategy", "entry_time", "exit_time",
+                               "entry_price", "exit_price", "hold_hours", "size_usdt",
+                               "signal_info", "gross_bps", "net_bps", "pnl_usdt",
+                               "mae_bps", "mfe_bps", "reason"])
+                w.writerow([t.symbol, t.direction, t.strategy, t.entry_time, t.exit_time,
+                           t.entry_price, t.exit_price, t.hold_hours, t.size_usdt,
+                           t.signal_info, t.gross_bps, t.net_bps, t.pnl_usdt,
+                           t.mae_bps, t.mfe_bps, t.reason])
+        except Exception:
+            log.exception("Trade CSV write failed — trade recorded in memory but not on disk")
 
     def _write_trajectory(self, sym: str, pos: Position):
         """Write hourly trajectory to CSV. One row per hour of the trade's life."""
@@ -1061,6 +1065,7 @@ class MultiSignalBot:
             "consecutive_losses": self._consecutive_losses,
             "loss_streak_until": self._loss_streak_until,
             "cooldowns": {k: v for k, v in self._cooldowns.items() if v > time.time()},
+            "signal_first_seen": self._signal_first_seen,
             "positions": [{
                 "symbol": p.symbol, "direction": p.direction,
                 "strategy": p.strategy,
@@ -1089,6 +1094,7 @@ class MultiSignalBot:
             self._consecutive_losses = data.get("consecutive_losses", 0)
             self._loss_streak_until = data.get("loss_streak_until", 0)
             self._cooldowns = data.get("cooldowns", {})
+            self._signal_first_seen = data.get("signal_first_seen", {})
             for p in data.get("positions", []):
                 if p["symbol"] not in self.states:
                     log.warning("Skipping unknown symbol from state: %s", p["symbol"])
