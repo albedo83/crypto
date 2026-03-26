@@ -590,6 +590,17 @@ class MultiSignalBot:
 
         btc_30d = btc_f.get("btc_30d", 0)
 
+        # Cross-sectional stress context (logged, not used for decisions)
+        stress_by_sector = defaultdict(int)
+        n_stress_global = 0
+        for _sym in TRADE_SYMBOLS:
+            _f = self._get_cached_features(_sym)
+            if _f and _f.get("vol_z", 0) > 1.5 and _f.get("drawdown", 0) < -1500:
+                n_stress_global += 1
+                _sect = TOKEN_SECTOR.get(_sym)
+                if _sect:
+                    stress_by_sector[_sect] += 1
+
         for sym in TRADE_SYMBOLS:
             if sym in self.positions:
                 continue
@@ -604,10 +615,12 @@ class MultiSignalBot:
             if not st or st.price == 0:
                 continue
 
-            # OI + crowding features (observation — logged, not used for decisions)
+            # OI + crowding + stress context (observation — logged, not used for decisions)
             oi_f = self._compute_oi_features(sym)
             crowd = self._compute_crowding_score(sym)
-            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd}"
+            sym_sector = TOKEN_SECTOR.get(sym, "?")
+            sect_stress = stress_by_sector.get(sym_sector, 0)
+            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress}"
 
             # S1: btc_30d > 2000 bps → LONG
             if btc_30d > 2000:
