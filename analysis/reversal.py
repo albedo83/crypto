@@ -872,6 +872,9 @@ class MultiSignalBot:
         data = {
             "version": VERSION,
             "total_pnl": self._total_pnl, "wins": self._wins,
+            "paused": self._paused,
+            "consecutive_losses": self._consecutive_losses,
+            "loss_streak_until": self._loss_streak_until,
             "cooldowns": {k: v for k, v in self._cooldowns.items() if v > time.time()},
             "positions": [{
                 "symbol": p.symbol, "direction": p.direction,
@@ -894,6 +897,9 @@ class MultiSignalBot:
                 data = orjson.loads(f.read())
             self._total_pnl = data.get("total_pnl", 0)
             self._wins = data.get("wins", 0)
+            self._paused = data.get("paused", False)
+            self._consecutive_losses = data.get("consecutive_losses", 0)
+            self._loss_streak_until = data.get("loss_streak_until", 0)
             self._cooldowns = data.get("cooldowns", {})
             for p in data.get("positions", []):
                 if p["symbol"] not in self.states:
