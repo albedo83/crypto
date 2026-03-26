@@ -676,7 +676,16 @@ class MultiSignalBot:
             _peer_rets = [abs(pf.get("ret_42h", 0)) for pf in _peers if pf]
             _peer_avg = np.mean(_peer_rets) if _peer_rets else 0
             lead = round(abs(f.get("ret_42h", 0)) / _peer_avg, 1) if _peer_avg > 100 else 0
-            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress} disp={disp_24h:.0f}/{disp_7d:.0f} shk={shock:.2f} cln={clean:.1f} lead={lead:.1f}"
+            # Confluence: how many features are simultaneously extreme (0-5)
+            # Tests whether "too obvious" setups are better or already crowded
+            conf = sum([
+                abs(f.get("drawdown", 0)) > 3000,   # deep drawdown
+                f.get("vol_z", 0) > 1.5,             # volume spike
+                abs(f.get("ret_24h", 0)) > 200,      # big recent move
+                n_stress_global >= 5,                 # broad panic
+                oi_f["oi_delta_1h"] < -1.0,           # OI dropping
+            ])
+            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress} disp={disp_24h:.0f}/{disp_7d:.0f} shk={shock:.2f} cln={clean:.1f} lead={lead:.1f} conf={conf}"
 
             # S1: BTC momentum spills over to alts — when BTC rallies >20%/30d,
             # altcoins follow with a lag. Rare but high-conviction (z=6.42).
