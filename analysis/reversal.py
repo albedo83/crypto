@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.3.0 — Five strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.3.1 — Five strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -62,9 +62,11 @@ TRADE_SYMBOLS = [
 REFERENCE = ["BTC", "ETH"]
 ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
 
-# Strategy configs
+# ── Hold Periods ─────────────────────────────────────────────────────
+# Optimized via parameter sweep in backtest_boost.py.
+# Shorter holds lose edge to costs; longer holds add drawdown without profit.
 HOLD_HOURS_DEFAULT = 72   # 3 days (18 × 4h candles) for S1, S2, S4
-HOLD_HOURS_S5 = 48        # 2 days (12 × 4h candles) for S5 sector
+HOLD_HOURS_S5 = 48        # 2 days — sector divergences revert faster
 
 # Sectors (for S5 divergence)
 SECTORS = {
@@ -79,50 +81,61 @@ for _sect, _toks in SECTORS.items():
     for _t in _toks:
         TOKEN_SECTOR[_t] = _sect
 
-# S5 params
+# ── S5 Sector Divergence Params ───────────────────────────────────────
+# Token must lag/lead its sector by >10% AND have elevated volume.
+# Volume filter prevents entry on illiquid drift.
 S5_DIV_THRESHOLD = 1000   # 10% divergence from sector
 S5_VOL_Z_MIN = 1.0        # minimum volume z-score to confirm
 
 # S6 REMOVED — z=8.04 in isolation but LOSES in portfolio (-$627 to -$1,552)
 # Standalone backtest was misleading (simpler backtester, no position limits)
 
-# S8 params (capitulation flush + BTC weakness)
+# ── S8 Capitulation Flush Params ──────────────────────────────────────
+# Catches market-wide liquidation cascades: token down >40% from 30d high,
+# volume spiking (forced sells), still bleeding, AND BTC also weak.
+# The 4th condition (BTC weak) raised z from 5.2 to 6.99 — see backtest_deep_s8.py.
 S8_DRAWDOWN_THRESH = -4000   # -40% from 30d high
 S8_VOL_Z_MIN = 1.0           # volume spike confirmation
 S8_RET_24H_THRESH = -50      # still bleeding (24h return < -0.5%, 6 candles × 4h)
 S8_BTC_7D_THRESH = -300      # BTC also weak (7d < -3%)
 HOLD_HOURS_S8 = 60           # 60h hold (15 candles)
 
-# DXY filter for S4
+# ── DXY Filter (critical for S4) ─────────────────────────────────────
+# S4 shorts only fire when the dollar is rising. Without DXY gating,
+# S4 shorts in bull markets and loses. See CLAUDE.md "Gotchas" section.
 DXY_CACHE = os.path.join(os.path.dirname(__file__), "output", "pairs_data", "macro_DXY.json")
 DXY_BOOST_THRESHOLD = 100  # DXY 7d > +1% → S4 active
 
-# Leverage: 2x (optimal from boost backtest — $1k→$17.7k, DD -54%)
+# ── Leverage & Sizing ────────────────────────────────────────────────
+# 2x optimal from parameter sweep (3x = ruin from compounding losses).
 LEVERAGE = 2.0
 
-# Sizing: compounding 12% base + 3% bonus for high-z, z-weighted
+# Sizing: compounding base + bonus, z-weighted so higher-z signals get bigger bets.
+# Formula in strat_size(): base * (z/4 clamped 0.5-2.0) * haircut.
 SIZE_PCT = 0.12           # 12% of current capital per position (reduced from 15%)
 SIZE_BONUS = 0.03         # bonus for high-z signals (z > 4)
 STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67, "S8": 6.99}
-LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 operates in thin markets
+LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
 
-# Capital
+# ── Capital & Position Limits ────────────────────────────────────────
 CAPITAL_USDT = 1000.0
 MAX_POSITIONS = 6
-MAX_SAME_DIRECTION = 4
-MAX_PER_SECTOR = 2
+MAX_SAME_DIRECTION = 4    # prevents all-long or all-short concentration
+MAX_PER_SECTOR = 2        # prevents overexposure to correlated tokens
 
-# Costs
+# ── Costs (applied at exit, per leg, scaled by leverage) ─────────────
 TAKER_FEE_BPS = 7.0
 SLIPPAGE_BPS = 3.0
 FUNDING_DRAG_BPS = 2.0
 COST_BPS = TAKER_FEE_BPS + SLIPPAGE_BPS + FUNDING_DRAG_BPS  # 12 bps
 
-# Stop loss per strategy (leveraged bps)
-STOP_LOSS_BPS = -2500.0        # default catastrophe guard (-25% leveraged = -12.5% price)
-STOP_LOSS_S8 = -1500.0         # S8 backtested with -1500 (-15% leveraged = -7.5% price)
+# ── Stop Losses (leveraged bps — catastrophe guards, not profit-taking) ──
+# Backtest showed "no stop" is best for profit, but these prevent tail risk.
+STOP_LOSS_BPS = -2500.0        # default: -25% leveraged = -12.5% price move
+STOP_LOSS_S8 = -1500.0         # S8 tighter: -15% leveraged = -7.5% price move
 
-# Portfolio kill-switch
+# ── Portfolio Kill-Switch ────────────────────────────────────────────
+# Protects against regime change or systematic signal failure.
 TOTAL_LOSS_CAP = -300.0        # auto-pause if cumulative P&L drops below this
 LOSS_STREAK_THRESHOLD = 3      # reduce sizing after N consecutive losses
 LOSS_STREAK_MULTIPLIER = 0.5   # halve position size during loss streak
@@ -141,7 +154,12 @@ WEB_PORT = 8097
 
 
 def strat_size(strat_name: str, capital: float) -> float:
-    """12% base + 3% bonus if z>4, z-weighted, with liquidity haircut."""
+    """Compute position size: base% * z-weight * haircut.
+
+    z-weight (z/4 clamped to [0.5, 2.0]) allocates more capital to
+    statistically stronger signals (S1/S8 get ~1.6x, S4 gets ~0.7x).
+    Haircut reduces size for strategies that fire in illiquid conditions.
+    """
     z = STRAT_Z.get(strat_name, 3.0)
     weight = max(0.5, min(2.0, z / 4.0))
     pct = SIZE_PCT + (SIZE_BONUS if z > 4.0 else 0)
@@ -158,8 +176,9 @@ class SymbolState:
     updated_at: float = 0.0
     candles_4h: deque = field(default_factory=lambda: deque(maxlen=200))
     last_candle_ts: int = 0
-    price_ticks: deque = field(default_factory=lambda: deque(maxlen=300))
-    # OI + funding + premium tracking (collected every 60s — observation phase)
+    price_ticks: deque = field(default_factory=lambda: deque(maxlen=300))  # ~5h @ 60s
+    # OI + funding + premium: collected every 60s for observation/crowding score.
+    # Not used for signal decisions yet — waiting for 50+ trades to analyze correlation.
     oi: float = 0.0
     funding: float = 0.0
     premium: float = 0.0
@@ -208,18 +227,21 @@ class MultiSignalBot:
         self.trades: deque[Trade] = deque(maxlen=500)
         self.running = False
         self._paused = False
-        self._feature_cache: dict[str, dict | None] = {}  # symbol → features (refreshed each scan)
-        self._oi_summary: dict = {"falling": 0, "rising": 0}  # refreshed each scan
+        # Feature cache: computed once per hourly scan, consumed by signals + dashboard.
+        # Empty until first scan completes — dashboard may show stale data until then.
+        self._feature_cache: dict[str, dict | None] = {}
+        self._oi_summary: dict = {"falling": 0, "rising": 0}
         self._shutdown_event: asyncio.Event | None = None
         self.started_at: datetime | None = None
+        # Cumulative stats (persisted across restarts via state file)
         self._total_pnl = 0.0
         self._wins = 0
         self._last_scan: float = 0
         self._last_price_fetch: float = 0
         self._cooldowns: dict[str, float] = {}  # symbol → earliest re-entry epoch
-        self._degraded: list[str] = []
+        self._degraded: list[str] = []           # active degradation tags (e.g. "DXY", "DXY_STALE")
         self._consecutive_losses = 0
-        self._loss_streak_until: float = 0  # epoch when streak penalty expires
+        self._loss_streak_until: float = 0       # epoch when streak penalty expires
 
     # ── Price Data ──────────────────────────────────────────────
 
@@ -293,7 +315,11 @@ class MultiSignalBot:
     # ── Feature Computation ─────────────────────────────────────
 
     def _compute_features(self, symbol: str) -> dict | None:
-        """Compute features for a single symbol from its 4h candles."""
+        """Compute technical features for a single symbol from its 4h candles.
+
+        All returns/drawdowns are in basis points (1 bps = 0.01%).
+        Candle counts: 6 = 24h, 42 = 7d, 180 = 30d (at 4h per candle).
+        """
         st = self.states.get(symbol)
         if not st or len(st.candles_4h) < 50:
             return None
@@ -307,13 +333,13 @@ class MultiSignalBot:
         lows = np.array([c["l"] for c in candles])
 
         f = {}
-        # Return over 42 candles (7 days)
+        # 7-day return (42 candles × 4h) — used by S1, S2, S5
         if i >= 42 and closes[i - 42] > 0:
             f["ret_42h"] = (closes[i] / closes[i - 42] - 1) * 1e4
         else:
             return None
 
-        # Volatility ratio
+        # Volatility ratio: vol_7d / vol_30d — below 1.0 = compression (used by S4)
         if i >= 42:
             denom_7d = closes[max(0, i-42):i]
             if (denom_7d == 0).any():
@@ -363,7 +389,9 @@ class MultiSignalBot:
         return f
 
     def _compute_oi_features(self, symbol: str) -> dict:
-        """Compute OI delta features from live 60s samples. Observation only — not used for signals."""
+        """Compute OI delta as % change over 1h/4h from live 60s samples.
+        Percentage (not absolute) normalizes across tokens with different OI levels.
+        Observation only — not used for signal decisions yet."""
         st = self.states.get(symbol)
         if not st or len(st.oi_history) < 30:  # need ~30min of data for meaningful delta
             return {"oi_delta_1h": 0.0, "oi_delta_4h": 0.0, "funding_bps": 0.0}
@@ -390,6 +418,7 @@ class MultiSignalBot:
 
         Higher = more likely a genuine liquidation flush (good for S2/S8).
         Lower = simple price decline without deleveraging.
+        Components: OI dropping (max 50) + negative funding (20) + vol spike (15) + negative premium (15).
         Observation only — not used for signal decisions yet.
         """
         score = 0
@@ -445,7 +474,11 @@ class MultiSignalBot:
         return f
 
     def _fetch_dxy(self) -> float:
-        """Fetch DXY 7-day return. Cache 6h fresh, 48h stale fallback, then 0."""
+        """Fetch DXY 7-day return (bps) via Yahoo Finance with 3-tier fallback:
+        1. Fresh cache (<6h) — normal operation
+        2. Stale cache (6-48h) — S4 stays active, dashboard shows warning
+        3. No data (>48h) — S4 disabled, returns 0.0
+        """
         def _read_cache() -> tuple[float | None, float]:
             """Returns (dxy_bps or None, age_hours)."""
             if not os.path.exists(DXY_CACHE):
@@ -579,7 +612,7 @@ class MultiSignalBot:
     # ── Signal Detection ─────────────────────────────────────────
 
     def _scan_signals(self) -> int:
-        """Scan for signals from all strategies."""
+        """Scan all 5 strategies across 28 tokens, rank by z-score, and open positions."""
         now = datetime.now(timezone.utc)
         signals = []
 
@@ -622,7 +655,8 @@ class MultiSignalBot:
             sect_stress = stress_by_sector.get(sym_sector, 0)
             oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress}"
 
-            # S1: btc_30d > 2000 bps → LONG
+            # S1: BTC momentum spills over to alts — when BTC rallies >20%/30d,
+            # altcoins follow with a lag. Rare but high-conviction (z=6.42).
             if btc_30d > 2000:
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S1",
@@ -632,7 +666,8 @@ class MultiSignalBot:
                     "hold_hours": HOLD_HOURS_DEFAULT,
                 })
 
-            # S2: alt_index_7d < -1000 bps → LONG
+            # S2: Mean-reversion after alt crash — when the alt index drops >10%/7d,
+            # the market is oversold and bounces. Classic "buy the dip" (z=4.00).
             if alt_index < -1000:
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S2",
@@ -642,9 +677,9 @@ class MultiSignalBot:
                     "hold_hours": HOLD_HOURS_DEFAULT,
                 })
 
-            # S4: vol_ratio < 1.0 AND range_pct < 200 → SHORT
-            # DXY filter: only active when dollar is rising (DXY 7d > +1%)
-            # When DXY is falling, S4 is disabled (don't short in weak-dollar environment)
+            # S4: Volatility compression + rising dollar → SHORT. Quiet markets
+            # with a strengthening USD precede alt drawdowns. DXY filter is critical:
+            # without it, S4 shorts in bull markets and loses (see CLAUDE.md).
             if f["vol_ratio"] < 1.0 and f["range_pct"] < 200 and dxy_7d > DXY_BOOST_THRESHOLD:
                 signals.append({
                     "symbol": sym, "direction": -1, "strategy": "S4",
@@ -654,7 +689,9 @@ class MultiSignalBot:
                     "hold_hours": HOLD_HOURS_DEFAULT,
                 })
 
-            # S5: sector divergence > 1000bps + volume z > 1.0 → FOLLOW
+            # S5: Sector breakout — when a token diverges >10% from its sector peers
+            # with high volume, FOLLOW the divergence (don't fade it). Backtested both
+            # directions in backtest_sector.py: follow works, fade doesn't.
             sd = self._compute_sector_divergence(sym)
             if sd and abs(sd["divergence"]) >= S5_DIV_THRESHOLD and sd["vol_z"] >= S5_VOL_Z_MIN:
                 direction = 1 if sd["divergence"] > 0 else -1
@@ -666,7 +703,10 @@ class MultiSignalBot:
                     "hold_hours": HOLD_HOURS_S5,
                 })
 
-            # S8: capitulation flush — drawdown < -40% + vol spike + bleeding + BTC weak → LONG
+            # S8: Capitulation flush — buy when market-wide liquidation cascade is
+            # underway. All 4 conditions must align: extreme drawdown, volume spike
+            # (forced sells), still bleeding (not recovering yet), AND BTC weak.
+            # Highest z-score of all signals (6.99), 70% win rate, rare (~1/month).
             if (f.get("drawdown", 0) < S8_DRAWDOWN_THRESH
                     and f.get("vol_z", 0) > S8_VOL_Z_MIN
                     and f.get("ret_24h", 0) < S8_RET_24H_THRESH
@@ -681,14 +721,17 @@ class MultiSignalBot:
 
             # S6 REMOVED — loses in portfolio despite z=8.04 in isolation
 
-        # Sort by z-score first (higher priority strategies), then strength
+        # ── Signal Ranking & Position Entry ──────────────────────────
+        # Priority: highest z-score first (strongest statistical edge), then
+        # by signal strength within same z. This ensures S1/S8 get slots
+        # before S4 when multiple signals fire simultaneously.
         signals.sort(key=lambda s: (s["z"], s["strength"]), reverse=True)
 
         n_longs = sum(1 for p in self.positions.values() if p.direction == 1)
         n_shorts = sum(1 for p in self.positions.values() if p.direction == -1)
 
         entries = 0
-        seen_symbols = set()
+        seen_symbols = set()       # one entry per symbol per scan
         drift = self._compute_signal_drift()  # compute once, not per candidate
         for sig in signals:
             sym = sig["symbol"]
@@ -722,11 +765,15 @@ class MultiSignalBot:
             target_exit = now + timedelta(hours=hold_h)
             current_capital = CAPITAL_USDT + self._total_pnl
             size = strat_size(sig["strategy"], current_capital)
-            # Loss streak penalty
+            # Loss streak penalty: protects against correlated losses
+            # (e.g. flash crash hitting multiple positions simultaneously)
             if time.time() < self._loss_streak_until:
                 size = round(size * LOSS_STREAK_MULTIPLIER, 2)
 
-            # Signal health quarantine (based on rolling win rate)
+            # Signal health quarantine: protects against regime change making
+            # a signal permanently unprofitable. If win rate on last 10 trades
+            # drops below 20%, the signal is fully disabled; below 30%, sizing
+            # is halved. Prevents silent degradation from draining capital.
             health = drift.get(sig["strategy"], {})
             if health.get("n", 0) >= 10:
                 wr = health["win_rate"]
@@ -771,6 +818,7 @@ class MultiSignalBot:
     # ── Exit Logic ──────────────────────────────────────────────
 
     def _check_exits(self) -> int:
+        """Close positions that hit timeout or stop loss. Returns count of exits."""
         now = datetime.now(timezone.utc)
         exits = 0
 
@@ -809,10 +857,13 @@ class MultiSignalBot:
         return exits
 
     def _close_position(self, sym: str, exit_price: float, now: datetime, reason: str):
+        """Exit a position, record the trade, and update portfolio state."""
         pos = self.positions.pop(sym)
         hold_h = (now - pos.entry_time).total_seconds() / 3600
+        # P&L calc: direction * price change * leverage, then subtract round-trip costs.
+        # Costs scale with leverage because notional = size * leverage.
         gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4 * LEVERAGE
-        effective_cost = COST_BPS * LEVERAGE  # fees/slippage scale with notional
+        effective_cost = COST_BPS * LEVERAGE
         net_bps = gross_bps - effective_cost
         pnl = pos.size_usdt * net_bps / 1e4
 
@@ -820,7 +871,8 @@ class MultiSignalBot:
         if pnl > 0:
             self._wins += 1
 
-        # Track consecutive losses for kill-switch
+        # Track consecutive losses — protects against correlated drawdowns.
+        # After N losses in a row, halve sizing for 24h to limit damage.
         if pnl > 0:
             self._consecutive_losses = 0
         else:
@@ -830,7 +882,8 @@ class MultiSignalBot:
                 log.warning("Loss streak: %d consecutive losses — sizing reduced for 24h",
                              self._consecutive_losses)
 
-        # Total loss cap (cumulative P&L, not daily)
+        # Kill-switch: if total P&L breaches cap, stop all trading.
+        # Protects against catastrophic regime change (e.g. all signals broken at once).
         if self._total_pnl <= TOTAL_LOSS_CAP:
             self._paused = True
             log.critical("KILL-SWITCH: P&L $%.2f below cap $%.0f — auto-paused",
@@ -927,6 +980,7 @@ class MultiSignalBot:
     # ── Persistence ─────────────────────────────────────────────
 
     def _save_state(self):
+        """Atomically persist bot state (write to .tmp then os.replace)."""
         os.makedirs(OUTPUT_DIR, exist_ok=True)
         data = {
             "version": VERSION,
@@ -951,6 +1005,7 @@ class MultiSignalBot:
         os.replace(tmp, STATE_FILE)  # atomic on POSIX
 
     def _load_state(self):
+        """Restore positions + P&L from disk. Keeps .loaded backup for debugging."""
         if not os.path.exists(STATE_FILE):
             return
         try:
@@ -986,6 +1041,7 @@ class MultiSignalBot:
             log.exception("Load state failed")
 
     def _load_trades(self):
+        """Reload trade history from CSV (needed for drift computation and dashboard)."""
         if not os.path.exists(TRADES_CSV):
             return
         try:
@@ -1015,7 +1071,8 @@ class MultiSignalBot:
     # ── API ─────────────────────────────────────────────────────
 
     def _compute_signal_drift(self) -> dict:
-        """Rolling stats per signal (last 20 trades). Detects degradation."""
+        """Rolling stats per signal on last 20 trades. Used by quarantine logic
+        and exposed via /api/state for monitoring. Detects silent degradation."""
         by_strat: dict[str, list] = defaultdict(list)
         for t in self.trades:
             by_strat[t.strategy].append(t)
@@ -1032,6 +1089,7 @@ class MultiSignalBot:
         return result
 
     def get_state(self) -> dict:
+        """Build full dashboard state: balance, positions, signals, timing, drift."""
         now = datetime.now(timezone.utc)
         n = len(self.trades)
         balance = CAPITAL_USDT + self._total_pnl
@@ -1185,10 +1243,12 @@ class MultiSignalBot:
                 "alt_index": round(alt_idx, 0)}
 
     def get_trades_list(self, limit=50) -> list:
-        trades = list(self.trades)  # deque doesn't support slicing
+        """Return recent trades, newest first. Must convert deque to list first (no slicing)."""
+        trades = list(self.trades)
         return [t.__dict__ for t in trades[-limit:][::-1]]
 
     def get_pnl_curve(self) -> list:
+        """Cumulative P&L curve for the dashboard chart."""
         cum = 0.0
         pts = []
         for t in self.trades:
@@ -1200,13 +1260,16 @@ class MultiSignalBot:
     # ── Main Loop ───────────────────────────────────────────────
 
     async def main_loop(self):
+        """Two cadences: prices every 60s (for stop checks), full scan every hour."""
         while self.running:
             try:
                 now = time.time()
 
+                # Always fetch prices (60s) — needed for stop loss checks between scans
                 await asyncio.to_thread(self._fetch_prices)
                 self._last_price_fetch = time.time()
 
+                # Hourly: fetch candles + recompute features + scan signals + open/close
                 if now - self._last_scan >= SCAN_INTERVAL:
                     log.info("Scanning signals...")
                     for sym in ALL_SYMBOLS:
@@ -1238,6 +1301,7 @@ class MultiSignalBot:
                              len(self.positions), balance, n, wr,
                              btc_f.get("btc_30d", 0), alt_idx)
                 else:
+                    # Between scans: only check exits (stop losses can trigger any minute)
                     exits = self._check_exits()
                     if exits:
                         self._save_state()
@@ -1252,7 +1316,7 @@ class MultiSignalBot:
 
 bot = MultiSignalBot()
 app = FastAPI()
-_html_cache = None
+_html_cache = None  # HTML cached in memory on first request — restart bot to pick up HTML changes
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -1301,7 +1365,7 @@ async def api_pause():
 @app.post("/api/resume")
 async def api_resume():
     bot._paused = False
-    bot._last_scan = 0
+    bot._last_scan = 0  # force immediate scan on next loop iteration
     return JSONResponse({"status": "resumed"})
 
 @app.post("/api/reset")
@@ -1340,7 +1404,7 @@ async def run():
         bot.running = False
         if bot._shutdown_event:
             bot._shutdown_event.set()
-        # _save_state called after event.wait() in run(), not here (avoid I/O in signal handler)
+        # State saved after event.wait() below, not here (signal handlers must avoid I/O)
 
     signal.signal(signal.SIGINT, _sig)
     signal.signal(signal.SIGTERM, _sig)
