@@ -176,6 +176,8 @@ class Position:
     size_usdt: float
     signal_info: str         # human-readable signal description
     target_exit: datetime
+    mae_bps: float = 0.0    # Max Adverse Excursion (worst unrealized during trade)
+    mfe_bps: float = 0.0    # Max Favorable Excursion (best unrealized during trade)
 
 
 @dataclass
@@ -193,6 +195,8 @@ class Trade:
     gross_bps: float
     net_bps: float
     pnl_usdt: float
+    mae_bps: float
+    mfe_bps: float
     reason: str
 
 
@@ -673,17 +677,22 @@ class MultiSignalBot:
         seen_symbols = set()
         drift = self._compute_signal_drift()  # compute once, not per candidate
         for sig in signals:
+            sym = sig["symbol"]
+            side = "LONG" if sig["direction"] == 1 else "SHORT"
+
             if len(self.positions) >= MAX_POSITIONS:
+                log.debug("SKIP %s %s %s: max_positions", sig["strategy"], side, sym)
                 break
 
-            sym = sig["symbol"]
             if sym in seen_symbols:
                 continue
             seen_symbols.add(sym)
 
             if sig["direction"] == 1 and n_longs >= MAX_SAME_DIRECTION:
+                log.debug("SKIP %s %s %s: max_direction", sig["strategy"], side, sym)
                 continue
             if sig["direction"] == -1 and n_shorts >= MAX_SAME_DIRECTION:
+                log.debug("SKIP %s %s %s: max_direction", sig["strategy"], side, sym)
                 continue
 
             # Sector concentration limit
@@ -691,6 +700,7 @@ class MultiSignalBot:
             if sym_sector:
                 sector_count = sum(1 for p in self.positions.values() if TOKEN_SECTOR.get(p.symbol) == sym_sector)
                 if sector_count >= MAX_PER_SECTOR:
+                    log.debug("SKIP %s %s %s: max_sector (%s)", sig["strategy"], side, sym, sym_sector)
                     continue
 
             st = self.states[sym]
@@ -718,6 +728,8 @@ class MultiSignalBot:
             # Capital exposure limit: max 90% of capital as margin
             used_margin = sum(p.size_usdt for p in self.positions.values())
             if used_margin + size > current_capital * 0.90:
+                log.debug("SKIP %s %s %s: capital_exposure (%.0f+%.0f > %.0f)",
+                          sig["strategy"], side, sym, used_margin, size, current_capital * 0.90)
                 continue
 
             self.positions[sym] = Position(
@@ -755,6 +767,12 @@ class MultiSignalBot:
                 continue
 
             unrealized = pos.direction * (st.price / pos.entry_price - 1) * 1e4 * LEVERAGE
+
+            # Track MAE/MFE (updated every 60s via main loop)
+            if unrealized < pos.mae_bps:
+                pos.mae_bps = unrealized
+            if unrealized > pos.mfe_bps:
+                pos.mfe_bps = unrealized
 
             # Per-strategy stop loss (S8 backtested with tighter stop)
             stop = STOP_LOSS_S8 if pos.strategy == "S8" else STOP_LOSS_BPS
@@ -810,7 +828,9 @@ class MultiSignalBot:
             hold_hours=round(hold_h, 1), size_usdt=pos.size_usdt,
             signal_info=pos.signal_info,
             gross_bps=round(gross_bps, 1), net_bps=round(net_bps, 1),
-            pnl_usdt=round(pnl, 2), reason=reason,
+            pnl_usdt=round(pnl, 2),
+            mae_bps=round(pos.mae_bps, 1), mfe_bps=round(pos.mfe_bps, 1),
+            reason=reason,
         )
         self.trades.append(trade)
         self._write_csv(trade)
@@ -831,10 +851,12 @@ class MultiSignalBot:
             if header:
                 w.writerow(["symbol", "direction", "strategy", "entry_time", "exit_time",
                            "entry_price", "exit_price", "hold_hours", "size_usdt",
-                           "signal_info", "gross_bps", "net_bps", "pnl_usdt", "reason"])
+                           "signal_info", "gross_bps", "net_bps", "pnl_usdt",
+                           "mae_bps", "mfe_bps", "reason"])
             w.writerow([t.symbol, t.direction, t.strategy, t.entry_time, t.exit_time,
                        t.entry_price, t.exit_price, t.hold_hours, t.size_usdt,
-                       t.signal_info, t.gross_bps, t.net_bps, t.pnl_usdt, t.reason])
+                       t.signal_info, t.gross_bps, t.net_bps, t.pnl_usdt,
+                       t.mae_bps, t.mfe_bps, t.reason])
 
     def _log_market_snapshot(self):
         """Append hourly snapshot of OI/funding/premium/crowding for all tokens to CSV.
@@ -882,6 +904,7 @@ class MultiSignalBot:
                 "entry_price": p.entry_price, "entry_time": p.entry_time.isoformat(),
                 "size_usdt": p.size_usdt, "signal_info": p.signal_info,
                 "target_exit": p.target_exit.isoformat(),
+                "mae_bps": p.mae_bps, "mfe_bps": p.mfe_bps,
             } for p in self.positions.values()],
         }
         tmp = STATE_FILE + ".tmp"
@@ -913,6 +936,8 @@ class MultiSignalBot:
                     size_usdt=p["size_usdt"],
                     signal_info=p.get("signal_info", ""),
                     target_exit=datetime.fromisoformat(p["target_exit"]),
+                    mae_bps=p.get("mae_bps", 0.0),
+                    mfe_bps=p.get("mfe_bps", 0.0),
                 )
             if self.positions or self._total_pnl:
                 log.info("Restored: %d positions, P&L $%.2f", len(self.positions), self._total_pnl)
@@ -939,6 +964,8 @@ class MultiSignalBot:
                         gross_bps=float(row["gross_bps"]),
                         net_bps=float(row["net_bps"]),
                         pnl_usdt=float(row["pnl_usdt"]),
+                        mae_bps=float(row.get("mae_bps", 0)),
+                        mfe_bps=float(row.get("mfe_bps", 0)),
                         reason=row["reason"],
                     ))
             if self.trades:
@@ -993,6 +1020,8 @@ class MultiSignalBot:
                 "pnl_usdt": round(pnl_u, 2),
                 "hold_hours": round((now - pos.entry_time).total_seconds() / 3600, 1),
                 "remaining_hours": round(remaining_h, 1),
+                "mae_bps": round(pos.mae_bps, 1),
+                "mfe_bps": round(pos.mfe_bps, 1),
             })
 
         # Active signals
