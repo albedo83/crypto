@@ -1239,10 +1239,15 @@ async def api_reset():
             bot._close_position(sym, st.price, now, "reset")
     bot._total_pnl = 0.0
     bot._wins = 0
+    bot._consecutive_losses = 0
+    bot._loss_streak_until = 0
+    bot._cooldowns.clear()
     bot.trades.clear()
     bot._paused = False
     if os.path.exists(TRADES_CSV):
         os.rename(TRADES_CSV, TRADES_CSV + f".bak.{int(time.time())}")
+    bot._save_state()  # persist clean state — prevents reload of old data on restart
+    log.info("RESET: capital $%.0f, all state cleared", CAPITAL_USDT)
     return JSONResponse({"status": "reset"})
 
 
