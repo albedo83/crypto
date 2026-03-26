@@ -241,6 +241,7 @@ class MultiSignalBot:
         self._cooldowns: dict[str, float] = {}  # symbol → earliest re-entry epoch
         self._degraded: list[str] = []           # active degradation tags (e.g. "DXY", "DXY_STALE")
         self._consecutive_losses = 0
+        self._signal_first_seen: dict[str, float] = {}  # "S2:ARB" → epoch when first detected
         self._loss_streak_until: float = 0       # epoch when streak penalty expires
 
     # ── Price Data ──────────────────────────────────────────────
@@ -735,6 +736,19 @@ class MultiSignalBot:
                 })
 
             # S6 REMOVED — loses in portfolio despite z=8.04 in isolation
+
+        # Track signal age: how many scans since first detection (observation only)
+        now_ts = time.time()
+        current_keys = set()
+        for sig in signals:
+            key = f"{sig['strategy']}:{sig['symbol']}"
+            current_keys.add(key)
+            if key not in self._signal_first_seen:
+                self._signal_first_seen[key] = now_ts
+            age_h = (now_ts - self._signal_first_seen[key]) / 3600
+            sig["info"] += f" age={age_h:.0f}h"
+        # Prune signals that disappeared
+        self._signal_first_seen = {k: v for k, v in self._signal_first_seen.items() if k in current_keys}
 
         # ── Signal Ranking & Position Entry ──────────────────────────
         # Priority: highest z-score first (strongest statistical edge), then
