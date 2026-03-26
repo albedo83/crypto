@@ -178,6 +178,7 @@ class Position:
     target_exit: datetime
     mae_bps: float = 0.0    # Max Adverse Excursion (worst unrealized during trade)
     mfe_bps: float = 0.0    # Max Favorable Excursion (best unrealized during trade)
+    trajectory: list = field(default_factory=list)  # [(hours_since_entry, unrealized_bps), ...]
 
 
 @dataclass
@@ -768,11 +769,16 @@ class MultiSignalBot:
 
             unrealized = pos.direction * (st.price / pos.entry_price - 1) * 1e4 * LEVERAGE
 
-            # Track MAE/MFE (updated every 60s via main loop)
+            # Track MAE/MFE + trajectory (updated every 60s via main loop)
             if unrealized < pos.mae_bps:
                 pos.mae_bps = unrealized
             if unrealized > pos.mfe_bps:
                 pos.mfe_bps = unrealized
+            # Trajectory: record hourly snapshots (keep ~1 per hour to avoid bloat)
+            hours_held = (now - pos.entry_time).total_seconds() / 3600
+            last_h = pos.trajectory[-1][0] if pos.trajectory else -1
+            if hours_held - last_h >= 0.95:  # ~1h interval
+                pos.trajectory.append((round(hours_held, 1), round(unrealized, 1)))
 
             # Per-strategy stop loss (S8 backtested with tighter stop)
             stop = STOP_LOSS_S8 if pos.strategy == "S8" else STOP_LOSS_BPS
@@ -834,14 +840,15 @@ class MultiSignalBot:
         )
         self.trades.append(trade)
         self._write_csv(trade)
+        self._write_trajectory(sym, pos)
 
         n = len(self.trades)
         balance = CAPITAL_USDT + self._total_pnl
         wr = self._wins / n * 100 if n > 0 else 0
         arrow = "✓" if pnl > 0 else "✗"
-        log.info("%s %s %s %s | %.0fh | %s | gross %+.1f | net %+.1f | $%+.2f | bal $%.0f (#%d %.0f%%)",
+        log.info("%s %s %s %s | %.0fh | %s | gross %+.1f | net %+.1f | $%+.2f | mae %+.0f | mfe %+.0f | bal $%.0f (#%d %.0f%%)",
                  arrow, pos.strategy, trade.direction, sym, hold_h, reason,
-                 gross_bps, net_bps, pnl, balance, n, wr)
+                 gross_bps, net_bps, pnl, pos.mae_bps, pos.mfe_bps, balance, n, wr)
 
     def _write_csv(self, t: Trade):
         os.makedirs(OUTPUT_DIR, exist_ok=True)
@@ -857,6 +864,23 @@ class MultiSignalBot:
                        t.entry_price, t.exit_price, t.hold_hours, t.size_usdt,
                        t.signal_info, t.gross_bps, t.net_bps, t.pnl_usdt,
                        t.mae_bps, t.mfe_bps, t.reason])
+
+    def _write_trajectory(self, sym: str, pos: Position):
+        """Write hourly trajectory to CSV. One row per hour of the trade's life."""
+        if not pos.trajectory:
+            return
+        traj_csv = os.path.join(OUTPUT_DIR, "reversal_trajectories.csv")
+        header = not os.path.exists(traj_csv)
+        try:
+            with open(traj_csv, "a", newline="") as f:
+                w = csv.writer(f)
+                if header:
+                    w.writerow(["symbol", "strategy", "entry_time", "hours", "unrealized_bps"])
+                entry_t = pos.entry_time.isoformat(timespec="seconds")
+                for hours, bps in pos.trajectory:
+                    w.writerow([sym, pos.strategy, entry_t, hours, bps])
+        except Exception:
+            log.exception("Trajectory write failed")
 
     def _log_market_snapshot(self):
         """Append hourly snapshot of OI/funding/premium/crowding for all tokens to CSV.
@@ -905,6 +929,7 @@ class MultiSignalBot:
                 "size_usdt": p.size_usdt, "signal_info": p.signal_info,
                 "target_exit": p.target_exit.isoformat(),
                 "mae_bps": p.mae_bps, "mfe_bps": p.mfe_bps,
+                "trajectory": p.trajectory,
             } for p in self.positions.values()],
         }
         tmp = STATE_FILE + ".tmp"
@@ -938,6 +963,7 @@ class MultiSignalBot:
                     target_exit=datetime.fromisoformat(p["target_exit"]),
                     mae_bps=p.get("mae_bps", 0.0),
                     mfe_bps=p.get("mfe_bps", 0.0),
+                    trajectory=p.get("trajectory", []),
                 )
             if self.positions or self._total_pnl:
                 log.info("Restored: %d positions, P&L $%.2f", len(self.positions), self._total_pnl)
