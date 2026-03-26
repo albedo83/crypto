@@ -46,7 +46,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.3.2"
+VERSION = "10.3.3"
 
 # ── Config ───────────────────────────────────────────────────────────
 
@@ -657,12 +657,14 @@ class MultiSignalBot:
 
             # S1: BTC momentum spills over to alts — when BTC rallies >20%/30d,
             # altcoins follow with a lag. Rare but high-conviction (z=6.42).
+            # Token ranking: alts already moving up get priority (backtest: +60% P&L vs random).
+            # "Laggards first" was tested and performs WORSE — buy the wave, not the furniture.
             if btc_30d > 2000:
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S1",
                     "z": STRAT_Z["S1"],
                     "info": f"BTC 30d={btc_30d:+.0f}bps{oi_tag}",
-                    "strength": abs(btc_30d),
+                    "strength": max(f.get("ret_42h", 0), 0),  # momentum: alts already up first
                     "hold_hours": HOLD_HOURS_DEFAULT,
                 })
 
