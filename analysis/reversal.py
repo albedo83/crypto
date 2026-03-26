@@ -123,7 +123,7 @@ STOP_LOSS_BPS = -2500.0        # default catastrophe guard (-25% leveraged = -12
 STOP_LOSS_S8 = -1500.0         # S8 backtested with -1500 (-15% leveraged = -7.5% price)
 
 # Portfolio kill-switch
-DAILY_LOSS_CAP = -300.0        # auto-pause if total P&L drops below this
+TOTAL_LOSS_CAP = -300.0        # auto-pause if cumulative P&L drops below this
 LOSS_STREAK_THRESHOLD = 3      # reduce sizing after N consecutive losses
 LOSS_STREAK_MULTIPLIER = 0.5   # halve position size during loss streak
 LOSS_STREAK_COOLDOWN = 24 * 3600  # 24h before returning to normal sizing
@@ -793,11 +793,11 @@ class MultiSignalBot:
                 log.warning("Loss streak: %d consecutive losses — sizing reduced for 24h",
                              self._consecutive_losses)
 
-        # Daily loss cap
-        if self._total_pnl <= DAILY_LOSS_CAP:
+        # Total loss cap (cumulative P&L, not daily)
+        if self._total_pnl <= TOTAL_LOSS_CAP:
             self._paused = True
             log.critical("KILL-SWITCH: P&L $%.2f below cap $%.0f — auto-paused",
-                         self._total_pnl, DAILY_LOSS_CAP)
+                         self._total_pnl, TOTAL_LOSS_CAP)
 
         # Cooldown
         self._cooldowns[sym] = time.time() + COOLDOWN_HOURS * 3600
@@ -1032,7 +1032,7 @@ class MultiSignalBot:
             "paused": self._paused, "running": self.running,
             "degraded": list(self._degraded),
             "loss_streak": self._consecutive_losses,
-            "kill_switch_active": self._total_pnl <= DAILY_LOSS_CAP,
+            "kill_switch_active": self._total_pnl <= TOTAL_LOSS_CAP,
             "balance": round(balance, 2),
             "total_pnl": round(self._total_pnl, 2),
             "total_trades": n,
@@ -1282,7 +1282,7 @@ async def run():
              HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
              STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION, MAX_PER_SECTOR)
     log.info("Kill-switch: loss cap $%.0f | streak threshold %d → %.0f%% sizing for %dh",
-             DAILY_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER * 100, LOSS_STREAK_COOLDOWN // 3600)
+             TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER * 100, LOSS_STREAK_COOLDOWN // 3600)
 
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)
