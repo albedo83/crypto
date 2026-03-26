@@ -434,6 +434,35 @@ fuser -k 8097/tcp
 tail -f analysis/output/reversal_v10.log
 ```
 
+### Deploiement sur machine vierge
+
+Le bot tient en **2 fichiers** :
+- `analysis/reversal.py` (~1300 lignes) — tout le code : API Hyperliquid, signaux, positions, persistence, dashboard, monitoring
+- `analysis/reversal.html` (~270 lignes) — interface web (optionnel, le bot genere un fallback basique sans)
+
+```bash
+# 1. Creer la structure
+mkdir -p analysis/output/pairs_data
+
+# 2. Copier les 2 fichiers
+cp reversal.py analysis/
+cp reversal.html analysis/
+touch analysis/__init__.py
+
+# 3. Installer les dependances (Python 3.11+)
+python3 -m venv .venv
+.venv/bin/pip install numpy orjson uvicorn fastapi
+
+# 4. Lancer
+nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
+```
+
+Pas de base de donnees, pas de message queue, pas de microservices. Un seul processus asyncio. Le state est un fichier JSON (~2 Ko), les trades un CSV. Demarre en 2 secondes, tourne sur un VPS a 5 euros.
+
+Pour dupliquer avec une config differente (autre capital, autres tokens, autre port) : copier `reversal.py`, modifier les constantes en haut du fichier (`CAPITAL_USDT`, `TRADE_SYMBOLS`, `WEB_PORT`), lancer. Les deux instances sont independantes (fichiers state/trades/market separes).
+
+Le reste du repo (`src/`, `migrations/`, `backtest_*.py`, `docs/`) c'est de la recherche et du legacy. Le bot n'en depend pas.
+
 ---
 
 ## Plan de production
