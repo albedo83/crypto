@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.3.1 — Five strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.3.4 — Five strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
