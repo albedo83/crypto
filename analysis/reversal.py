@@ -1068,6 +1068,7 @@ class MultiSignalBot:
         """All symbols with their current features and signal status."""
         btc_f = self._compute_btc_features()
         alt_idx = self._compute_alt_index()
+        dxy_val = self._fetch_dxy()  # once, not 28 times
         signals = {}
 
         for sym in TRADE_SYMBOLS:
@@ -1082,7 +1083,6 @@ class MultiSignalBot:
             if alt_idx < -1000:
                 triggered.append("S2:LONG")
             if f.get("vol_ratio", 2) < 1.0 and f.get("range_pct", 999) < 200:
-                dxy_val = self._fetch_dxy()
                 if dxy_val > DXY_BOOST_THRESHOLD:
                     triggered.append("S4:SHORT")
                 else:
