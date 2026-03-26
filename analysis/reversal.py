@@ -623,16 +623,26 @@ class MultiSignalBot:
 
         btc_30d = btc_f.get("btc_30d", 0)
 
-        # Cross-sectional stress context (logged, not used for decisions)
+        # Cross-sectional context (logged, not used for decisions)
+        # Captures the "shape of the market" around each signal for future analysis
         stress_by_sector = defaultdict(int)
         n_stress_global = 0
+        _all_ret24h = []
+        _all_ret7d = []
         for _sym in TRADE_SYMBOLS:
             _f = self._get_cached_features(_sym)
-            if _f and _f.get("vol_z", 0) > 1.5 and _f.get("drawdown", 0) < -1500:
+            if not _f:
+                continue
+            if _f.get("vol_z", 0) > 1.5 and _f.get("drawdown", 0) < -1500:
                 n_stress_global += 1
                 _sect = TOKEN_SECTOR.get(_sym)
                 if _sect:
                     stress_by_sector[_sect] += 1
+            _all_ret24h.append(_f.get("ret_24h", 0))
+            _all_ret7d.append(_f.get("ret_42h", 0))
+        # Dispersion = how scattered the basket is (std of returns across all alts)
+        disp_24h = round(float(np.std(_all_ret24h)), 0) if _all_ret24h else 0
+        disp_7d = round(float(np.std(_all_ret7d)), 0) if _all_ret7d else 0
 
         for sym in TRADE_SYMBOLS:
             if sym in self.positions:
@@ -653,7 +663,7 @@ class MultiSignalBot:
             crowd = self._compute_crowding_score(sym)
             sym_sector = TOKEN_SECTOR.get(sym, "?")
             sect_stress = stress_by_sector.get(sym_sector, 0)
-            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress}"
+            oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress} disp={disp_24h:.0f}/{disp_7d:.0f}"
 
             # S1: BTC momentum spills over to alts — when BTC rallies >20%/30d,
             # altcoins follow with a lag. Rare but high-conviction (z=6.42).
