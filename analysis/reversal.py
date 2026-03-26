@@ -753,7 +753,7 @@ class MultiSignalBot:
                 signals.append({
                     "symbol": sym, "direction": 1, "strategy": "S8",
                     "z": STRAT_Z["S8"],
-                    "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r6h={f['ret_24h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f}{oi_tag}",
+                    "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r24h={f['ret_24h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f}{oi_tag}",
                     "strength": abs(f["drawdown"]),
                     "hold_hours": HOLD_HOURS_S8,
                 })
@@ -1464,6 +1464,7 @@ async def api_reset():
     bot._degraded.clear()
     bot._feature_cache.clear()
     bot._oi_summary = {"falling": 0, "rising": 0}
+    bot._signal_first_seen.clear()
     bot._last_scan = 0  # force immediate rescan
     if os.path.exists(TRADES_CSV):
         os.rename(TRADES_CSV, TRADES_CSV + f".bak.{int(time.time())}")
