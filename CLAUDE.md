@@ -154,7 +154,7 @@ Legacy collector/dashboard/migrations in `src/` and `migrations/`. PostgreSQL sc
 - **Compounding effect**: `current_capital = CAPITAL_USDT + _total_pnl`. After big losses, position sizes shrink dramatically. After big wins, positions grow and DD risk increases.
 - **HTML cache**: Dashboard HTML is cached in memory on first request. Restart bot to pick up HTML changes.
 - **Trades deque**: `self.trades` is `deque(maxlen=500)`. Use `list(self.trades)` before slicing (deque doesn't support slicing).
-- **Versioning**: `VERSION` constant in `analysis/reversal.py`. Increment on every change (semver). Displayed in dashboard header and `/api/state`.
+- **Versioning**: `VERSION` constant in `analysis/reversal.py`. Increment on every change (semver). Displayed in dashboard header and `/api/state`. **ALWAYS bump VERSION when modifying reversal.py** — patch for bugfixes, minor for features, major for breaking changes. Update the version in the docstring (line 1), `bot.md` title, and `CLAUDE.md` (this file) at the same time.
 - **Two bot generations**: LiveBot (Binance, disabled) and Multi-Signal Bot (Hyperliquid, active) are independent. Don't confuse ports (:8095 vs :8097) or trade files.
 - **S6 was removed**: Liquidation bounce signal had z=8.04 in isolation but loses -$627 to -$1,552 in portfolio. Standalone backtest was misleading (simpler backtester, no position limits).
 - **S8 capitulation is rare**: Fires ~1/month in portfolio (drawdown > -40% is extreme). When it fires, 70% win rate with avg +413 bps. Max 7 consecutive losses observed (April 2024 crash).
