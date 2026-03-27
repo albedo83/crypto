@@ -71,6 +71,16 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 <div id="degraded-bar" style="display:none;background:#da3633;color:#fff;padding:6px 20px;font-size:12px;font-weight:700;align-items:center;gap:8px"></div>
 
+<div id="market-bar" style="padding:8px 20px;display:flex;align-items:center;gap:12px;font-size:12px;border-bottom:1px solid #21262d">
+  <span id="regime-dot" style="width:10px;height:10px;border-radius:50%;flex-shrink:0"></span>
+  <span id="regime-label" style="font-weight:700;min-width:60px"></span>
+  <span id="mkt-btc30" class="dim"></span>
+  <span id="mkt-btc7" class="dim"></span>
+  <span id="mkt-alt" class="dim"></span>
+  <span id="mkt-dxy" class="dim"></span>
+  <span id="mkt-oi" class="dim"></span>
+</div>
+
 <div class="cards">
   <div class="card" id="card-balance"><div class="label">Balance</div><div class="value" id="balance">$1,000</div></div>
   <div class="card" id="card-pnl"><div class="label">P&L</div><div class="value" id="pnl">$0.00</div><div class="sub" id="pnl-pct">+0.0%</div></div>
@@ -80,8 +90,8 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="controls">
-  <button class="btn danger" onclick="fetch('/api/pause',{method:'POST'}).then(r)">STOP</button>
-  <button class="btn success" onclick="fetch('/api/resume',{method:'POST'}).then(r)">RESUME</button>
+  <button class="btn danger" onclick="fetch('/api/pause',{method:'POST',credentials:'same-origin'}).then(r)">STOP</button>
+  <button class="btn success" onclick="fetch('/api/resume',{method:'POST',credentials:'same-origin'}).then(r)">RESUME</button>
   <button class="btn danger" onclick="if(confirm('Reset?'))fetch('/api/reset',{method:'POST'}).then(r)">RAZ</button>
 </div>
 
@@ -153,7 +163,7 @@ function flashCard(id){
 }
 
 function refresh(){
-  fetch('/api/state').then(r=>r.json()).then(s=>{
+  fetch('/api/state',{credentials:'same-origin'}).then(r=>r.json()).then(s=>{
     _lastFetch=Date.now()/1000;
     _priceAge=s.last_price_s;
     _nextScan=s.next_scan_s;
@@ -224,11 +234,40 @@ function refresh(){
     if(_prevPnl!==null && Math.abs(todayTotal-_prevPnl)>0.01) flashCard('card-total');
     _prevPnl=todayTotal;
 
+    // Market regime bar
+    const mkt=s.market||{};
+    const btc30=mkt.btc_30d||0, btc7=mkt.btc_7d||0, alt=mkt.alt_index_7d||0, dxy=mkt.dxy_7d||0;
+    const oiF=mkt.oi_falling||0, oiR=mkt.oi_rising||0;
+
+    // Regime: simple scoring
+    let score=0;
+    if(btc30>1000) score+=2; else if(btc30>0) score+=1; else if(btc30<-1000) score-=2; else if(btc30<0) score-=1;
+    if(btc7>300) score+=1; else if(btc7<-300) score-=1;
+    if(alt>0) score+=1; else if(alt<-500) score-=1;
+
+    let regime, regimeColor;
+    if(score>=3){regime='BULL';regimeColor='#3fb950'}
+    else if(score>=1){regime='MILD BULL';regimeColor='#3fb950'}
+    else if(score<=-3){regime='BEAR';regimeColor='#f85149'}
+    else if(score<=-1){regime='MILD BEAR';regimeColor='#f85149'}
+    else{regime='NEUTRAL';regimeColor='#d29922'}
+
+    document.getElementById('regime-dot').style.background=regimeColor;
+    document.getElementById('regime-label').textContent=regime;
+    document.getElementById('regime-label').style.color=regimeColor;
+
+    const mkC=v=>v>=0?'#3fb950':'#f85149';
+    document.getElementById('mkt-btc30').innerHTML='BTC30d: <b style="color:'+mkC(btc30)+'">'+fmt(btc30,0)+'</b>bp';
+    document.getElementById('mkt-btc7').innerHTML='BTC7d: <b style="color:'+mkC(btc7)+'">'+fmt(btc7,0)+'</b>bp';
+    document.getElementById('mkt-alt').innerHTML='Alts: <b style="color:'+mkC(alt)+'">'+fmt(alt,0)+'</b>bp';
+    document.getElementById('mkt-dxy').innerHTML='DXY: <b style="color:'+mkC(-dxy)+'">'+fmt(dxy,0)+'</b>bp';
+    document.getElementById('mkt-oi').innerHTML='OI: <span style="color:#3fb950">'+oiR+'↑</span> <span style="color:#f85149">'+oiF+'↓</span>';
+
   }).catch(e=>console.warn('state fetch error:',e));
 }
 
 function refreshSignals(){
-  fetch('/api/signals').then(r=>r.json()).then(d=>{
+  fetch('/api/signals',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
     const el=document.getElementById('signals');
     el.innerHTML='';
     // Header: market conditions
@@ -267,7 +306,7 @@ function refreshSignals(){
 }
 
 function refreshTrades(){
-  fetch('/api/trades').then(r=>r.json()).then(trades=>{
+  fetch('/api/trades',{credentials:'same-origin'}).then(r=>r.json()).then(trades=>{
     const tb=document.getElementById('trades-body');
     tb.innerHTML='';
     trades.forEach(t=>{
@@ -291,7 +330,7 @@ function refreshTrades(){
   }).catch(e=>console.warn('trades fetch error:',e));
 
   // P&L curve
-  fetch('/api/pnl').then(r=>r.json()).then(pts=>{
+  fetch('/api/pnl',{credentials:'same-origin'}).then(r=>r.json()).then(pts=>{
     const canvas=document.getElementById('pnl-canvas');
     const ctx=canvas.getContext('2d');
     canvas.width=canvas.parentElement.clientWidth;

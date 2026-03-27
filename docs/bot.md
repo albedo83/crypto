@@ -1,4 +1,4 @@
-# Multi-Signal Bot v10.4.0
+# Multi-Signal Bot v10.4.1
 
 Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. Un seul fichier Python, pas de base de donnees.
 
@@ -137,6 +137,11 @@ Formule : `size = capital × (12% + 3% si z>4) × clamp(z/4, 0.5, 2.0) × haircu
 | **Signal quarantine** | Win rate < 20% sur 10 trades → signal coupe | Signal mort qui continue a manger du capital |
 | **Cooldown** | 24h par token apres exit | Re-entree impulsive |
 | **Mode degrade DXY** | Stale 6-48h (jaune), expire >48h (rouge, S4 off) | Yahoo tombe, S4 disparait silencieusement |
+| **Reconciliation** | Chaque scan horaire, bot vs exchange | Position orpheline ou fantome |
+| **Telegram alertes** | Entry, exit, erreur, kill-switch, reboot | On sait toujours ce qui se passe |
+| **Dashboard auth** | HTTP Basic Auth (timing-safe) | Personne ne peut voir/controler le bot |
+| **Auto-restart** | Crontab @reboot + alerte Telegram | Le VPS reboot, le bot revient |
+| **.env permissions** | chmod 600, .gitignore | Cle privee protegee |
 
 ---
 
@@ -346,19 +351,43 @@ Entre les scans : prix/OI/funding toutes les 60s, exits verifies, MAE/MFE mis a 
 
 ### Deploiement
 
-Le bot tient en **2 fichiers** + 4 dependances pip :
+Le bot tient en **2 fichiers** + 5 dependances pip :
 
 ```bash
-mkdir -p analysis/output/pairs_data
+mkdir -p analysis/output/pairs_data analysis/output_live/pairs_data
 cp reversal.py analysis/
 cp reversal.html analysis/
 touch analysis/__init__.py
 python3 -m venv .venv
-.venv/bin/pip install numpy orjson uvicorn fastapi
-nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
+.venv/bin/pip install numpy orjson uvicorn fastapi hyperliquid-python-sdk
 ```
 
-Pour dupliquer : copier reversal.py, changer `CAPITAL_USDT`, `TRADE_SYMBOLS`, `WEB_PORT`. Instances independantes.
+Configuration dans `.env` (jamais commite) :
+
+```
+HL_MODE=paper              # "paper" ou "live"
+HL_CAPITAL=1000            # capital de reference pour le sizing
+HL_PRIVATE_KEY=0x...       # cle privee Hyperliquid (live uniquement)
+TG_BOT_TOKEN=...           # alertes Telegram
+TG_CHAT_ID=...             # chat_id Telegram
+DASHBOARD_USER=admin       # auth dashboard (vide = pas d'auth)
+DASHBOARD_PASS=...         # mot de passe dashboard
+```
+
+Lancement :
+
+```bash
+# Paper (:8097)
+nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
+
+# Live (:8098, $100)
+HL_MODE=live HL_CAPITAL=100 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
+  nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
+```
+
+Auto-restart au reboot : `@reboot /home/crypto/start_bots.sh` (crontab). Envoie une alerte Telegram au reboot.
+
+Les deux instances sont independantes (state, trades, logs separes). Seul le cache DXY est partage.
 
 ---
 
@@ -378,15 +407,20 @@ Mesure en occurrences, pas en duree :
 
 **Critere** : 3 mois ET 50 trades cumules, le plus tard des deux.
 
-### Phase 2 — Reel
+### Phase 2 — Reel (en cours depuis v10.4.0)
 
-Capital : $100-500. Pre-requis :
-- **Execution** : maker first TTL 30s, fallback taker. S2/S8 : limit -0.3% sous mid, TTL 60s. Partial fills >70%.
-- **Reconciliation** : comparer state.json vs clearinghouseState Hyperliquid a chaque scan.
-- **Persistence** : SQLite au lieu de JSON.
-- **Alertes** : Telegram a chaque entry/exit/erreur.
-- **Metriques** : fill rate, slippage par signal, MAE/MFE reel, temps de fill.
+Capital : $100. Implemente :
+- **Execution** : market orders (taker) via `hyperliquid-python-sdk`. Slippage 1%.
+- **Reconciliation** : comparer positions bot vs `user_state()` Hyperliquid a chaque scan horaire.
+- **Alertes** : Telegram a chaque entry/exit/erreur/kill-switch/reboot.
+- **Dashboard** : HTTP Basic Auth (`DASHBOARD_USER`/`DASHBOARD_PASS`).
+- **Auto-restart** : crontab `@reboot` + alerte Telegram.
+
+A faire plus tard :
+- Maker orders (limit TTL 30s → fallback taker) pour reduire les frais.
+- SQLite au lieu de JSON (quand le volume justifie).
+- Metriques : fill rate, slippage reel par signal, temps de fill.
 
 ### Phase 3 — Scaling
 
-$500 → $1,000 → $2,000 → $5,000. Minimum 2 mois coherents par palier. Ne jamais mettre plus qu'on peut perdre entierement.
+$100 → $500 → $1,000 → $2,000 → $5,000. Minimum 2 mois coherents par palier. Ne jamais mettre plus qu'on peut perdre entierement. Ajuster `HL_CAPITAL` et restart.

@@ -8,27 +8,31 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 2 files** : `analysis/reversal.py` (~1600 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-Version in `VERSION` constant (currently 10.4.0). Dashboard on `:8097`.
+Version in `VERSION` constant (currently 10.4.1). Dashboard on `:8097`.
 
 ### Execution Modes
 
 - **Paper** (`HL_MODE=paper`, default): simulates positions in memory, reads prices from Hyperliquid public API
 - **Live** (`HL_MODE=live`): places real orders via `hyperliquid-python-sdk`, reconciles with exchange every scan
 
-Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_CHAT_ID`.
+Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_CHAT_ID`, `DASHBOARD_USER`, `DASHBOARD_PASS`.
 
 ## Commands
 
 ```bash
-# Multi-Signal Bot (paper mode — default)
+# Paper bot (:8097, $1000 simulated)
 nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 
-# Live mode: set HL_MODE=live in .env, then same command
-# Dashboard: http://0.0.0.0:8097
-# Stop: fuser -k 8097/tcp
-# Logs: tail -f analysis/output/reversal_v10.log
-# Trades: analysis/output/reversal_trades.csv
-# State: analysis/output/reversal_state.json
+# Live bot (:8098, $100 real)
+HL_MODE=live HL_CAPITAL=100 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
+  nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
+
+# Both restart automatically on VPS reboot via crontab (@reboot /home/crypto/start_bots.sh)
+
+# Stop: fuser -k 8097/tcp (paper) or fuser -k 8098/tcp (live)
+# Logs: tail -f analysis/output/reversal_v10.log (paper)
+#        tail -f analysis/output_live/reversal_v10.log (live)
+# Dashboard: http://0.0.0.0:8097 (paper) / http://0.0.0.0:8098 (live) — auth required
 ```
 
 No test framework, linter, or CI pipeline is configured.
@@ -153,7 +157,7 @@ Bot documentation (French): `docs/bot.md`
 - **Compounding effect**: `current_capital = CAPITAL_USDT + _total_pnl`. After big losses, position sizes shrink dramatically. After big wins, positions grow and DD risk increases.
 - **HTML cache**: Dashboard HTML is cached in memory on first request. Restart bot to pick up HTML changes.
 - **Trades deque**: `self.trades` is `deque(maxlen=500)`. Use `list(self.trades)` before slicing (deque doesn't support slicing).
-- **Versioning**: `VERSION` constant in `analysis/reversal.py`. **ALWAYS bump VERSION when modifying reversal.py** — patch for bugfixes, minor for features, major for breaking changes. Update the version in the docstring (line 1), `bot.md` title, and `CLAUDE.md` (this file) at the same time.
+- **Versioning**: `VERSION` constant in `analysis/reversal.py`. **ALWAYS bump VERSION when modifying reversal.py** — patch for bugfixes, minor for features, major for breaking changes. Update the version in the docstring (line 1), `bot.md` title, and `CLAUDE.md` (this file) at the same time. The version displayed on the dashboard is the user's proof that the correct code is running.
 - **S6 was removed**: Liquidation bounce signal had z=8.04 in isolation but loses -$627 to -$1,552 in portfolio. Standalone backtest was misleading (simpler backtester, no position limits).
 - **S8 capitulation is rare**: Fires ~1/month in portfolio (drawdown > -40% is extreme). When it fires, 70% win rate with avg +413 bps. Max 7 consecutive losses observed (April 2024 crash).
 - **SHORT signals are hard**: 378 short variants tested, none pass z > 2.0. S4+DXY remains the only viable short. Altcoin markets have structural long bias.
@@ -166,4 +170,7 @@ Bot documentation (French): `docs/bot.md`
 - **Reconciliation**: Every hourly scan, bot compares its position dict vs `user_state()` from exchange. Mismatches (orphans/ghosts) trigger Telegram alert but NO auto-fix.
 - **Telegram**: Uses raw urllib POST (no dependency). Fire-and-forget, never blocks the bot. Events: open, close, error, kill-switch, startup, reconciliation mismatch.
 - **Order sizing**: SDK expects size in coin units, not USDT. Conversion: `sz = size_usdt / price`, rounded to `szDecimals` from exchange metadata.
+- **Dashboard auth**: HTTP Basic Auth via `DASHBOARD_USER`/`DASHBOARD_PASS` in `.env`. Empty = no auth. Uses `secrets.compare_digest` (timing-safe).
+- **Auto-restart**: `@reboot` crontab runs `start_bots.sh` which starts both instances + sends Telegram alert on VPS reboot.
+- **Dual instances**: Paper (:8097, `analysis/output/`) and Live (:8098, `analysis/output_live/`) run in parallel from the same code. Only DXY cache is shared (global market data).
 - **Detailed bot documentation**: `docs/bot.md` contains the full bot description — signals, parameters, research, estimates, risks, architecture, production plan. Keep it in sync with code changes.

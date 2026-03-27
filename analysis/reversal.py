@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.4.0 — Five strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.4.1 — Five strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -48,7 +48,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.4.0"
+VERSION = "10.4.1"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -1429,6 +1429,7 @@ class MultiSignalBot:
             "active_signals": active_signals,
             "market": {
                 "btc_30d": round(btc_f.get("btc_30d", 0), 0),
+                "btc_7d": round(btc_f.get("btc_7d", 0), 0),
                 "alt_index_7d": round(alt_idx, 0),
                 "dxy_7d": round(dxy_7d, 0),
                 "oi_falling": self._oi_summary["falling"],
