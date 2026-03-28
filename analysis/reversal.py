@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.6.2 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.6.3 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -50,7 +50,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.6.2"
+VERSION = "10.6.3"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -1118,8 +1118,11 @@ class MultiSignalBot:
                     log.warning("DEGRADED: %s win rate %.0f%% — sizing halved",
                                 sig["strategy"], wr * 100)
 
-            # Capital exposure limit: max 90% of effective capital pocket as margin
-            used_margin = sum(p.size_usdt for p in self.positions.values())
+            # Capital exposure limit: max 90% of pocket margin (S10 vs S1-S9 separate)
+            if sig["strategy"] == "S10":
+                used_margin = sum(p.size_usdt for p in self.positions.values() if p.strategy == "S10")
+            else:
+                used_margin = sum(p.size_usdt for p in self.positions.values() if p.strategy != "S10")
             if used_margin + size > effective_capital * 0.90:
                 log.debug("SKIP %s %s %s: capital_exposure (%.0f+%.0f > %.0f)",
                           sig["strategy"], side, sym, used_margin, size, effective_capital * 0.90)
