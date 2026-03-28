@@ -8,6 +8,7 @@ __pycache__/
 
 # Analysis output (generated, not tracked)
 analysis/output/
+analysis/output_live/
 
 # IDE
 .vscode/

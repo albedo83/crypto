@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.6.1 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.6.2 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -50,7 +50,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.6.1"
+VERSION = "10.6.2"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -1118,11 +1118,11 @@ class MultiSignalBot:
                     log.warning("DEGRADED: %s win rate %.0f%% — sizing halved",
                                 sig["strategy"], wr * 100)
 
-            # Capital exposure limit: max 90% of capital as margin
+            # Capital exposure limit: max 90% of effective capital pocket as margin
             used_margin = sum(p.size_usdt for p in self.positions.values())
-            if used_margin + size > current_capital * 0.90:
+            if used_margin + size > effective_capital * 0.90:
                 log.debug("SKIP %s %s %s: capital_exposure (%.0f+%.0f > %.0f)",
-                          sig["strategy"], side, sym, used_margin, size, current_capital * 0.90)
+                          sig["strategy"], side, sym, used_margin, size, effective_capital * 0.90)
                 continue
 
             # Execute order (live) or use market price (paper)
@@ -1204,17 +1204,21 @@ class MultiSignalBot:
 
     def _close_position(self, sym: str, exit_price: float, now: datetime, reason: str):
         """Exit a position, record the trade, and update portfolio state."""
-        pos = self.positions.pop(sym)
+        if sym not in self.positions:
+            return  # already closed (race with api_pause)
 
-        # Execute close on exchange (live mode)
+        # Execute close on exchange FIRST (live mode) — only pop if successful
         if self._exchange:
             try:
                 fill_px = self._execute_close(sym)
                 if fill_px:
                     exit_price = fill_px
             except Exception as e:
-                log.error("EXEC CLOSE FAILED %s: %s — position may be orphaned!", sym, e)
-                self._send_telegram(f"❌ Close failed {sym}: {e} — CHECK EXCHANGE!")
+                log.error("EXEC CLOSE FAILED %s: %s — keeping position, will retry next scan", sym, e)
+                self._send_telegram(f"❌ Close failed {sym}: {e} — will retry")
+                return  # don't pop — position stays tracked, retried in 60s
+
+        pos = self.positions.pop(sym)
 
         hold_h = (now - pos.entry_time).total_seconds() / 3600
         # P&L calc: direction * price change * leverage, then subtract round-trip costs.
