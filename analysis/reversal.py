@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.6.0 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.6.1 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -50,7 +50,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.6.0"
+VERSION = "10.6.1"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -783,57 +783,62 @@ class MultiSignalBot:
     def _detect_squeeze(self, sym: str) -> dict | None:
         """Detect squeeze → false breakout → reintegration (S10).
 
-        Looks at last few closed 4h candles:
-          - candles[-5:-2] = squeeze window (3 candles, 12h)
-          - candles[-2] = breakout candle (must exceed range by 50%)
-          - candles[-1] = reintegration candle (must close inside range)
+        Checks multiple offsets for the breakout candle (rc=2 support):
+          offset=1: breakout at candles[-2], reint at candles[-1]
+          offset=2: breakout at candles[-3], reint at candles[-2] or [-1]
         Returns {"direction": 1/-1, "range_pct": float, "bo_dir": str} or None.
         """
         st = self.states.get(sym)
-        if not st or len(st.candles_4h) < 6:
+        if not st or len(st.candles_4h) < S10_SQUEEZE_WINDOW + S10_REINT_CANDLES + 2:
             return None
 
-        # Check vol_ratio from cached features
         f = self._get_cached_features(sym)
         if not f or f.get("vol_ratio", 2) > S10_VOL_RATIO_MAX:
             return None
 
         candles = list(st.candles_4h)
 
-        # Squeeze window: 3 candles before the breakout
-        sq_start = len(candles) - 2 - S10_SQUEEZE_WINDOW
-        if sq_start < 0:
-            return None
-        sq_candles = candles[sq_start:sq_start + S10_SQUEEZE_WINDOW]
+        # Try each valid breakout position (most recent first)
+        for bo_offset in range(1, S10_REINT_CANDLES + 1):
+            bo_idx = len(candles) - 1 - bo_offset
+            sq_start = bo_idx - S10_SQUEEZE_WINDOW
+            if sq_start < 0:
+                continue
 
-        range_high = max(c["h"] for c in sq_candles)
-        range_low = min(c["l"] for c in sq_candles)
-        range_size = range_high - range_low
-        if range_size <= 0 or range_low <= 0:
-            return None
+            sq_candles = candles[sq_start:sq_start + S10_SQUEEZE_WINDOW]
+            range_high = max(c["h"] for c in sq_candles)
+            range_low = min(c["l"] for c in sq_candles)
+            range_size = range_high - range_low
+            if range_size <= 0 or range_low <= 0:
+                continue
 
-        # Breakout candle: second-to-last closed candle
-        bo = candles[-2]
-        threshold = range_size * S10_BREAKOUT_PCT
-        bo_above = bo["h"] > range_high + threshold
-        bo_below = bo["l"] < range_low - threshold
-        if not bo_above and not bo_below:
-            return None
-        if bo_above and bo_below:  # both sides = not a clean squeeze
-            return None
-        bo_dir = 1 if bo_above else -1
+            bo = candles[bo_idx]
+            threshold = range_size * S10_BREAKOUT_PCT
+            bo_above = bo["h"] > range_high + threshold
+            bo_below = bo["l"] < range_low - threshold
+            if not bo_above and not bo_below:
+                continue
+            if bo_above and bo_below:
+                continue
+            bo_dir = 1 if bo_above else -1
 
-        # Reintegration: last closed candle must close inside range
-        reint = candles[-1]
-        if not (range_low <= reint["c"] <= range_high):
-            return None
+            # Check reintegration: any candle after breakout must close inside range
+            reintegrated = False
+            for ri in range(bo_idx + 1, len(candles)):
+                if range_low <= candles[ri]["c"] <= range_high:
+                    reintegrated = True
+                    break
 
-        # Mode B: fade the breakout
-        return {
-            "direction": -bo_dir,
-            "range_pct": round(range_size / range_low * 100, 2),
-            "bo_dir": "UP" if bo_dir == 1 else "DOWN",
-        }
+            if not reintegrated:
+                continue
+
+            return {
+                "direction": -bo_dir,
+                "range_pct": round(range_size / range_low * 100, 2),
+                "bo_dir": "UP" if bo_dir == 1 else "DOWN",
+            }
+
+        return None
 
     # ── Signal Detection ─────────────────────────────────────────
 
@@ -1815,11 +1820,14 @@ async def run():
     mode_tag = "LIVE 🔴" if EXECUTION_MODE == "live" else "PAPER"
     log.info("Multi-Signal Bot v%s | %s | $%.0f capital | %dx leverage | %d symbols | port %d",
              VERSION, mode_tag, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
-    log.info("Sizing: %d%%+%d%% base, z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f (at $%.0f)",
+    main_cap = CAPITAL_USDT * (1 - S10_CAPITAL_SHARE)
+    s10_cap = CAPITAL_USDT * S10_CAPITAL_SHARE
+    log.info("Sizing: %d%%+%d%% z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f (at $%.0f) | S10=$%.0f (at $%.0f)",
              SIZE_PCT * 100, SIZE_BONUS * 100,
-             strat_size("S1", CAPITAL_USDT), strat_size("S2", CAPITAL_USDT),
-             strat_size("S4", CAPITAL_USDT), strat_size("S5", CAPITAL_USDT),
-             strat_size("S8", CAPITAL_USDT), CAPITAL_USDT)
+             strat_size("S1", main_cap), strat_size("S2", main_cap),
+             strat_size("S4", main_cap), strat_size("S5", main_cap),
+             strat_size("S8", main_cap), strat_size("S9", main_cap), main_cap,
+             strat_size("S10", s10_cap), s10_cap)
     log.info("Hold: %dh (S5: %dh, S8: %dh) | Stop: %d bps (S8: %d) | Lev: %.0fx | Max: %d pos / %d dir / %d sect",
              HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
              STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION, MAX_PER_SECTOR)
