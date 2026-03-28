@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.6.5 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.7.0 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -32,6 +32,7 @@ import logging
 import os
 import shutil
 import signal
+import threading
 import time
 import urllib.request
 from collections import deque, defaultdict
@@ -50,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.6.5"
+VERSION = "10.7.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -240,6 +241,11 @@ class Position:
     mae_bps: float = 0.0    # Max Adverse Excursion (worst unrealized during trade)
     mfe_bps: float = 0.0    # Max Favorable Excursion (best unrealized during trade)
     trajectory: list = field(default_factory=list)  # [(hours_since_entry, unrealized_bps), ...] capped at 200
+    # Structured entry context (for post-hoc OI analysis — populated at entry, copied to Trade at close)
+    entry_oi_delta: float = 0.0      # OI delta 1h at entry (%)
+    entry_crowding: int = 0          # crowding score at entry (0-100)
+    entry_confluence: int = 0        # count of extreme features at entry (0-5)
+    entry_session: str = ""          # Asia/EU/US/Night/WE
 
 
 @dataclass
@@ -260,6 +266,10 @@ class Trade:
     mae_bps: float
     mfe_bps: float
     reason: str
+    entry_oi_delta: float = 0.0
+    entry_crowding: int = 0
+    entry_confluence: int = 0
+    entry_session: str = ""
 
 
 class MultiSignalBot:
@@ -273,18 +283,22 @@ class MultiSignalBot:
         # Empty until first scan completes — dashboard may show stale data until then.
         self._feature_cache: dict[str, dict | None] = {}
         self._oi_summary: dict = {"falling": 0, "rising": 0}
+        self._dxy_cache: tuple[float, float] = (0.0, 0.0)  # (dxy_bps, epoch) — refreshed hourly by scan
         self._shutdown_event: asyncio.Event | None = None
         self.started_at: datetime | None = None
         # Cumulative stats (persisted across restarts via state file)
         self._total_pnl = 0.0
         self._wins = 0
+        self._peak_balance = CAPITAL_USDT      # high-water mark for drawdown tracking
         self._last_scan: float = 0
         self._last_price_fetch: float = 0
+        self._last_daily_report: float = 0     # epoch of last daily Telegram summary
         self._cooldowns: dict[str, float] = {}  # symbol → earliest re-entry epoch
         self._degraded: list[str] = []           # active degradation tags (e.g. "DXY", "DXY_STALE")
         self._consecutive_losses = 0
         self._signal_first_seen: dict[str, float] = {}  # "S2:ARB" → epoch when first detected
         self._loss_streak_until: float = 0       # epoch when streak penalty expires
+        self._pos_lock = threading.Lock()        # guards positions dict mutations (close vs api_pause race)
 
         # ── Live execution (only when HL_MODE=live) ─────────────
         self._exchange = None
@@ -322,17 +336,19 @@ class MultiSignalBot:
     # ── Telegram Alerts ────────────────────────────────────────
 
     def _send_telegram(self, msg: str):
-        """Send alert via Telegram Bot API. Fire-and-forget."""
+        """Send alert via Telegram Bot API. Truly fire-and-forget (separate thread)."""
         if not TG_BOT_TOKEN or not TG_CHAT_ID:
             return
-        try:
-            payload = json.dumps({"chat_id": TG_CHAT_ID, "text": msg}).encode()
-            req = urllib.request.Request(
-                f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage",
-                data=payload, headers={"Content-Type": "application/json"})
-            urllib.request.urlopen(req, timeout=5)
-        except Exception as e:
-            log.warning("Telegram error: %s", e)
+        def _do_send():
+            try:
+                payload = json.dumps({"chat_id": TG_CHAT_ID, "text": msg}).encode()
+                req = urllib.request.Request(
+                    f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage",
+                    data=payload, headers={"Content-Type": "application/json"})
+                urllib.request.urlopen(req, timeout=5)
+            except Exception as e:
+                log.warning("Telegram error: %s", e)
+        threading.Thread(target=_do_send, daemon=True).start()
 
     # ── Live Execution Wrappers ────────────────────────────────
 
@@ -342,7 +358,7 @@ class MultiSignalBot:
         dec = self._sz_decimals.get(sym, 2)
         sz = round(sz, dec)
         if sz <= 0 or sz * price < 10:
-            raise ValueError(f"Order too small: {sz} {sym} = ${sz * price:.1f}")
+            raise ValueError(f"Order too small: {sz} {sym} = ${sz * price:.1f} (szDec={dec}, need ≥$10)")
         side_str = "BUY" if is_buy else "SELL"
         log.info("EXEC OPEN: %s %s sz=%s (~$%.0f)", side_str, sym, sz, sz * price)
         result = self._exchange.market_open(sym, is_buy, sz, slippage=0.01)
@@ -353,8 +369,13 @@ class MultiSignalBot:
         first = statuses[0]
         if "error" in str(first).lower():
             raise RuntimeError(f"Order error: {first}")
-        # Get fill price from recent fills
+        # Extract fill price from order response (immediate, no API lag)
+        filled = first.get("filled") if isinstance(first, dict) else None
+        if filled and "avgPx" in filled:
+            return float(filled["avgPx"])
+        # Fallback: query fills API (may lag a few hundred ms behind L1)
         try:
+            time.sleep(0.5)  # brief wait for indexer to catch up
             fills = self._hl_info.user_fills_by_time(
                 self._hl_address, int((time.time() - 30) * 1000))
             for f in reversed(fills):
@@ -362,7 +383,7 @@ class MultiSignalBot:
                     return float(f["px"])
         except Exception as e:
             log.warning("Fill lookup failed: %s — using market price", e)
-        return price  # fallback
+        return price  # last resort fallback
 
     def _execute_close(self, sym: str) -> float | None:
         """Close position on Hyperliquid. Returns fill price or raises."""
@@ -374,7 +395,13 @@ class MultiSignalBot:
         first = statuses[0]
         if "error" in str(first).lower():
             raise RuntimeError(f"Close error: {first}")
+        # Extract fill price from order response (immediate, no API lag)
+        filled = first.get("filled") if isinstance(first, dict) else None
+        if filled and "avgPx" in filled:
+            return float(filled["avgPx"])
+        # Fallback: query fills API
         try:
+            time.sleep(0.5)
             fills = self._hl_info.user_fills_by_time(
                 self._hl_address, int((time.time() - 30) * 1000))
             for f in reversed(fills):
@@ -414,16 +441,30 @@ class MultiSignalBot:
         except Exception as e:
             log.warning("Reconcile error: %s", e)
 
+    # ── HTTP Helpers ──────────────────────────────────────────────
+
+    @staticmethod
+    def _http_fetch(url: str, payload: bytes | None = None, headers: dict | None = None,
+                    timeout: int = 15, retries: int = 3):
+        """HTTP request with exponential backoff (1s, 2s, 4s). Returns response bytes."""
+        hdrs = headers or {"Content-Type": "application/json"}
+        for attempt in range(retries):
+            try:
+                req = urllib.request.Request(url, data=payload, headers=hdrs)
+                with urllib.request.urlopen(req, timeout=timeout) as resp:
+                    return resp.read()
+            except Exception:
+                if attempt == retries - 1:
+                    raise
+                time.sleep(2 ** attempt)  # 1s, 2s, 4s
+
     # ── Price Data ──────────────────────────────────────────────
 
     def _fetch_prices(self):
         """Fetch current prices from Hyperliquid."""
         try:
             payload = json.dumps({"type": "metaAndAssetCtxs"}).encode()
-            req = urllib.request.Request("https://api.hyperliquid.xyz/info",
-                                         data=payload, headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                data = json.loads(resp.read())
+            data = json.loads(self._http_fetch("https://api.hyperliquid.xyz/info", payload))
 
             meta = data[0]
             ctxs = data[1]
@@ -460,10 +501,7 @@ class MultiSignalBot:
             payload = json.dumps({"type": "candleSnapshot", "req": {
                 "coin": symbol, "interval": "4h", "startTime": start_ts, "endTime": end_ts
             }}).encode()
-            req = urllib.request.Request("https://api.hyperliquid.xyz/info",
-                                         data=payload, headers={"Content-Type": "application/json"})
-            with urllib.request.urlopen(req, timeout=15) as resp:
-                candles = json.loads(resp.read())
+            candles = json.loads(self._http_fetch("https://api.hyperliquid.xyz/info", payload))
 
             st = self.states[symbol]
             if not candles:
@@ -632,10 +670,8 @@ class MultiSignalBot:
         f = {}
         if n >= 180 and closes[n - 180] > 0:
             f["btc_30d"] = (closes[-1] / closes[n - 180] - 1) * 1e4
-        elif n >= 42 and closes[n - 42] > 0:
-            f["btc_30d"] = (closes[-1] / closes[n - 42] - 1) * 1e4
         else:
-            f["btc_30d"] = 0
+            f["btc_30d"] = 0  # need real 30d window — 7d fallback would misfire S1
 
         if n >= 42 and closes[n - 42] > 0:
             f["btc_7d"] = (closes[-1] / closes[n - 42] - 1) * 1e4
@@ -681,9 +717,7 @@ class MultiSignalBot:
             start_ts = end_ts - 30 * 86400
             url = (f"https://query1.finance.yahoo.com/v8/finance/chart/DX-Y.NYB"
                    f"?period1={start_ts}&period2={end_ts}&interval=1d")
-            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                raw = json.loads(resp.read())
+            raw = json.loads(self._http_fetch(url, headers={"User-Agent": "Mozilla/5.0"}, timeout=10))
 
             result = raw["chart"]["result"][0]
             timestamps = result["timestamp"]
@@ -852,6 +886,7 @@ class MultiSignalBot:
         btc_f = self._compute_btc_features()
         alt_index = self._compute_alt_index()
         dxy_7d = self._fetch_dxy()
+        self._dxy_cache = (dxy_7d, time.time())  # cache in memory for dashboard polls
 
         btc_30d = btc_f.get("btc_30d", 0)
 
@@ -922,6 +957,8 @@ class MultiSignalBot:
             if now.weekday() >= 5:
                 _session = "WE"  # weekend
             oi_tag = f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd} str={n_stress_global}/{sect_stress} disp={disp_24h:.0f}/{disp_7d:.0f} shk={shock:.2f} cln={clean:.1f} lead={lead:.1f} conf={conf} ses={_session}"
+            # Structured context carried through signal → Position → Trade (for post-hoc analysis)
+            _entry_ctx = {"oi_delta": oi_f["oi_delta_1h"], "crowding": crowd, "confluence": conf, "session": _session}
 
             # S1: BTC momentum spills over to alts — when BTC rallies >20%/30d,
             # altcoins follow with a lag. Rare but high-conviction (z=6.42).
@@ -933,7 +970,7 @@ class MultiSignalBot:
                     "z": STRAT_Z["S1"],
                     "info": f"BTC 30d={btc_30d:+.0f}bps{oi_tag}",
                     "strength": max(f.get("ret_42h", 0), 0),  # momentum: alts already up first
-                    "hold_hours": HOLD_HOURS_DEFAULT,
+                    "hold_hours": HOLD_HOURS_DEFAULT, "ctx": _entry_ctx,
                 })
 
             # S2: Mean-reversion after alt crash — when the alt index drops >10%/7d,
@@ -944,7 +981,7 @@ class MultiSignalBot:
                     "z": STRAT_Z["S2"],
                     "info": f"AltIdx={alt_index:+.0f}bps{oi_tag}",
                     "strength": abs(alt_index),
-                    "hold_hours": HOLD_HOURS_DEFAULT,
+                    "hold_hours": HOLD_HOURS_DEFAULT, "ctx": _entry_ctx,
                 })
 
             # S4: Volatility compression + rising dollar → SHORT. Quiet markets
@@ -956,7 +993,7 @@ class MultiSignalBot:
                     "z": STRAT_Z["S4"],
                     "info": f"VolR={f['vol_ratio']:.2f} Rng={f['range_pct']:.0f} DXY={dxy_7d:+.0f}{oi_tag}",
                     "strength": (1.0 - f["vol_ratio"]) * 1000,
-                    "hold_hours": HOLD_HOURS_DEFAULT,
+                    "hold_hours": HOLD_HOURS_DEFAULT, "ctx": _entry_ctx,
                 })
 
             # S5: Sector breakout — when a token diverges >10% from its sector peers
@@ -970,7 +1007,7 @@ class MultiSignalBot:
                     "z": STRAT_Z["S5"],
                     "info": f"{sd['sector']} div={sd['divergence']:+.0f} vz={sd['vol_z']:.1f}{oi_tag}",
                     "strength": abs(sd["divergence"]),
-                    "hold_hours": HOLD_HOURS_S5,
+                    "hold_hours": HOLD_HOURS_S5, "ctx": _entry_ctx,
                 })
 
             # S8: Capitulation flush — buy when market-wide liquidation cascade is
@@ -986,7 +1023,7 @@ class MultiSignalBot:
                     "z": STRAT_Z["S8"],
                     "info": f"DD={f['drawdown']:.0f} vz={f['vol_z']:.1f} r24h={f['ret_24h']:.0f} BTC7d={btc_f.get('btc_7d',0):+.0f}{oi_tag}",
                     "strength": abs(f["drawdown"]),
-                    "hold_hours": HOLD_HOURS_S8,
+                    "hold_hours": HOLD_HOURS_S8, "ctx": _entry_ctx,
                 })
 
             # S9: Fade extreme move — when a token moves >20% in 24h, fade it.
@@ -1000,7 +1037,7 @@ class MultiSignalBot:
                     "z": STRAT_Z["S9"],
                     "info": f"Fade r24h={f['ret_24h']:+.0f}{oi_tag}",
                     "strength": abs(f["ret_24h"]),
-                    "hold_hours": HOLD_HOURS_S9,
+                    "hold_hours": HOLD_HOURS_S9, "ctx": _entry_ctx,
                 })
 
             # S10: Squeeze expansion — compression + false breakout + reintegration.
@@ -1012,7 +1049,7 @@ class MultiSignalBot:
                     "z": STRAT_Z["S10"],
                     "info": f"Squeeze bo={sq['bo_dir']} rng={sq['range_pct']:.1f}%{oi_tag}",
                     "strength": 1000 / max(sq["range_pct"], 0.1),  # tighter range = higher priority
-                    "hold_hours": HOLD_HOURS_S10,
+                    "hold_hours": HOLD_HOURS_S10, "ctx": _entry_ctx,
                 })
 
             # S6 REMOVED — loses in portfolio despite z=8.04 in isolation
@@ -1142,14 +1179,20 @@ class MultiSignalBot:
                     self._send_telegram(f"❌ Open failed {sym} {sig['strategy']}: {e}")
                     continue
 
-            self.positions[sym] = Position(
-                symbol=sym, direction=sig["direction"],
-                strategy=sig["strategy"],
-                entry_price=entry_price, entry_time=now,
-                size_usdt=size, signal_info=sig["info"],
-                target_exit=target_exit,
-                trajectory=[(0.0, 0.0)],  # t=0 anchor point
-            )
+            ctx = sig.get("ctx", {})
+            with self._pos_lock:
+                self.positions[sym] = Position(
+                    symbol=sym, direction=sig["direction"],
+                    strategy=sig["strategy"],
+                    entry_price=entry_price, entry_time=now,
+                    size_usdt=size, signal_info=sig["info"],
+                    target_exit=target_exit,
+                    trajectory=[(0.0, 0.0)],  # t=0 anchor point
+                    entry_oi_delta=ctx.get("oi_delta", 0.0),
+                    entry_crowding=ctx.get("crowding", 0),
+                    entry_confluence=ctx.get("confluence", 0),
+                    entry_session=ctx.get("session", ""),
+                )
 
             if sig["direction"] == 1:
                 n_longs += 1
@@ -1222,7 +1265,10 @@ class MultiSignalBot:
                 self._send_telegram(f"❌ Close failed {sym}: {e} — will retry")
                 return  # don't pop — position stays tracked, retried in 60s
 
-        pos = self.positions.pop(sym)
+        with self._pos_lock:
+            if sym not in self.positions:
+                return  # closed by concurrent api_pause/check_exits
+            pos = self.positions.pop(sym)
 
         hold_h = (now - pos.entry_time).total_seconds() / 3600
         # P&L calc: direction * price change * leverage, then subtract round-trip costs.
@@ -1233,6 +1279,9 @@ class MultiSignalBot:
         pnl = pos.size_usdt * net_bps / 1e4
 
         self._total_pnl += pnl
+        balance = CAPITAL_USDT + self._total_pnl
+        if balance > self._peak_balance:
+            self._peak_balance = balance
         if pnl > 0:
             self._wins += 1
 
@@ -1270,6 +1319,8 @@ class MultiSignalBot:
             pnl_usdt=round(pnl, 2),
             mae_bps=round(pos.mae_bps, 1), mfe_bps=round(pos.mfe_bps, 1),
             reason=reason,
+            entry_oi_delta=pos.entry_oi_delta, entry_crowding=pos.entry_crowding,
+            entry_confluence=pos.entry_confluence, entry_session=pos.entry_session,
         )
         self.trades.append(trade)
         self._write_csv(trade)
@@ -1296,11 +1347,13 @@ class MultiSignalBot:
                     w.writerow(["symbol", "direction", "strategy", "entry_time", "exit_time",
                                "entry_price", "exit_price", "hold_hours", "size_usdt",
                                "signal_info", "gross_bps", "net_bps", "pnl_usdt",
-                               "mae_bps", "mfe_bps", "reason"])
+                               "mae_bps", "mfe_bps", "reason",
+                               "entry_oi_delta", "entry_crowding", "entry_confluence", "entry_session"])
                 w.writerow([t.symbol, t.direction, t.strategy, t.entry_time, t.exit_time,
                            t.entry_price, t.exit_price, t.hold_hours, t.size_usdt,
                            t.signal_info, t.gross_bps, t.net_bps, t.pnl_usdt,
-                           t.mae_bps, t.mfe_bps, t.reason])
+                           t.mae_bps, t.mfe_bps, t.reason,
+                           t.entry_oi_delta, t.entry_crowding, t.entry_confluence, t.entry_session])
         except Exception:
             log.exception("Trade CSV write failed — trade recorded in memory but not on disk")
 
@@ -1358,11 +1411,14 @@ class MultiSignalBot:
         data = {
             "version": VERSION,
             "total_pnl": self._total_pnl, "wins": self._wins,
+            "peak_balance": self._peak_balance, "last_daily_report": self._last_daily_report,
             "paused": self._paused,
             "consecutive_losses": self._consecutive_losses,
             "loss_streak_until": self._loss_streak_until,
             "cooldowns": {k: v for k, v in self._cooldowns.items() if v > time.time()},
             "signal_first_seen": self._signal_first_seen,
+            "feature_cache": self._feature_cache,
+            "feature_cache_ts": time.time(),
             "positions": [{
                 "symbol": p.symbol, "direction": p.direction,
                 "strategy": p.strategy,
@@ -1371,6 +1427,8 @@ class MultiSignalBot:
                 "target_exit": p.target_exit.isoformat(),
                 "mae_bps": p.mae_bps, "mfe_bps": p.mfe_bps,
                 "trajectory": p.trajectory,
+                "entry_oi_delta": p.entry_oi_delta, "entry_crowding": p.entry_crowding,
+                "entry_confluence": p.entry_confluence, "entry_session": p.entry_session,
             } for p in self.positions.values()],
         }
         tmp = STATE_FILE + ".tmp"
@@ -1387,11 +1445,18 @@ class MultiSignalBot:
                 data = orjson.loads(f.read())
             self._total_pnl = data.get("total_pnl", 0)
             self._wins = data.get("wins", 0)
+            self._peak_balance = data.get("peak_balance", CAPITAL_USDT + self._total_pnl)
+            self._last_daily_report = data.get("last_daily_report", 0)
             self._paused = data.get("paused", False)
             self._consecutive_losses = data.get("consecutive_losses", 0)
             self._loss_streak_until = data.get("loss_streak_until", 0)
             self._cooldowns = data.get("cooldowns", {})
             self._signal_first_seen = data.get("signal_first_seen", {})
+            # Restore feature cache if recent enough (avoids blank dashboard on restart)
+            fc_ts = data.get("feature_cache_ts", 0)
+            if time.time() - fc_ts < 7200:  # < 2h old
+                self._feature_cache = data.get("feature_cache", {})
+                log.info("Restored feature cache (%.0fm old)", (time.time() - fc_ts) / 60)
             for p in data.get("positions", []):
                 if p["symbol"] not in self.states:
                     log.warning("Skipping unknown symbol from state: %s", p["symbol"])
@@ -1407,6 +1472,10 @@ class MultiSignalBot:
                     mae_bps=p.get("mae_bps", 0.0),
                     mfe_bps=p.get("mfe_bps", 0.0),
                     trajectory=p.get("trajectory", []),
+                    entry_oi_delta=p.get("entry_oi_delta", 0.0),
+                    entry_crowding=p.get("entry_crowding", 0),
+                    entry_confluence=p.get("entry_confluence", 0),
+                    entry_session=p.get("entry_session", ""),
                 )
             if self.positions or self._total_pnl:
                 log.info("Restored: %d positions, P&L $%.2f", len(self.positions), self._total_pnl)
@@ -1437,6 +1506,10 @@ class MultiSignalBot:
                         mae_bps=float(row.get("mae_bps", 0)),
                         mfe_bps=float(row.get("mfe_bps", 0)),
                         reason=row["reason"],
+                        entry_oi_delta=float(row.get("entry_oi_delta", 0)),
+                        entry_crowding=int(float(row.get("entry_crowding", 0))),
+                        entry_confluence=int(float(row.get("entry_confluence", 0))),
+                        entry_session=row.get("entry_session", ""),
                     ))
             if self.trades:
                 log.info("Loaded %d historical trades", len(self.trades))
@@ -1462,6 +1535,43 @@ class MultiSignalBot:
                     "total_pnl": round(sum(t.pnl_usdt for t in recent), 2),
                 }
         return result
+
+    def _send_daily_summary(self):
+        """Send daily P&L summary via Telegram (called at midnight UTC)."""
+        now = datetime.now(timezone.utc)
+        today_str = now.strftime("%Y-%m-%d")
+        yesterday = (now - timedelta(days=1)).isoformat()[:10]
+
+        # Trades closed today
+        day_trades = [t for t in self.trades if t.exit_time[:10] == yesterday]
+        day_pnl = sum(t.pnl_usdt for t in day_trades)
+        day_wins = sum(1 for t in day_trades if t.pnl_usdt > 0)
+        day_wr = day_wins / len(day_trades) * 100 if day_trades else 0
+
+        # Per-strategy breakdown
+        by_strat: dict[str, float] = defaultdict(float)
+        for t in day_trades:
+            by_strat[t.strategy] += t.pnl_usdt
+        strat_line = " | ".join(f"{s}: ${p:+.1f}" for s, p in sorted(by_strat.items())) if by_strat else "no trades"
+
+        balance = CAPITAL_USDT + self._total_pnl
+        dd_pct = (balance - self._peak_balance) / self._peak_balance * 100 if self._peak_balance > 0 else 0
+        n = len(self.trades)
+        wr = self._wins / n * 100 if n > 0 else 0
+
+        # Signal health
+        drift = self._compute_signal_drift()
+        quarantined = [s for s, d in drift.items() if d.get("n", 0) >= 10 and d.get("win_rate", 1) < 0.20]
+        degraded_line = f" | DEGRADED: {', '.join(quarantined)}" if quarantined else ""
+
+        msg = (f"📊 Daily {yesterday}\n"
+               f"{len(day_trades)} trades | ${day_pnl:+.2f} | {day_wr:.0f}% win\n"
+               f"{strat_line}\n"
+               f"Balance: ${balance:.0f} | P&L: ${self._total_pnl:+.2f} ({wr:.0f}% on {n})\n"
+               f"DD: {dd_pct:+.1f}% from peak | {len(self.positions)} pos open"
+               f"{degraded_line}")
+        self._send_telegram(msg)
+        self._last_daily_report = time.time()
 
     def get_state(self) -> dict:
         """Build full dashboard state: balance, positions, signals, timing, drift."""
@@ -1502,8 +1612,8 @@ class MultiSignalBot:
             active_signals.append(f"S1: BTC 30d = {btc_f['btc_30d']:+.0f}bps → LONG")
         if alt_idx < -1000:
             active_signals.append(f"S2: Alt index = {alt_idx:+.0f}bps → LONG")
-        # DXY status
-        dxy_7d = self._fetch_dxy()
+        # DXY status (use in-memory cache — never call Yahoo from API handler)
+        dxy_7d = self._dxy_cache[0]
         dxy_active = dxy_7d > DXY_BOOST_THRESHOLD
         # S4 only when DXY rising
         if dxy_active:
@@ -1560,6 +1670,7 @@ class MultiSignalBot:
             "loss_streak": self._consecutive_losses,
             "kill_switch_active": self._total_pnl <= TOTAL_LOSS_CAP,
             "balance": round(balance, 2),
+            "capital": CAPITAL_USDT,
             "total_pnl": round(self._total_pnl, 2),
             "total_trades": n,
             "win_rate": round(self._wins / n, 3) if n > 0 else 0,
@@ -1583,13 +1694,16 @@ class MultiSignalBot:
             "next_scan_s": max(0, SCAN_INTERVAL - (time.time() - self._last_scan)) if self._last_scan else 0,
             "scan_interval": SCAN_INTERVAL,
             "signal_drift": self._compute_signal_drift(),
+            "peak_balance": round(self._peak_balance, 2),
+            "drawdown_pct": round((balance - self._peak_balance) / self._peak_balance * 100, 2) if self._peak_balance > 0 else 0,
+            "capital_utilization_pct": round(sum(p.size_usdt for p in self.positions.values()) / max(balance, 1) * 100, 1),
         }
 
     def get_signals(self) -> dict:
         """All symbols with their current features and signal status."""
         btc_f = self._compute_btc_features()
         alt_idx = self._compute_alt_index()
-        dxy_val = self._fetch_dxy()  # once, not 28 times
+        dxy_val = self._dxy_cache[0]  # use in-memory cache, refreshed by hourly scan
         signals = {}
 
         for sym in TRADE_SYMBOLS:
@@ -1696,6 +1810,11 @@ class MultiSignalBot:
                     log.info("Status: %d pos | $%.0f | %d trades (%.0f%%) | BTC30d=%+.0f | AltIdx=%+.0f",
                              len(self.positions), balance, n, wr,
                              btc_f.get("btc_30d", 0), alt_idx)
+
+                    # Daily summary at midnight UTC (once per day)
+                    _utc_h = datetime.now(timezone.utc).hour
+                    if _utc_h == 0 and now - self._last_daily_report > 43200:  # >12h since last
+                        self._send_daily_summary()
                 else:
                     # Between scans: only check exits (stop losses can trigger any minute)
                     exits = await asyncio.to_thread(self._check_exits)
@@ -1745,6 +1864,23 @@ async def index():
     return _html_cache
 
 
+@app.get("/api/health")
+async def api_health():
+    price_age = time.time() - bot._last_price_fetch if bot._last_price_fetch else 9999
+    scan_age = time.time() - bot._last_scan if bot._last_scan else 9999
+    stale = price_age > 300 or scan_age > 7200
+    status = "stale" if stale else ("degraded" if bot._degraded else "ok")
+    data = {
+        "status": status,
+        "price_age_s": round(price_age, 0),
+        "scan_age_s": round(scan_age, 0),
+        "exchange_ok": bot._exchange is not None if EXECUTION_MODE == "live" else True,
+        "degraded": list(bot._degraded),
+        "positions_count": len(bot.positions),
+        "paused": bot._paused,
+    }
+    return JSONResponse(data, status_code=503 if stale else 200)
+
 @app.get("/api/state")
 async def api_state():
     return JSONResponse(bot.get_state())
@@ -1762,7 +1898,8 @@ async def api_pnl():
     return JSONResponse(bot.get_pnl_curve())
 
 @app.post("/api/pause")
-async def api_pause():
+def api_pause():
+    """Sync handler — FastAPI runs in threadpool, won't block event loop during exchange close."""
     now = datetime.now(timezone.utc)
     for sym in list(bot.positions.keys()):
         st = bot.states.get(sym)
@@ -1780,7 +1917,8 @@ async def api_resume():
     return JSONResponse({"status": "resumed"})
 
 @app.post("/api/reset")
-async def api_reset():
+def api_reset():
+    """Sync handler — FastAPI runs in threadpool, won't block event loop during exchange close."""
     now = datetime.now(timezone.utc)
     for sym in list(bot.positions.keys()):
         st = bot.states.get(sym)

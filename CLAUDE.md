@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trading on 28 altcoins.
 
-**The bot is 2 files** : `analysis/reversal.py` (~1600 lines) + `analysis/reversal.html`. Everything else is research/backtests.
+**The bot is 2 files** : `analysis/reversal.py` (~1900 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-Version in `VERSION` constant (currently 10.6.0). Dashboard on `:8097`.
+Version in `VERSION` constant (currently 10.7.0). Dashboard on `:8097`.
 
 ### Execution Modes
 
@@ -23,8 +23,8 @@ Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_
 # Paper bot (:8097, $1000 simulated)
 nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 
-# Live bot (:8098, $100 real)
-HL_MODE=live HL_CAPITAL=100 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
+# Live bot (:8098, $130 real)
+HL_MODE=live HL_CAPITAL=130 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 
 # Both restart automatically on VPS reboot via crontab (@reboot /home/crypto/start_bots.sh)
@@ -54,10 +54,12 @@ Hyperliquid REST API (read)
     ├── Signal quarantine (win rate < 20% → auto-disable)
     ├── Execution (paper or live via hyperliquid-python-sdk)
     ├── Reconciliation (bot state vs exchange, every scan)
-    ├── Telegram alerts (entry/exit/error/kill-switch)
+    ├── Telegram alerts (entry/exit/error/kill-switch/daily summary)
     ├── State persistence (JSON atomic writes + CSV trades + CSV market + CSV trajectories)
     ├── 12 observation dimensions per trade (OI, crowding, stress, disp, shock, clean, lead, conf, session, age, retest)
-    └── Dashboard (FastAPI on :8097, live counters)
+    ├── Structured entry context per trade (oi_delta, crowding, confluence, session — for post-hoc analysis)
+    ├── HTTP retry with exponential backoff (3 attempts, 1s/2s/4s)
+    └── Dashboard (FastAPI on :8097, live counters, strategy P&L, drawdown, utilization, mobile responsive)
             │
             ▼ (live mode only)
 Hyperliquid SDK (write)
@@ -113,13 +115,14 @@ All 7 survived train/test split + Monte Carlo validation.
 | Endpoint | Description |
 |----------|-------------|
 | `GET /` | Dashboard HTML (cached on startup) |
-| `GET /api/state` | Balance, positions, signals, timing, drift, degraded, OI summary |
+| `GET /api/health` | Bot health: status (ok/degraded/stale), price_age, scan_age, exchange_ok. Returns 503 if stale. |
+| `GET /api/state` | Balance, positions, signals, timing, drift, degraded, OI summary, drawdown, utilization |
 | `GET /api/signals` | All 28 tokens with features, OI, crowding, triggered signals |
 | `GET /api/trades` | Trade history (deque maxlen=500) |
 | `GET /api/pnl` | Cumulative P&L curve |
-| `POST /api/pause` | Close all positions + pause |
+| `POST /api/pause` | Close all positions + pause (sync handler, runs in threadpool) |
 | `POST /api/resume` | Resume trading (forces immediate scan) |
-| `POST /api/reset` | Close all + reset all state to zero |
+| `POST /api/reset` | Close all + reset all state to zero (sync handler, runs in threadpool) |
 
 ### Backtest Results
 
@@ -127,7 +130,7 @@ $1,000 → $11,214 over 32 months (2023-08 to 2026-03). DD -54%. 63% months winn
 
 ## Research Files
 
-All in `analysis/`. The backtest files document the exhaustive search that led to the 5 signals:
+All in `analysis/`. The backtest files document the exhaustive search that led to the 7 signals:
 
 | File | What it tested | Result |
 |------|---------------|--------|
@@ -162,7 +165,7 @@ Bot documentation (French): `docs/bot.md`
 
 - **DXY filter is critical for S4**: S4 SHORT only active when DXY 7d > +100 bps. Without it, S4 shorts in bull markets and loses. DXY has 3-tier fallback: fresh < 6h, stale 6-48h (S4 stays active), expired > 48h (S4 disabled + degraded banner).
 - **DXY cache**: Stored in `analysis/output/pairs_data/macro_DXY.json`. Cache uses 5-trading-day return (`closes[-6]`).
-- **Feature cache**: `_refresh_feature_cache()` runs once per hourly scan. `_scan_signals()` and `get_signals()` use cached features. Cache is empty on startup until first scan completes.
+- **Feature cache**: `_refresh_feature_cache()` runs once per hourly scan. `_scan_signals()` and `get_signals()` use cached features. Cache is persisted in state file and restored on restart if < 2h old (avoids blank dashboard during first scan).
 - **State persistence**: Atomic writes (write to `.tmp` then `os.replace()`). On load, original is preserved (copy to `.loaded`). Positions, paused state, loss streak, MAE/MFE, and trajectories survive restarts.
 - **Compounding effect**: `current_capital = CAPITAL_USDT + _total_pnl`. After big losses, position sizes shrink dramatically. After big wins, positions grow and DD risk increases.
 - **HTML cache**: Dashboard HTML is cached in memory on first request. Restart bot to pick up HTML changes.
@@ -171,16 +174,24 @@ Bot documentation (French): `docs/bot.md`
 - **S6 was removed**: Liquidation bounce signal had z=8.04 in isolation but loses -$627 to -$1,552 in portfolio. Standalone backtest was misleading (simpler backtester, no position limits).
 - **S8 capitulation is rare**: Fires ~1/month in portfolio (drawdown > -40% is extreme). When it fires, 70% win rate with avg +413 bps. Max 7 consecutive losses observed (April 2024 crash).
 - **SHORT signals are hard**: 378 short variants tested, none pass z > 2.0. S4+DXY remains the only viable short. Altcoin markets have structural long bias.
-- **OI/funding/premium collected but not used for signals**: Observation phase. Data logged in `reversal_market.csv` (hourly snapshots, ~15 MB/year) and in each trade's `signal_info`. Will be analyzed after 50+ trades to determine if OI delta improves S2/S8 quality.
+- **OI/funding/premium collected but not used for signals**: Observation phase. Data logged in `reversal_market.csv` (hourly snapshots, ~24 MB/year) and in each trade's structured fields (`entry_oi_delta`, `entry_crowding`, `entry_confluence`, `entry_session`) + `signal_info` string. Will be analyzed after 50+ trades per pre-registered protocols.
 - **Crowding score (0-100)**: Measures leverage stress per token (OI delta + funding + premium + vol_z). Displayed in dashboard, logged in trades. Not used for decisions yet.
 - **Signal quarantine**: If a signal's rolling win rate drops below 20% on last 10 trades, it's auto-disabled. Below 30% → sizing halved. Prevents silent degradation.
 - **Signal drift**: `/api/state` exposes `signal_drift` with rolling stats per signal (win rate, avg bps, P&L on last 20 trades).
 - **Execution mode**: `HL_MODE` in `.env`. Default `paper` simulates in memory. `live` places real orders via SDK. Mode shown in startup log and `/api/state`. **Never push .env to git**.
 - **SDK lazy import**: `eth_account` + `hyperliquid` only imported when `HL_MODE=live`. Paper mode has zero SDK dependency.
 - **Reconciliation**: Every hourly scan, bot compares its position dict vs `user_state()` from exchange. Mismatches (orphans/ghosts) trigger Telegram alert but NO auto-fix.
-- **Telegram**: Uses raw urllib POST (no dependency). Fire-and-forget, never blocks the bot. Events: open, close, error, kill-switch, startup, reconciliation mismatch.
+- **Telegram**: Uses raw urllib POST (no dependency). Fire-and-forget in daemon thread, never blocks scan or event loop. Events: open, close, error, kill-switch, startup, reconciliation mismatch, daily summary (midnight UTC).
 - **Order sizing**: SDK expects size in coin units, not USDT. Conversion: `sz = size_usdt / price`, rounded to `szDecimals` from exchange metadata.
 - **Dashboard auth**: HTTP Basic Auth via `DASHBOARD_USER`/`DASHBOARD_PASS` in `.env`. Empty = no auth. Uses `secrets.compare_digest` (timing-safe).
 - **Auto-restart**: `@reboot` crontab runs `start_bots.sh` which starts both instances + sends Telegram alert on VPS reboot.
 - **Dual instances**: Paper (:8097, `analysis/output/`) and Live (:8098, `analysis/output_live/`) run in parallel from the same code. Only DXY cache is shared (global market data).
+- **DXY cached in memory**: `self._dxy_cache` stores the last DXY value + timestamp. Refreshed only during hourly scan (in `to_thread`). API handlers (`get_state`, `get_signals`) read from memory, never call Yahoo. Prevents event loop blocking.
+- **Pause/Reset are sync handlers**: `api_pause()` and `api_reset()` are `def` (not `async def`) so FastAPI runs them in a threadpool. This prevents blocking the event loop during exchange close operations.
+- **Fill price from order response**: `_execute_open`/`_execute_close` extract `avgPx` directly from the Hyperliquid order response (`statuses[0]["filled"]["avgPx"]`). Falls back to `user_fills_by_time` with 500ms delay, then market price as last resort.
+- **HTTP retry**: `_http_fetch()` helper retries 3 times with exponential backoff (1s, 2s, 4s) on all price/candle/DXY fetches. Transient network failures no longer cause data gaps.
+- **Position lock**: `self._pos_lock` (threading.Lock) guards all `self.positions` mutations (pop in `_close_position`, insert in `_scan_signals`) to prevent race conditions between scan thread and API endpoints.
+- **Drawdown tracking**: `self._peak_balance` tracks high-water mark, persisted in state. Dashboard shows drawdown % from peak.
+- **Daily Telegram summary**: Sent at midnight UTC. Includes day's trades, P&L by strategy, balance, drawdown, quarantine status.
+- **Dashboard mobile**: Responsive CSS via `@media (max-width: 768px)`. Cards stack vertically, tables scroll horizontally.
 - **Detailed bot documentation**: `docs/bot.md` contains the full bot description — signals, parameters, research, estimates, risks, architecture, production plan. Keep it in sync with code changes.

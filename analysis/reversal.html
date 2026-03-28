@@ -52,6 +52,17 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 .pnl-line{position:absolute;bottom:0;left:0;width:100%;height:100%}
 .progress-bar{width:100%;height:3px;background:#21262d;margin-top:2px;border-radius:2px;overflow:hidden}
 .progress-bar .fill{height:100%;background:#58a6ff;transition:width 1s linear;border-radius:2px}
+@media(max-width:768px){
+  .header{flex-direction:column;align-items:flex-start;gap:8px}
+  .cards{flex-direction:column}
+  .card{min-width:auto}
+  .activity-bar{flex-wrap:wrap}
+  .signal-grid{grid-template-columns:1fr}
+  table{display:block;overflow-x:auto;white-space:nowrap}
+  .controls{flex-wrap:wrap}
+  #market-bar{flex-wrap:wrap;gap:6px}
+  body{font-size:12px}
+}
 </style>
 </head>
 <body>
@@ -82,17 +93,24 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="cards">
-  <div class="card" id="card-balance"><div class="label">Balance</div><div class="value" id="balance">$1,000</div></div>
+  <div class="card" id="card-balance"><div class="label">Balance</div><div class="value" id="balance">$1,000</div><div class="sub dim" id="capital"></div></div>
   <div class="card" id="card-pnl"><div class="label">P&L</div><div class="value" id="pnl">$0.00</div><div class="sub" id="pnl-pct">+0.0%</div></div>
   <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
   <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">--</div></div>
   <div class="card" id="card-total"><div class="label">Total (real+unreal)</div><div class="value" id="today-pnl">$0.00</div></div>
+  <div class="card"><div class="label">Drawdown</div><div class="value" id="drawdown">0%</div><div class="sub dim" id="peak-bal"></div></div>
+  <div class="card"><div class="label">Utilization</div><div class="value" id="util-pct">0%</div></div>
 </div>
 
 <div class="controls">
   <button class="btn danger" onclick="fetch('/api/pause',{method:'POST',credentials:'same-origin'}).then(r)">STOP</button>
   <button class="btn success" onclick="fetch('/api/resume',{method:'POST',credentials:'same-origin'}).then(r)">RESUME</button>
-  <button class="btn danger" onclick="if(confirm('Reset?'))fetch('/api/reset',{method:'POST'}).then(r)">RAZ</button>
+  <button class="btn danger" onclick="if(confirm('Reset?'))fetch('/api/reset',{method:'POST',credentials:'same-origin'}).then(r)">RAZ</button>
+</div>
+
+<div class="section">
+  <h2>Strategy Performance (last 20 trades)</h2>
+  <table><thead><tr><th>Signal</th><th>Trades</th><th>Win Rate</th><th>Avg bps</th><th>P&L</th></tr></thead><tbody id="strat-drift"></tbody></table>
 </div>
 
 <div class="section">
@@ -170,6 +188,7 @@ function refresh(){
     _scanInterval=s.scan_interval||3600;
 
     document.getElementById('balance').textContent='$'+s.balance.toFixed(2);
+    document.getElementById('capital').textContent='Capital: $'+s.capital.toFixed(0);
     const pnlEl=document.getElementById('pnl');
     pnlEl.textContent='$'+fmt(s.total_pnl);
     pnlEl.className='value '+cls(s.total_pnl);
@@ -230,6 +249,28 @@ function refresh(){
     document.getElementById('today-pnl').textContent='$'+fmt(todayTotal);
     document.getElementById('today-pnl').className='value '+cls(todayTotal);
 
+    // Drawdown + utilization
+    const ddEl=document.getElementById('drawdown');
+    ddEl.textContent=fmt(s.drawdown_pct||0,1)+'%';
+    ddEl.className='value '+(s.drawdown_pct<-5?'red':s.drawdown_pct<0?'yellow':'green');
+    document.getElementById('peak-bal').textContent='Peak: $'+(s.peak_balance||0).toFixed(0);
+    const utilEl=document.getElementById('util-pct');
+    const util=s.capital_utilization_pct||0;
+    utilEl.textContent=util.toFixed(0)+'%';
+    utilEl.className='value '+(util>75?'red':util>50?'yellow':'blue');
+
+    // Strategy P&L breakdown
+    const drift=s.signal_drift||{};
+    const sdEl=document.getElementById('strat-drift');
+    if(sdEl){
+      sdEl.innerHTML='';
+      Object.entries(drift).sort((a,b)=>b[1].total_pnl-a[1].total_pnl).forEach(([sig,d])=>{
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td><b>${sig}</b></td><td>${d.n}</td><td class="${d.win_rate>=0.5?'green':'red'}">${(d.win_rate*100).toFixed(0)}%</td><td>${fmt(d.avg_bps,1)}</td><td class="${cls(d.total_pnl)}"><b>$${fmt(d.total_pnl)}</b></td>`;
+        sdEl.appendChild(tr);
+      });
+    }
+
     // Flash cards on change
     if(_prevPnl!==null && Math.abs(todayTotal-_prevPnl)>0.01) flashCard('card-total');
     _prevPnl=todayTotal;
@@ -286,8 +327,8 @@ function refreshSignals(){
 
       const ret=s.ret_7d_bps;
       const barW=Math.min(100,Math.abs(ret)/2000*100);
-      const barColor=ret>=0?'#f85149':'#3fb950';
-      const retClass=ret>=0?'red':'green';
+      const barColor=ret>=0?'#3fb950':'#f85149';
+      const retClass=ret>=0?'green':'red';
 
       let badge='';
       if(s.in_position) badge=`<span class="badge ${s.position_strategy==='S4'?'short':'long'}">${s.position_strategy}</span>`;
