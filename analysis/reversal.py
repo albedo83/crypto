@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.6.3 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.6.4 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -50,7 +50,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.6.3"
+VERSION = "10.6.4"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -1010,7 +1010,7 @@ class MultiSignalBot:
                     "symbol": sym, "direction": sq["direction"], "strategy": "S10",
                     "z": STRAT_Z["S10"],
                     "info": f"Squeeze bo={sq['bo_dir']} rng={sq['range_pct']:.1f}%{oi_tag}",
-                    "strength": sq["range_pct"],
+                    "strength": 1000 / max(sq["range_pct"], 0.1),  # tighter range = higher priority
                     "hold_hours": HOLD_HOURS_S10,
                 })
 
