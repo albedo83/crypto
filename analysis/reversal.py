@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.6.4 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.6.5 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -50,7 +50,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.6.4"
+VERSION = "10.6.5"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -822,9 +822,10 @@ class MultiSignalBot:
                 continue
             bo_dir = 1 if bo_above else -1
 
-            # Check reintegration: any candle after breakout must close inside range
+            # Check reintegration: must close inside range within rc candles
             reintegrated = False
-            for ri in range(bo_idx + 1, len(candles)):
+            ri_end = min(bo_idx + 1 + S10_REINT_CANDLES, len(candles))
+            for ri in range(bo_idx + 1, ri_end):
                 if range_low <= candles[ri]["c"] <= range_high:
                     reintegrated = True
                     break
@@ -843,7 +844,7 @@ class MultiSignalBot:
     # ── Signal Detection ─────────────────────────────────────────
 
     def _scan_signals(self) -> int:
-        """Scan all 7 strategies across 28 tokens, rank by z-score, and open positions."""
+        """Scan S1/S2/S4/S5/S8/S9/S10 across 28 tokens, rank by z-score, and open positions."""
         now = datetime.now(timezone.utc)
         signals = []
 
