@@ -1829,7 +1829,7 @@ async def run():
              VERSION, mode_tag, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
     main_cap = CAPITAL_USDT * (1 - S10_CAPITAL_SHARE)
     s10_cap = CAPITAL_USDT * S10_CAPITAL_SHARE
-    log.info("Sizing: %d%%+%d%% z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f (at $%.0f) | S10=$%.0f (at $%.0f)",
+    log.info("Sizing (initial, adjusts with P&L): %d%%+%d%% z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f (at $%.0f) | S10=$%.0f (at $%.0f)",
              SIZE_PCT * 100, SIZE_BONUS * 100,
              strat_size("S1", main_cap), strat_size("S2", main_cap),
              strat_size("S4", main_cap), strat_size("S5", main_cap),
