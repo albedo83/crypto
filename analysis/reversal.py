@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.4.1 — Five strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.5.0 — Six strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -6,6 +6,7 @@ Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S4: vol contraction + DXY rising → SHORT     (z=2.95, filtered by dollar)
   S5: sector divergence > 10% + volume → FOLLOW (z=3.67, sector breakout)
   S8: capitulation flush + BTC weak → LONG     (z=6.99, buy market-wide flushes)
+  S9: token move > ±20% in 24h → FADE          (z=8.71, strongest signal)
 
 Config:
   Leverage: 2x (optimal from parameter sweep)
@@ -48,7 +49,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.4.1"
+VERSION = "10.5.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -120,6 +121,13 @@ S8_RET_24H_THRESH = -50      # still bleeding (24h return < -0.5%, 6 candles × 
 S8_BTC_7D_THRESH = -300      # BTC also weak (7d < -3%)
 HOLD_HOURS_S8 = 60           # 60h hold (15 candles)
 
+# ── S9 Fade Extreme Move Params ─────────────────────────────────────
+# When a token moves >20% in 24h, fade it. Pumps revert, dumps bounce.
+# Strongest signal found: z=8.71 (MC), +268 bps/trade, ~12 trades/month.
+# See backtest_wild.py test_fade_extremes().
+S9_RET_THRESH = 2000         # ±20% in 24h (ret_24h = 6 × 4h candles)
+HOLD_HOURS_S9 = 48           # 48h hold (12 candles) — best test performance
+
 # ── DXY Filter (critical for S4) ─────────────────────────────────────
 # S4 shorts only fire when the dollar is rising. Without DXY gating,
 # S4 shorts in bull markets and loses. See CLAUDE.md "Gotchas" section.
@@ -134,7 +142,7 @@ LEVERAGE = 2.0
 # Formula in strat_size(): base * (z/4 clamped 0.5-2.0) * haircut.
 SIZE_PCT = 0.12           # 12% of current capital per position (reduced from 15%)
 SIZE_BONUS = 0.03         # bonus for high-z signals (z > 4)
-STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67, "S8": 6.99}
+STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67, "S8": 6.99, "S9": 8.71}
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
 
 # ── Capital & Position Limits ────────────────────────────────────────
@@ -906,6 +914,20 @@ class MultiSignalBot:
                     "hold_hours": HOLD_HOURS_S8,
                 })
 
+            # S9: Fade extreme move — when a token moves >20% in 24h, fade it.
+            # Pumps are faded (short), dumps are bought (long). Mean reversion on
+            # individual token extremes. z=8.71 (MC), strongest signal in the bot.
+            # See backtest_wild.py.
+            if abs(f.get("ret_24h", 0)) >= S9_RET_THRESH:
+                s9_dir = -1 if f["ret_24h"] > 0 else 1
+                signals.append({
+                    "symbol": sym, "direction": s9_dir, "strategy": "S9",
+                    "z": STRAT_Z["S9"],
+                    "info": f"Fade r24h={f['ret_24h']:+.0f}{oi_tag}",
+                    "strength": abs(f["ret_24h"]),
+                    "hold_hours": HOLD_HOURS_S9,
+                })
+
             # S6 REMOVED — loses in portfolio despite z=8.04 in isolation
 
         # Track signal age + retest detection (observation only)
@@ -1413,8 +1435,17 @@ class MultiSignalBot:
                 s8_syms.append(sym)
         if s8_syms:
             active_signals.append(f"S8: {', '.join(s8_syms[:5])} capitulation flush")
+        # S9 fade extreme
+        s9_syms = []
+        for sym in TRADE_SYMBOLS:
+            f = self._get_cached_features(sym) or self._compute_features(sym)
+            if f and abs(f.get("ret_24h", 0)) >= S9_RET_THRESH:
+                d = "S" if f["ret_24h"] > 0 else "L"
+                s9_syms.append(f"{sym}({d})")
+        if s9_syms:
+            active_signals.append(f"S9: {', '.join(s9_syms[:5])} fade extreme")
         return {
-            "version": VERSION, "strategy": "Multi-Signal (S1+S2+S4+S5+S8)",
+            "version": VERSION, "strategy": "Multi-Signal (S1+S2+S4+S5+S8+S9)",
             "execution_mode": EXECUTION_MODE,
             "paused": self._paused, "running": self.running,
             "degraded": list(self._degraded),

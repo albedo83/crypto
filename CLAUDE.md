@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 2 files** : `analysis/reversal.py` (~1600 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-Version in `VERSION` constant (currently 10.4.1). Dashboard on `:8097`.
+Version in `VERSION` constant (currently 10.5.0). Dashboard on `:8097`.
 
 ### Execution Modes
 
@@ -48,7 +48,7 @@ Hyperliquid REST API (read)
             ▼
     analysis/reversal.py  (single asyncio process)
     ├── Features (24 calculated per token, 13 used in production)
-    ├── 5 signals (S1, S2, S4, S5, S8)
+    ├── 6 signals (S1, S2, S4, S5, S8, S9)
     ├── Crowding engine (OI + funding + premium → score 0-100)
     ├── Position manager (max 6/4dir/2sect, stop -25%/-15%, 48-72h timeout)
     ├── Signal quarantine (win rate < 20% → auto-disable)
@@ -91,8 +91,9 @@ Hyperliquid SDK (write)
 | S4 | Vol contraction + DXY rising > +1% | SHORT | 2.95 | 72h | $11 |
 | S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $14 |
 | S8 | Drawdown < -40% + vol spike + BTC weak | LONG | 6.99 | 60h | $26 |
+| S9 | Token move > ±20% in 24h | FADE | 8.71 | 48h | $30 |
 
-All 5 survived train/test split + Monte Carlo + portfolio integration + walk-forward validation.
+All 6 survived train/test split + Monte Carlo validation.
 
 ### Config
 
@@ -145,6 +146,12 @@ All in `analysis/`. The backtest files document the exhaustive search that led t
 | `backtest_v920.py` | Full portfolio backtest all signals combined | Final validation |
 | `backtest_genetic_final.py` | Combined portfolio with compounding | Final numbers |
 | `backtest_robustness.py` | Walk-forward rolling + leave-N-tokens-out | Confirms all signals |
+| `backtest_pairs.py` | Intra-sector pairs trading (market-neutral) | Mean reversion doesn't work, even hedged |
+| `backtest_funding.py` | Funding carry (short high-funding tokens) | Edge too small, costs eat it |
+| `backtest_premium.py` | Premium mean reversion (perp vs spot) | z=1.41, doesn't pass MC |
+| `backtest_sessions.py` | Intra-day session effects (Asia/EU/US) | No systematic bias |
+| `backtest_decorr.py` | BTC/alts correlation breakdown | z=2.37 (weak, +8 bps/trade) |
+| `backtest_wild.py` | 6 unconventional strategies (weekend, fade, disp, vol, momentum, Monday) | **Found S9** (fade extreme, z=8.71) |
 
 Bot documentation (French): `docs/bot.md`
 

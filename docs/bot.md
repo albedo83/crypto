@@ -1,4 +1,4 @@
-# Multi-Signal Bot v10.4.1
+# Multi-Signal Bot v10.5.0
 
 Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. Un seul fichier Python, pas de base de donnees.
 
@@ -79,6 +79,18 @@ Le bot achete les crashs (S2, S8), suit le momentum BTC→alts (S1), shorte les 
 **Pire scenario** : 7 pertes consecutives en avril 2024 (crash prolonge), drawdown -$265.
 **Risque de liquidite** : S8 achete exactement quand les carnets d'ordres se vident sur un DEX. Le slippage reel peut etre 5-10x plus eleve que les 3 bps simules. En production : ordres limit (maker) pour etre le filet qui attrape les liquidations.
 
+### S9 — Fade extreme (+20% en 24h)
+
+**Quoi** : si un token a bouge de plus de ±20% en 24h, prendre la position inverse (fade). Si +20% → SHORT, si -20% → LONG.
+**Pourquoi** : les mouvements extremes individuels revertent. Les pumps retombent, les dumps rebondissent. Contrairement a S2/S8 (signaux macro), S9 est un signal par token.
+**Type** : contrarien / mean reversion individuelle.
+**Frequence** : ~12/mois au seuil 20%.
+**Mise** : $300 (la plus grosse, z le plus eleve). **Hold** : 48h. **Stop** : -25% leveraged (standard).
+**z-score** : 8.71 (MC). Le signal le plus fort du bot.
+**Backtest** : thresh=2000 hold=48h. Train: +255 bps/trade. Test: +558 bps/trade. N=295.
+**Conditions exactes** : `abs(ret_24h) >= 2000 bps`.
+**Risque** : shorter un token en plein pump peut conduire a un squeeze si le mouvement continue. Le stop -25% limite la perte.
+
 ---
 
 ## Parametres
@@ -88,7 +100,7 @@ Le bot achete les crashs (S2, S8), suit le momentum BTC→alts (S1), shorte les 
 | **Levier** | 2x | Sweep 1x-3x : 2x optimal. 3x = ruine par compounding des pertes. |
 | **Sizing** | 12% base + 3% bonus (z>4), z-weighted | Plus le signal est fiable, plus la mise est grosse. S8 haircut ×0.8 (liquidite mince). |
 | **Compounding** | Oui | Capital = $1000 + P&L cumule. Les mises suivent les gains et les pertes. |
-| **Hold** | 72h (S1/S2/S4), 48h (S5), 60h (S8) | Timeout automatique. Stop de profit teste : degrade les resultats. |
+| **Hold** | 72h (S1/S2/S4), 48h (S5/S9), 60h (S8) | Timeout automatique. Stop de profit teste : degrade les resultats. |
 | **Stop loss** | -2500 bps (S1/S2/S4/S5), -1500 bps (S8) | -25% leveraged = -12.5% mouvement de prix. S8 plus serre (-15% = -7.5%). |
 | **Frais simules** | 12 bps × 2 = 24 bps/trade | 7 taker + 3 slippage + 2 funding. Conservateur. |
 | **Cooldown** | 24h par token apres exit | Evite de re-entrer immediatement. |
@@ -97,7 +109,8 @@ Le bot achete les crashs (S2, S8), suit le momentum BTC→alts (S1), shorte les 
 
 | Signal | z-score | Mise | Logique |
 |---|---|---|---|
-| S8 | 6.99 | $262 | Le plus fiable × haircut liquidite 0.8 |
+| S9 | 8.71 | $300 | Le plus fort signal, z le plus eleve |
+| S8 | 6.99 | $262 | Tres fiable × haircut liquidite 0.8 |
 | S1 | 6.42 | $241 | Tres fiable, rare |
 | S2 | 4.00 | $150 | Bon mais borderline en walk-forward |
 | S5 | 3.67 | $138 | Solide |
