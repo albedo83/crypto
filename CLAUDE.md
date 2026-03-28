@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 2 files** : `analysis/reversal.py` (~1600 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-Version in `VERSION` constant (currently 10.5.0). Dashboard on `:8097`.
+Version in `VERSION` constant (currently 10.6.0). Dashboard on `:8097`.
 
 ### Execution Modes
 
@@ -48,7 +48,7 @@ Hyperliquid REST API (read)
             ▼
     analysis/reversal.py  (single asyncio process)
     ├── Features (24 calculated per token, 13 used in production)
-    ├── 6 signals (S1, S2, S4, S5, S8, S9)
+    ├── 7 signals (S1, S2, S4, S5, S8, S9, S10)
     ├── Crowding engine (OI + funding + premium → score 0-100)
     ├── Position manager (max 6/4dir/2sect, stop -25%/-15%, 48-72h timeout)
     ├── Signal quarantine (win rate < 20% → auto-disable)
@@ -92,8 +92,9 @@ Hyperliquid SDK (write)
 | S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $14 |
 | S8 | Drawdown < -40% + vol spike + BTC weak | LONG | 6.99 | 60h | $26 |
 | S9 | Token move > ±20% in 24h | FADE | 8.71 | 48h | $30 |
+| S10 | Squeeze + false breakout | FADE breakout | 3.66 | 24h | $11 |
 
-All 6 survived train/test split + Monte Carlo validation.
+All 7 survived train/test split + Monte Carlo validation.
 
 ### Config
 
@@ -152,6 +153,8 @@ All in `analysis/`. The backtest files document the exhaustive search that led t
 | `backtest_sessions.py` | Intra-day session effects (Asia/EU/US) | No systematic bias |
 | `backtest_decorr.py` | BTC/alts correlation breakdown | z=2.37 (weak, +8 bps/trade) |
 | `backtest_wild.py` | 6 unconventional strategies (weekend, fade, disp, vol, momentum, Monday) | **Found S9** (fade extreme, z=8.71) |
+| `backtest_squeeze.py` | Squeeze + false breakout expansion (Mode A/B) | **Found S10** (Mode B fade, z=3.66) |
+| `backtest_squeeze_validation.py` | S10 deep validation: 5 checks (concentration, temporal, costs, params, uniqueness) | All 5 pass |
 
 Bot documentation (French): `docs/bot.md`
 

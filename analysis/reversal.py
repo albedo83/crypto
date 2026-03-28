@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.5.0 — Six strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.6.0 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -7,6 +7,7 @@ Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S5: sector divergence > 10% + volume → FOLLOW (z=3.67, sector breakout)
   S8: capitulation flush + BTC weak → LONG     (z=6.99, buy market-wide flushes)
   S9: token move > ±20% in 24h → FADE          (z=8.71, strongest signal)
+  S10: squeeze + false breakout → FADE breakout  (z=3.66, most frequent)
 
 Config:
   Leverage: 2x (optimal from parameter sweep)
@@ -49,7 +50,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.5.0"
+VERSION = "10.6.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -128,6 +129,19 @@ HOLD_HOURS_S8 = 60           # 60h hold (15 candles)
 S9_RET_THRESH = 2000         # ±20% in 24h (ret_24h = 6 × 4h candles)
 HOLD_HOURS_S9 = 48           # 48h hold (12 candles) — best test performance
 
+# ── S10 Squeeze Expansion Params (FROZEN — do not re-optimize) ──────
+# Compression → false breakout → reintegration → fade breakout direction.
+# Mode B: trade OPPOSITE to the failed breakout. z=3.66 (MC).
+# Config locked: sw=12h, vm=0.9, bo=0.5, rc=2, hold=24h.
+# 76% of trades are unique (no overlap with S1-S9). 10/12 quarters positive.
+# Survives 30 bps costs. See backtest_squeeze.py + backtest_squeeze_validation.py.
+S10_SQUEEZE_WINDOW = 3       # 3 candles = 12h range window
+S10_VOL_RATIO_MAX = 0.9      # vol_ratio must be below this (compressed)
+S10_BREAKOUT_PCT = 0.5        # breakout must exceed 50% of range
+S10_REINT_CANDLES = 2         # must reintegrate within 2 candles
+HOLD_HOURS_S10 = 24           # 24h hold (6 candles)
+S10_CAPITAL_SHARE = 0.15      # 15% of total capital reserved for S10
+
 # ── DXY Filter (critical for S4) ─────────────────────────────────────
 # S4 shorts only fire when the dollar is rising. Without DXY gating,
 # S4 shorts in bull markets and loses. See CLAUDE.md "Gotchas" section.
@@ -142,7 +156,7 @@ LEVERAGE = 2.0
 # Formula in strat_size(): base * (z/4 clamped 0.5-2.0) * haircut.
 SIZE_PCT = 0.12           # 12% of current capital per position (reduced from 15%)
 SIZE_BONUS = 0.03         # bonus for high-z signals (z > 4)
-STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67, "S8": 6.99, "S9": 8.71}
+STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
 
 # ── Capital & Position Limits ────────────────────────────────────────
@@ -766,10 +780,65 @@ class MultiSignalBot:
     def _get_cached_features(self, symbol: str) -> dict | None:
         return self._feature_cache.get(symbol)
 
+    def _detect_squeeze(self, sym: str) -> dict | None:
+        """Detect squeeze → false breakout → reintegration (S10).
+
+        Looks at last few closed 4h candles:
+          - candles[-5:-2] = squeeze window (3 candles, 12h)
+          - candles[-2] = breakout candle (must exceed range by 50%)
+          - candles[-1] = reintegration candle (must close inside range)
+        Returns {"direction": 1/-1, "range_pct": float, "bo_dir": str} or None.
+        """
+        st = self.states.get(sym)
+        if not st or len(st.candles_4h) < 6:
+            return None
+
+        # Check vol_ratio from cached features
+        f = self._get_cached_features(sym)
+        if not f or f.get("vol_ratio", 2) > S10_VOL_RATIO_MAX:
+            return None
+
+        candles = list(st.candles_4h)
+
+        # Squeeze window: 3 candles before the breakout
+        sq_start = len(candles) - 2 - S10_SQUEEZE_WINDOW
+        if sq_start < 0:
+            return None
+        sq_candles = candles[sq_start:sq_start + S10_SQUEEZE_WINDOW]
+
+        range_high = max(c["h"] for c in sq_candles)
+        range_low = min(c["l"] for c in sq_candles)
+        range_size = range_high - range_low
+        if range_size <= 0 or range_low <= 0:
+            return None
+
+        # Breakout candle: second-to-last closed candle
+        bo = candles[-2]
+        threshold = range_size * S10_BREAKOUT_PCT
+        bo_above = bo["h"] > range_high + threshold
+        bo_below = bo["l"] < range_low - threshold
+        if not bo_above and not bo_below:
+            return None
+        if bo_above and bo_below:  # both sides = not a clean squeeze
+            return None
+        bo_dir = 1 if bo_above else -1
+
+        # Reintegration: last closed candle must close inside range
+        reint = candles[-1]
+        if not (range_low <= reint["c"] <= range_high):
+            return None
+
+        # Mode B: fade the breakout
+        return {
+            "direction": -bo_dir,
+            "range_pct": round(range_size / range_low * 100, 2),
+            "bo_dir": "UP" if bo_dir == 1 else "DOWN",
+        }
+
     # ── Signal Detection ─────────────────────────────────────────
 
     def _scan_signals(self) -> int:
-        """Scan all 5 strategies across 28 tokens, rank by z-score, and open positions."""
+        """Scan all 7 strategies across 28 tokens, rank by z-score, and open positions."""
         now = datetime.now(timezone.utc)
         signals = []
 
@@ -928,6 +997,18 @@ class MultiSignalBot:
                     "hold_hours": HOLD_HOURS_S9,
                 })
 
+            # S10: Squeeze expansion — compression + false breakout + reintegration.
+            # Mode B: fade the failed breakout. Config frozen, do not re-optimize.
+            sq = self._detect_squeeze(sym)
+            if sq:
+                signals.append({
+                    "symbol": sym, "direction": sq["direction"], "strategy": "S10",
+                    "z": STRAT_Z["S10"],
+                    "info": f"Squeeze bo={sq['bo_dir']} rng={sq['range_pct']:.1f}%{oi_tag}",
+                    "strength": sq["range_pct"],
+                    "hold_hours": HOLD_HOURS_S10,
+                })
+
             # S6 REMOVED — loses in portfolio despite z=8.04 in isolation
 
         # Track signal age + retest detection (observation only)
@@ -1005,7 +1086,12 @@ class MultiSignalBot:
             hold_h = sig.get("hold_hours", HOLD_HOURS_DEFAULT)
             target_exit = now + timedelta(hours=hold_h)
             current_capital = CAPITAL_USDT + self._total_pnl
-            size = strat_size(sig["strategy"], current_capital)
+            # S10 has its own capital pocket (15%), S1-S9 share the rest (85%)
+            if sig["strategy"] == "S10":
+                effective_capital = current_capital * S10_CAPITAL_SHARE
+            else:
+                effective_capital = current_capital * (1 - S10_CAPITAL_SHARE)
+            size = strat_size(sig["strategy"], effective_capital)
             # Loss streak penalty: protects against correlated losses
             # (e.g. flash crash hitting multiple positions simultaneously)
             if time.time() < self._loss_streak_until:
@@ -1444,8 +1530,17 @@ class MultiSignalBot:
                 s9_syms.append(f"{sym}({d})")
         if s9_syms:
             active_signals.append(f"S9: {', '.join(s9_syms[:5])} fade extreme")
+        # S10 squeeze
+        s10_syms = []
+        for sym in TRADE_SYMBOLS:
+            sq = self._detect_squeeze(sym)
+            if sq:
+                d = "L" if sq["direction"] == 1 else "S"
+                s10_syms.append(f"{sym}({d})")
+        if s10_syms:
+            active_signals.append(f"S10: {', '.join(s10_syms[:5])} squeeze")
         return {
-            "version": VERSION, "strategy": "Multi-Signal (S1+S2+S4+S5+S8+S9)",
+            "version": VERSION, "strategy": "Multi-Signal (S1+S2+S4+S5+S8+S9+S10)",
             "execution_mode": EXECUTION_MODE,
             "paused": self._paused, "running": self.running,
             "degraded": list(self._degraded),
