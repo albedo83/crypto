@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.7.4 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.7.5 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -52,7 +52,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.7.4"
+VERSION = "10.7.5"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -187,6 +187,11 @@ COST_BPS = TAKER_FEE_BPS + SLIPPAGE_BPS + FUNDING_DRAG_BPS  # 12 bps
 # Backtest showed "no stop" is best for profit, but these prevent tail risk.
 STOP_LOSS_BPS = -2500.0        # default: -25% leveraged = -12.5% price move
 STOP_LOSS_S8 = -1500.0         # S8 tighter: -15% leveraged = -7.5% price move
+# S9 adaptive stop: bigger moves → tighter stop (more confident in reversion).
+# Formula: stop = max(-2500, -1000 - abs(ret_24h)/4).
+# Example: fade a +3000 bps move → stop = -1000-750 = -1750 bps.
+# Backtest: S9 PnL +54% vs fixed stop (backtest_signal_boost2.py Test 5).
+S9_ADAPTIVE_STOP = True
 
 # ── Portfolio Kill-Switch ────────────────────────────────────────────
 # Protects against regime change or systematic signal failure.
@@ -252,6 +257,7 @@ class Position:
     mae_bps: float = 0.0    # Max Adverse Excursion (worst unrealized during trade)
     mfe_bps: float = 0.0    # Max Favorable Excursion (best unrealized during trade)
     trajectory: list = field(default_factory=list)  # [(hours_since_entry, unrealized_bps), ...] capped at 200
+    stop_bps: float = 0.0       # per-position stop loss (0 = use default STOP_LOSS_BPS)
     # Structured entry context (for post-hoc OI analysis — populated at entry, copied to Trade at close)
     entry_oi_delta: float = 0.0      # OI delta 1h at entry (%)
     entry_crowding: int = 0          # crowding score at entry (0-100)
@@ -1043,12 +1049,15 @@ class MultiSignalBot:
             # See backtest_wild.py.
             if abs(f.get("ret_24h", 0)) >= S9_RET_THRESH:
                 s9_dir = -1 if f["ret_24h"] > 0 else 1
+                # Adaptive stop: bigger moves get tighter stops (more confident in reversion)
+                s9_stop = max(STOP_LOSS_BPS, -1000 - abs(f["ret_24h"]) / 4) if S9_ADAPTIVE_STOP else 0
                 signals.append({
                     "symbol": sym, "direction": s9_dir, "strategy": "S9",
                     "z": STRAT_Z["S9"],
-                    "info": f"Fade r24h={f['ret_24h']:+.0f}{oi_tag}",
+                    "info": f"Fade r24h={f['ret_24h']:+.0f} stop={s9_stop:.0f}{oi_tag}",
                     "strength": abs(f["ret_24h"]),
                     "hold_hours": HOLD_HOURS_S9, "ctx": _entry_ctx,
+                    "stop_bps": s9_stop,
                 })
 
             # S10: Squeeze expansion — compression + false breakout + reintegration.
@@ -1209,6 +1218,7 @@ class MultiSignalBot:
                     size_usdt=size, signal_info=sig["info"],
                     target_exit=target_exit,
                     trajectory=[(0.0, 0.0)],  # t=0 anchor point
+                    stop_bps=sig.get("stop_bps", 0.0),
                     entry_oi_delta=ctx.get("oi_delta", 0.0),
                     entry_crowding=ctx.get("crowding", 0),
                     entry_confluence=ctx.get("confluence", 0),
@@ -1255,8 +1265,13 @@ class MultiSignalBot:
                 if len(pos.trajectory) < 200:  # cap to prevent unbounded growth
                     pos.trajectory.append((round(hours_held, 1), round(unrealized, 1)))
 
-            # Per-strategy stop loss (S8 backtested with tighter stop)
-            stop = STOP_LOSS_S8 if pos.strategy == "S8" else STOP_LOSS_BPS
+            # Per-strategy stop loss: S8 tighter, S9 adaptive, others default
+            if pos.strategy == "S8":
+                stop = STOP_LOSS_S8
+            elif pos.stop_bps != 0:
+                stop = pos.stop_bps  # S9 adaptive stop stored at entry
+            else:
+                stop = STOP_LOSS_BPS
 
             exit_reason = None
             if now >= pos.target_exit:
@@ -1453,7 +1468,7 @@ class MultiSignalBot:
                 "entry_price": p.entry_price, "entry_time": p.entry_time.isoformat(),
                 "size_usdt": p.size_usdt, "signal_info": p.signal_info,
                 "target_exit": p.target_exit.isoformat(),
-                "mae_bps": p.mae_bps, "mfe_bps": p.mfe_bps,
+                "mae_bps": p.mae_bps, "mfe_bps": p.mfe_bps, "stop_bps": p.stop_bps,
                 "trajectory": p.trajectory,
                 "entry_oi_delta": p.entry_oi_delta, "entry_crowding": p.entry_crowding,
                 "entry_confluence": p.entry_confluence, "entry_session": p.entry_session,
@@ -1499,6 +1514,7 @@ class MultiSignalBot:
                     target_exit=datetime.fromisoformat(p["target_exit"]),
                     mae_bps=p.get("mae_bps", 0.0),
                     mfe_bps=p.get("mfe_bps", 0.0),
+                    stop_bps=p.get("stop_bps", 0.0),
                     trajectory=p.get("trajectory", []),
                     entry_oi_delta=p.get("entry_oi_delta", 0.0),
                     entry_crowding=p.get("entry_crowding", 0),
