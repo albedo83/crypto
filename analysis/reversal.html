@@ -103,9 +103,9 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="controls">
-  <button class="btn danger" onclick="fetch('/api/pause',{method:'POST',credentials:'same-origin'}).then(r)">STOP</button>
-  <button class="btn success" onclick="fetch('/api/resume',{method:'POST',credentials:'same-origin'}).then(r)">RESUME</button>
-  <button class="btn danger" onclick="if(confirm('Reset?'))fetch('/api/reset',{method:'POST',credentials:'same-origin'}).then(r)">RAZ</button>
+  <button class="btn danger" onclick="fetch('api/pause',{method:'POST',credentials:'same-origin'}).then(r)">STOP</button>
+  <button class="btn success" onclick="fetch('api/resume',{method:'POST',credentials:'same-origin'}).then(r)">RESUME</button>
+  <button class="btn danger" onclick="if(confirm('Reset?'))fetch('api/reset',{method:'POST',credentials:'same-origin'}).then(r)">RAZ</button>
 </div>
 
 <div class="section">
@@ -181,7 +181,7 @@ function flashCard(id){
 }
 
 function refresh(){
-  fetch('/api/state',{credentials:'same-origin'}).then(r=>r.json()).then(s=>{
+  fetch('api/state',{credentials:'same-origin'}).then(r=>r.json()).then(s=>{
     _lastFetch=Date.now()/1000;
     _priceAge=s.last_price_s;
     _nextScan=s.next_scan_s;
@@ -308,7 +308,7 @@ function refresh(){
 }
 
 function refreshSignals(){
-  fetch('/api/signals',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
+  fetch('api/signals',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
     const el=document.getElementById('signals');
     el.innerHTML='';
     // Header: market conditions
@@ -347,7 +347,7 @@ function refreshSignals(){
 }
 
 function refreshTrades(){
-  fetch('/api/trades',{credentials:'same-origin'}).then(r=>r.json()).then(trades=>{
+  fetch('api/trades',{credentials:'same-origin'}).then(r=>r.json()).then(trades=>{
     const tb=document.getElementById('trades-body');
     tb.innerHTML='';
     trades.forEach(t=>{
@@ -371,7 +371,7 @@ function refreshTrades(){
   }).catch(e=>console.warn('trades fetch error:',e));
 
   // P&L curve
-  fetch('/api/pnl',{credentials:'same-origin'}).then(r=>r.json()).then(pts=>{
+  fetch('api/pnl',{credentials:'same-origin'}).then(r=>r.json()).then(pts=>{
     const canvas=document.getElementById('pnl-canvas');
     const ctx=canvas.getContext('2d');
     canvas.width=canvas.parentElement.clientWidth;

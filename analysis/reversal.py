@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.7.2 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.7.4 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -11,10 +11,11 @@ Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
 
 Config:
   Leverage: 2x (optimal from parameter sweep)
-  Hold: 72h (S1/S2/S4), 48h (S5), 60h (S8)
+  Hold: 72h (S1/S2/S4), 48h (S5/S9), 60h (S8), 24h (S10)
+  S2 early exit: close when alt_index > -200 bps (market recovered)
   Sizing: 12% base + 3% bonus (z>4), z-weighted, S8 haircut 0.8
   Stop: -25% leveraged (S1/S2/S4/S5), -15% (S8)
-  Max 6 positions, max 4 same direction, max 2 per sector
+  Max 6 positions, max 4 same direction, max 2 per sector, max 2 macro / 3 token
   Kill-switch: auto-pause if P&L < -$300, sizing /2 after 3 losses
   DXY filter: S4 only active when dollar rising (+1%/7d)
   OI + funding: collected for observation, not used for signals yet
@@ -51,7 +52,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.7.2"
+VERSION = "10.7.4"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -129,6 +130,10 @@ HOLD_HOURS_S8 = 60           # 60h hold (15 candles)
 # See backtest_wild.py test_fade_extremes().
 S9_RET_THRESH = 2000         # ±20% in 24h (ret_24h = 6 × 4h candles)
 HOLD_HOURS_S9 = 48           # 48h hold (12 candles) — best test performance
+# S2 early exit: if alt_index recovers above this threshold, close S2 early.
+# Backtest: +87% P&L vs holding full 72h (cuts losers when market bounces).
+# See backtest_signal_boost.py Test 4.
+S2_EARLY_EXIT_BPS = -200     # exit S2 when alt_index > -200 bps (recovered ~80%)
 
 # ── S10 Squeeze Expansion Params (FROZEN — do not re-optimize) ──────
 # Compression → false breakout → reintegration → fade breakout direction.
@@ -165,6 +170,12 @@ CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))
 MAX_POSITIONS = 6
 MAX_SAME_DIRECTION = 4    # prevents all-long or all-short concentration
 MAX_PER_SECTOR = 2        # prevents overexposure to correlated tokens
+# Slot reservation: macro signals (S1/S2/S4) fire on ALL tokens at once and would
+# fill all 6 slots. Reserving slots for token-level signals (S5/S8/S9/S10) improves
+# risk-adjusted returns: DD -32% vs -44%, test P&L +$771 vs -$556 (backtest_slot_reservation.py).
+MAX_MACRO_SLOTS = 2       # max S1/S2/S4 positions at once (best 2 tokens only)
+MAX_TOKEN_SLOTS = 3       # max S5/S8/S9/S10 positions at once
+MACRO_STRATEGIES = {"S1", "S2", "S4"}
 
 # ── Costs (applied at exit, per leg, scaled by leverage) ─────────────
 TAKER_FEE_BPS = 7.0
@@ -1117,6 +1128,16 @@ class MultiSignalBot:
                 log.debug("SKIP %s %s %s: max_direction", sig["strategy"], side, sym)
                 continue
 
+            # Slot reservation: macro vs token-level signals
+            n_macro = sum(1 for p in self.positions.values() if p.strategy in MACRO_STRATEGIES)
+            n_token_sig = sum(1 for p in self.positions.values() if p.strategy not in MACRO_STRATEGIES)
+            if sig["strategy"] in MACRO_STRATEGIES and n_macro >= MAX_MACRO_SLOTS:
+                log.debug("SKIP %s %s %s: max_macro (%d/%d)", sig["strategy"], side, sym, n_macro, MAX_MACRO_SLOTS)
+                continue
+            if sig["strategy"] not in MACRO_STRATEGIES and n_token_sig >= MAX_TOKEN_SLOTS:
+                log.debug("SKIP %s %s %s: max_token (%d/%d)", sig["strategy"], side, sym, n_token_sig, MAX_TOKEN_SLOTS)
+                continue
+
             # Sector concentration limit
             sym_sector = TOKEN_SECTOR.get(sym)
             if sym_sector:
@@ -1242,6 +1263,13 @@ class MultiSignalBot:
                 exit_reason = "timeout"
             elif unrealized < stop:
                 exit_reason = "catastrophe_stop"
+            # S2 early exit: if alt market has recovered, cut the position.
+            # Backtest showed +87% P&L vs holding full 72h (backtest_signal_boost.py).
+            # Min 12h hold to avoid whipsaw on intra-day bounces.
+            elif pos.strategy == "S2" and hours_held >= 12:
+                alt_idx = self._compute_alt_index()
+                if alt_idx > S2_EARLY_EXIT_BPS:
+                    exit_reason = "alt_recovery"
 
             if exit_reason:
                 self._close_position(sym, st.price, now, exit_reason)
@@ -1445,7 +1473,7 @@ class MultiSignalBot:
                 data = orjson.loads(f.read())
             self._total_pnl = data.get("total_pnl", 0)
             self._wins = data.get("wins", 0)
-            self._peak_balance = data.get("peak_balance", CAPITAL_USDT + self._total_pnl)
+            self._peak_balance = max(data.get("peak_balance", 0), CAPITAL_USDT + self._total_pnl)
             self._last_daily_report = data.get("last_daily_report", 0)
             self._paused = data.get("paused", False)
             self._consecutive_losses = data.get("consecutive_losses", 0)
@@ -1979,9 +2007,10 @@ async def run():
              strat_size("S4", main_cap), strat_size("S5", main_cap),
              strat_size("S8", main_cap), strat_size("S9", main_cap), main_cap,
              strat_size("S10", s10_cap), s10_cap)
-    log.info("Hold: %dh (S5: %dh, S8: %dh) | Stop: %d bps (S8: %d) | Lev: %.0fx | Max: %d pos / %d dir / %d sect",
+    log.info("Hold: %dh (S5: %dh, S8: %dh) | Stop: %d bps (S8: %d) | Lev: %.0fx | Max: %d pos / %d dir / %d sect / %d macro / %d token",
              HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
-             STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION, MAX_PER_SECTOR)
+             STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION, MAX_PER_SECTOR,
+             MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS)
     log.info("Kill-switch: loss cap $%.0f | streak threshold %d → %.0f%% sizing for %dh",
              TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER * 100, LOSS_STREAK_COOLDOWN // 3600)
     bot._send_telegram(

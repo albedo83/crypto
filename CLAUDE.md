@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 2 files** : `analysis/reversal.py` (~1900 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-Version in `VERSION` constant (currently 10.7.0). Dashboard on `:8097`.
+Version in `VERSION` constant (currently 10.7.4). Dashboard on `:8097`.
 
 ### Execution Modes
 
@@ -89,7 +89,7 @@ Hyperliquid SDK (write)
 | Signal | Condition | Action | z-score | Hold | Size ($100) |
 |--------|-----------|--------|---------|------|-------------|
 | S1 | BTC 30d > +20% | LONG alts | 6.42 | 72h | $24 |
-| S2 | Alt index 7d < -10% | LONG | 4.00 | 72h | $15 |
+| S2 | Alt index 7d < -10% | LONG (early exit on recovery) | 4.00 | 72h max | $15 |
 | S4 | Vol contraction + DXY rising > +1% | SHORT | 2.95 | 72h | $11 |
 | S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $14 |
 | S8 | Drawdown < -40% + vol spike + BTC weak | LONG | 6.99 | 60h | $26 |
@@ -158,6 +158,8 @@ All in `analysis/`. The backtest files document the exhaustive search that led t
 | `backtest_wild.py` | 6 unconventional strategies (weekend, fade, disp, vol, momentum, Monday) | **Found S9** (fade extreme, z=8.71) |
 | `backtest_squeeze.py` | Squeeze + false breakout expansion (Mode A/B) | **Found S10** (Mode B fade, z=3.66) |
 | `backtest_squeeze_validation.py` | S10 deep validation: 5 checks (concentration, temporal, costs, params, uniqueness) | All 5 pass |
+| `backtest_slot_reservation.py` | Slot reservation: macro vs token signal allocation | **Macro 2 / Token 3** optimal (DD -32% vs -44%) |
+| `backtest_signal_boost.py` | 5 targeted improvements: S2 BTC filter, S9 threshold, S10 window, S2 early exit, S5 boost | **S2 early exit at -200bps** best (+87% P&L) |
 
 Bot documentation (French): `docs/bot.md`
 
@@ -186,6 +188,8 @@ Bot documentation (French): `docs/bot.md`
 - **Dashboard auth**: HTTP Basic Auth via `DASHBOARD_USER`/`DASHBOARD_PASS` in `.env`. Empty = no auth. Uses `secrets.compare_digest` (timing-safe).
 - **Auto-restart**: `@reboot` crontab runs `start_bots.sh` which starts both instances + sends Telegram alert on VPS reboot.
 - **Dual instances**: Paper (:8097, `analysis/output/`) and Live (:8098, `analysis/output_live/`) run in parallel from the same code. Only DXY cache is shared (global market data).
+- **Slot reservation**: Macro signals (S1/S2/S4) limited to 2 slots, token signals (S5/S8/S9/S10) to 3. Prevents macro signals from filling all 6 slots on one scan. Backtest: DD -32% vs -44%, test P&L +$771 vs -$556 (backtest_slot_reservation.py).
+- **S2 early exit**: S2 positions close early when alt_index recovers above -200 bps (after min 12h hold). Backtest: +87% P&L vs holding full 72h (backtest_signal_boost.py Test 4). Cuts losers when market bounces instead of waiting for timeout.
 - **DXY cached in memory**: `self._dxy_cache` stores the last DXY value + timestamp. Refreshed only during hourly scan (in `to_thread`). API handlers (`get_state`, `get_signals`) read from memory, never call Yahoo. Prevents event loop blocking.
 - **Pause/Reset are sync handlers**: `api_pause()` and `api_reset()` are `def` (not `async def`) so FastAPI runs them in a threadpool. This prevents blocking the event loop during exchange close operations.
 - **Fill price from order response**: `_execute_open`/`_execute_close` extract `avgPx` directly from the Hyperliquid order response (`statuses[0]["filled"]["avgPx"]`). Falls back to `user_fills_by_time` with 500ms delay, then market price as last resort.
