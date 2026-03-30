@@ -99,6 +99,7 @@ def backtest(features, data, sector_features, dxy_data, config):
     s9_adaptive_stop = config.get("s9_adaptive_stop", False)
     immediate_entry = config.get("immediate_entry", False)
     s2_early_exit = config.get("s2_early_exit", -200)
+    s2_enabled = config.get("s2_enabled", True)
 
     effective_cost = (cost + (leverage - 1) * 2) * leverage
     macro_strats = {"S1", "S2", "S4"}
@@ -251,7 +252,7 @@ def backtest(features, data, sector_features, dxy_data, config):
                     "z": STRAT_Z["S1"], "hold": hold, "strength": strength})
 
             # S2
-            if alt_idx < -1000:
+            if s2_enabled and alt_idx < -1000:
                 s2_coins.add(coin)
                 if s2_strength_mode == "vol_z":
                     strength = f.get("vol_z", 0)

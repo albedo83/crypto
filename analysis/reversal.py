@@ -1,8 +1,8 @@
-"""Multi-Signal Bot v10.7.5 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.8.0 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
-  S2: alt_index_7d < -10% → LONG              (z=4.00, buy alt crashes)
+  S2: REMOVED — alt crash loses in portfolio, slots better used by S8/S9
   S4: vol contraction + DXY rising → SHORT     (z=2.95, filtered by dollar)
   S5: sector divergence > 10% + volume → FOLLOW (z=3.67, sector breakout)
   S8: capitulation flush + BTC weak → LONG     (z=6.99, buy market-wide flushes)
@@ -11,10 +11,10 @@ Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
 
 Config:
   Leverage: 2x (optimal from parameter sweep)
-  Hold: 72h (S1/S2/S4), 48h (S5/S9), 60h (S8), 24h (S10)
+  Hold: 72h (S1/S4), 48h (S5/S9), 60h (S8), 24h (S10)
   S2 early exit: close when alt_index > -200 bps (market recovered)
   Sizing: 12% base + 3% bonus (z>4), z-weighted, S8 haircut 0.8
-  Stop: -25% leveraged (S1/S2/S4/S5), -15% (S8)
+  Stop: -25% leveraged (S1/S4/S5), -15% (S8), adaptive (S9)
   Max 6 positions, max 4 same direction, max 2 per sector, max 2 macro / 3 token
   Kill-switch: auto-pause if P&L < -$300, sizing /2 after 3 losses
   DXY filter: S4 only active when dollar rising (+1%/7d)
@@ -52,7 +52,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.7.5"
+VERSION = "10.8.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -162,7 +162,8 @@ LEVERAGE = 2.0
 # Formula in strat_size(): base * (z/4 clamped 0.5-2.0) * haircut.
 SIZE_PCT = 0.12           # 12% of current capital per position (reduced from 15%)
 SIZE_BONUS = 0.03         # bonus for high-z signals (z > 4)
-STRAT_Z = {"S1": 6.42, "S2": 4.00, "S4": 2.95, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
+STRAT_Z = {"S1": 6.42, "S4": 2.95, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
+# S2 removed: alt crash mean-reversion loses in portfolio, blocks better signals
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
 
 # ── Capital & Position Limits ────────────────────────────────────────
@@ -175,7 +176,7 @@ MAX_PER_SECTOR = 2        # prevents overexposure to correlated tokens
 # risk-adjusted returns: DD -32% vs -44%, test P&L +$771 vs -$556 (backtest_slot_reservation.py).
 MAX_MACRO_SLOTS = 2       # max S1/S2/S4 positions at once (best 2 tokens only)
 MAX_TOKEN_SLOTS = 3       # max S5/S8/S9/S10 positions at once
-MACRO_STRATEGIES = {"S1", "S2", "S4"}
+MACRO_STRATEGIES = {"S1", "S4"}
 
 # ── Costs (applied at exit, per leg, scaled by leverage) ─────────────
 TAKER_FEE_BPS = 7.0
@@ -895,7 +896,7 @@ class MultiSignalBot:
     # ── Signal Detection ─────────────────────────────────────────
 
     def _scan_signals(self) -> int:
-        """Scan S1/S2/S4/S5/S8/S9/S10 across 28 tokens, rank by z-score, and open positions."""
+        """Scan S1/S4/S5/S8/S9/S10 across 28 tokens, rank by z-score, and open positions."""
         now = datetime.now(timezone.utc)
         signals = []
 
@@ -990,16 +991,10 @@ class MultiSignalBot:
                     "hold_hours": HOLD_HOURS_DEFAULT, "ctx": _entry_ctx,
                 })
 
-            # S2: Mean-reversion after alt crash — when the alt index drops >10%/7d,
-            # the market is oversold and bounces. Classic "buy the dip" (z=4.00).
-            if alt_index < -1000:
-                signals.append({
-                    "symbol": sym, "direction": 1, "strategy": "S2",
-                    "z": STRAT_Z["S2"],
-                    "info": f"AltIdx={alt_index:+.0f}bps{oi_tag}",
-                    "strength": abs(alt_index),
-                    "hold_hours": HOLD_HOURS_DEFAULT, "ctx": _entry_ctx,
-                })
+            # S2 REMOVED — Alt crash mean-reversion (z=4.00) loses in portfolio.
+            # S2 takes 2 macro slots (on max 2) and blocks S1/S8/S9 which are more profitable.
+            # Backtest: removing S2 gives +$762 P&L, -1.9% DD (backtest_signal_boost2.py).
+            # S8 (capitulation flush) covers the "buy extreme crash" case much better.
 
             # S4: Volatility compression + rising dollar → SHORT. Quiet markets
             # with a strengthening USD precede alt drawdowns. DXY filter is critical:
@@ -1278,14 +1273,6 @@ class MultiSignalBot:
                 exit_reason = "timeout"
             elif unrealized < stop:
                 exit_reason = "catastrophe_stop"
-            # S2 early exit: if alt market has recovered, cut the position.
-            # Backtest showed +87% P&L vs holding full 72h (backtest_signal_boost.py).
-            # Min 12h hold to avoid whipsaw on intra-day bounces.
-            elif pos.strategy == "S2" and hours_held >= 12:
-                alt_idx = self._compute_alt_index()
-                if alt_idx > S2_EARLY_EXIT_BPS:
-                    exit_reason = "alt_recovery"
-
             if exit_reason:
                 self._close_position(sym, st.price, now, exit_reason)
                 exits += 1
@@ -1654,8 +1641,7 @@ class MultiSignalBot:
         active_signals = []
         if btc_f.get("btc_30d", 0) > 2000:
             active_signals.append(f"S1: BTC 30d = {btc_f['btc_30d']:+.0f}bps → LONG")
-        if alt_idx < -1000:
-            active_signals.append(f"S2: Alt index = {alt_idx:+.0f}bps → LONG")
+        # S2 removed — alt crash mean-reversion loses in portfolio
         # DXY status (use in-memory cache — never call Yahoo from API handler)
         dxy_7d = self._dxy_cache[0]
         dxy_active = dxy_7d > DXY_BOOST_THRESHOLD
@@ -1707,7 +1693,7 @@ class MultiSignalBot:
         if s10_syms:
             active_signals.append(f"S10: {', '.join(s10_syms[:5])} squeeze")
         return {
-            "version": VERSION, "strategy": "Multi-Signal (S1+S2+S4+S5+S8+S9+S10)",
+            "version": VERSION, "strategy": "Multi-Signal (S1+S4+S5+S8+S9+S10)",
             "execution_mode": EXECUTION_MODE,
             "paused": self._paused, "running": self.running,
             "degraded": list(self._degraded),
@@ -1759,8 +1745,7 @@ class MultiSignalBot:
             triggered = []
             if btc_f.get("btc_30d", 0) > 2000:
                 triggered.append("S1:LONG")
-            if alt_idx < -1000:
-                triggered.append("S2:LONG")
+            # S2 removed
             if f.get("vol_ratio", 2) < 1.0 and f.get("range_pct", 999) < 200:
                 if dxy_val > DXY_BOOST_THRESHOLD:
                     triggered.append("S4:SHORT")
@@ -2017,9 +2002,9 @@ async def run():
              VERSION, mode_tag, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
     main_cap = CAPITAL_USDT * (1 - S10_CAPITAL_SHARE)
     s10_cap = CAPITAL_USDT * S10_CAPITAL_SHARE
-    log.info("Sizing (initial, adjusts with P&L): %d%%+%d%% z-weighted | S1=$%.0f S2=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f (at $%.0f) | S10=$%.0f (at $%.0f)",
+    log.info("Sizing (initial, adjusts with P&L): %d%%+%d%% z-weighted | S1=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f (at $%.0f) | S10=$%.0f (at $%.0f)",
              SIZE_PCT * 100, SIZE_BONUS * 100,
-             strat_size("S1", main_cap), strat_size("S2", main_cap),
+             strat_size("S1", main_cap),
              strat_size("S4", main_cap), strat_size("S5", main_cap),
              strat_size("S8", main_cap), strat_size("S9", main_cap), main_cap,
              strat_size("S10", s10_cap), s10_cap)
