@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.8.0 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.8.0 — Six strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -12,7 +12,6 @@ Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
 Config:
   Leverage: 2x (optimal from parameter sweep)
   Hold: 72h (S1/S4), 48h (S5/S9), 60h (S8), 24h (S10)
-  S2 early exit: close when alt_index > -200 bps (market recovered)
   Sizing: 12% base + 3% bonus (z>4), z-weighted, S8 haircut 0.8
   Stop: -25% leveraged (S1/S4/S5), -15% (S8), adaptive (S9)
   Max 6 positions, max 4 same direction, max 2 per sector, max 2 macro / 3 token
@@ -89,7 +88,7 @@ ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
 # ── Hold Periods ─────────────────────────────────────────────────────
 # Optimized via parameter sweep in backtest_boost.py.
 # Shorter holds lose edge to costs; longer holds add drawdown without profit.
-HOLD_HOURS_DEFAULT = 72   # 3 days (18 × 4h candles) for S1, S2, S4
+HOLD_HOURS_DEFAULT = 72   # 3 days (18 × 4h candles) for S1, S4
 HOLD_HOURS_S5 = 48        # 2 days — sector divergences revert faster
 
 # Sectors (for S5 divergence)
@@ -130,11 +129,6 @@ HOLD_HOURS_S8 = 60           # 60h hold (15 candles)
 # See backtest_wild.py test_fade_extremes().
 S9_RET_THRESH = 2000         # ±20% in 24h (ret_24h = 6 × 4h candles)
 HOLD_HOURS_S9 = 48           # 48h hold (12 candles) — best test performance
-# S2 early exit: if alt_index recovers above this threshold, close S2 early.
-# Backtest: +87% P&L vs holding full 72h (cuts losers when market bounces).
-# See backtest_signal_boost.py Test 4.
-S2_EARLY_EXIT_BPS = -200     # exit S2 when alt_index > -200 bps (recovered ~80%)
-
 # ── S10 Squeeze Expansion Params (FROZEN — do not re-optimize) ──────
 # Compression → false breakout → reintegration → fade breakout direction.
 # Mode B: trade OPPOSITE to the failed breakout. z=3.66 (MC).
@@ -1960,6 +1954,7 @@ def api_reset():
             bot._close_position(sym, st.price, now, "reset")
     bot._total_pnl = 0.0
     bot._wins = 0
+    bot._peak_balance = CAPITAL_USDT
     bot._consecutive_losses = 0
     bot._loss_streak_until = 0
     bot._cooldowns.clear()

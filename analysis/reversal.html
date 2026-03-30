@@ -314,7 +314,7 @@ function refreshSignals(){
     // Header: market conditions
     const hdr=document.createElement('div');
     hdr.style.cssText='padding:4px 8px;color:#7d8590;font-size:12px;grid-column:1/-1';
-    hdr.textContent=`BTC 30d: ${fmt(d.btc_30d||0,0)}bps ${d.btc_30d>2000?'-> S1 LONG':''}  |  Alt Index: ${fmt(d.alt_index||0,0)}bps ${d.alt_index<-1000?'-> S2 LONG':''}`;
+    hdr.textContent=`BTC 30d: ${fmt(d.btc_30d||0,0)}bps ${d.btc_30d>2000?'-> S1 LONG':''}  |  Alt Index: ${fmt(d.alt_index||0,0)}bps`;
     el.appendChild(hdr);
 
     const sorted=Object.entries(d.signals).sort((a,b)=>Math.abs(b[1].ret_7d_bps)-Math.abs(a[1].ret_7d_bps));
