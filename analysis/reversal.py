@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.7.0 — Seven strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.7.2 — Seven strategies + DXY filter + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -51,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.7.0"
+VERSION = "10.7.2"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -869,7 +869,7 @@ class MultiSignalBot:
 
             return {
                 "direction": -bo_dir,
-                "range_pct": round(range_size / range_low * 100, 2),
+                "squeeze_range": round(range_size / range_low * 100, 2),  # % of low (NOT bps like feature range_pct)
                 "bo_dir": "UP" if bo_dir == 1 else "DOWN",
             }
 
@@ -1047,8 +1047,8 @@ class MultiSignalBot:
                 signals.append({
                     "symbol": sym, "direction": sq["direction"], "strategy": "S10",
                     "z": STRAT_Z["S10"],
-                    "info": f"Squeeze bo={sq['bo_dir']} rng={sq['range_pct']:.1f}%{oi_tag}",
-                    "strength": 1000 / max(sq["range_pct"], 0.1),  # tighter range = higher priority
+                    "info": f"Squeeze bo={sq['bo_dir']} rng={sq['squeeze_range']:.1f}%{oi_tag}",
+                    "strength": 1000 / max(sq["squeeze_range"], 0.1),  # tighter range = higher priority
                     "hold_hours": HOLD_HOURS_S10, "ctx": _entry_ctx,
                 })
 
@@ -1141,9 +1141,9 @@ class MultiSignalBot:
                 size = round(size * LOSS_STREAK_MULTIPLIER, 2)
 
             # Signal health quarantine: protects against regime change making
-            # a signal permanently unprofitable. If win rate on last 10 trades
+            # a signal permanently unprofitable. If win rate on last 20 trades
             # drops below 20%, the signal is fully disabled; below 30%, sizing
-            # is halved. Prevents silent degradation from draining capital.
+            # is halved. Window of 20 gives more statistical stability than 10.
             health = drift.get(sig["strategy"], {})
             if health.get("n", 0) >= 10:
                 wr = health["win_rate"]
@@ -1417,7 +1417,7 @@ class MultiSignalBot:
             "loss_streak_until": self._loss_streak_until,
             "cooldowns": {k: v for k, v in self._cooldowns.items() if v > time.time()},
             "signal_first_seen": self._signal_first_seen,
-            "feature_cache": self._feature_cache,
+            "feature_cache": {k: {fk: float(fv) if hasattr(fv, '__float__') else fv for fk, fv in v.items()} for k, v in self._feature_cache.items() if v},
             "feature_cache_ts": time.time(),
             "positions": [{
                 "symbol": p.symbol, "direction": p.direction,
@@ -1433,7 +1433,7 @@ class MultiSignalBot:
         }
         tmp = STATE_FILE + ".tmp"
         with open(tmp, "wb") as f:
-            f.write(orjson.dumps(data))
+            f.write(orjson.dumps(data, option=orjson.OPT_SERIALIZE_NUMPY))
         os.replace(tmp, STATE_FILE)  # atomic on POSIX
 
     def _load_state(self):
@@ -1853,7 +1853,12 @@ async def index():
     global _html_cache
     if _html_cache is None:
         if os.path.exists(HTML_PATH):
-            _html_cache = Path(HTML_PATH).read_text().replace("{{VERSION}}", VERSION)
+            mode_label = "LIVE" if EXECUTION_MODE == "live" else "PAPER"
+            mode_color = "#da3633" if EXECUTION_MODE == "live" else "#58a6ff"
+            _html_cache = (Path(HTML_PATH).read_text()
+                           .replace("{{VERSION}}", VERSION)
+                           .replace("{{MODE}}", mode_label)
+                           .replace("{{MODE_COLOR}}", mode_color))
         else:
             _html_cache = f"""<html><body style="background:#0d1117;color:#e6edf3;font-family:monospace">
             <h1>Multi-Signal Bot v{VERSION}</h1>
