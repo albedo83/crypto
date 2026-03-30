@@ -251,17 +251,18 @@ def backtest(features, data, sector_features, dxy_data, config):
                 candidates.append({"coin": coin, "dir": d, "strat": "S5",
                     "z": STRAT_Z["S5"], "hold": 12, "strength": abs(sf["divergence"])})
 
-            # S8
+            # S8 (ret_6h in backtest features = 6 candles × 4h = 24h = ret_24h in bot)
+            ret_24h = f.get("ret_6h", 0)
             if (f.get("drawdown", 0) < -4000 and f.get("vol_z", 0) > 1.0
-                    and f.get("ret_24h", 0) < -50 and btc7 < -300):
+                    and ret_24h < -50 and btc7 < -300):
                 candidates.append({"coin": coin, "dir": 1, "strat": "S8",
                     "z": STRAT_Z["S8"], "hold": 15, "strength": abs(f["drawdown"])})
 
             # S9 (configurable threshold)
-            if abs(f.get("ret_24h", 0)) >= s9_threshold:
-                s9_dir = -1 if f["ret_24h"] > 0 else 1
+            if abs(ret_24h) >= s9_threshold:
+                s9_dir = -1 if ret_24h > 0 else 1
                 candidates.append({"coin": coin, "dir": s9_dir, "strat": "S9",
-                    "z": STRAT_Z["S9"], "hold": 12, "strength": abs(f["ret_24h"])})
+                    "z": STRAT_Z["S9"], "hold": 12, "strength": abs(ret_24h)})
 
             # S10 (configurable window)
             if coin in coin_by_ts and ts in coin_by_ts[coin]:
