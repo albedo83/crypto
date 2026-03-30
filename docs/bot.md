@@ -1,16 +1,16 @@
-# Multi-Signal Bot v10.5.0
+# Multi-Signal Bot v10.8.0
 
-Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. Un seul fichier Python, pas de base de donnees.
+Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. Un seul fichier Python (~1900 lignes), pas de base de donnees.
 
 ---
 
 ## En une phrase
 
-Le bot achete les crashs (S2, S8), suit le momentum BTC→alts (S1), shorte les marches calmes quand le dollar monte (S4), et suit les breakouts sectoriels (S5). Il logue tout ce qu'il voit (OI, funding, premium, crowding, trajectoire) pour pouvoir s'ameliorer plus tard sans avoir triche sur les donnees.
+Le bot suit le momentum BTC→alts (S1), shorte les marches calmes quand le dollar monte (S4), suit les breakouts sectoriels (S5), achete les flush de liquidation (S8), fade les mouvements extremes (S9), et fade les faux breakouts apres compression (S10). Il logue tout ce qu'il voit (OI, funding, premium, crowding, trajectoire) pour pouvoir s'ameliorer plus tard sans avoir triche sur les donnees.
 
 ---
 
-## Les 5 signaux
+## Les 6 signaux
 
 ### S1 — BTC explose (+20% sur 30 jours)
 
@@ -18,20 +18,12 @@ Le bot achete les crashs (S2, S8), suit le momentum BTC→alts (S1), shorte les 
 **Pourquoi** : quand BTC pump fort, les alts suivent avec du retard. On achete ce retard.
 **Type** : continuation / momentum retarde.
 **Frequence** : rare, quelques fois par an.
-**Mise** : $241 (2eme plus grosse). **Hold** : 72h. **Stop** : -25% leveraged.
+**Hold** : 72h. **Stop** : -25% leveraged.
 **z-score** : 6.42. **Walk-forward** : 3/4 (75%).
-**Backtest** : +$1,480 sur 208 trades.
 
-### S2 — Les alts crashent (-10% en 7 jours)
+### ~~S2 — Retire (alt crash)~~
 
-**Quoi** : si la moyenne des 28 alts a baisse de plus de -10% en 7 jours, acheter.
-**Pourquoi** : apres un crash generalise, les alts rebondissent. On achete la panique.
-**Type** : contrarien / mean-reversion.
-**Frequence** : quelques fois par mois.
-**Mise** : $150. **Hold** : 72h. **Stop** : -25% leveraged.
-**z-score** : 4.00. **Walk-forward** : 5/9 (56%) — **le signal le plus fragile**. Perd presque 1 trimestre sur 2, mais gagne gros quand il gagne. A surveiller en priorite.
-**Backtest** : +$1,706 sur 552 trades.
-**Note** : fonctionne en bull ET en bear. Le regime gating (activer seulement en bull) a ete teste et degrade le signal.
+**Retire en v10.8.0.** Alt crash mean-reversion (z=4.00) perd en portfolio. Prend des slots macro que S1/S8/S9 utilisent mieux. S8 (capitulation flush) couvre les crashs extremes plus efficacement. Voir backtest_signal_boost2.py.
 
 ### S4 — Calme plat + dollar fort
 
@@ -39,22 +31,19 @@ Le bot achete les crashs (S2, S8), suit le momentum BTC→alts (S1), shorte les 
 **Pourquoi** : en crypto, quand c'est calme et que le dollar se renforce, les alts derivent vers le bas.
 **Type** : contrarien / derive.
 **Frequence** : variable, depend du dollar.
-**Mise** : $111 (la plus petite). **Hold** : 72h. **Stop** : -25% leveraged.
+**Hold** : 72h. **Stop** : -25% leveraged.
 **z-score** : 2.95. **Walk-forward** : 7/10 (70%).
-**Backtest** : +$2,609 sur 1,185 trades.
-**Conditions exactes** : `vol_ratio < 1.0 AND range_pct < 200 bps AND DXY_7d > +100 bps`.
-**Le filtre DXY est critique** : sans lui, S4 shorte en bull market et perd. Seul signal SHORT du bot (378 variantes SHORT testees, aucune autre ne depasse z > 2.0).
-**DXY source** : Yahoo Finance, cache local. Frais < 6h = normal. Stale 6-48h = S4 actif avec donnees anciennes (bandeau jaune). Expire > 48h = S4 desactive (bandeau rouge).
+**Conditions** : `vol_ratio < 1.0 AND range_pct < 200 bps AND DXY_7d > +100 bps`.
+**Le filtre DXY est critique** : sans lui, S4 shorte en bull market et perd. Seul signal SHORT du bot.
 
 ### S5 — Un token casse de son secteur
 
 **Quoi** : si un token diverge de +10% par rapport a la moyenne de son secteur, avec du volume anormal → suivre le mouvement.
-**Pourquoi** : quand un token casse de son secteur avec du volume, le mouvement continue. Le "fade" (jouer contre) a ete teste et ne marche pas.
+**Pourquoi** : quand un token casse de son secteur avec du volume, le mouvement continue. Le "fade" a ete teste et ne marche pas.
 **Type** : continuation / breakout sectoriel.
 **Frequence** : 10-20 fois par mois.
-**Mise** : $138. **Hold** : 48h (plus court, les rotations sont rapides). **Stop** : -25% leveraged.
-**z-score** : 3.67. **Walk-forward** : ~50%.
-**Backtest** : +$2,022 sur 467 trades.
+**Hold** : 48h. **Stop** : -25% leveraged.
+**z-score** : 3.67.
 
 **Secteurs** :
 
@@ -69,27 +58,32 @@ Le bot achete les crashs (S2, S8), suit le momentum BTC→alts (S1), shorte les 
 ### S8 — Flush de liquidation
 
 **Quoi** : si un alt a perdu -40% depuis son plus haut de 30 jours, que le volume explose, que le prix continue de baisser, et que BTC est aussi en baisse de -3% → acheter.
-**Pourquoi** : quand tout tombe en meme temps, c'est un flush de liquidation force. Les traders en levier se font liquider en cascade. Le prix passe en dessous de sa valeur. Le rebond est violent.
+**Pourquoi** : quand tout tombe en meme temps, c'est un flush de liquidation force. Le rebond est violent.
 **Type** : contrarien / capitulation.
 **Frequence** : rare, ~1/mois en portfolio.
-**Mise** : $262 (la plus grosse). **Hold** : 60h. **Stop** : **-15%** leveraged (plus serre que les autres, backteste avec ce stop).
-**z-score** : 6.99 (le plus eleve). **Walk-forward** : 8/9 (89%) — **le signal le plus robuste**.
-**Backtest** : +$1,984 sur 192 trades. 70% win rate. 16/18 mois gagnants.
-**Conditions exactes** : `drawdown < -4000 bps AND vol_z > 1.0 AND ret_24h < -50 bps AND btc_7d < -300 bps`.
-**Pire scenario** : 7 pertes consecutives en avril 2024 (crash prolonge), drawdown -$265.
-**Risque de liquidite** : S8 achete exactement quand les carnets d'ordres se vident sur un DEX. Le slippage reel peut etre 5-10x plus eleve que les 3 bps simules. En production : ordres limit (maker) pour etre le filet qui attrape les liquidations.
+**Hold** : 60h. **Stop** : **-15%** leveraged (plus serre, backteste). **Haircut** : 0.8x (liquidite mince).
+**z-score** : 6.99.
+**Conditions** : `drawdown < -4000 bps AND vol_z > 1.0 AND ret_24h < -50 bps AND btc_7d < -300 bps`.
 
 ### S9 — Fade extreme (+20% en 24h)
 
 **Quoi** : si un token a bouge de plus de ±20% en 24h, prendre la position inverse (fade). Si +20% → SHORT, si -20% → LONG.
-**Pourquoi** : les mouvements extremes individuels revertent. Les pumps retombent, les dumps rebondissent. Contrairement a S2/S8 (signaux macro), S9 est un signal par token.
+**Pourquoi** : les mouvements extremes individuels revertent.
 **Type** : contrarien / mean reversion individuelle.
 **Frequence** : ~12/mois au seuil 20%.
-**Mise** : $300 (la plus grosse, z le plus eleve). **Hold** : 48h. **Stop** : -25% leveraged (standard).
+**Hold** : 48h. **Stop** : adaptatif (`max(-2500, -1000 - abs(ret_24h)/4)`) — plus le move est gros, plus le stop est serre.
 **z-score** : 8.71 (MC). Le signal le plus fort du bot.
-**Backtest** : thresh=2000 hold=48h. Train: +255 bps/trade. Test: +558 bps/trade. N=295.
-**Conditions exactes** : `abs(ret_24h) >= 2000 bps`.
-**Risque** : shorter un token en plein pump peut conduire a un squeeze si le mouvement continue. Le stop -25% limite la perte.
+**Conditions** : `abs(ret_24h) >= 2000 bps`.
+
+### S10 — Squeeze + faux breakout (config gelee)
+
+**Quoi** : compression de range → faux breakout → reintegration → fade le breakout.
+**Pourquoi** : le faux breakout piege les traders, le vrai mouvement va dans l'autre sens.
+**Type** : contrarien / pattern. Mode B (fade).
+**Frequence** : ~50/mois sur 28 tokens.
+**Hold** : 24h. **Stop** : -25% leveraged. **Capital** : pocket separe (15%).
+**z-score** : 3.66. Config gelee (ne pas re-optimiser).
+**Params** : squeeze_window=3 (12h), vol_ratio<0.9, breakout 50% du range, reintegration dans 2 candles.
 
 ---
 
@@ -98,41 +92,13 @@ Le bot achete les crashs (S2, S8), suit le momentum BTC→alts (S1), shorte les 
 | Parametre | Valeur | Pourquoi |
 |---|---|---|
 | **Levier** | 2x | Sweep 1x-3x : 2x optimal. 3x = ruine par compounding des pertes. |
-| **Sizing** | 12% base + 3% bonus (z>4), z-weighted | Plus le signal est fiable, plus la mise est grosse. S8 haircut ×0.8 (liquidite mince). |
-| **Compounding** | Oui | Capital = $1000 + P&L cumule. Les mises suivent les gains et les pertes. |
-| **Hold** | 72h (S1/S2/S4), 48h (S5/S9), 60h (S8) | Timeout automatique. Stop de profit teste : degrade les resultats. |
-| **Stop loss** | -2500 bps (S1/S2/S4/S5), -1500 bps (S8) | -25% leveraged = -12.5% mouvement de prix. S8 plus serre (-15% = -7.5%). |
-| **Frais simules** | 12 bps × 2 = 24 bps/trade | 7 taker + 3 slippage + 2 funding. Conservateur. |
+| **Sizing** | 12% base + 3% bonus (z>4), z-weighted | Plus le signal est fiable, plus la mise est grosse. S8 haircut ×0.8. |
+| **Compounding** | Oui | Capital = initial + P&L cumule. Les mises suivent les gains et les pertes. |
+| **Hold** | 72h (S1/S4), 48h (S5/S9), 60h (S8), 24h (S10) | Timeout automatique. |
+| **Stop loss** | -2500 bps (S1/S4/S5), -1500 bps (S8), adaptatif (S9) | S9 : plus le move est gros, plus le stop est serre. |
+| **Frais simules** | 12 bps × 2 = 24 bps/trade | 7 taker + 3 slippage + 2 funding. |
 | **Cooldown** | 24h par token apres exit | Evite de re-entrer immediatement. |
-
-### Sizing par signal ($1,000 de capital)
-
-| Signal | z-score | Mise | Logique |
-|---|---|---|---|
-| S9 | 8.71 | $300 | Le plus fort signal, z le plus eleve |
-| S8 | 6.99 | $262 | Tres fiable × haircut liquidite 0.8 |
-| S1 | 6.42 | $241 | Tres fiable, rare |
-| S2 | 4.00 | $150 | Bon mais borderline en walk-forward |
-| S5 | 3.67 | $138 | Solide |
-| S4 | 2.95 | $111 | Le moins fiable, mise la plus petite |
-
-Formule : `size = capital × (12% + 3% si z>4) × clamp(z/4, 0.5, 2.0) × haircut`.
-
-### Ce qui a ete teste et rejete
-
-| Idee | Resultat | Pourquoi ca ne marche pas |
-|---|---|---|
-| Stop loss serre (-7%) | Detruit la valeur | Les gagnants passent souvent par un drawdown temporaire |
-| Trailing stop | Pire que timeout | Coupe les gagnants trop tot |
-| Signal exit | Perd de l'argent | Le signal s'inverse avant le rebond |
-| Sizing ATR | P&L -27% | La volatilite est le carburant, pas le risque |
-| Regime gating | Degrade tout | S2 marche en bull ET en bear |
-| HMM / Markov | Meme probleme | Reduire l'exposition en crash = couper S2/S8 quand ils doivent tirer |
-| 3x leverage | Ruine | Compounding des pertes |
-| 10 positions | Egal | Pas assez de signaux simultanement |
-| Smart priority | Egal | Aucune amelioration |
-| OI comme filtre (actif) | Non teste en live | Pas de donnees historiques Hyperliquid. Teste sur Binance : degrade. Observation en cours. |
-| Scoring de qualite de setup | Pas encore | Le crowding score est logue, pas utilise. Besoin de 50+ trades pour evaluer. |
+| **Slot reservation** | Max 2 macro (S1/S4) + 3 token (S5/S8/S9/S10) | Empeche les macro signaux de remplir les 6 slots d'un coup. |
 
 ---
 
@@ -142,298 +108,120 @@ Formule : `size = capital × (12% + 3% si z>4) × clamp(z/4, 0.5, 2.0) × haircu
 |---|---|---|
 | **Max 6 positions** | Absolu | Surexposition |
 | **Max 4 meme direction** | 4 LONG ou 4 SHORT | Pari directionnel total |
-| **Max 2 par secteur** | 2 par groupe (L1, DeFi, Gaming, Infra, Meme) | 4 LONG DeFi deguises en diversification |
-| **Exposition 90%** | `margin + new_size <= capital × 0.90` | Toujours 10% de cash |
-| **Stop loss** | -25% leveraged (S8: -15%) | Crash extreme |
-| **Kill-switch** | P&L cumule < -$300 → auto-pause | Perte de 30% du capital |
+| **Max 2 par secteur** | 2 par groupe | Concentration sectorielle |
+| **Slot reservation** | 2 macro / 3 token | Macro signals remplissent tout |
+| **Exposition 90%** | Par pocket (S10 vs S1-S9) | Toujours 10% de cash par pocket |
+| **Stop loss** | -25% (S8: -15%, S9: adaptatif) | Crash extreme |
+| **Kill-switch** | P&L cumule < -$300 → auto-pause | Perte catastrophique |
 | **Loss streak** | 3 pertes consecutives → sizing /2 pendant 24h | Serie noire |
-| **Signal quarantine** | Win rate < 20% sur 10 trades → signal coupe | Signal mort qui continue a manger du capital |
+| **Signal quarantine** | Win rate < 20% sur 20 trades → signal coupe | Signal mort |
 | **Cooldown** | 24h par token apres exit | Re-entree impulsive |
-| **Mode degrade DXY** | Stale 6-48h (jaune), expire >48h (rouge, S4 off) | Yahoo tombe, S4 disparait silencieusement |
+| **DXY degradation** | Stale 6-48h (jaune), expire >48h (S4 off) | Yahoo tombe |
 | **Reconciliation** | Chaque scan horaire, bot vs exchange | Position orpheline ou fantome |
-| **Telegram alertes** | Entry, exit, erreur, kill-switch, reboot | On sait toujours ce qui se passe |
-| **Dashboard auth** | HTTP Basic Auth (timing-safe) | Personne ne peut voir/controler le bot |
-| **Auto-restart** | Crontab @reboot + alerte Telegram | Le VPS reboot, le bot revient |
-| **.env permissions** | chmod 600, .gitignore | Cle privee protegee |
+| **Telegram** | Entry, exit, erreur, kill-switch, reboot, resume quotidien | On sait toujours ce qui se passe |
+| **Dashboard auth** | HTTP Basic Auth (timing-safe) | Acces non autorise |
+| **Auto-restart** | Crontab @reboot + alerte Telegram | VPS reboot |
 
 ---
 
-## Observabilite (ce que le bot logue pour le futur)
+## Observabilite
 
-Le bot logue beaucoup plus que ce qu'il utilise pour ses decisions. C'est delibere : on collecte maintenant, on analyse plus tard, on ne filtre jamais sans preuve.
+### Dans chaque trade (champs structures)
 
-### Dans chaque trade (signal_info)
-
-Chaque entree enregistre :
-- **OI delta 1h** : variation de l'open interest sur la derniere heure (% change)
-- **Crowding score** : score 0-100 de surchauffe du levier (OI delta + funding + premium + vol_z)
-- **Stress breadth** : `str=X/Y` — X tokens en stress global (vol_z>1.5 + drawdown<-15%), Y dans le meme secteur
-- **Signal complet** : toutes les features du signal (drawdown, vol_z, BTC context, etc.)
+- `entry_oi_delta` : OI delta 1h a l'entree (%)
+- `entry_crowding` : score 0-100 de surchauffe du levier
+- `entry_confluence` : nombre de features extremes (0-5)
+- `entry_session` : Asia/EU/US/Night/WE
+- `signal_info` : string complete avec stress, dispersion, shock, cleanliness, leadership
 
 ### Trajectoire par trade
 
-Chaque position enregistre son parcours heure par heure :
-- `trajectory = [(heures_depuis_entree, unrealized_bps), ...]`
-- MAE (pire moment) et MFE (meilleur moment) mis a jour toutes les 60s
-- A la cloture, trajectoire ecrite dans `reversal_trajectories.csv`
-- Permet de repondre a : "les bons S8 rebondissent-ils dans les 8-12h ?"
+Parcours heure par heure : `(heures, unrealized_bps)`. MAE/MFE mis a jour toutes les 60s.
 
-### Snapshots de marche horaires
+### Snapshots marche horaires
 
-Fichier `reversal_market.csv` — 28 lignes par heure :
-- timestamp, symbol, price, OI, oi_delta_1h, funding (ppm), premium (ppm), crowding score, vol_z
-- ~15 MB/an. Survit aux restarts. C'est la brique manquante pour backtester OI plus tard.
+`reversal_market.csv` — 28 lignes/heure : timestamp, symbol, price, OI, oi_delta_1h, funding, premium, crowding, vol_z. ~24 MB/an.
 
-### Signal drift
+### Dashboard
 
-`/api/state` expose `signal_drift` : pour chaque signal, les stats rolling sur les 20 derniers trades (win rate, avg bps, P&L total). Detecte la degradation silencieuse.
-
-### Signaux refuses
-
-Chaque signal valide mais refuse par le portfolio (quota, cooldown, sector cap, capital) est logue avec la raison. Permet de mesurer le cout d'opportunite des limites.
-
-### Protocole OI pre-enregistre
-
-Le protocole d'evaluation OI est verrouille AVANT les donnees (voir `memory/project_oi_filter_plan.md`) :
-- **Buckets** : OI_1h <= 0% (purge) vs > 0% (accumulation)
-- **Metrique** : net bps moyen par groupe
-- **Seuils** : >50 bps d'ecart → filtre actif. 25-50 → moduler sizing. <25 → rien.
-- **Echantillon** : 30 trades S2, 10 trades S8, minimum 10 par groupe
-- **Interdit** : changer les regles apres avoir vu les resultats
-
----
-
-## Recherche
-
-### Methode de validation (4 filtres)
-
-Chaque signal doit passer les 4 :
-1. **Train/test split** — trouve sur 2024, valide sur 2025-2026. Profitable des deux cotes.
-2. **Monte Carlo** — z-score > 2.0 vs timing aleatoire (meme nombre de trades, meme direction).
-3. **Portfolio** — ajoute aux signaux existants sans degrader le total.
-4. **Walk-forward** — 12 mois train, 3 mois test, avance de 3 mois. Profitable > 50% des fenetres.
-
-### Walk-forward par signal
-
-| Signal | Fenetres gagnantes | Stabilite |
-|---|---|---|
-| S8 | 8/9 (89%) | Tres stable |
-| S1 | 3/4 (75%) | Stable (rare, peu de fenetres) |
-| S4 | 7/10 (70%) | Stable |
-| S2 | 5/9 (56%) | Borderline |
-| S5 | ~50% | Difficile a evaluer (calcul sectoriel) |
-
-Test Leave-5-tokens-out : aucun signal ne depend de tokens specifiques.
-
-### Ce qui a ete teste et elimine (1500+ regles)
-
-**1ere vague** : momentum, mean-reversion cross-sectionnelle, calendar, carry/funding, token unlocks, pairs trading, on-chain, programmation genetique (overfit), ML walk-forward (confirme les features, pas de nouveau signal).
-
-**2eme vague** : S7 BTC-Alt recouple, S9 exhaustion, S10 vol compression, BTC-ETH spread, dispersion warning — tous echouent train/test. 8 strategies SHORT (378 variantes) — aucune z > 2.0. Regime gating — degrade tout. Liquidation comme filtre — pas d'amelioration.
-
-### Backtest (32 mois)
-
-| Annee | Contexte | Performance | Capital |
-|---|---|---|---|
-| 2023 (5 mois) | Bear | +8% | $1,000 → $1,081 |
-| 2024 | Bull | +528% | $1,081 → $6,786 |
-| 2025 | Bear/lateral | +145% | $6,786 → $16,646 |
-| 2026 (3 mois) | Lateral | -33% | $16,646 → $11,214 |
-| **Total** | **32 mois** | **+1,021%** | **$1,000 → $11,214** |
-
-20/32 mois gagnants (63%). Drawdown max -54%. Bot inactif ~26% du temps.
-
----
-
-## Estimations (sur $1,000)
-
-### Backtest (fait historique)
-
-$1,000 → ~$7,000-$9,000 sur 32 mois avec sizing v10.3.1. Inclut une periode exceptionnelle (2024, +528%). Rien ne garantit que ca se reproduira.
-
-### Projection prudente
-
-Backtest degrade de ~50% (data snooping, slippage, incertitude) : **+50% a +100%/an** en conditions normales. Sur $1,000 : +$500 a +$1,000/an. C'est une estimation, pas une promesse.
-
-### Scenarios extremes
-
-| Scenario | P&L | Quand |
-|---|---|---|
-| Bull exceptionnel | +$2,000 a +$5,000 | BTC +100%, S1 se declenche |
-| Lateral prolonge | -$100 a +$200 | Bot dort, frais grignottent |
-| Crash qui ne rebondit pas | -$200 a -$500 | S2/S8 achetent, les dips continuent |
-
-### Ce qui n'est pas dans les chiffres
-
-- Slippage reel S8 (20-50 bps possibles vs 3 simules)
-- Frais reels Hyperliquid (meilleurs que simule, maker rebates)
-- Data snooping residuel (1500+ regles testees = faux positifs possibles)
-- S2 est le signal le plus fragile (5/9 walk-forward)
-
----
-
-## Risques
-
-**Perte en capital** : drawdown -54% observe. $1,000 peut tomber a $460. 37% des mois sont perdants.
-
-**Risque de modele** : les signaux viennent du passe. Le marche evolue. Le paper trading valide avant l'argent reel.
-
-**Risque de liquidite S8** : achete quand les carnets se vident. Slippage reel >> simule.
-
-**Risque de plateforme** : Hyperliquid est un DEX sans assurance. Bugs, hacks, perte de fonds possibles.
-
-**Risque technique** : si le serveur tombe, les positions restent ouvertes. Stop loss = dernier filet.
-
-**Scenarios de perte prolongee** :
-- Lateral : peu de signaux, frais grignottent.
-- Crash qui dure : S2/S8 se font stopper en serie.
-- Dollar faible : S4 desactive, bot 100% LONG.
+- Balance, P&L, drawdown peak, utilisation capital
+- Tableau P&L par strategie (signal_drift)
+- Regime de marche (BULL/BEAR/NEUTRAL)
+- Endpoint `/api/health` (status, price_age, scan_age, exchange_ok)
+- Resume quotidien Telegram a minuit UTC
+- Responsive mobile
 
 ---
 
 ## Architecture
 
 ```
-Hyperliquid REST API (toutes les 60s)
+Hyperliquid REST API (toutes les 60s, avec retry 3x backoff)
     ├── metaAndAssetCtxs → prix, OI, funding, premium (28 tokens)
     ├── candleSnapshot → bougies 4h (30 tokens, toutes les heures)
-    └── Yahoo Finance → DXY (toutes les 6h, cache 48h max)
+    └── Yahoo Finance → DXY (toutes les 6h, cache memoire + disque 48h)
             │
             ▼
-    reversal.py  (~1400 lignes, processus asyncio unique)
+    reversal.py  (~1900 lignes, processus asyncio unique)
     │
-    ├── Features (24 calculees par token, 13 utilisees pour les signaux)
-    │
-    ├── Collecte OI/funding/premium (observation, pas de decision)
-    │     Crowding score 0-100 (OI delta + funding + premium + vol_z)
-    │     Stress breadth (combien de tokens en stress simultane)
-    │
-    ├── 5 signaux
-    │     S1: btc_30d > +20%             → LONG 72h
-    │     S2: alt_index < -10%           → LONG 72h
-    │     S4: vol_ratio<1 + range<2% + DXY>+1% → SHORT 72h
-    │     S5: sector div>10% + vol_z>1   → FOLLOW 48h
-    │     S8: dd<-40% + vol_z>1 + ret_24h<-0.5% + btc_7d<-3% → LONG 60h
+    ├── 6 signaux (S1, S4, S5, S8, S9, S10)
+    │     Slot reservation : 2 macro / 3 token
+    │     Tri par z-score, puis force du signal
     │
     ├── Position manager
-    │     6 max / 4 dir / 2 secteur / 90% expo
-    │     Stop -25% (S8: -15%) / Kill-switch -$300 / Streak 3→/2
-    │     Quarantine: win rate<20% → signal off
-    │     MAE/MFE + trajectoire horaire par position
+    │     6 max / 4 dir / 2 sect / 90% expo / S10 pocket 15%
+    │     Stop -25% (S8: -15%, S9: adaptatif)
+    │     Kill-switch -$300 / Streak 3→/2 / Quarantine WR<20%
     │
-    ├── Logging
-    │     CSV trades (avec signal_info: OI, crowding, stress breadth)
-    │     CSV trajectoires (unrealized bps heure par heure)
-    │     CSV market (snapshot horaire 28 tokens: OI, funding, premium)
-    │     Signaux refuses logges avec raison (SKIP)
-    │     Signal drift rolling par signal
+    ├── Execution (live)
+    │     market_open/close via SDK, fill price depuis avgPx reponse
+    │     Telegram alerts dans daemon thread (non-bloquant)
+    │     Reconciliation bot vs exchange a chaque scan
+    │     pause/reset en threadpool (non-bloquant event loop)
     │
     ├── Persistence
-    │     JSON atomic (state + positions + MAE/MFE + trajectoire)
-    │     Survit aux restarts (paused, loss_streak, cooldowns aussi)
+    │     JSON atomic (state + positions + feature cache)
+    │     CSV trades, trajectoires, market snapshots
+    │     Survit aux restarts (feature cache < 2h restaure)
     │
-    └── Dashboard (:8097)
-          Pulse vert / countdown scan / crowding scores
-          OI delta par token / bandeau degrade DXY
+    └── Dashboard (FastAPI)
+          Paper :8097 (bordure bleue) / Live :8098 (bordure rouge)
+          /api/health, /api/state, /api/signals, /api/trades, /api/pnl
+          /api/pause, /api/resume, /api/reset
 ```
-
-### Cycle de scan (toutes les heures)
-
-1. Fetch prix + OI + funding + premium (metaAndAssetCtxs)
-2. Fetch bougies 4h (30 tokens)
-3. Refresh features + OI summary
-4. Check exits (timeout, stop loss, MAE/MFE update)
-5. Scan signaux → quarantine → tri z-score → entree (log OI + crowding + stress)
-6. Save state (JSON atomic)
-7. Market snapshot (CSV 28 lignes)
-
-Entre les scans : prix/OI/funding toutes les 60s, exits verifies, MAE/MFE mis a jour.
-
-### Fichiers
-
-| Fichier | Role |
-|---|---|
-| `analysis/reversal.py` | Le bot complet (~1400 lignes) |
-| `analysis/reversal.html` | Dashboard web |
-| `analysis/output/reversal_state.json` | Etat (positions, P&L, paused, loss streak, MAE/MFE, trajectoires) |
-| `analysis/output/reversal_trades.csv` | Trades clotures (signal_info, MAE, MFE) |
-| `analysis/output/reversal_trajectories.csv` | Parcours horaire de chaque trade |
-| `analysis/output/reversal_market.csv` | Snapshots horaires marche (OI, funding, premium, crowding) |
-| `analysis/output/reversal_v10.log` | Logs (entrees, sorties, SKIP, quarantine, kill-switch) |
-| `analysis/output/pairs_data/` | Cache bougies + DXY |
-
-### Deploiement
-
-Le bot tient en **2 fichiers** + 5 dependances pip :
-
-```bash
-mkdir -p analysis/output/pairs_data analysis/output_live/pairs_data
-cp reversal.py analysis/
-cp reversal.html analysis/
-touch analysis/__init__.py
-python3 -m venv .venv
-.venv/bin/pip install numpy orjson uvicorn fastapi hyperliquid-python-sdk
-```
-
-Configuration dans `.env` (jamais commite) :
-
-```
-HL_MODE=paper              # "paper" ou "live"
-HL_CAPITAL=1000            # capital de reference pour le sizing
-HL_PRIVATE_KEY=0x...       # cle privee Hyperliquid (live uniquement)
-TG_BOT_TOKEN=...           # alertes Telegram
-TG_CHAT_ID=...             # chat_id Telegram
-DASHBOARD_USER=admin       # auth dashboard (vide = pas d'auth)
-DASHBOARD_PASS=...         # mot de passe dashboard
-```
-
-Lancement :
-
-```bash
-# Paper (:8097)
-nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
-
-# Live (:8098, $100)
-HL_MODE=live HL_CAPITAL=100 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
-  nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
-```
-
-Auto-restart au reboot : `@reboot /home/crypto/start_bots.sh` (crontab). Envoie une alerte Telegram au reboot.
-
-Les deux instances sont independantes (state, trades, logs separes). Seul le cache DXY est partage.
 
 ---
 
-## Plan de production
+## Deploiement
 
-### Phase 1 — Paper trading (en cours)
+```bash
+# Paper (:8097, $1000 simule)
+TG_BOT_TOKEN= TG_CHAT_ID= \
+  nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 
-Mesure en occurrences, pas en duree :
+# Live (:8098, $260 reel)
+HL_MODE=live HL_CAPITAL=260 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
+  nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
+```
 
-| Signal | Trades minimum | Duree estimee |
-|---|---|---|
-| S1 | Inestimable (rare) | Accepter l'incertitude |
-| S2 | 15+ | 2-3 mois |
-| S4 | 30+ | 3-6 mois |
-| S5 | 30+ | 2-3 mois |
-| S8 | 5+ | 5+ mois |
+Auto-restart : `@reboot /home/crypto/start_bots.sh`. Accessible via `https://echonym.fr/bot/` (live) et `https://echonym.fr/paper/`.
 
-**Critere** : 3 mois ET 50 trades cumules, le plus tard des deux.
+---
 
-### Phase 2 — Reel (en cours depuis v10.4.0)
+## Recherche (26 backtests)
 
-Capital : $100. Implemente :
-- **Execution** : market orders (taker) via `hyperliquid-python-sdk`. Slippage 1%.
-- **Reconciliation** : comparer positions bot vs `user_state()` Hyperliquid a chaque scan horaire.
-- **Alertes** : Telegram a chaque entry/exit/erreur/kill-switch/reboot.
-- **Dashboard** : HTTP Basic Auth (`DASHBOARD_USER`/`DASHBOARD_PASS`).
-- **Auto-restart** : crontab `@reboot` + alerte Telegram.
+### Methode de validation
 
-A faire plus tard :
-- Maker orders (limit TTL 30s → fallback taker) pour reduire les frais.
-- SQLite au lieu de JSON (quand le volume justifie).
-- Metriques : fill rate, slippage reel par signal, temps de fill.
+Chaque signal doit passer : (1) train/test split, (2) Monte Carlo z > 2.0, (3) portfolio integration, (4) walk-forward > 50%.
 
-### Phase 3 — Scaling
+### Ce qui a ete teste et rejete
 
-$100 → $500 → $1,000 → $2,000 → $5,000. Minimum 2 mois coherents par palier. Ne jamais mettre plus qu'on peut perdre entierement. Ajuster `HL_CAPITAL` et restart.
+1500+ regles testees. Rejetes : regime gating, trailing stop, signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum.
+
+### Backtests d'optimisation portfolio (cette session)
+
+| Backtest | Resultat |
+|---|---|
+| `backtest_slot_reservation.py` | **Macro 2 / Token 3** optimal (DD -32% vs -44%) |
+| `backtest_signal_boost.py` | S2 early exit +87% P&L, S9/S10 threshold inchanges |
+| `backtest_signal_boost2.py` | **S9 adaptive stop +54%**, S2 retire, 5 autres tests rejetes |
