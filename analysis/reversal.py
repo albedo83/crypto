@@ -1,9 +1,9 @@
-"""Multi-Signal Bot v10.8.0 — Six strategies + DXY filter + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.8.1 — Five strategies + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
   S2: REMOVED — alt crash loses in portfolio, slots better used by S8/S9
-  S4: vol contraction + DXY rising → SHORT     (z=2.95, filtered by dollar)
+  S4: SUSPENDED — vol contraction + DXY (z=2.95, only 2 trades in 32 months)
   S5: sector divergence > 10% + volume → FOLLOW (z=3.67, sector breakout)
   S8: capitulation flush + BTC weak → LONG     (z=6.99, buy market-wide flushes)
   S9: token move > ±20% in 24h → FADE          (z=8.71, strongest signal)
@@ -11,9 +11,9 @@ Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
 
 Config:
   Leverage: 2x (optimal from parameter sweep)
-  Hold: 72h (S1/S4), 48h (S5/S9), 60h (S8), 24h (S10)
+  Hold: 72h (S1), 48h (S5/S9), 60h (S8), 24h (S10)
   Sizing: 12% base + 3% bonus (z>4), z-weighted, S8 haircut 0.8
-  Stop: -25% leveraged (S1/S4/S5), -15% (S8), adaptive (S9)
+  Stop: -25% leveraged (S1/S5), -15% (S8), adaptive (S9)
   Max 6 positions, max 4 same direction, max 2 per sector, max 2 macro / 3 token
   Kill-switch: auto-pause if P&L < -$300, sizing /2 after 3 losses
   DXY filter: S4 only active when dollar rising (+1%/7d)
@@ -51,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.8.0"
+VERSION = "10.8.1"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -88,7 +88,7 @@ ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
 # ── Hold Periods ─────────────────────────────────────────────────────
 # Optimized via parameter sweep in backtest_boost.py.
 # Shorter holds lose edge to costs; longer holds add drawdown without profit.
-HOLD_HOURS_DEFAULT = 72   # 3 days (18 × 4h candles) for S1, S4
+HOLD_HOURS_DEFAULT = 72   # 3 days (18 × 4h candles) for S1
 HOLD_HOURS_S5 = 48        # 2 days — sector divergences revert faster
 
 # Sectors (for S5 divergence)
@@ -156,8 +156,9 @@ LEVERAGE = 2.0
 # Formula in strat_size(): base * (z/4 clamped 0.5-2.0) * haircut.
 SIZE_PCT = 0.12           # 12% of current capital per position (reduced from 15%)
 SIZE_BONUS = 0.03         # bonus for high-z signals (z > 4)
-STRAT_Z = {"S1": 6.42, "S4": 2.95, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
-# S2 removed: alt crash mean-reversion loses in portfolio, blocks better signals
+STRAT_Z = {"S1": 6.42, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
+# S2 removed: alt crash loses in portfolio, blocks better signals
+# S4 suspended: only 2 trades in 32 months, -$124. Code kept commented for reactivation.
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
 
 # ── Capital & Position Limits ────────────────────────────────────────
@@ -165,12 +166,12 @@ CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))
 MAX_POSITIONS = 6
 MAX_SAME_DIRECTION = 4    # prevents all-long or all-short concentration
 MAX_PER_SECTOR = 2        # prevents overexposure to correlated tokens
-# Slot reservation: macro signals (S1/S2/S4) fire on ALL tokens at once and would
+# Slot reservation: macro signals (S1) fire on ALL tokens at once and would
 # fill all 6 slots. Reserving slots for token-level signals (S5/S8/S9/S10) improves
 # risk-adjusted returns: DD -32% vs -44%, test P&L +$771 vs -$556 (backtest_slot_reservation.py).
-MAX_MACRO_SLOTS = 2       # max S1/S2/S4 positions at once (best 2 tokens only)
+MAX_MACRO_SLOTS = 2       # max S1 positions at once (S2 removed, S4 suspended)
 MAX_TOKEN_SLOTS = 3       # max S5/S8/S9/S10 positions at once
-MACRO_STRATEGIES = {"S1", "S4"}
+MACRO_STRATEGIES = {"S1"}  # S4 suspended
 
 # ── Costs (applied at exit, per leg, scaled by leverage) ─────────────
 TAKER_FEE_BPS = 7.0
@@ -990,17 +991,19 @@ class MultiSignalBot:
             # Backtest: removing S2 gives +$762 P&L, -1.9% DD (backtest_signal_boost2.py).
             # S8 (capitulation flush) covers the "buy extreme crash" case much better.
 
-            # S4: Volatility compression + rising dollar → SHORT. Quiet markets
-            # with a strengthening USD precede alt drawdowns. DXY filter is critical:
-            # without it, S4 shorts in bull markets and loses (see CLAUDE.md).
-            if f["vol_ratio"] < 1.0 and f["range_pct"] < 200 and dxy_7d > DXY_BOOST_THRESHOLD:
-                signals.append({
-                    "symbol": sym, "direction": -1, "strategy": "S4",
-                    "z": STRAT_Z["S4"],
-                    "info": f"VolR={f['vol_ratio']:.2f} Rng={f['range_pct']:.0f} DXY={dxy_7d:+.0f}{oi_tag}",
-                    "strength": (1.0 - f["vol_ratio"]) * 1000,
-                    "hold_hours": HOLD_HOURS_DEFAULT, "ctx": _entry_ctx,
-                })
+            # S4 SUSPENDED — Vol compression + DXY SHORT. z=2.95 passes MC but only
+            # 2 trades in 32-month backtest. Removing S4 gives +$128 P&L, identical DD.
+            # In live: already cost -$5.09 (BLUR stop) in first week.
+            # Kept in code (not deleted) in case DXY conditions change. Reactivate by
+            # uncommenting and adding "S4": 2.95 back to STRAT_Z.
+            # if f["vol_ratio"] < 1.0 and f["range_pct"] < 200 and dxy_7d > DXY_BOOST_THRESHOLD:
+            #     signals.append({
+            #         "symbol": sym, "direction": -1, "strategy": "S4",
+            #         "z": 2.95,
+            #         "info": f"VolR={f['vol_ratio']:.2f} Rng={f['range_pct']:.0f} DXY={dxy_7d:+.0f}{oi_tag}",
+            #         "strength": (1.0 - f["vol_ratio"]) * 1000,
+            #         "hold_hours": HOLD_HOURS_DEFAULT, "ctx": _entry_ctx,
+            #     })
 
             # S5: Sector breakout — when a token diverges >10% from its sector peers
             # with high volume, FOLLOW the divergence (don't fade it). Backtested both
@@ -1543,12 +1546,18 @@ class MultiSignalBot:
 
     # ── API ─────────────────────────────────────────────────────
 
+    @staticmethod
+    def _is_bot_trade(t) -> bool:
+        """True if trade was a bot decision (not manual_stop or reset)."""
+        return t.reason not in ("manual_stop", "reset")
+
     def _compute_signal_drift(self) -> dict:
-        """Rolling stats per signal on last 20 trades. Used by quarantine logic
-        and exposed via /api/state for monitoring. Detects silent degradation."""
+        """Rolling stats per signal on last 20 bot trades (excludes manual stops).
+        Used by quarantine logic and exposed via /api/state for monitoring."""
         by_strat: dict[str, list] = defaultdict(list)
         for t in self.trades:
-            by_strat[t.strategy].append(t)
+            if self._is_bot_trade(t):
+                by_strat[t.strategy].append(t)
         result = {}
         for strat, trades in by_strat.items():
             recent = trades[-20:]
@@ -1567,8 +1576,8 @@ class MultiSignalBot:
         today_str = now.strftime("%Y-%m-%d")
         yesterday = (now - timedelta(days=1)).isoformat()[:10]
 
-        # Trades closed today
-        day_trades = [t for t in self.trades if t.exit_time[:10] == yesterday]
+        # Trades closed today (exclude manual stops from stats)
+        day_trades = [t for t in self.trades if t.exit_time[:10] == yesterday and self._is_bot_trade(t)]
         day_pnl = sum(t.pnl_usdt for t in day_trades)
         day_wins = sum(1 for t in day_trades if t.pnl_usdt > 0)
         day_wr = day_wins / len(day_trades) * 100 if day_trades else 0
@@ -1581,8 +1590,9 @@ class MultiSignalBot:
 
         balance = CAPITAL_USDT + self._total_pnl
         dd_pct = (balance - self._peak_balance) / self._peak_balance * 100 if self._peak_balance > 0 else 0
-        n = len(self.trades)
-        wr = self._wins / n * 100 if n > 0 else 0
+        bot_trades = [t for t in self.trades if self._is_bot_trade(t)]
+        n = len(bot_trades)
+        wr = sum(1 for t in bot_trades if t.pnl_usdt > 0) / n * 100 if n > 0 else 0
 
         # Signal health
         drift = self._compute_signal_drift()
@@ -1602,6 +1612,9 @@ class MultiSignalBot:
         """Build full dashboard state: balance, positions, signals, timing, drift."""
         now = datetime.now(timezone.utc)
         n = len(self.trades)
+        bot_trades = [t for t in self.trades if self._is_bot_trade(t)]
+        n_bot = len(bot_trades)
+        wins_bot = sum(1 for t in bot_trades if t.pnl_usdt > 0)
         balance = CAPITAL_USDT + self._total_pnl
 
         btc_f = self._compute_btc_features()
@@ -1635,19 +1648,8 @@ class MultiSignalBot:
         active_signals = []
         if btc_f.get("btc_30d", 0) > 2000:
             active_signals.append(f"S1: BTC 30d = {btc_f['btc_30d']:+.0f}bps → LONG")
-        # S2 removed — alt crash mean-reversion loses in portfolio
-        # DXY status (use in-memory cache — never call Yahoo from API handler)
+        # S2 removed, S4 suspended
         dxy_7d = self._dxy_cache[0]
-        dxy_active = dxy_7d > DXY_BOOST_THRESHOLD
-        # S4 only when DXY rising
-        if dxy_active:
-            s4_count = sum(1 for sym in TRADE_SYMBOLS
-                           if (f := self._get_cached_features(sym) or self._compute_features(sym)) and
-                           f.get("vol_ratio", 2) < 1.0 and f.get("range_pct", 999) < 200)
-            if s4_count > 0:
-                active_signals.append(f"S4: {s4_count} quiet + DXY={dxy_7d:+.0f}bp → SHORT")
-        else:
-            active_signals.append(f"S4: OFF (DXY={dxy_7d:+.0f}bp, need >+{DXY_BOOST_THRESHOLD})")
         # S5 sector divergence
         s5_syms = []
         for sym in TRADE_SYMBOLS:
@@ -1687,7 +1689,7 @@ class MultiSignalBot:
         if s10_syms:
             active_signals.append(f"S10: {', '.join(s10_syms[:5])} squeeze")
         return {
-            "version": VERSION, "strategy": "Multi-Signal (S1+S4+S5+S8+S9+S10)",
+            "version": VERSION, "strategy": "Multi-Signal (S1+S5+S8+S9+S10)",
             "execution_mode": EXECUTION_MODE,
             "paused": self._paused, "running": self.running,
             "degraded": list(self._degraded),
@@ -1696,8 +1698,8 @@ class MultiSignalBot:
             "balance": round(balance, 2),
             "capital": CAPITAL_USDT,
             "total_pnl": round(self._total_pnl, 2),
-            "total_trades": n,
-            "win_rate": round(self._wins / n, 3) if n > 0 else 0,
+            "total_trades": n_bot,
+            "win_rate": round(wins_bot / n_bot, 3) if n_bot > 0 else 0,
             "n_positions": len(self.positions), "max_positions": MAX_POSITIONS,
             "positions": positions,
             "active_signals": active_signals,
@@ -1739,12 +1741,7 @@ class MultiSignalBot:
             triggered = []
             if btc_f.get("btc_30d", 0) > 2000:
                 triggered.append("S1:LONG")
-            # S2 removed
-            if f.get("vol_ratio", 2) < 1.0 and f.get("range_pct", 999) < 200:
-                if dxy_val > DXY_BOOST_THRESHOLD:
-                    triggered.append("S4:SHORT")
-                else:
-                    triggered.append("S4:OFF(DXY)")
+            # S2 removed, S4 suspended
             sd = self._compute_sector_divergence(sym)
             if sd and abs(sd["divergence"]) >= S5_DIV_THRESHOLD and sd["vol_z"] >= S5_VOL_Z_MIN:
                 d = "LONG" if sd["divergence"] > 0 else "SHORT"
@@ -1824,10 +1821,11 @@ class MultiSignalBot:
                     self._save_state()
                     self._log_market_snapshot()
 
-                    # Log status
-                    n = len(self.trades)
+                    # Log status (exclude manual stops from stats)
+                    _bt = [t for t in self.trades if self._is_bot_trade(t)]
+                    n = len(_bt)
                     balance = CAPITAL_USDT + self._total_pnl
-                    wr = self._wins / n * 100 if n > 0 else 0
+                    wr = sum(1 for t in _bt if t.pnl_usdt > 0) / n * 100 if n > 0 else 0
                     btc_f = self._compute_btc_features()
                     alt_idx = self._compute_alt_index()
                     log.info("Status: %d pos | $%.0f | %d trades (%.0f%%) | BTC30d=%+.0f | AltIdx=%+.0f",
@@ -1997,10 +1995,10 @@ async def run():
              VERSION, mode_tag, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
     main_cap = CAPITAL_USDT * (1 - S10_CAPITAL_SHARE)
     s10_cap = CAPITAL_USDT * S10_CAPITAL_SHARE
-    log.info("Sizing (initial, adjusts with P&L): %d%%+%d%% z-weighted | S1=$%.0f S4=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f (at $%.0f) | S10=$%.0f (at $%.0f)",
+    log.info("Sizing (initial, adjusts with P&L): %d%%+%d%% z-weighted | S1=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f (at $%.0f) | S10=$%.0f (at $%.0f)",
              SIZE_PCT * 100, SIZE_BONUS * 100,
              strat_size("S1", main_cap),
-             strat_size("S4", main_cap), strat_size("S5", main_cap),
+             strat_size("S5", main_cap),
              strat_size("S8", main_cap), strat_size("S9", main_cap), main_cap,
              strat_size("S10", s10_cap), s10_cap)
     log.info("Hold: %dh (S5: %dh, S8: %dh) | Stop: %d bps (S8: %d) | Lev: %.0fx | Max: %d pos / %d dir / %d sect / %d macro / %d token",
