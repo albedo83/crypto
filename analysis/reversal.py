@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.8.3 — Five strategies + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.8.4 — Five strategies + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -14,7 +14,7 @@ Config:
   Hold: 72h (S1), 48h (S5/S9), 60h (S8), 24h (S10)
   Sizing: 12% base + 3% bonus (z>4), z-weighted, S8 haircut 0.8
   Stop: -25% leveraged (S1/S5), -15% (S8), adaptive (S9)
-  Max 6 positions, max 4 same direction, max 2 per sector, max 2 macro / 3 token
+  Max 6 positions, max 4 same direction, max 2 per sector, max 2 macro / 4 token
   Kill-switch: auto-pause if P&L < -$300, sizing /2 after 3 losses
   DXY filter: S4 only active when dollar rising (+1%/7d)
   OI + funding: collected for observation, not used for signals yet
@@ -51,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.8.3"
+VERSION = "10.8.4"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -244,7 +244,7 @@ class SymbolState:
 class Position:
     symbol: str
     direction: int           # 1=LONG, -1=SHORT
-    strategy: str            # S1, S2, S4
+    strategy: str            # S1, S5, S8, S9, S10
     entry_price: float
     entry_time: datetime
     size_usdt: float
@@ -638,7 +638,7 @@ class MultiSignalBot:
     def _compute_crowding_score(self, symbol: str, oi_f: dict | None = None) -> int:
         """Score 0-100 measuring leverage stress / flush quality.
 
-        Higher = more likely a genuine liquidation flush (good for S2/S8).
+        Higher = more likely a genuine liquidation flush (good for S8).
         Lower = simple price decline without deleveraging.
         Components: OI dropping (max 50) + negative funding (20) + vol spike (15) + negative premium (15).
         Observation only — not used for signal decisions yet.
@@ -1251,7 +1251,9 @@ class MultiSignalBot:
         exits = 0
 
         for sym in list(self.positions.keys()):
-            pos = self.positions[sym]
+            pos = self.positions.get(sym)
+            if not pos:
+                continue
             st = self.states.get(sym)
             if not st or st.price == 0:
                 continue
@@ -1448,6 +1450,18 @@ class MultiSignalBot:
     def _save_state(self):
         """Atomically persist bot state (write to .tmp then os.replace)."""
         os.makedirs(OUTPUT_DIR, exist_ok=True)
+        with self._pos_lock:
+            pos_snapshot = [{
+                "symbol": p.symbol, "direction": p.direction,
+                "strategy": p.strategy,
+                "entry_price": p.entry_price, "entry_time": p.entry_time.isoformat(),
+                "size_usdt": p.size_usdt, "signal_info": p.signal_info,
+                "target_exit": p.target_exit.isoformat(),
+                "mae_bps": p.mae_bps, "mfe_bps": p.mfe_bps, "stop_bps": p.stop_bps,
+                "trajectory": p.trajectory,
+                "entry_oi_delta": p.entry_oi_delta, "entry_crowding": p.entry_crowding,
+                "entry_confluence": p.entry_confluence, "entry_session": p.entry_session,
+            } for p in self.positions.values()]
         data = {
             "version": VERSION,
             "total_pnl": self._total_pnl, "wins": self._wins,
@@ -1459,17 +1473,7 @@ class MultiSignalBot:
             "signal_first_seen": self._signal_first_seen,
             "feature_cache": {k: {fk: float(fv) if hasattr(fv, '__float__') else fv for fk, fv in v.items()} for k, v in self._feature_cache.items() if v},
             "feature_cache_ts": time.time(),
-            "positions": [{
-                "symbol": p.symbol, "direction": p.direction,
-                "strategy": p.strategy,
-                "entry_price": p.entry_price, "entry_time": p.entry_time.isoformat(),
-                "size_usdt": p.size_usdt, "signal_info": p.signal_info,
-                "target_exit": p.target_exit.isoformat(),
-                "mae_bps": p.mae_bps, "mfe_bps": p.mfe_bps, "stop_bps": p.stop_bps,
-                "trajectory": p.trajectory,
-                "entry_oi_delta": p.entry_oi_delta, "entry_crowding": p.entry_crowding,
-                "entry_confluence": p.entry_confluence, "entry_session": p.entry_session,
-            } for p in self.positions.values()],
+            "positions": pos_snapshot,
         }
         tmp = STATE_FILE + ".tmp"
         with open(tmp, "wb") as f:
@@ -1940,12 +1944,18 @@ async def api_pnl():
 def api_pause():
     """Sync handler — FastAPI runs in threadpool, won't block event loop during exchange close."""
     now = datetime.now(timezone.utc)
+    failed = []
     for sym in list(bot.positions.keys()):
         st = bot.states.get(sym)
         if st and st.price > 0:
             bot._close_position(sym, st.price, now, "manual_stop")
+            if sym in bot.positions:
+                failed.append(sym)
     bot._paused = True
     bot._save_state()
+    if failed:
+        log.warning("PAUSE: %d positions failed to close on exchange: %s", len(failed), failed)
+        return JSONResponse({"status": "paused", "warning": f"failed to close: {failed}"})
     return JSONResponse({"status": "paused"})
 
 @app.post("/api/resume")

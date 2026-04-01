@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 2 files** : `analysis/reversal.py` (~1900 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-Version in `VERSION` constant (currently 10.8.3). Dashboard on `:8097`.
+Version in `VERSION` constant (currently 10.8.4). Dashboard on `:8097`.
 
 ### Execution Modes
 
