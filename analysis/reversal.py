@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.8.2 — Five strategies + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.8.3 — Five strategies + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -51,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.8.2"
+VERSION = "10.8.3"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -170,7 +170,7 @@ MAX_PER_SECTOR = 2        # prevents overexposure to correlated tokens
 # fill all 6 slots. Reserving slots for token-level signals (S5/S8/S9/S10) improves
 # risk-adjusted returns: DD -32% vs -44%, test P&L +$771 vs -$556 (backtest_slot_reservation.py).
 MAX_MACRO_SLOTS = 2       # max S1 positions at once (S2 removed, S4 suspended)
-MAX_TOKEN_SLOTS = 3       # max S5/S8/S9/S10 positions at once
+MAX_TOKEN_SLOTS = 4       # max S5/S8/S9/S10 positions at once (was 3, +157% P&L with 4)
 MACRO_STRATEGIES = {"S1"}  # S4 suspended
 
 # ── Costs (applied at exit, per leg, scaled by leverage) ─────────────
