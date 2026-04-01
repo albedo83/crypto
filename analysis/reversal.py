@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.8.1 — Five strategies + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.8.2 — Five strategies + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -51,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.8.1"
+VERSION = "10.8.2"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -1065,6 +1065,19 @@ class MultiSignalBot:
                 })
 
             # S6 REMOVED — loses in portfolio despite z=8.04 in isolation
+
+            # S9-fast OBSERVATION — Fade ±3% in 2h on 60s price ticks.
+            # NOT traded. Logged for future validation (need 6+ months of data).
+            # Backtest (7 months 1h candles): 588 trades, +88.5 bps/trade, 54% win.
+            # See backtest_1h_fast.py.
+            if len(st.price_ticks) >= 120:  # need 2h of ticks (120 × 60s)
+                ticks = list(st.price_ticks)
+                price_2h_ago = ticks[-120][1]
+                if price_2h_ago > 0:
+                    ret_2h = (st.price / price_2h_ago - 1) * 1e4
+                    if abs(ret_2h) >= 300:  # ±3% in 2h
+                        s9f_dir = "SHORT" if ret_2h > 0 else "LONG"
+                        log.info("S9F_OBS: %s %s ret_2h=%+.0f (observation only)", s9f_dir, sym, ret_2h)
 
         # Track signal age + retest detection (observation only)
         now_ts = time.time()
