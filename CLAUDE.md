@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 2 files** : `analysis/reversal.py` (~1900 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-Version in `VERSION` constant (currently 10.8.4). Dashboard on `:8097`.
+Version in `VERSION` constant (currently 10.10.0). Dashboard on `:8097`.
 
 ### Execution Modes
 
@@ -101,7 +101,7 @@ All 5 active signals survived train/test split + Monte Carlo validation. S2 remo
 ### Config
 
 - **Leverage**: 2x (optimal from parameter sweep — 3x = ruin from compounding losses)
-- **Sizing**: 12% base + 3% bonus (z>4), z-weighted, haircut S8 ×0.8 (stronger signal = bigger position)
+- **Sizing**: 12% base + 3% bonus (z>4), z-weighted, haircut S8 ×0.8, per-signal mult (S1×1.125, S5×1.50, S8×1.25, S9×1.35, S10×1.10)
 - **Compounding**: Yes (capital grows/shrinks with P&L)
 - **Stop loss**: -25% catastrophe guard (S1/S5), -15% for S8, adaptive for S9 (tighter on bigger moves)
 - **Max positions**: 6 (max 4 same direction, max 2 per sector)

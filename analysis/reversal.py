@@ -1,4 +1,4 @@
-"""Multi-Signal Bot v10.8.4 — Five strategies + 2x leverage + OI observation.
+"""Multi-Signal Bot v10.10.0 — Five strategies + 2x leverage + OI observation.
 
 Strategies (all validated: train/test + Monte Carlo + portfolio + walk-forward):
   S1: btc_30d > +20% → LONG alts              (z=6.42, rare but powerful)
@@ -51,7 +51,7 @@ from pathlib import Path
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [BOT] %(message)s", datefmt="%H:%M:%S")
 log = logging.getLogger("multisignal")
 
-VERSION = "10.8.4"
+VERSION = "10.10.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 _env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env")
@@ -140,7 +140,7 @@ S10_VOL_RATIO_MAX = 0.9      # vol_ratio must be below this (compressed)
 S10_BREAKOUT_PCT = 0.5        # breakout must exceed 50% of range
 S10_REINT_CANDLES = 2         # must reintegrate within 2 candles
 HOLD_HOURS_S10 = 24           # 24h hold (6 candles)
-S10_CAPITAL_SHARE = 0.15      # 15% of total capital reserved for S10
+S10_CAPITAL_SHARE = 0.0       # No pocket — all signals size from full capital (backtest: +48% P&L vs 15%)
 
 # ── DXY Filter (critical for S4) ─────────────────────────────────────
 # S4 shorts only fire when the dollar is rising. Without DXY gating,
@@ -160,6 +160,9 @@ STRAT_Z = {"S1": 6.42, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
 # S2 removed: alt crash loses in portfolio, blocks better signals
 # S4 suspended: only 2 trades in 32 months, -$124. Code kept commented for reactivation.
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
+# Per-signal sizing multipliers (backtest_sizing_optimal.py Phase 3, 3125 combos):
+# Optimal found: +1585% P&L, -6% DD vs baseline. Train+test both positive.
+SIGNAL_MULT = {"S1": 1.125, "S5": 1.50, "S8": 1.25, "S9": 1.35, "S10": 1.10}
 
 # ── Capital & Position Limits ────────────────────────────────────────
 CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))
@@ -209,18 +212,19 @@ WEB_PORT = int(os.environ.get("WEB_PORT", "8097"))
 
 
 def strat_size(strat_name: str, capital: float) -> float:
-    """Compute position size: base% * z-weight * haircut.
+    """Compute position size: base% * z-weight * haircut * signal_mult.
 
     z-weight (z/4 clamped to [0.5, 2.0]) allocates more capital to
-    statistically stronger signals (S1/S8 get ~1.6x, S4 gets ~0.7x).
-    Haircut reduces size for strategies that fire in illiquid conditions.
+    statistically stronger signals. SIGNAL_MULT fine-tunes per-signal
+    allocation (optimized via backtest_sizing_optimal.py grid search).
     """
     z = STRAT_Z.get(strat_name, 3.0)
     weight = max(0.5, min(2.0, z / 4.0))
     pct = SIZE_PCT + (SIZE_BONUS if z > 4.0 else 0)
     base = capital * pct
     haircut = LIQUIDITY_HAIRCUT.get(strat_name, 1.0)
-    return round(max(10, base * weight * haircut), 2)
+    mult = SIGNAL_MULT.get(strat_name, 1.0)
+    return round(max(10, base * weight * haircut * mult), 2)
 
 
 # ── Data Structures ──────────────────────────────────────────────────
@@ -1164,12 +1168,7 @@ class MultiSignalBot:
             hold_h = sig.get("hold_hours", HOLD_HOURS_DEFAULT)
             target_exit = now + timedelta(hours=hold_h)
             current_capital = CAPITAL_USDT + self._total_pnl
-            # S10 has its own capital pocket (15%), S1-S9 share the rest (85%)
-            if sig["strategy"] == "S10":
-                effective_capital = current_capital * S10_CAPITAL_SHARE
-            else:
-                effective_capital = current_capital * (1 - S10_CAPITAL_SHARE)
-            size = strat_size(sig["strategy"], effective_capital)
+            size = strat_size(sig["strategy"], current_capital)
             # Loss streak penalty: protects against correlated losses
             # (e.g. flash crash hitting multiple positions simultaneously)
             if time.time() < self._loss_streak_until:
@@ -1191,12 +1190,9 @@ class MultiSignalBot:
                     log.warning("DEGRADED: %s win rate %.0f%% — sizing halved",
                                 sig["strategy"], wr * 100)
 
-            # Capital exposure limit: max 90% of pocket margin (S10 vs S1-S9 separate)
-            if sig["strategy"] == "S10":
-                used_margin = sum(p.size_usdt for p in self.positions.values() if p.strategy == "S10")
-            else:
-                used_margin = sum(p.size_usdt for p in self.positions.values() if p.strategy != "S10")
-            if used_margin + size > effective_capital * 0.90:
+            # Capital exposure limit: max 90% of total margin
+            used_margin = sum(p.size_usdt for p in self.positions.values())
+            if used_margin + size > current_capital * 0.90:
                 log.debug("SKIP %s %s %s: capital_exposure (%.0f+%.0f > %.0f)",
                           sig["strategy"], side, sym, used_margin, size, effective_capital * 0.90)
                 continue
@@ -2016,14 +2012,12 @@ async def run():
     mode_tag = "LIVE 🔴" if EXECUTION_MODE == "live" else "PAPER"
     log.info("Multi-Signal Bot v%s | %s | $%.0f capital | %dx leverage | %d symbols | port %d",
              VERSION, mode_tag, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
-    main_cap = CAPITAL_USDT * (1 - S10_CAPITAL_SHARE)
-    s10_cap = CAPITAL_USDT * S10_CAPITAL_SHARE
-    log.info("Sizing (initial, adjusts with P&L): %d%%+%d%% z-weighted | S1=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f (at $%.0f) | S10=$%.0f (at $%.0f)",
+    log.info("Sizing (initial, adjusts with P&L): %d%%+%d%% z-weighted | S1=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f S10=$%.0f (at $%.0f)",
              SIZE_PCT * 100, SIZE_BONUS * 100,
-             strat_size("S1", main_cap),
-             strat_size("S5", main_cap),
-             strat_size("S8", main_cap), strat_size("S9", main_cap), main_cap,
-             strat_size("S10", s10_cap), s10_cap)
+             strat_size("S1", CAPITAL_USDT),
+             strat_size("S5", CAPITAL_USDT),
+             strat_size("S8", CAPITAL_USDT), strat_size("S9", CAPITAL_USDT),
+             strat_size("S10", CAPITAL_USDT), CAPITAL_USDT)
     log.info("Hold: %dh (S5: %dh, S8: %dh) | Stop: %d bps (S8: %d) | Lev: %.0fx | Max: %d pos / %d dir / %d sect / %d macro / %d token",
              HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
              STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION, MAX_PER_SECTOR,
