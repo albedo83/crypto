@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 2 files** : `analysis/reversal.py` (~1900 lines) + `analysis/reversal.html`. Everything else is research/backtests.
 
-Version in `VERSION` constant (currently 10.8.0). Dashboard on `:8097`.
+Version in `VERSION` constant (currently 10.8.3). Dashboard on `:8097`.
 
 ### Execution Modes
 
@@ -48,7 +48,7 @@ Hyperliquid REST API (read)
             ▼
     analysis/reversal.py  (single asyncio process)
     ├── Features (24 calculated per token, 13 used in production)
-    ├── 6 signals (S1, S4, S5, S8, S9, S10)
+    ├── 5 signals (S1, S5, S8, S9, S10) + S9-fast observation
     ├── Crowding engine (OI + funding + premium → score 0-100)
     ├── Position manager (max 6/4dir/2sect, stop -25%/-15%, 48-72h timeout)
     ├── Signal quarantine (win rate < 20% → auto-disable)
@@ -90,20 +90,20 @@ Hyperliquid SDK (write)
 |--------|-----------|--------|---------|------|-------------|
 | S1 | BTC 30d > +20% | LONG alts | 6.42 | 72h | $24 |
 | ~~S2~~ | ~~Alt index 7d < -10%~~ | **REMOVED** — loses in portfolio, slots better used by S8/S9 | — | — | — |
-| S4 | Vol contraction + DXY rising > +1% | SHORT | 2.95 | 72h | $11 |
+| ~~S4~~ | ~~Vol contraction + DXY rising~~ | **SUSPENDED** — only 2 trades in 32 months, -$124. Code kept commented. | — | — | — |
 | S5 | Sector divergence > 10% + vol z > 1.0 | FOLLOW | 3.67 | 48h | $14 |
 | S8 | Drawdown < -40% + vol spike + BTC weak | LONG | 6.99 | 60h | $26 |
 | S9 | Token move > ±20% in 24h | FADE | 8.71 | 48h | $30 |
 | S10 | Squeeze + false breakout | FADE breakout | 3.66 | 24h | $11 |
 
-All 6 survived train/test split + Monte Carlo validation. S2 removed (loses in portfolio).
+All 5 active signals survived train/test split + Monte Carlo validation. S2 removed (loses in portfolio). S4 suspended (2 trades in 32 months).
 
 ### Config
 
 - **Leverage**: 2x (optimal from parameter sweep — 3x = ruin from compounding losses)
 - **Sizing**: 12% base + 3% bonus (z>4), z-weighted, haircut S8 ×0.8 (stronger signal = bigger position)
 - **Compounding**: Yes (capital grows/shrinks with P&L)
-- **Stop loss**: -25% catastrophe guard (S1/S4/S5), -15% for S8, adaptive for S9 (tighter on bigger moves)
+- **Stop loss**: -25% catastrophe guard (S1/S5), -15% for S8, adaptive for S9 (tighter on bigger moves)
 - **Max positions**: 6 (max 4 same direction, max 2 per sector)
 - **Capital exposure**: max 90%
 - **Costs**: 12 bps (7 taker + 3 slippage + 2 funding) × leverage
@@ -160,6 +160,10 @@ All in `analysis/`. The backtest files document the exhaustive search that led t
 | `backtest_squeeze_validation.py` | S10 deep validation: 5 checks (concentration, temporal, costs, params, uniqueness) | All 5 pass |
 | `backtest_slot_reservation.py` | Slot reservation: macro vs token signal allocation | **Macro 2 / Token 3** optimal (DD -32% vs -44%) |
 | `backtest_signal_boost.py` | 5 targeted improvements: S2 BTC filter, S9 threshold, S10 window, S2 early exit, S5 boost | **S2 early exit at -200bps** best (+87% P&L) |
+| `backtest_signal_boost2.py` | 6 advanced tests: adaptive hold, token picking, S4 vol_z, combo S2+S8, S9 adaptive stop, immediate entry | **S9 adaptive stop** best (+54% S9 P&L), S2 removed |
+| `backtest_short_search2.py` | 6 new SHORT ideas on 4h data (BTC neg, fade pump, overextension, sector fade, exhaustion, contagion) | **Nothing passes z>2.0** — structural long bias confirmed |
+| `backtest_1h_fast.py` | Fast signals on 1h candles: S9-fast, micro-squeeze, volume spike, momentum | **S9-fast (fade ±3% in 2h)** promising: 588t, +88bps, train+test ✓ |
+| `backtest_1h_fast2.py` | 6 more 1h patterns: BTC lead-lag, consecutive, 24h breakout, cross-alt, vol contraction, multi-TF | Nothing passes train+test |
 
 Bot documentation (French): `docs/bot.md`
 
@@ -188,9 +192,12 @@ Bot documentation (French): `docs/bot.md`
 - **Dashboard auth**: HTTP Basic Auth via `DASHBOARD_USER`/`DASHBOARD_PASS` in `.env`. Empty = no auth. Uses `secrets.compare_digest` (timing-safe).
 - **Auto-restart**: `@reboot` crontab runs `start_bots.sh` which starts both instances + sends Telegram alert on VPS reboot.
 - **Dual instances**: Paper (:8097, `analysis/output/`) and Live (:8098, `analysis/output_live/`) run in parallel from the same code. Only DXY cache is shared (global market data).
-- **Slot reservation**: Macro signals (S1/S4) limited to 2 slots, token signals (S5/S8/S9/S10) to 3. Prevents macro signals from filling all 6 slots on one scan. Backtest: DD -32% vs -44%, test P&L +$771 vs -$556 (backtest_slot_reservation.py).
+- **Slot reservation**: Macro signals (S1) limited to 2 slots, token signals (S5/S8/S9/S10) to 4. Token slots increased from 3→4: +157% P&L without compounding, S5 becomes top contributor. DD unchanged (-38%).
 - **S2 was removed**: Alt crash mean-reversion (z=4.00) loses in portfolio. Takes macro slots that S1/S8/S9 use better. S8 (capitulation flush) covers extreme crashes more effectively. See backtest_signal_boost2.py.
 - **S9 adaptive stop**: Bigger faded moves get tighter stops. Formula: `max(-2500, -1000 - abs(ret_24h)/4)`. Example: fade +3000bps → stop -1750. Backtest: S9 PnL +54% vs fixed stop (backtest_signal_boost2.py Test 5).
+- **S4 suspended**: Vol compression + DXY SHORT (z=2.95) — only 2 trades in 32-month backtest, -$124. Code kept commented in `_scan_signals` for reactivation. Was the only SHORT macro signal; bot is now LONG-biased (S5/S9/S10 can still short individual tokens).
+- **S9-fast observation**: Logs `S9F_OBS` when a token moves ±3% in 2h (from 60s price ticks). NOT traded — observation only. Backtest on 7 months of 1h candles: 588 trades, +88.5 bps/trade, 54% win, train+test positive. Needs 6+ months of live data before integration decision. See backtest_1h_fast.py.
+- **SHORT signals exhaustively tested**: 378 variants (backtest_short_search.py) + 150 variants (backtest_short_search2.py) — none pass z>2.0 with train+test positive. Altcoin markets have structural long bias. Only individual token fades (S9, S10) work as shorts.
 - **DXY cached in memory**: `self._dxy_cache` stores the last DXY value + timestamp. Refreshed only during hourly scan (in `to_thread`). API handlers (`get_state`, `get_signals`) read from memory, never call Yahoo. Prevents event loop blocking.
 - **Pause/Reset are sync handlers**: `api_pause()` and `api_reset()` are `def` (not `async def`) so FastAPI runs them in a threadpool. This prevents blocking the event loop during exchange close operations.
 - **Fill price from order response**: `_execute_open`/`_execute_close` extract `avgPx` directly from the Hyperliquid order response (`statuses[0]["filled"]["avgPx"]`). Falls back to `user_fills_by_time` with 500ms delay, then market price as last resort.

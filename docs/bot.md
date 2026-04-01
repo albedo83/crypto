@@ -1,4 +1,4 @@
-# Multi-Signal Bot v10.8.0
+# Multi-Signal Bot v10.8.3
 
 Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. Un seul fichier Python (~1900 lignes), pas de base de donnees.
 
@@ -6,11 +6,11 @@ Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. U
 
 ## En une phrase
 
-Le bot suit le momentum BTC→alts (S1), shorte les marches calmes quand le dollar monte (S4), suit les breakouts sectoriels (S5), achete les flush de liquidation (S8), fade les mouvements extremes (S9), et fade les faux breakouts apres compression (S10). Il logue tout ce qu'il voit (OI, funding, premium, crowding, trajectoire) pour pouvoir s'ameliorer plus tard sans avoir triche sur les donnees.
+Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), achete les flush de liquidation (S8), fade les mouvements extremes (S9), et fade les faux breakouts apres compression (S10). S2 (alt crash) retire, S4 (vol+DXY short) suspendu. Il logue tout ce qu'il voit (OI, funding, premium, crowding, trajectoire) pour pouvoir s'ameliorer plus tard sans avoir triche sur les donnees.
 
 ---
 
-## Les 6 signaux
+## Les 5 signaux actifs
 
 ### S1 — BTC explose (+20% sur 30 jours)
 
@@ -25,16 +25,9 @@ Le bot suit le momentum BTC→alts (S1), shorte les marches calmes quand le doll
 
 **Retire en v10.8.0.** Alt crash mean-reversion (z=4.00) perd en portfolio. Prend des slots macro que S1/S8/S9 utilisent mieux. S8 (capitulation flush) couvre les crashs extremes plus efficacement. Voir backtest_signal_boost2.py.
 
-### S4 — Calme plat + dollar fort
+### ~~S4 — Suspendu (calme plat + dollar fort)~~
 
-**Quoi** : si la volatilite d'un alt est basse, la bougie est petite, et le dollar monte → shorter.
-**Pourquoi** : en crypto, quand c'est calme et que le dollar se renforce, les alts derivent vers le bas.
-**Type** : contrarien / derive.
-**Frequence** : variable, depend du dollar.
-**Hold** : 72h. **Stop** : -25% leveraged.
-**z-score** : 2.95. **Walk-forward** : 7/10 (70%).
-**Conditions** : `vol_ratio < 1.0 AND range_pct < 200 bps AND DXY_7d > +100 bps`.
-**Le filtre DXY est critique** : sans lui, S4 shorte en bull market et perd. Seul signal SHORT du bot.
+**Suspendu en v10.8.1.** Vol compression + DXY SHORT (z=2.95) — seulement 2 trades en 32 mois de backtest, -$124. En live : -$5.09 (BLUR stop) des la premiere semaine. Code conserve commente pour reactivation si les conditions DXY changent.
 
 ### S5 — Un token casse de son secteur
 
@@ -94,11 +87,11 @@ Le bot suit le momentum BTC→alts (S1), shorte les marches calmes quand le doll
 | **Levier** | 2x | Sweep 1x-3x : 2x optimal. 3x = ruine par compounding des pertes. |
 | **Sizing** | 12% base + 3% bonus (z>4), z-weighted | Plus le signal est fiable, plus la mise est grosse. S8 haircut ×0.8. |
 | **Compounding** | Oui | Capital = initial + P&L cumule. Les mises suivent les gains et les pertes. |
-| **Hold** | 72h (S1/S4), 48h (S5/S9), 60h (S8), 24h (S10) | Timeout automatique. |
-| **Stop loss** | -2500 bps (S1/S4/S5), -1500 bps (S8), adaptatif (S9) | S9 : plus le move est gros, plus le stop est serre. |
+| **Hold** | 72h (S1), 48h (S5/S9), 60h (S8), 24h (S10) | Timeout automatique. |
+| **Stop loss** | -2500 bps (S1/S5), -1500 bps (S8), adaptatif (S9) | S9 : plus le move est gros, plus le stop est serre. |
 | **Frais simules** | 12 bps × 2 = 24 bps/trade | 7 taker + 3 slippage + 2 funding. |
 | **Cooldown** | 24h par token apres exit | Evite de re-entrer immediatement. |
-| **Slot reservation** | Max 2 macro (S1/S4) + 3 token (S5/S8/S9/S10) | Empeche les macro signaux de remplir les 6 slots d'un coup. |
+| **Slot reservation** | Max 2 macro (S1) + 4 token (S5/S8/S9/S10) | Macro limité, token élargi à 4 (+157% P&L vs 3). |
 
 ---
 
@@ -109,7 +102,7 @@ Le bot suit le momentum BTC→alts (S1), shorte les marches calmes quand le doll
 | **Max 6 positions** | Absolu | Surexposition |
 | **Max 4 meme direction** | 4 LONG ou 4 SHORT | Pari directionnel total |
 | **Max 2 par secteur** | 2 par groupe | Concentration sectorielle |
-| **Slot reservation** | 2 macro / 3 token | Macro signals remplissent tout |
+| **Slot reservation** | 2 macro / 4 token | Macro limité, token élargi |
 | **Exposition 90%** | Par pocket (S10 vs S1-S9) | Toujours 10% de cash par pocket |
 | **Stop loss** | -25% (S8: -15%, S9: adaptatif) | Crash extreme |
 | **Kill-switch** | P&L cumule < -$300 → auto-pause | Perte catastrophique |
@@ -164,13 +157,13 @@ Hyperliquid REST API (toutes les 60s, avec retry 3x backoff)
             ▼
     reversal.py  (~1900 lignes, processus asyncio unique)
     │
-    ├── 6 signaux (S1, S4, S5, S8, S9, S10)
-    │     Slot reservation : 2 macro / 3 token
+    ├── 5 signaux (S1, S5, S8, S9, S10) + S9-fast observation
+    │     Slot reservation : 2 macro / 4 token
     │     Tri par z-score, puis force du signal
     │
     ├── Position manager
     │     6 max / 4 dir / 2 sect / 90% expo / S10 pocket 15%
-    │     Stop -25% (S8: -15%, S9: adaptatif)
+    │     Stop -25% (S8: -15%, S9: adaptatif max(-2500,-1000-ret/4))
     │     Kill-switch -$300 / Streak 3→/2 / Quarantine WR<20%
     │
     ├── Execution (live)
@@ -224,4 +217,7 @@ Chaque signal doit passer : (1) train/test split, (2) Monte Carlo z > 2.0, (3) p
 |---|---|
 | `backtest_slot_reservation.py` | **Macro 2 / Token 3** optimal (DD -32% vs -44%) |
 | `backtest_signal_boost.py` | S2 early exit +87% P&L, S9/S10 threshold inchanges |
-| `backtest_signal_boost2.py` | **S9 adaptive stop +54%**, S2 retire, 5 autres tests rejetes |
+| `backtest_signal_boost2.py` | **S9 adaptive stop +54%**, S2 retire, token slots 3→4 (+157%) |
+| `backtest_short_search2.py` | 6 SHORT ideas, 150+ variants — **nothing z>2.0** |
+| `backtest_1h_fast.py` | 1h signals: **S9-fast (fade ±3% 2h)** seul survivant, 588t +88bps |
+| `backtest_1h_fast2.py` | 6 more 1h patterns — nothing passes train+test |
