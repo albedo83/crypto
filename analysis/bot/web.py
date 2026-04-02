@@ -93,6 +93,7 @@ def build_state_response(bot) -> dict:
             "pnl_usdt": round(pos.size_usdt * ur / 1e4, 2),
             "hold_hours": round((now - pos.entry_time).total_seconds() / 3600, 1),
             "remaining_hours": round(rem, 1),
+            "remaining": f"{int(rem)}h{int((rem % 1) * 60):02d}m",
             "mae_bps": round(pos.mae_bps, 1), "mfe_bps": round(pos.mfe_bps, 1),
         })
     return {
@@ -225,6 +226,36 @@ def create_app(bot) -> FastAPI:
             "degraded": list(bot._degraded),
             "positions_count": len(bot.positions), "paused": bot._paused,
         }, status_code=503 if stale else 200)
+
+    @app.get("/api/chart/{symbol}")
+    async def api_chart(symbol: str, hours: int = 24):
+        """Price history for chart: 4h candles + 60s ticks merged."""
+        pts = []
+        st = bot.states.get(symbol)
+        if st and st.candles_4h:
+            cutoff = time.time() - hours * 3600
+            for c in st.candles_4h:
+                if c["t"] / 1000 >= cutoff:
+                    pts.append({"ts": c["t"] // 1000, "price": c["c"]})
+        # Overlay 60s ticks (more recent, higher resolution)
+        if bot._db:
+            try:
+                cutoff_ts = int(time.time() - hours * 3600)
+                rows = bot._db.execute(
+                    "SELECT ts, mark_px FROM ticks WHERE symbol=? AND ts>? ORDER BY ts",
+                    (symbol, cutoff_ts)).fetchall()
+                tick_start = rows[0][0] if rows else 0
+                pts = [p for p in pts if p["ts"] < tick_start]  # candles before ticks
+                pts.extend({"ts": r[0], "price": r[1]} for r in rows)
+            except Exception:
+                pass
+        # Position info
+        pos_info = None
+        pos = bot.positions.get(symbol)
+        if pos:
+            pos_info = {"entry_price": pos.entry_price, "direction": "LONG" if pos.direction == 1 else "SHORT",
+                        "strategy": pos.strategy, "entry_ts": int(pos.entry_time.timestamp())}
+        return JSONResponse({"symbol": symbol, "points": pts, "position": pos_info})
 
     @app.get("/api/state")
     async def api_state(): return JSONResponse(build_state_response(bot))

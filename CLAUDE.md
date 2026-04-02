@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.0.0). Dashboard on `:8097`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.1.0). Dashboard on `:8097`.
 
 ### Execution Modes
 
@@ -166,7 +166,7 @@ All in `analysis/`. The backtest files document the exhaustive search that led t
 
 Bot documentation (French): `docs/bot.md`
 
-### SQLite Tick Database (v11.0.0)
+### SQLite Tick Database (v11.1.0)
 
 Every 60s, the bot writes raw Hyperliquid API data to `{OUTPUT_DIR}/reversal_ticks.db`:
 

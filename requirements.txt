@@ -1,4 +1,4 @@
-# Multi-Signal Bot v11.0.0 — dependencies
+# Multi-Signal Bot v11.1.0 — dependencies
 # Install: pip install -r requirements.txt
 
 # Bot (reversal.py)

@@ -119,7 +119,8 @@ class MultiSignalBot:
     # ── Core bot operations ──────────────────────────────────
 
     def _refresh_feature_cache(self):
-        self._feature_cache = {sym: self._compute_features(sym) for sym in TRADE_SYMBOLS}
+        # Include ETH for observation (signals logged but not traded)
+        self._feature_cache = {sym: self._compute_features(sym) for sym in TRADE_SYMBOLS + ["ETH"]}
         falling = rising = 0
         for sym in TRADE_SYMBOLS:
             d = self._compute_oi_features(sym)["oi_delta_1h"]
@@ -201,6 +202,33 @@ class MultiSignalBot:
             if s9f:
                 log.info("S9F_OBS: %s %s ret_2h=%+.0f (observation only)", s9f["dir"], sym, s9f["ret_2h"])
                 db_mod.log_event(self._db, "S9F_OBS", sym, s9f)
+
+        # ETH observation — log signals but don't trade (not enough data to validate)
+        eth_f = self._feature_cache.get("ETH")
+        if eth_f:
+            eth_st = self.states.get("ETH")
+            btc_7d = btc_f.get("btc_7d", 0)
+            # S8 on ETH (4/4 wins in backtest, +2089 bps avg)
+            if (eth_f.get("drawdown", 0) < -4000 and eth_f.get("vol_z", 0) > 1.0
+                    and eth_f.get("ret_24h", 0) < -50 and btc_7d < -300):
+                log.info("ETH_OBS: S8 LONG dd=%.0f vz=%.1f r24h=%.0f BTC7d=%+.0f",
+                         eth_f["drawdown"], eth_f["vol_z"], eth_f["ret_24h"], btc_7d)
+                db_mod.log_event(self._db, "ETH_OBS", "ETH",
+                                 {"signal": "S8", "dir": "LONG", "drawdown": eth_f["drawdown"],
+                                  "ret_24h": eth_f["ret_24h"], "btc_7d": btc_7d})
+            # S9 on ETH (0/3 wins — observation only, do NOT trade)
+            if abs(eth_f.get("ret_24h", 0)) >= 2000:
+                s9_dir = "SHORT" if eth_f["ret_24h"] > 0 else "LONG"
+                log.info("ETH_OBS: S9 %s ret_24h=%+.0f (loses on ETH — observation only)",
+                         s9_dir, eth_f["ret_24h"])
+                db_mod.log_event(self._db, "ETH_OBS", "ETH",
+                                 {"signal": "S9", "dir": s9_dir, "ret_24h": eth_f["ret_24h"]})
+            # S9-fast on ETH
+            if eth_st and len(eth_st.price_ticks) >= 120:
+                s9f = signals.check_s9f_observation(eth_st.price_ticks, eth_st.price)
+                if s9f:
+                    log.info("S9F_OBS: %s ETH ret_2h=%+.0f (observation only)", s9f["dir"], s9f["ret_2h"])
+                    db_mod.log_event(self._db, "S9F_OBS", "ETH", s9f)
 
         signals.track_signal_age(all_signals, self._signal_first_seen, time.time())
         return trading.rank_and_enter(all_signals, now, self)
