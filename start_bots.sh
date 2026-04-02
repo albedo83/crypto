@@ -1,6 +1,6 @@
 #!/bin/bash
 # Auto-start bots after VPS reboot
-cd /home/crypto
+cd "$(dirname "$0")"
 
 # Alert: VPS just rebooted
 source .env 2>/dev/null
@@ -22,6 +22,6 @@ TG_BOT_TOKEN= TG_CHAT_ID= \
 echo "Paper bot started (PID: $!)"
 
 # Live bot (:8098)
-HL_MODE=live HL_CAPITAL=260 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
+HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 echo "Live bot started (PID: $!)"

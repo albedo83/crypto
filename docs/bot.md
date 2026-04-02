@@ -1,6 +1,6 @@
-# Multi-Signal Bot v10.10.0
+# Multi-Signal Bot v11.0.0
 
-Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. Un seul fichier Python (~1900 lignes), pas de base de donnees.
+Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. 12 modules Python dans `analysis/bot/` + SQLite tick database.
 
 ---
 
@@ -155,7 +155,7 @@ Hyperliquid REST API (toutes les 60s, avec retry 3x backoff)
     └── Yahoo Finance → DXY (toutes les 6h, cache memoire + disque 48h)
             │
             ▼
-    reversal.py  (~1900 lignes, processus asyncio unique)
+    analysis/bot/  (12 modules, processus asyncio unique)
     │
     ├── 5 signaux (S1, S5, S8, S9, S10) + S9-fast observation
     │     Slot reservation : 2 macro / 4 token

@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trading on 28 altcoins.
 
-**The bot is 2 files** : `analysis/reversal.py` (~1900 lines) + `analysis/reversal.html`. Everything else is research/backtests.
+**The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `VERSION` constant (currently 10.10.0). Dashboard on `:8097`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.0.0). Dashboard on `:8097`.
 
 ### Execution Modes
 
@@ -27,7 +27,7 @@ nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 
 HL_MODE=live HL_CAPITAL=260 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 
-# Both restart automatically on VPS reboot via crontab (@reboot /home/crypto/start_bots.sh)
+# Both restart automatically on VPS reboot via crontab (@reboot $PROJECT_DIR/start_bots.sh)
 
 # Stop: fuser -k 8097/tcp (paper) or fuser -k 8098/tcp (live)
 # Logs: tail -f analysis/output/reversal_v10.log (paper)
@@ -46,20 +46,19 @@ Hyperliquid REST API (read)
     └── Yahoo Finance (DXY, every 6h, cached 48h)
             │
             ▼
-    analysis/reversal.py  (single asyncio process)
-    ├── Features (24 calculated per token, 13 used in production)
-    ├── 5 signals (S1, S5, S8, S9, S10) + S9-fast observation
-    ├── Crowding engine (OI + funding + premium → score 0-100)
-    ├── Position manager (max 6/4dir/2sect, stop -25%/-15%, 48-72h timeout)
-    ├── Signal quarantine (win rate < 20% → auto-disable)
-    ├── Execution (paper or live via hyperliquid-python-sdk)
-    ├── Reconciliation (bot state vs exchange, every scan)
-    ├── Telegram alerts (entry/exit/error/kill-switch/daily summary)
-    ├── State persistence (JSON atomic writes + CSV trades + CSV market + CSV trajectories)
-    ├── 12 observation dimensions per trade (OI, crowding, stress, disp, shock, clean, lead, conf, session, age, retest)
-    ├── Structured entry context per trade (oi_delta, crowding, confluence, session — for post-hoc analysis)
-    ├── HTTP retry with exponential backoff (3 attempts, 1s/2s/4s)
-    └── Dashboard (FastAPI on :8097, live counters, strategy P&L, drawdown, utilization, mobile responsive)
+    analysis/bot/  (12 modules, single asyncio process)
+    ├── config.py      — constants, env, sizing
+    ├── models.py      — SymbolState, Position, Trade dataclasses
+    ├── net.py         — HTTP retry, price/candle fetching, Telegram
+    ├── features.py    — technical features, OI, crowding, BTC, DXY, sector
+    ├── signals.py     — S1/S5/S8/S9/S10 detection, squeeze, S9F observation
+    ├── db.py          — SQLite schema, tick/event logging, CSV migration
+    ├── persistence.py — CSV/DB writes, state save/load, market snapshots
+    ├── exchange.py    — Hyperliquid SDK (open/close/reconcile)
+    ├── trading.py     — entries (ranking/limits), exits (stop/timeout), P&L
+    ├── web.py         — FastAPI dashboard + API responses
+    ├── bot.py         — MultiSignalBot class (thin orchestrator)
+    └── main.py        — entry point, signal handlers, uvicorn
             │
             ▼ (live mode only)
 Hyperliquid SDK (write)
@@ -167,6 +166,28 @@ All in `analysis/`. The backtest files document the exhaustive search that led t
 
 Bot documentation (French): `docs/bot.md`
 
+### SQLite Tick Database (v11.0.0)
+
+Every 60s, the bot writes raw Hyperliquid API data to `{OUTPUT_DIR}/reversal_ticks.db`:
+
+**Table `ticks`** (PRIMARY KEY: ts, symbol):
+| Column | Source | Use |
+|--------|--------|-----|
+| mark_px | markPx | Perp price |
+| oracle_px | oraclePx | Spot/oracle price |
+| open_interest | openInterest | OI in coins |
+| funding | funding | Funding rate |
+| premium | premium | (mark-oracle)/oracle |
+| day_ntl_vlm | dayNtlVlm | 24h notional volume USD |
+| impact_bid | impactPxs[0] | Book depth bid side |
+| impact_ask | impactPxs[1] | Book depth ask side |
+
+**Table `events`** (ts, event, symbol, data JSON):
+- `S9F_OBS`: ±3% move in 2h (dir, ret_2h)
+- `SKIP`: signal generated but filtered (strategy, dir, reason)
+
+30 symbols × 1440 min/day = ~5 MB/day, ~150 MB/month. WAL mode, NORMAL sync.
+
 ## Gotchas
 
 - **DXY filter is critical for S4**: S4 SHORT only active when DXY 7d > +100 bps. Without it, S4 shorts in bull markets and loses. DXY has 3-tier fallback: fresh < 6h, stale 6-48h (S4 stays active), expired > 48h (S4 disabled + degraded banner).
@@ -176,7 +197,7 @@ Bot documentation (French): `docs/bot.md`
 - **Compounding effect**: `current_capital = CAPITAL_USDT + _total_pnl`. After big losses, position sizes shrink dramatically. After big wins, positions grow and DD risk increases.
 - **HTML cache**: Dashboard HTML is cached in memory on first request. Restart bot to pick up HTML changes.
 - **Trades deque**: `self.trades` is `deque(maxlen=500)`. Use `list(self.trades)` before slicing (deque doesn't support slicing).
-- **Versioning**: `VERSION` constant in `analysis/reversal.py`. **ALWAYS bump VERSION when modifying reversal.py** — patch for bugfixes, minor for features, major for breaking changes. Update the version in the docstring (line 1), `bot.md` title, and `CLAUDE.md` (this file) at the same time. The version displayed on the dashboard is the user's proof that the correct code is running.
+- **Versioning**: `VERSION` constant in `analysis/bot/config.py`. **ALWAYS bump VERSION when modifying bot code** — patch for bugfixes, minor for features, major for breaking changes. Update `config.py`, `bot.md` title, and `CLAUDE.md` (this file) at the same time. The version displayed on the dashboard is the user's proof that the correct code is running.
 - **S6 was removed**: Liquidation bounce signal had z=8.04 in isolation but loses -$627 to -$1,552 in portfolio. Standalone backtest was misleading (simpler backtester, no position limits).
 - **S8 capitulation is rare**: Fires ~1/month in portfolio (drawdown > -40% is extreme). When it fires, 70% win rate with avg +413 bps. Max 7 consecutive losses observed (April 2024 crash).
 - **SHORT signals are hard**: 378 short variants tested, none pass z > 2.0. S4+DXY remains the only viable short. Altcoin markets have structural long bias.

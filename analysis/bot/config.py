@@ -1,0 +1,166 @@
+"""Bot configuration — constants, environment, sizing logic.
+
+All tuneable parameters live here. Values are from exhaustive backtests
+(see backtest_*.py files and CLAUDE.md for references).
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+
+# ── Logging ─────────────────────────────────────────────────────────
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [BOT] %(message)s",
+    datefmt="%H:%M:%S",
+)
+log = logging.getLogger("multisignal")
+
+VERSION = "11.0.0"
+
+# ── Environment (.env) ──────────────────────────────────────────────
+# bot/ -> analysis/ -> project root
+_env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env")
+if os.path.exists(_env_path):
+    with open(_env_path) as _ef:
+        for _line in _ef:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                _v = _v.strip().strip("'\"")
+                os.environ.setdefault(_k.strip(), _v)
+
+EXECUTION_MODE = os.environ.get("HL_MODE", "paper")
+HL_PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
+TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
+TG_CHAT_ID = os.environ.get("TG_CHAT_ID", "")
+DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "")
+DASHBOARD_PASS = os.environ.get("DASHBOARD_PASS", "")
+
+# ── Symbols ─────────────────────────────────────────────────────────
+TRADE_SYMBOLS = [
+    "ARB", "OP", "AVAX", "SUI", "APT", "SEI", "NEAR",
+    "AAVE", "MKR", "COMP", "SNX", "PENDLE", "DYDX",
+    "DOGE", "WLD", "BLUR", "LINK", "PYTH",
+    "SOL", "INJ", "CRV", "LDO", "STX", "GMX",
+    "IMX", "SAND", "GALA", "MINA",
+]
+REFERENCE = ["BTC", "ETH"]
+ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
+
+# ── Sectors (for S5 divergence) ─────────────────────────────────────
+SECTORS = {
+    "L1":     ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI"],
+    "DeFi":   ["AAVE", "MKR", "CRV", "SNX", "PENDLE", "COMP", "DYDX", "LDO", "GMX"],
+    "Gaming": ["GALA", "IMX", "SAND"],
+    "Infra":  ["LINK", "PYTH", "STX", "INJ", "ARB", "OP"],
+    "Meme":   ["DOGE", "WLD", "BLUR", "MINA"],
+}
+TOKEN_SECTOR: dict[str, str] = {}
+for _sect, _toks in SECTORS.items():
+    for _t in _toks:
+        TOKEN_SECTOR[_t] = _sect
+
+# ── Hold Periods (backtest_boost.py) ────────────────────────────────
+HOLD_HOURS_DEFAULT = 72   # S1 — 3 days
+HOLD_HOURS_S5 = 48        # sector divergences revert faster
+HOLD_HOURS_S8 = 60        # 15 candles
+HOLD_HOURS_S9 = 48        # best test performance
+HOLD_HOURS_S10 = 24       # 6 candles
+
+# ── S5 Sector Divergence ────────────────────────────────────────────
+S5_DIV_THRESHOLD = 1000   # 10% divergence from sector
+S5_VOL_Z_MIN = 1.0
+
+# ── S8 Capitulation Flush (backtest_deep_s8.py) ────────────────────
+S8_DRAWDOWN_THRESH = -4000   # -40% from 30d high
+S8_VOL_Z_MIN = 1.0
+S8_RET_24H_THRESH = -50      # still bleeding (< -0.5%)
+S8_BTC_7D_THRESH = -300      # BTC 7d < -3% (z 5.2→6.99)
+
+# ── S9 Fade Extreme (backtest_wild.py) ──────────────────────────────
+S9_RET_THRESH = 2000         # ±20% in 24h
+S9_ADAPTIVE_STOP = True      # bigger moves → tighter stops (+54% S9 P&L)
+
+# ── S10 Squeeze Expansion (FROZEN — backtest_squeeze.py) ───────────
+S10_SQUEEZE_WINDOW = 3       # 3 candles = 12h
+S10_VOL_RATIO_MAX = 0.9
+S10_BREAKOUT_PCT = 0.5
+S10_REINT_CANDLES = 2
+S10_CAPITAL_SHARE = 0.0      # no pocket — full capital (backtest: +48% P&L vs 15%)
+
+# ── DXY Filter (critical for S4) ────────────────────────────────────
+# bot/ -> analysis/ -> output/pairs_data/
+DXY_CACHE = os.path.join(
+    os.path.dirname(os.path.dirname(__file__)), "output", "pairs_data", "macro_DXY.json"
+)
+DXY_BOOST_THRESHOLD = 100   # DXY 7d > +1% → S4 active
+
+# ── Leverage & Sizing ──────────────────────────────────────────────
+# 2x optimal (3x = ruin from compounding losses)
+LEVERAGE = 2.0
+
+SIZE_PCT = 0.12
+SIZE_BONUS = 0.03
+STRAT_Z = {"S1": 6.42, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
+LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
+# Per-signal multipliers (backtest_sizing_optimal.py Phase 3, 3125 combos)
+SIGNAL_MULT = {"S1": 1.125, "S5": 1.50, "S8": 1.25, "S9": 1.35, "S10": 1.10}
+
+# ── Capital & Position Limits ───────────────────────────────────────
+CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))
+MAX_POSITIONS = 6
+MAX_SAME_DIRECTION = 4
+MAX_PER_SECTOR = 2
+# Slot reservation (backtest_slot_reservation.py: DD -32% vs -44%)
+MAX_MACRO_SLOTS = 2
+MAX_TOKEN_SLOTS = 4       # was 3, +157% P&L with 4
+MACRO_STRATEGIES = {"S1"}
+
+# ── Costs (per leg, scaled by leverage) ─────────────────────────────
+TAKER_FEE_BPS = 7.0
+SLIPPAGE_BPS = 3.0
+FUNDING_DRAG_BPS = 2.0
+COST_BPS = TAKER_FEE_BPS + SLIPPAGE_BPS + FUNDING_DRAG_BPS  # 12
+
+# ── Stop Losses ─────────────────────────────────────────────────────
+STOP_LOSS_BPS = -2500.0    # -25% leveraged
+STOP_LOSS_S8 = -1500.0     # -15% leveraged
+
+# ── Portfolio Kill-Switch ───────────────────────────────────────────
+TOTAL_LOSS_CAP = -300.0
+LOSS_STREAK_THRESHOLD = 3
+LOSS_STREAK_MULTIPLIER = 0.5
+LOSS_STREAK_COOLDOWN = 24 * 3600
+
+# ── Timing ──────────────────────────────────────────────────────────
+SCAN_INTERVAL = 3600
+COOLDOWN_HOURS = 24
+
+# ── Paths ───────────────────────────────────────────────────────────
+# bot/ -> analysis/ for base paths
+_analysis_dir = os.path.dirname(os.path.dirname(__file__))
+OUTPUT_DIR = os.environ.get("HL_OUTPUT_DIR", os.path.join(_analysis_dir, "output"))
+TRADES_CSV = os.path.join(OUTPUT_DIR, "reversal_trades.csv")
+MARKET_CSV = os.path.join(OUTPUT_DIR, "reversal_market.csv")
+STATE_FILE = os.path.join(OUTPUT_DIR, "reversal_state.json")
+TICKS_DB = os.path.join(OUTPUT_DIR, "reversal_ticks.db")
+HTML_PATH = os.path.join(_analysis_dir, "reversal.html")
+WEB_PORT = int(os.environ.get("WEB_PORT", "8097"))
+
+
+def strat_size(strat_name: str, capital: float) -> float:
+    """Compute position size: base% * z-weight * haircut * signal_mult.
+
+    z-weight (z/4 clamped to [0.5, 2.0]) allocates more capital to
+    statistically stronger signals. SIGNAL_MULT fine-tunes per-signal
+    allocation (optimized via backtest_sizing_optimal.py grid search).
+    """
+    z = STRAT_Z.get(strat_name, 3.0)
+    weight = max(0.5, min(2.0, z / 4.0))
+    pct = SIZE_PCT + (SIZE_BONUS if z > 4.0 else 0)
+    base = capital * pct
+    haircut = LIQUIDITY_HAIRCUT.get(strat_name, 1.0)
+    mult = SIGNAL_MULT.get(strat_name, 1.0)
+    return round(max(10, base * weight * haircut * mult), 2)
