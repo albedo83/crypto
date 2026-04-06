@@ -49,6 +49,7 @@ def init_db(db_path: str) -> sqlite3.Connection | None:
             impact_ask REAL,
             PRIMARY KEY (ts, symbol)
         ) WITHOUT ROWID""")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_ticks_symbol_ts ON ticks(symbol, ts)")
         # Events (S9F_OBS, signal skips, etc.)
         db.execute("""CREATE TABLE IF NOT EXISTS events (
             ts INTEGER NOT NULL,

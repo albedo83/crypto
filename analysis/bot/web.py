@@ -80,7 +80,9 @@ def build_state_response(bot) -> dict:
     balance = CAPITAL_USDT + bot._total_pnl
     btc_f, alt_idx = bot._compute_btc_features(), bot._compute_alt_index()
     positions = []
-    for sym, pos in bot.positions.items():
+    with bot._pos_lock:
+        pos_snapshot = dict(bot.positions)
+    for sym, pos in pos_snapshot.items():
         st = bot.states.get(sym)
         px = st.price if st else pos.entry_price
         ur = pos.direction * (px / pos.entry_price - 1) * 1e4 * LEVERAGE if pos.entry_price > 0 else 0
@@ -105,7 +107,7 @@ def build_state_response(bot) -> dict:
         "balance": round(balance, 2), "capital": CAPITAL_USDT,
         "total_pnl": round(bot._total_pnl, 2), "total_trades": n_bot,
         "win_rate": round(wins / n_bot, 3) if n_bot > 0 else 0,
-        "n_positions": len(bot.positions), "max_positions": MAX_POSITIONS,
+        "n_positions": len(pos_snapshot), "max_positions": MAX_POSITIONS,
         "positions": positions, "active_signals": _collect_active_signals(bot, btc_f),
         "market": {
             "btc_30d": round(btc_f.get("btc_30d", 0), 0),
@@ -125,7 +127,7 @@ def build_state_response(bot) -> dict:
         "signal_drift": compute_signal_drift(bot.trades),
         "peak_balance": round(bot._peak_balance, 2),
         "drawdown_pct": round((balance - bot._peak_balance) / bot._peak_balance * 100, 2) if bot._peak_balance > 0 else 0,
-        "capital_utilization_pct": round(sum(p.size_usdt for p in bot.positions.values()) / max(balance, 1) * 100, 1),
+        "capital_utilization_pct": round(sum(p.size_usdt for p in pos_snapshot.values()) / max(balance, 1) * 100, 1),
     }
 
 def build_signals_response(bot) -> dict:
@@ -230,26 +232,35 @@ def create_app(bot) -> FastAPI:
     @app.get("/api/chart/{symbol}")
     async def api_chart(symbol: str, hours: int = 24):
         """Price history for chart: 4h candles + 60s ticks merged."""
-        pts = []
-        st = bot.states.get(symbol)
-        if st and st.candles_4h:
-            cutoff = time.time() - hours * 3600
-            for c in st.candles_4h:
-                if c["t"] / 1000 >= cutoff:
-                    pts.append({"ts": c["t"] // 1000, "price": c["c"]})
-        # Overlay 60s ticks (more recent, higher resolution)
-        if bot._db:
-            try:
-                cutoff_ts = int(time.time() - hours * 3600)
-                rows = bot._db.execute(
-                    "SELECT ts, mark_px FROM ticks WHERE symbol=? AND ts>? ORDER BY ts",
-                    (symbol, cutoff_ts)).fetchall()
-                tick_start = rows[0][0] if rows else 0
-                pts = [p for p in pts if p["ts"] < tick_start]  # candles before ticks
-                pts.extend({"ts": r[0], "price": r[1]} for r in rows)
-            except Exception:
-                pass
-        # Position info
+        from .config import ALL_SYMBOLS as _all_syms
+        if symbol not in _all_syms:
+            return JSONResponse({"symbol": symbol, "points": [], "position": None})
+        hours = max(1, min(hours, 168))
+
+        def _build_chart():
+            pts = []
+            st = bot.states.get(symbol)
+            if st and st.candles_4h:
+                cutoff = time.time() - hours * 3600
+                for c in st.candles_4h:
+                    if c["t"] / 1000 >= cutoff:
+                        pts.append({"ts": c["t"] // 1000, "price": c["c"]})
+            if bot._db:
+                try:
+                    cutoff_ts = int(time.time() - hours * 3600)
+                    rows = bot._db.execute(
+                        "SELECT ts, mark_px FROM ticks WHERE symbol=? AND ts>? ORDER BY ts",
+                        (symbol, cutoff_ts)).fetchall()
+                    tick_start = rows[0][0] if rows else 0
+                    pts_filtered = [p for p in pts if p["ts"] < tick_start]
+                    pts_filtered.extend({"ts": r[0], "price": r[1]} for r in rows)
+                    return pts_filtered
+                except Exception:
+                    pass
+            return pts
+
+        import asyncio
+        pts = await asyncio.to_thread(_build_chart)
         pos_info = None
         pos = bot.positions.get(symbol)
         if pos:
@@ -258,9 +269,9 @@ def create_app(bot) -> FastAPI:
         return JSONResponse({"symbol": symbol, "points": pts, "position": pos_info})
 
     @app.get("/api/state")
-    async def api_state(): return JSONResponse(build_state_response(bot))
+    def api_state(): return JSONResponse(build_state_response(bot))  # sync — numpy in threadpool
     @app.get("/api/signals")
-    async def api_signals(): return JSONResponse(build_signals_response(bot))
+    def api_signals(): return JSONResponse(build_signals_response(bot))  # sync — numpy in threadpool
     @app.get("/api/trades")
     async def api_trades(limit: int = 50): return JSONResponse(build_trades_list(bot.trades, limit))
     @app.get("/api/pnl")

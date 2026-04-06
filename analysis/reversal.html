@@ -55,6 +55,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 .sym-btn{padding:2px 8px;background:#21262d;border:1px solid #30363d;border-radius:4px;color:#8b949e;cursor:pointer;font:11px monospace}
 .sym-btn:hover{background:#30363d;color:#e6edf3}
 .sym-btn.active{background:#388bfd22;border-color:#388bfd;color:#58a6ff}
+.sym-btn.has-pos{background:#23863622;border-color:#238636;color:#3fb950;font-weight:700}
 .pnl-line{position:absolute;bottom:0;left:0;width:100%;height:100%}
 .progress-bar{width:100%;height:3px;background:#21262d;margin-top:2px;border-radius:2px;overflow:hidden}
 .progress-bar .fill{height:100%;background:#58a6ff;transition:width 1s linear;border-radius:2px}
@@ -138,7 +139,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="section">
-  <h2>Signals (S1: BTC rip | S5: Sector div | S8: Capitulation | S9: Fade extreme | S10: Squeeze)</h2>
+  <h2>Signals</h2>
   <div class="signal-grid" id="signals"></div>
 </div>
 
@@ -282,6 +283,12 @@ function refresh(){
         sdEl.appendChild(tr);
       });
     }
+
+    // Highlight sym buttons with open positions
+    const posSyms=new Set(s.positions.map(p=>p.symbol));
+    document.querySelectorAll('.sym-btn').forEach(b=>{
+      b.classList.toggle('has-pos',posSyms.has(b.textContent));
+    });
 
     // Flash cards on change
     if(_prevPnl!==null && Math.abs(todayTotal-_prevPnl)>0.01) flashCard('card-total');
@@ -479,6 +486,7 @@ function initChart(){
     crosshair:{mode:0},
     rightPriceScale:{borderColor:'#30363d'},
     timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
+    localization:{locale:navigator.language,dateFormat:'dd/MM',timeFormatter:t=>{const d=new Date(t*1000);return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}},
   });
   _lwSeries=_lwChart.addLineSeries({color:'#58a6ff',lineWidth:2,crosshairMarkerRadius:4,
     priceFormat:{type:'price',minMove:0.0001,precision:4}});
@@ -486,7 +494,7 @@ function initChart(){
 }
 
 function refreshChart(){
-  fetch(`api/chart/${_chartSym}?hours=24`,{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
+  fetch(`api/chart/${_chartSym}?hours=72`,{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
     document.getElementById('chart-title').textContent=_chartSym+(d.position?' — '+d.position.strategy+' '+d.position.direction:'');
     if(!d.points.length) return;
     const data=d.points.map(p=>({time:p.ts, value:p.price}));
