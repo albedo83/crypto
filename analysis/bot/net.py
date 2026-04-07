@@ -8,7 +8,7 @@ import threading
 import time
 import urllib.request
 
-from .config import ALL_SYMBOLS, TG_BOT_TOKEN, TG_CHAT_ID
+from .config import ALL_SYMBOLS, TG_BOT_TOKEN, TG_CHAT_ID, EXECUTION_MODE
 
 log = logging.getLogger("multisignal")
 
@@ -99,7 +99,7 @@ def fetch_candles(symbol: str, states: dict) -> None:
 
 def send_telegram(msg: str) -> None:
     """Send alert via Telegram Bot API. Fire-and-forget in a daemon thread."""
-    if not TG_BOT_TOKEN or not TG_CHAT_ID:
+    if not TG_BOT_TOKEN or not TG_CHAT_ID or EXECUTION_MODE == "paper":
         return
 
     def _do_send():

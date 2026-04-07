@@ -107,6 +107,19 @@ def init_db(db_path: str) -> sqlite3.Connection | None:
             vol_z REAL,
             PRIMARY KEY (ts, symbol)
         ) WITHOUT ROWID""")
+        # 60s aggregated trade flow from WebSocket (buy/sell pressure, large trades)
+        db.execute("""CREATE TABLE IF NOT EXISTS trade_flow (
+            ts INTEGER NOT NULL,
+            symbol TEXT NOT NULL,
+            buy_vol REAL,
+            sell_vol REAL,
+            buy_count INTEGER,
+            sell_count INTEGER,
+            max_trade_usd REAL,
+            vwap REAL,
+            PRIMARY KEY (ts, symbol)
+        ) WITHOUT ROWID""")
+        db.execute("CREATE INDEX IF NOT EXISTS idx_tf_symbol_ts ON trade_flow(symbol, ts)")
         db.commit()
         # Migrate existing CSV data if tables are empty
         migrate_csv_to_db(db, TRADES_CSV, MARKET_CSV, OUTPUT_DIR)

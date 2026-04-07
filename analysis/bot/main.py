@@ -24,6 +24,7 @@ from .web import create_app
 from .config import STATE_FILE
 from .persistence import load_state, load_trades
 from .net import send_telegram
+from .collector import TradeFlowCollector
 
 log = logging.getLogger("multisignal")
 
@@ -89,9 +90,11 @@ async def run():
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)
 
+    collector = TradeFlowCollector(bot._db)
     tasks = [
         asyncio.create_task(bot.main_loop()),
         asyncio.create_task(server.serve()),
+        asyncio.create_task(collector.run()),
     ]
 
     await bot._shutdown_event.wait()
