@@ -128,7 +128,8 @@ COST_BPS = TAKER_FEE_BPS + SLIPPAGE_BPS + FUNDING_DRAG_BPS  # 12
 # ── Stop Losses ─────────────────────────────────────────────────────
 STOP_LOSS_BPS = -2500.0    # -25% leveraged
 STOP_LOSS_S8 = -1500.0     # -15% leveraged
-S9_EARLY_EXIT_BPS = -1000.0  # cut S9 if < -1000 bps after 8h (backtest_sizing.py: 60:1 ratio)
+# Early exit: only S9 benefits in compounding (S5/S8 tested, both lose value)
+S9_EARLY_EXIT_BPS = -1000.0   # cut S9 if < -1000 bps after 8h (60:1 ratio)
 S9_EARLY_EXIT_HOURS = 8.0
 
 # ── Portfolio Kill-Switch ───────────────────────────────────────────

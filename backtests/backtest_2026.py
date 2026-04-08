@@ -44,9 +44,9 @@ HOLD = {"S1": 18, "S5": 12, "S8": 15, "S9": 12, "S10": 6}
 STOP_DEFAULT = -2500
 STOP_S8 = -1500
 
-# S9 early exit: cut if < -1000 bps after 8h (2 candles)
+# S9 early exit (only S9 benefits — S5/S8 tested, both lose value in compounding)
 S9_EARLY_EXIT_BPS = -1000
-S9_EARLY_EXIT_CANDLES = 2  # 8h in 4h candles
+S9_EARLY_EXIT_CANDLES = 2   # 8h
 
 # Date filter
 START_2026 = datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp() * 1000
@@ -199,7 +199,7 @@ def backtest_2026(features, data, sector_features, dxy_data, start_ts=None, star
             if held >= pos["hold"]:
                 exit_reason = "timeout"
 
-            # S9 early exit: cut losses early if not reverting after 8h
+            # S9 early exit: cut if not reverting after 8h
             if not exit_reason and pos["strat"] == "S9" and held >= S9_EARLY_EXIT_CANDLES:
                 ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4 * LEVERAGE
                 if ur_bps < S9_EARLY_EXIT_BPS:
