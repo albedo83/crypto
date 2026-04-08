@@ -1,12 +1,11 @@
 """FastAPI app, routes, auth, and API response builders."""
 from __future__ import annotations
-import logging, os, time, secrets as _secrets
+import hashlib, logging, os, time, secrets as _secrets
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from fastapi import Depends, FastAPI, HTTPException
-from fastapi.responses import HTMLResponse, JSONResponse
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+from fastapi import Cookie, FastAPI, HTTPException, Request, Form
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from .config import (
     VERSION, EXECUTION_MODE, CAPITAL_USDT, LEVERAGE, DASHBOARD_USER,
     DASHBOARD_PASS, HTML_PATH, TRADE_SYMBOLS, TOKEN_SECTOR, TRADES_CSV,
@@ -182,19 +181,101 @@ def build_pnl_curve(trades) -> list:
 
 # ── FastAPI App Factory ───────────────────────────────────────────────
 
+_LOGIN_HTML = """<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Login — Trading Bot</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+     display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-box{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:40px;width:360px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.login-box h1{font-size:20px;margin-bottom:8px;text-align:center}
+.login-box .sub{color:#7d8590;font-size:13px;text-align:center;margin-bottom:24px}
+.login-box label{display:block;font-size:13px;color:#7d8590;margin-bottom:4px}
+.login-box input[type=text],.login-box input[type=password]{
+  width:100%;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;
+  color:#e6edf3;font-size:15px;margin-bottom:16px;outline:none;transition:border .2s}
+.login-box input:focus{border-color:#58a6ff}
+.login-box button{width:100%;padding:10px;background:#238636;color:#fff;border:none;border-radius:6px;
+  font-size:15px;font-weight:600;cursor:pointer;transition:background .2s}
+.login-box button:hover{background:#2ea043}
+.error{background:#da363322;border:1px solid #da363388;color:#f85149;padding:8px 12px;
+  border-radius:6px;margin-bottom:16px;font-size:13px;text-align:center;display:none}
+</style>
+</head><body>
+<form class="login-box" method="POST" action="/login" autocomplete="on">
+  <h1>Trading Bot</h1>
+  <div class="sub">{{VERSION}} — {{MODE}}</div>
+  <div class="error" id="err">{{ERROR}}</div>
+  <label for="username">Username</label>
+  <input type="text" id="username" name="username" autocomplete="username" required autofocus>
+  <label for="password">Password</label>
+  <input type="password" id="password" name="password" autocomplete="current-password" required>
+  <button type="submit">Sign in</button>
+</form>
+<script>if(document.getElementById('err').textContent.trim())document.getElementById('err').style.display='block'</script>
+</body></html>"""
+
+
 def create_app(bot) -> FastAPI:
     """Create the FastAPI app with all routes wired to *bot*."""
-    _security = HTTPBasic(auto_error=False)
-    _deny = HTTPException(status_code=401, headers={"WWW-Authenticate": "Basic"})
-    def _check_auth(creds: HTTPBasicCredentials | None = Depends(_security)):
-        if not DASHBOARD_USER: return
-        if creds is None: raise _deny
-        if not (_secrets.compare_digest(creds.username, DASHBOARD_USER)
-                and _secrets.compare_digest(creds.password, DASHBOARD_PASS)):
-            raise _deny
+    # ── Session-based auth ──
+    _sessions: set[str] = set()  # valid session tokens
 
-    app = FastAPI(dependencies=[Depends(_check_auth)] if DASHBOARD_USER else [])
+    def _make_token() -> str:
+        return _secrets.token_urlsafe(32)
+
+    def _check_session(session: str | None = Cookie(None)) -> None:
+        if not DASHBOARD_USER:
+            return  # no auth configured
+        if not session or session not in _sessions:
+            raise HTTPException(status_code=303, headers={"Location": "/login"})
+
+    app = FastAPI()
     _html_cache: dict[str, str | None] = {"v": None}
+
+    if DASHBOARD_USER:
+        from starlette.middleware.base import BaseHTTPMiddleware
+        class _AuthMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request: Request, call_next):
+                path = request.url.path
+                if path in ("/login", "/favicon.ico"):
+                    return await call_next(request)
+                token = request.cookies.get("session")
+                if not token or token not in _sessions:
+                    if path.startswith("/api/"):
+                        return JSONResponse({"detail": "Unauthorized"}, status_code=401)
+                    return RedirectResponse("/login", status_code=303)
+                return await call_next(request)
+        app.add_middleware(_AuthMiddleware)
+
+    @app.get("/login", response_class=HTMLResponse)
+    async def login_page():
+        ml = "LIVE" if EXECUTION_MODE == "live" else "PAPER"
+        return _LOGIN_HTML.replace("{{VERSION}}", VERSION).replace("{{MODE}}", ml).replace("{{ERROR}}", "")
+
+    @app.post("/login")
+    async def login_submit(username: str = Form(...), password: str = Form(...)):
+        ml = "LIVE" if EXECUTION_MODE == "live" else "PAPER"
+        if (_secrets.compare_digest(username, DASHBOARD_USER)
+                and _secrets.compare_digest(password, DASHBOARD_PASS)):
+            token = _make_token()
+            _sessions.add(token)
+            resp = RedirectResponse("/", status_code=303)
+            resp.set_cookie("session", token, httponly=True, samesite="strict", max_age=30 * 86400)
+            return resp
+        html = (_LOGIN_HTML.replace("{{VERSION}}", VERSION)
+                .replace("{{MODE}}", ml).replace("{{ERROR}}", "Invalid username or password"))
+        return HTMLResponse(html, status_code=401)
+
+    @app.get("/logout")
+    async def logout(session: str | None = Cookie(None)):
+        if session:
+            _sessions.discard(session)
+        resp = RedirectResponse("/login", status_code=303)
+        resp.delete_cookie("session")
+        return resp
 
     @app.get("/", response_class=HTMLResponse)
     async def index():
