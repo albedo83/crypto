@@ -1,6 +1,8 @@
 """Admin panel — multi-bot overview on :8080."""
 from __future__ import annotations
 
+import hashlib
+import hmac
 import json
 import logging
 import os
@@ -29,21 +31,33 @@ with open(CONFIG_PATH) as f:
     _config = json.load(f)
 _allowed_ports = {b["port"] for b in _config["bots"]}
 
-# ── Auth (same pattern as bot web.py) ──
-_sessions: dict[str, float] = {}
-_login_attempts: dict[str, list[float]] = {}
+# ── Stateless signed sessions (survive restarts) ──
+_SECRET = hashlib.sha256(DASHBOARD_PASS.encode()).digest() if DASHBOARD_PASS else b""
 _SESSION_MAX_AGE = 30 * 86400
+_login_attempts: dict[str, list[float]] = {}
 _LOGIN_RATE_WINDOW = 300
 _LOGIN_RATE_MAX = 10
 
-def _is_session_valid(token: str) -> bool:
-    ts = _sessions.get(token)
-    if ts is None:
+def _sign_token(ts: float) -> str:
+    msg = str(int(ts)).encode()
+    sig = hmac.new(_SECRET, msg, hashlib.sha256).hexdigest()[:16]
+    return f"{int(ts)}:{sig}"
+
+def _verify_token(token: str) -> bool:
+    if not token or ":" not in token:
+        return False
+    parts = token.split(":", 1)
+    if len(parts) != 2:
+        return False
+    ts_str, sig = parts
+    try:
+        ts = int(ts_str)
+    except ValueError:
         return False
     if time.time() - ts > _SESSION_MAX_AGE:
-        _sessions.pop(token, None)
         return False
-    return True
+    expected = hmac.new(_SECRET, ts_str.encode(), hashlib.sha256).hexdigest()[:16]
+    return hmac.compare_digest(sig, expected)
 
 def _is_rate_limited(ip: str) -> bool:
     now = time.time()
@@ -106,7 +120,7 @@ if DASHBOARD_USER:
             if path in ("/login", "/favicon.ico"):
                 return await call_next(request)
             token = request.cookies.get("admin_session")
-            if not token or not _is_session_valid(token):
+            if not token or not _verify_token(token):
                 if path.startswith("/api/") or path.startswith("/proxy/"):
                     return JSONResponse({"detail": "Unauthorized"}, status_code=401)
                 return RedirectResponse("/login", status_code=303)
@@ -161,8 +175,7 @@ async def login_submit(request: Request, username: str = Form(...), password: st
     _login_attempts.setdefault(client_ip, []).append(time.time())
     if (_secrets.compare_digest(username, DASHBOARD_USER)
             and _secrets.compare_digest(password, DASHBOARD_PASS)):
-        token = _secrets.token_urlsafe(32)
-        _sessions[token] = time.time()
+        token = _sign_token(time.time())
         resp = RedirectResponse("/", status_code=303)
         resp.set_cookie("admin_session", token, httponly=True, samesite="strict", max_age=30 * 86400)
         return resp
@@ -170,8 +183,7 @@ async def login_submit(request: Request, username: str = Form(...), password: st
 
 @app.get("/logout")
 async def logout(admin_session: str | None = Cookie(None)):
-    if admin_session:
-        _sessions.pop(admin_session, None)
+    _ = admin_session  # unused, token is stateless
     resp = RedirectResponse("/login", status_code=303)
     resp.delete_cookie("admin_session")
     return resp

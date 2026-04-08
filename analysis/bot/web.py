@@ -1,6 +1,6 @@
 """FastAPI app, routes, auth, and API response builders."""
 from __future__ import annotations
-import logging, os, time, secrets as _secrets
+import hashlib, hmac, logging, os, time, secrets as _secrets
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -222,29 +222,37 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 
 def create_app(bot) -> FastAPI:
     """Create the FastAPI app with all routes wired to *bot*."""
-    # ── Session-based auth ──
-    _sessions: dict[str, float] = {}  # token → creation timestamp
-    _login_attempts: dict[str, list[float]] = {}  # ip → list of attempt timestamps
-    _SESSION_MAX_AGE = 30 * 86400  # 30 days server-side
-    _LOGIN_RATE_WINDOW = 300  # 5 min
-    _LOGIN_RATE_MAX = 10  # max attempts per window
+    # ── Stateless signed sessions (survive restarts) ──
+    _SECRET = hashlib.sha256(DASHBOARD_PASS.encode()).digest() if DASHBOARD_PASS else b""
+    _SESSION_MAX_AGE = 30 * 86400
+    _login_attempts: dict[str, list[float]] = {}
+    _LOGIN_RATE_WINDOW = 300
+    _LOGIN_RATE_MAX = 10
 
-    def _make_token() -> str:
-        return _secrets.token_urlsafe(32)
+    def _sign_token(ts: float) -> str:
+        msg = str(int(ts)).encode()
+        sig = hmac.new(_SECRET, msg, hashlib.sha256).hexdigest()[:16]
+        return f"{int(ts)}:{sig}"
 
-    def _is_session_valid(token: str) -> bool:
-        ts = _sessions.get(token)
-        if ts is None:
+    def _verify_token(token: str) -> bool:
+        if not token or ":" not in token:
+            return False
+        parts = token.split(":", 1)
+        if len(parts) != 2:
+            return False
+        ts_str, sig = parts
+        try:
+            ts = int(ts_str)
+        except ValueError:
             return False
         if time.time() - ts > _SESSION_MAX_AGE:
-            _sessions.pop(token, None)
             return False
-        return True
+        expected = hmac.new(_SECRET, ts_str.encode(), hashlib.sha256).hexdigest()[:16]
+        return hmac.compare_digest(sig, expected)
 
     def _is_rate_limited(ip: str) -> bool:
         now = time.time()
-        attempts = _login_attempts.get(ip, [])
-        attempts = [t for t in attempts if now - t < _LOGIN_RATE_WINDOW]
+        attempts = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_RATE_WINDOW]
         _login_attempts[ip] = attempts
         return len(attempts) >= _LOGIN_RATE_MAX
 
@@ -259,7 +267,7 @@ def create_app(bot) -> FastAPI:
                 if path in ("/login", "/favicon.ico"):
                     return await call_next(request)
                 token = request.cookies.get("session")
-                if not token or not _is_session_valid(token):
+                if not token or not _verify_token(token):
                     if path.startswith("/api/"):
                         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
                     return RedirectResponse("/login", status_code=303)
@@ -282,8 +290,7 @@ def create_app(bot) -> FastAPI:
         _login_attempts.setdefault(client_ip, []).append(time.time())
         if (_secrets.compare_digest(username, DASHBOARD_USER)
                 and _secrets.compare_digest(password, DASHBOARD_PASS)):
-            token = _make_token()
-            _sessions[token] = time.time()
+            token = _sign_token(time.time())
             resp = RedirectResponse("/", status_code=303)
             resp.set_cookie("session", token, httponly=True, samesite="strict", max_age=30 * 86400)
             return resp
@@ -292,9 +299,7 @@ def create_app(bot) -> FastAPI:
         return HTMLResponse(html, status_code=401)
 
     @app.get("/logout")
-    async def logout(session: str | None = Cookie(None)):
-        if session:
-            _sessions.pop(session, None)
+    async def logout():
         resp = RedirectResponse("/login", status_code=303)
         resp.delete_cookie("session")
         return resp
