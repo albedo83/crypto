@@ -520,8 +520,12 @@ function refreshChart(){
         axisLabelVisible:true,
         title:d.position.strategy+' '+d.position.direction,
       });
+      // Snap marker to closest chart data point (LW Charts requires exact match)
+      let markerTs=d.position.entry_ts;
+      let minDist=Infinity;
+      data.forEach(p=>{const dt=Math.abs(p.time-markerTs);if(dt<minDist){minDist=dt;markerTs=p.time}});
       _lwSeries.setMarkers([{
-        time:d.position.entry_ts,
+        time:markerTs,
         position:isLong?'belowBar':'aboveBar',
         color:col, shape:isLong?'arrowUp':'arrowDown',
         text:d.position.strategy+' @ $'+d.position.entry_price.toFixed(prec),
