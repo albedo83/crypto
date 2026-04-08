@@ -100,7 +100,7 @@ DXY_BOOST_THRESHOLD = 100   # DXY 7d > +1% (unused while S4 suspended)
 # 2x optimal (3x = ruin from compounding losses)
 LEVERAGE = 2.0
 
-SIZE_PCT = 0.12
+SIZE_PCT = 0.18        # base sizing (was 0.12, backtest: +138% P&L, DD -81%)
 SIZE_BONUS = 0.03
 STRAT_Z = {"S1": 6.42, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
