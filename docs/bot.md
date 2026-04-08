@@ -89,6 +89,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 | **Compounding** | Oui | Capital = initial + P&L cumule. Les mises suivent les gains et les pertes. |
 | **Hold** | 72h (S1), 48h (S5/S9), 60h (S8), 24h (S10) | Timeout automatique. |
 | **Stop loss** | -2500 bps (S1/S5), -1500 bps (S8), adaptatif (S9) | S9 : plus le move est gros, plus le stop est serre. |
+| **S9 early exit** | Coupe si < -1000 bps apres 8h | Winners revertent immediatement, losers non. 23:1 ratio. Non generalisable a S5/S8. |
 | **Frais simules** | 12 bps × 2 = 24 bps/trade | 7 taker + 3 slippage + 2 funding. |
 | **Cooldown** | 24h par token apres exit | Evite de re-entrer immediatement. |
 | **Slot reservation** | Max 2 macro (S1) + 4 token (S5/S8/S9/S10) | Macro limité, token élargi à 4 (+157% P&L vs 3). |
