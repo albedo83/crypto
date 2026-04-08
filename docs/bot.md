@@ -85,7 +85,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 | Parametre | Valeur | Pourquoi |
 |---|---|---|
 | **Levier** | 2x | Sweep 1x-3x : 2x optimal. 3x = ruine par compounding des pertes. |
-| **Sizing** | 12% base + 3% bonus (z>4), z-weighted | Plus le signal est fiable, plus la mise est grosse. S8 haircut ×0.8. |
+| **Sizing** | 12% base + 3% bonus (z>4), z-weighted, mult S5×2.50 S9×2.00 S10×2.00 | z-score + frequence. S8 haircut ×0.8. Sweep 3m/12m/24m (backtest_sizing.py). |
 | **Compounding** | Oui | Capital = initial + P&L cumule. Les mises suivent les gains et les pertes. |
 | **Hold** | 72h (S1), 48h (S5/S9), 60h (S8), 24h (S10) | Timeout automatique. |
 | **Stop loss** | -2500 bps (S1/S5), -1500 bps (S8), adaptatif (S9) | S9 : plus le move est gros, plus le stop est serre. |

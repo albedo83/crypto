@@ -105,8 +105,9 @@ SIZE_PCT = 0.12
 SIZE_BONUS = 0.03
 STRAT_Z = {"S1": 6.42, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
-# Per-signal multipliers (backtest_sizing_optimal.py Phase 3, 3125 combos)
-SIGNAL_MULT = {"S1": 1.125, "S5": 1.50, "S8": 1.25, "S9": 1.35, "S10": 1.10}
+# Per-signal multipliers (backtest_sizing.py cross-period sweep 3m/12m/24m)
+# S5 2.50 and S9 2.00 stable across all periods; S10 2.00 conservative consensus
+SIGNAL_MULT = {"S1": 1.125, "S5": 2.50, "S8": 1.25, "S9": 2.00, "S10": 2.00}
 
 # ── Capital & Position Limits ───────────────────────────────────────
 CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))

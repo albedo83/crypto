@@ -100,7 +100,7 @@ All 5 active signals survived train/test split + Monte Carlo validation. S2 remo
 ### Config
 
 - **Leverage**: 2x (optimal from parameter sweep — 3x = ruin from compounding losses)
-- **Sizing**: 12% base + 3% bonus (z>4), z-weighted, haircut S8 ×0.8, per-signal mult (S1×1.125, S5×1.50, S8×1.25, S9×1.35, S10×1.10)
+- **Sizing**: 12% base + 3% bonus (z>4), z-weighted, haircut S8 ×0.8, per-signal mult (S1×1.125, S5×2.50, S8×1.25, S9×2.00, S10×2.00)
 - **Compounding**: Yes (capital grows/shrinks with P&L)
 - **Stop loss**: -25% catastrophe guard (S1/S5), -15% for S8, adaptive for S9 (tighter on bigger moves)
 - **Max positions**: 6 (max 4 same direction, max 2 per sector)
@@ -165,6 +165,7 @@ All in `analysis/`. The backtest files document the exhaustive search that led t
 | `backtest_1h_fast.py` | Fast signals on 1h candles: S9-fast, micro-squeeze, volume spike, momentum | **S9-fast (fade ±3% in 2h)** promising: 588t, +88bps, train+test ✓ |
 | `backtest_1h_fast2.py` | 6 more 1h patterns: BTC lead-lag, consecutive, 24h breakout, cross-alt, vol contraction, multi-TF | Nothing passes train+test |
 | `backtest_2026.py` | 2026-only backtest of active signals (S1/S5/S8/S9/S10) with paper bot comparison | Q1: +$446, S5+S9 best, S8 loses. Paper bot period matches direction |
+| `backtest_sizing.py` | Per-signal multiplier sweep on 3m/12m/24m data | S5=2.50, S9=2.00 stable; S10=2.00 consensus. +94% P&L on Q1 2026, +108% on 15m |
 
 Bot documentation (French): `docs/bot.md`
 
