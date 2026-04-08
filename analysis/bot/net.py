@@ -22,9 +22,10 @@ def http_fetch(url: str, payload: bytes | None = None, headers: dict | None = No
             req = urllib.request.Request(url, data=payload, headers=hdrs)
             with urllib.request.urlopen(req, timeout=timeout) as resp:
                 return resp.read()
-        except Exception:
+        except (urllib.error.URLError, OSError, TimeoutError) as e:
             if attempt == retries - 1:
                 raise
+            log.debug("http_fetch attempt %d failed: %s", attempt + 1, e)
             time.sleep(2 ** attempt)  # 1s, 2s, 4s
 
 

@@ -12,6 +12,7 @@ import logging
 import os
 import shutil
 import sqlite3
+import threading
 import time
 from datetime import datetime, timezone
 
@@ -22,6 +23,9 @@ from .config import (OUTPUT_DIR, TRADES_CSV, MARKET_CSV, STATE_FILE, TICKS_DB,
 from .models import Position, Trade
 
 log = logging.getLogger("multisignal")
+
+# Global write lock — serialises all SQLite writes from scan, API, and collector threads.
+_db_lock = threading.Lock()
 
 
 # ── SQLite Init & Migration ───────────────────────────────────────────
@@ -239,9 +243,10 @@ def log_ticks(db: sqlite3.Connection | None, api_ctxs: list | None,
             ask = float(impacts[1]) if len(impacts) > 1 else None
             rows.append((ts, sym, mark, oracle, oi, funding, premium, vlm, bid, ask))
         if rows:
-            db.executemany(
-                "INSERT OR IGNORE INTO ticks VALUES (?,?,?,?,?,?,?,?,?,?)", rows)
-            db.commit()
+            with _db_lock:
+                db.executemany(
+                    "INSERT OR IGNORE INTO ticks VALUES (?,?,?,?,?,?,?,?,?,?)", rows)
+                db.commit()
     except Exception as e:
         log.warning("Tick log error: %s", e)
 
@@ -252,10 +257,11 @@ def log_event(db: sqlite3.Connection | None, event: str,
     if not db:
         return
     try:
-        db.execute("INSERT INTO events VALUES (?,?,?,?)",
-                   (int(time.time()), event, symbol,
-                    json.dumps(data) if data else None))
-        db.commit()
+        with _db_lock:
+            db.execute("INSERT INTO events VALUES (?,?,?,?)",
+                       (int(time.time()), event, symbol,
+                        json.dumps(data) if data else None))
+            db.commit()
     except Exception as e:
         log.warning("Event log error: %s", e)
 

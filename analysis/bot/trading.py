@@ -63,6 +63,16 @@ def check_exits(bot) -> int:
     now = datetime.now(timezone.utc)
     exits = 0
 
+    # Retry any previously failed exchange closes
+    for sym in list(bot._failed_closes):
+        if sym in bot.positions:
+            st = bot.states.get(sym)
+            if st and st.price > 0:
+                log.info("Retrying failed close for %s", sym)
+                close_position(sym, st.price, now, "retry_close", bot)
+                if sym not in bot.positions:
+                    exits += 1
+
     for sym in list(bot.positions.keys()):
         # Snapshot position under lock to avoid race with api_pause
         with bot._pos_lock:
@@ -126,56 +136,59 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
             fill_px = execute_close(bot._exchange, bot._hl_info, bot._hl_address, sym)
             if fill_px:
                 exit_price = fill_px
+            bot._failed_closes.discard(sym)
         except Exception as e:
+            bot._failed_closes.add(sym)
             log.error("EXEC CLOSE FAILED %s: %s — keeping position, will retry next scan", sym, e)
             send_telegram(f"\u274c Close failed {sym}: {e} \u2014 will retry")
-            return  # don't pop — position stays tracked, retried in 60s
+            return  # don't pop — position stays tracked, retried next scan
 
     with bot._pos_lock:
         if sym not in bot.positions:
             return  # closed by concurrent api_pause/check_exits
         pos = bot.positions.pop(sym)
 
-    hold_h = (now - pos.entry_time).total_seconds() / 3600
-    # Record final trajectory point at exit
-    final_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4 * LEVERAGE
-    pos.trajectory.append((round(hold_h, 1), round(final_bps, 1)))
-    # P&L calc: direction * price change * leverage, then subtract round-trip costs.
-    # Costs scale with leverage because notional = size * leverage.
-    gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4 * LEVERAGE
-    effective_cost = COST_BPS * LEVERAGE
-    net_bps = gross_bps - effective_cost
-    pnl = pos.size_usdt * net_bps / 1e4
+        hold_h = (now - pos.entry_time).total_seconds() / 3600
+        # Record final trajectory point at exit
+        final_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4 * LEVERAGE
+        pos.trajectory.append((round(hold_h, 1), round(final_bps, 1)))
+        # P&L calc: direction * price change * leverage, then subtract round-trip costs.
+        # Costs scale with leverage because notional = size * leverage.
+        gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4 * LEVERAGE
+        effective_cost = COST_BPS * LEVERAGE
+        net_bps = gross_bps - effective_cost
+        pnl = pos.size_usdt * net_bps / 1e4
 
-    bot._total_pnl += pnl
-    balance = CAPITAL_USDT + bot._total_pnl
-    if balance > bot._peak_balance:
-        bot._peak_balance = balance
-    if pnl > 0:
-        bot._wins += 1
+        bot._total_pnl += pnl
+        balance = CAPITAL_USDT + bot._total_pnl
+        if balance > bot._peak_balance:
+            bot._peak_balance = balance
+        if pnl > 0:
+            bot._wins += 1
 
-    # Track consecutive losses — protects against correlated drawdowns.
-    # After N losses in a row, halve sizing for 24h to limit damage.
-    if pnl > 0:
-        bot._consecutive_losses = 0
-    else:
-        bot._consecutive_losses += 1
-        if bot._consecutive_losses >= LOSS_STREAK_THRESHOLD:
-            bot._loss_streak_until = time.time() + LOSS_STREAK_COOLDOWN
-            log.warning("Loss streak: %d consecutive losses \u2014 sizing reduced for 24h",
-                        bot._consecutive_losses)
+        # Track consecutive losses — protects against correlated drawdowns.
+        if pnl > 0:
+            bot._consecutive_losses = 0
+        else:
+            bot._consecutive_losses += 1
+            if bot._consecutive_losses >= LOSS_STREAK_THRESHOLD:
+                bot._loss_streak_until = time.time() + LOSS_STREAK_COOLDOWN
+                log.warning("Loss streak: %d consecutive losses \u2014 sizing reduced for 24h",
+                            bot._consecutive_losses)
 
-    # Kill-switch: if total P&L breaches cap, stop all trading.
-    # Protects against catastrophic regime change (e.g. all signals broken at once).
+        # Kill-switch: if total P&L breaches cap, stop all trading.
+        if bot._total_pnl <= TOTAL_LOSS_CAP:
+            bot._paused = True
+            log.critical("KILL-SWITCH: P&L $%.2f below cap $%.0f \u2014 auto-paused",
+                         bot._total_pnl, TOTAL_LOSS_CAP)
+
+        # Cooldown
+        bot._cooldowns[sym] = time.time() + COOLDOWN_HOURS * 3600
+
+    # Kill-switch telegram (outside lock — I/O)
     if bot._total_pnl <= TOTAL_LOSS_CAP:
-        bot._paused = True
-        log.critical("KILL-SWITCH: P&L $%.2f below cap $%.0f \u2014 auto-paused",
-                     bot._total_pnl, TOTAL_LOSS_CAP)
         send_telegram(
             f"\U0001f6d1 KILL-SWITCH: P&L ${bot._total_pnl:.2f} < cap ${TOTAL_LOSS_CAP:.0f} \u2014 bot paused")
-
-    # Cooldown
-    bot._cooldowns[sym] = time.time() + COOLDOWN_HOURS * 3600
 
     trade = Trade(
         symbol=sym, direction="LONG" if pos.direction == 1 else "SHORT",

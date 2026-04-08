@@ -64,7 +64,7 @@ class TradeFlowCollector:
 
     async def _connect_and_collect(self):
         async with websockets.connect(WS_URL, ping_interval=20, ping_timeout=10,
-                                      max_size=2**22) as ws:
+                                      open_timeout=15, max_size=2**22) as ws:
             log.info("Trade flow collector connected (%d symbols)", len(self._symbols))
             for sym in self._symbols:
                 await ws.send(orjson.dumps({
@@ -118,9 +118,11 @@ class TradeFlowCollector:
                          b.buy_count, b.sell_count, round(b.max_trade_usd, 2), vwap))
             del self._buckets[(ts, sym)]
         try:
-            self._db.executemany(
-                "INSERT OR IGNORE INTO trade_flow VALUES (?,?,?,?,?,?,?,?)", rows)
-            self._db.commit()
+            from .db import _db_lock
+            with _db_lock:
+                self._db.executemany(
+                    "INSERT OR IGNORE INTO trade_flow VALUES (?,?,?,?,?,?,?,?)", rows)
+                self._db.commit()
         except Exception as e:
             log.warning("Trade flow flush: %s", e)
 

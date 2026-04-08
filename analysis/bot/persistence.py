@@ -46,21 +46,23 @@ def write_trade(trade: Trade, trades_csv: str, db: sqlite3.Connection | None) ->
         log.exception("Trade CSV write failed — trade recorded in memory but not on disk")
     # Also write to SQLite
     if db:
+        from .db import _db_lock
         try:
-            db.execute("""INSERT INTO trades
-                (symbol, direction, strategy, entry_time, exit_time, entry_price,
-                 exit_price, hold_hours, size_usdt, signal_info, gross_bps, net_bps,
-                 pnl_usdt, mae_bps, mfe_bps, reason, entry_oi_delta, entry_crowding,
-                 entry_confluence, entry_session)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                (trade.symbol, trade.direction, trade.strategy,
-                 trade.entry_time, trade.exit_time,
-                 trade.entry_price, trade.exit_price, trade.hold_hours, trade.size_usdt,
-                 trade.signal_info, trade.gross_bps, trade.net_bps, trade.pnl_usdt,
-                 trade.mae_bps, trade.mfe_bps, trade.reason,
-                 trade.entry_oi_delta, trade.entry_crowding, trade.entry_confluence,
-                 trade.entry_session))
-            db.commit()
+            with _db_lock:
+                db.execute("""INSERT INTO trades
+                    (symbol, direction, strategy, entry_time, exit_time, entry_price,
+                     exit_price, hold_hours, size_usdt, signal_info, gross_bps, net_bps,
+                     pnl_usdt, mae_bps, mfe_bps, reason, entry_oi_delta, entry_crowding,
+                     entry_confluence, entry_session)
+                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (trade.symbol, trade.direction, trade.strategy,
+                     trade.entry_time, trade.exit_time,
+                     trade.entry_price, trade.exit_price, trade.hold_hours, trade.size_usdt,
+                     trade.signal_info, trade.gross_bps, trade.net_bps, trade.pnl_usdt,
+                     trade.mae_bps, trade.mfe_bps, trade.reason,
+                     trade.entry_oi_delta, trade.entry_crowding, trade.entry_confluence,
+                     trade.entry_session))
+                db.commit()
         except Exception as e:
             log.warning("Trade DB write failed: %s", e)
 
@@ -84,12 +86,14 @@ def write_trajectory(sym: str, pos: Position, output_dir: str,
         log.exception("Trajectory write failed")
     # Also write to SQLite
     if db:
+        from .db import _db_lock
         try:
-            db.executemany("""INSERT INTO trajectories
-                (symbol, strategy, entry_time, hours, unrealized_bps)
-                VALUES (?,?,?,?,?)""",
-                [(sym, pos.strategy, entry_t, h, b) for h, b in pos.trajectory])
-            db.commit()
+            with _db_lock:
+                db.executemany("""INSERT INTO trajectories
+                    (symbol, strategy, entry_time, hours, unrealized_bps)
+                    VALUES (?,?,?,?,?)""",
+                    [(sym, pos.strategy, entry_t, h, b) for h, b in pos.trajectory])
+                db.commit()
         except Exception as e:
             log.warning("Trajectory DB write failed: %s", e)
 
@@ -136,11 +140,13 @@ def log_market_snapshot(states: dict, feature_cache: dict,
         log.exception("Market snapshot write failed")
     # Also write to SQLite
     if db and db_rows:
+        from .db import _db_lock
         try:
-            db.executemany("""INSERT OR IGNORE INTO market_snapshots
-                (ts, symbol, price, oi, oi_delta_1h_pct, funding_ppm, premium_ppm, crowding, vol_z)
-                VALUES (?,?,?,?,?,?,?,?,?)""", db_rows)
-            db.commit()
+            with _db_lock:
+                db.executemany("""INSERT OR IGNORE INTO market_snapshots
+                    (ts, symbol, price, oi, oi_delta_1h_pct, funding_ppm, premium_ppm, crowding, vol_z)
+                    VALUES (?,?,?,?,?,?,?,?,?)""", db_rows)
+                db.commit()
         except Exception as e:
             log.warning("Market snapshot DB write failed: %s", e)
 

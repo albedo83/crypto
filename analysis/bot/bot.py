@@ -50,6 +50,7 @@ class MultiSignalBot:
         self._signal_first_seen: dict[str, float] = {}
         self._loss_streak_until: float = 0
         self._pos_lock = threading.Lock()
+        self._failed_closes: set[str] = set()  # symbols with exchange close failures
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)

@@ -59,6 +59,8 @@ def init_exchange(private_key: str) -> tuple:
 def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
                  sym: str, is_buy: bool, size_usdt: float, price: float) -> float:
     """Place market order on Hyperliquid. Returns fill price or raises."""
+    if price <= 0:
+        raise ValueError(f"Invalid price for {sym}: {price}")
     sz = size_usdt / price
     dec = sz_decimals.get(sym, 2)
     sz = round(sz, dec)
