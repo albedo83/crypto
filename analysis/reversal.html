@@ -123,7 +123,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 <div class="section">
   <h2>Open Positions</h2>
   <table><thead><tr>
-    <th>Symbol</th><th>Strat</th><th>Side</th><th>Size</th><th>Entry</th><th>Current</th><th>Unrealized</th><th>P&L</th><th>Hold</th><th>Remaining</th>
+    <th>Symbol</th><th>Strat</th><th>Side</th><th>Size</th><th>Entry</th><th>Current</th><th>Unrealized</th><th>P&L</th><th>Hold</th><th>Remaining</th><th></th>
   </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
@@ -154,6 +154,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 const r=()=>refresh();
 const cls=v=>v>=0?'green':'red';
 const fmt=(v,d=2)=>(v>=0?'+':'')+v.toFixed(d);
+function closePos(sym){if(!confirm('Close '+sym+' now?'))return;fetch('api/close/'+sym,{method:'POST',credentials:'same-origin'}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else refresh()}).catch(e=>alert('Error: '+e));}
 
 // Live counters (tick every second)
 let _lastFetch=0;
@@ -250,11 +251,12 @@ function refresh(){
         <td class="${cls(p.unrealized_bps)}">${fmt(p.unrealized_bps,1)}bps</td>
         <td class="${cls(p.pnl_usdt)}">$${fmt(p.pnl_usdt)}</td>
         <td>${p.hold_hours.toFixed(1)}h</td>
-        <td>${p.remaining||Math.floor(p.remaining_hours)+'h'}</td>`;
+        <td>${p.remaining||Math.floor(p.remaining_hours)+'h'}</td>
+        <td><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
     });
     if(!s.positions.length)
-      pb.innerHTML='<tr><td colspan="10" style="text-align:center;color:#7d8590">No positions -- waiting for signals</td></tr>';
+      pb.innerHTML='<tr><td colspan="11" style="text-align:center;color:#7d8590">No positions -- waiting for signals</td></tr>';
 
     // Total P&L (realized + unrealized)
     const unrealTotal=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);

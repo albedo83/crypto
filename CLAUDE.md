@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.1.0). Dashboard on `:8097`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.2.1). Dashboard on `:8097`.
 
 ### Execution Modes
 
@@ -119,6 +119,7 @@ All 5 active signals survived train/test split + Monte Carlo validation. S2 remo
 | `GET /api/signals` | All 28 tokens with features, OI, crowding, triggered signals |
 | `GET /api/trades` | Trade history (deque maxlen=500) |
 | `GET /api/pnl` | Cumulative P&L curve |
+| `POST /api/close/{symbol}` | Close a single position early (manual exit, sync handler) |
 | `POST /api/pause` | Close all positions + pause (sync handler, runs in threadpool) |
 | `POST /api/resume` | Resume trading (forces immediate scan) |
 | `POST /api/reset` | Close all + reset all state to zero (sync handler, runs in threadpool) |
@@ -163,6 +164,7 @@ All in `analysis/`. The backtest files document the exhaustive search that led t
 | `backtest_short_search2.py` | 6 new SHORT ideas on 4h data (BTC neg, fade pump, overextension, sector fade, exhaustion, contagion) | **Nothing passes z>2.0** — structural long bias confirmed |
 | `backtest_1h_fast.py` | Fast signals on 1h candles: S9-fast, micro-squeeze, volume spike, momentum | **S9-fast (fade ±3% in 2h)** promising: 588t, +88bps, train+test ✓ |
 | `backtest_1h_fast2.py` | 6 more 1h patterns: BTC lead-lag, consecutive, 24h breakout, cross-alt, vol contraction, multi-TF | Nothing passes train+test |
+| `backtest_2026.py` | 2026-only backtest of active signals (S1/S5/S8/S9/S10) with paper bot comparison | Q1: +$446, S5+S9 best, S8 loses. Paper bot period matches direction |
 
 Bot documentation (French): `docs/bot.md`
 

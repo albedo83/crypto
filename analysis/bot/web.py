@@ -277,6 +277,21 @@ def create_app(bot) -> FastAPI:
     @app.get("/api/pnl")
     async def api_pnl(): return JSONResponse(build_pnl_curve(bot.trades))
 
+    @app.post("/api/close/{symbol}")
+    def api_close_symbol(symbol: str):  # sync -- runs in threadpool
+        """Close a single position early (manual exit)."""
+        sym = symbol.upper()
+        if sym not in bot.positions:
+            return JSONResponse({"error": f"{sym} not in positions"}, status_code=404)
+        st = bot.states.get(sym)
+        if not st or st.price <= 0:
+            return JSONResponse({"error": f"no price for {sym}"}, status_code=400)
+        bot._close_position(sym, st.price, datetime.now(timezone.utc), "manual_close")
+        if sym in bot.positions:
+            return JSONResponse({"error": f"close failed for {sym}"}, status_code=500)
+        bot._save_state()
+        return JSONResponse({"status": "closed", "symbol": sym})
+
     @app.post("/api/pause")
     def api_pause():  # sync -- FastAPI runs in threadpool
         now, failed = datetime.now(timezone.utc), []
