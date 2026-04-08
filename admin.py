@@ -56,28 +56,37 @@ _bot_cookies: dict[int, str] = {}  # port -> session cookie
 
 async def _bot_auth(port: int) -> str:
     """Login to a bot instance and cache its session cookie."""
-    async with aiohttp.ClientSession() as session:
-        resp = await session.post(
-            f"http://localhost:{port}/login",
-            data={"username": DASHBOARD_USER, "password": DASHBOARD_PASS},
-            allow_redirects=False,
-        )
-        cookie = resp.cookies.get("session")
-        if cookie:
-            _bot_cookies[port] = cookie.value
-            return cookie.value
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            resp = await session.post(
+                f"http://localhost:{port}/login",
+                data={"username": DASHBOARD_USER, "password": DASHBOARD_PASS},
+                allow_redirects=False,
+            )
+            cookie = resp.cookies.get("session")
+            if cookie:
+                _bot_cookies[port] = cookie.value
+                return cookie.value
+    except Exception:
+        pass
     raise HTTPException(502, f"Cannot authenticate with bot on :{port}")
 
 async def _bot_fetch(port: int, path: str) -> dict | None:
     """Fetch JSON from a bot API, handling auth and errors."""
-    if port not in _bot_cookies:
-        await _bot_auth(port)
+    try:
+        if port not in _bot_cookies:
+            await _bot_auth(port)
+    except Exception:
+        return None
     for attempt in range(2):
         try:
             async with aiohttp.ClientSession(cookies={"session": _bot_cookies.get(port, "")}) as session:
                 async with session.get(f"http://localhost:{port}/api/{path}", timeout=aiohttp.ClientTimeout(total=5)) as resp:
                     if resp.status == 401 and attempt == 0:
-                        await _bot_auth(port)
+                        try:
+                            await _bot_auth(port)
+                        except Exception:
+                            return None
                         continue
                     if resp.status < 400:
                         return await resp.json()
