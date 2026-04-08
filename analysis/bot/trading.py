@@ -235,7 +235,7 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
     """
     # Priority: highest z-score first (strongest statistical edge), then
     # by signal strength within same z. This ensures S1/S8 get slots
-    # before S4 when multiple signals fire simultaneously.
+    # before S5 when multiple signals fire simultaneously.
     signals.sort(key=lambda s: (s["z"], s["strength"]), reverse=True)
 
     n_longs = sum(1 for p in bot.positions.values() if p.direction == 1)

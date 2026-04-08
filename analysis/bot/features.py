@@ -36,13 +36,13 @@ def compute_features(candles: list) -> dict | None:
     highs = np.array([c["h"] for c in candles])
 
     f = {}
-    # 7-day return (42 candles x 4h) -- used by S1, S2, S5
+    # 7-day return (42 candles x 4h) -- used by S1, S5
     if i >= 42 and closes[i - 42] > 0:
         f["ret_42h"] = (closes[i] / closes[i - 42] - 1) * 1e4
     else:
         return None
 
-    # Volatility ratio: vol_7d / vol_30d -- below 1.0 = compression (used by S4)
+    # Volatility ratio: vol_7d / vol_30d -- below 1.0 = compression (used by S10)
     if i >= 42:
         denom_7d = closes[max(0, i - 42):i]
         if (denom_7d == 0).any():
@@ -236,12 +236,12 @@ def fetch_dxy(degraded: list, dxy_cache_path: str) -> float:
         log.warning("DXY stale (%.0fh old) -- using cached value", age_h)
         return cached
 
-    # 4. No data at all -- S4 disabled
+    # 4. No data at all
     if "DXY" not in degraded:
         degraded.append("DXY")
     if "DXY_STALE" in degraded:
         degraded.remove("DXY_STALE")
-    log.warning("DXY unavailable (cache >48h or missing) -- S4 disabled")
+    log.warning("DXY unavailable (cache >48h or missing)")
     return 0.0
 
 

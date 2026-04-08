@@ -90,12 +90,11 @@ S10_BREAKOUT_PCT = 0.5
 S10_REINT_CANDLES = 2
 S10_CAPITAL_SHARE = 0.0      # no pocket — full capital (backtest: +48% P&L vs 15%)
 
-# ── DXY Filter (critical for S4) ────────────────────────────────────
-# bot/ -> analysis/ -> output/pairs_data/
+# ── DXY (S4 suspended, kept for dashboard display) ────────────────
 DXY_CACHE = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "output", "pairs_data", "macro_DXY.json"
 )
-DXY_BOOST_THRESHOLD = 100   # DXY 7d > +1% → S4 active
+DXY_BOOST_THRESHOLD = 100   # DXY 7d > +1% (unused while S4 suspended)
 
 # ── Leverage & Sizing ──────────────────────────────────────────────
 # 2x optimal (3x = ruin from compounding losses)
