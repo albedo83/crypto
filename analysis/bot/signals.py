@@ -200,7 +200,7 @@ def detect_token_signals(
     if abs(f.get("ret_24h", 0)) >= S9_RET_THRESH:
         s9_dir = -1 if f["ret_24h"] > 0 else 1
         # Adaptive stop: bigger moves get tighter stops (more confident in reversion)
-        s9_stop = max(STOP_LOSS_BPS, -1000 - abs(f["ret_24h"]) / 4) if S9_ADAPTIVE_STOP else 0
+        s9_stop = max(STOP_LOSS_BPS, -500 - abs(f["ret_24h"]) / 8) if S9_ADAPTIVE_STOP else 0
         signals.append({
             "symbol": sym, "direction": s9_dir, "strategy": "S9",
             "z": STRAT_Z["S9"],

@@ -85,7 +85,9 @@ def build_state_response(bot) -> dict:
     for sym, pos in pos_snapshot.items():
         st = bot.states.get(sym)
         px = st.price if st else pos.entry_price
-        ur = pos.direction * (px / pos.entry_price - 1) * 1e4 * LEVERAGE if pos.entry_price > 0 else 0
+        # size_usdt is notional (passed to execute_open as sz = size_usdt/price)
+        # so unrealized = direction * price_change_pct * size_usdt (no extra leverage)
+        ur = pos.direction * (px / pos.entry_price - 1) * 1e4 if pos.entry_price > 0 else 0
         rem = max(0, (pos.target_exit - now).total_seconds() / 3600)
         positions.append({
             "symbol": sym, "direction": "LONG" if pos.direction == 1 else "SHORT",

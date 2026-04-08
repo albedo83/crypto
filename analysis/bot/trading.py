@@ -96,7 +96,7 @@ def check_exits(bot) -> int:
                 exits += 1
             continue
 
-        unrealized = direction * (st.price / entry_price - 1) * 1e4 * LEVERAGE
+        unrealized = direction * (st.price / entry_price - 1) * 1e4
 
         # Track MAE/MFE + trajectory (updated every 60s via main loop)
         with bot._pos_lock:
@@ -161,12 +161,13 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
 
         hold_h = (now - pos.entry_time).total_seconds() / 3600
         # Record final trajectory point at exit
-        final_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4 * LEVERAGE
+        final_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
         pos.trajectory.append((round(hold_h, 1), round(final_bps, 1)))
-        # P&L calc: direction * price change * leverage, then subtract round-trip costs.
-        # Costs scale with leverage because notional = size * leverage.
-        gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4 * LEVERAGE
-        effective_cost = COST_BPS * LEVERAGE
+        # P&L calc: size_usdt is notional (not margin), so no leverage multiplier.
+        # gross_bps = leveraged return (direction * price_change * leverage)
+        # pnl = notional * unleveraged_return = notional * (exit/entry - 1) - costs
+        gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
+        effective_cost = COST_BPS
         net_bps = gross_bps - effective_cost
         pnl = pos.size_usdt * net_bps / 1e4
 
