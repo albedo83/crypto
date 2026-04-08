@@ -171,13 +171,15 @@ function tickCounters(){
     document.getElementById('last-update').textContent=ago+'s ago';
   }
   // Price age
-  if(_priceAge!==null){
+  if(_priceAge!==null && _priceAge!==undefined && _lastFetch>0){
     const elapsed=Math.floor(now-_lastFetch)+Math.floor(_priceAge);
-    document.getElementById('price-age').textContent=elapsed+'s';
-    document.getElementById('price-age').style.color=elapsed>120?'#f85149':'#58a6ff';
+    if(!isNaN(elapsed)){
+      document.getElementById('price-age').textContent=elapsed+'s';
+      document.getElementById('price-age').style.color=elapsed>120?'#f85149':'#58a6ff';
+    }
   }
   // Scan countdown
-  if(_nextScan!==null){
+  if(_nextScan!==null && _nextScan!==undefined && _lastFetch>0){
     const remaining=Math.max(0,Math.floor(_nextScan-(now-_lastFetch)));
     const mm=Math.floor(remaining/60);
     const ss=remaining%60;
