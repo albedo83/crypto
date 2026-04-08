@@ -26,13 +26,11 @@ HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live 
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 echo "Live bot started (PID: $!)"
 
-# Live bot 2 (:8099) — inactive, waiting for private key
-# To activate: uncomment and set HL_PRIVATE_KEY
-# TG_BOT_TOKEN= TG_CHAT_ID= disables Telegram (separate account later)
-# HL_MODE=live HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 \
-#     HL_PRIVATE_KEY=<KEY_HERE> TG_BOT_TOKEN= TG_CHAT_ID= \
-#     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
-# echo "Live bot 2 started (PID: $!)"
+# Bot 2 (:8099) — paper mode until private key is set
+# To switch to live: add HL_MODE=live HL_PRIVATE_KEY=<KEY> HL_CAPITAL=<amount>
+TG_BOT_TOKEN= TG_CHAT_ID= WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 \
+    nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
+echo "Bot 2 started (PID: $!)"
 
 # Admin panel (:8090)
 nohup .venv/bin/python3 admin.py > analysis/output/admin.log 2>&1 &

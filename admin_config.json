@@ -2,6 +2,6 @@
   "bots": [
     {"port": 8097, "label": "Paper Bot",   "mode": "paper"},
     {"port": 8098, "label": "Live Bot",    "mode": "live"},
-    {"port": 8099, "label": "Live Bot 2",  "mode": "live"}
+    {"port": 8099, "label": "Bot 2",       "mode": "paper"}
   ]
 }
