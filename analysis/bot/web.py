@@ -226,12 +226,6 @@ def create_app(bot) -> FastAPI:
     def _make_token() -> str:
         return _secrets.token_urlsafe(32)
 
-    def _check_session(session: str | None = Cookie(None)) -> None:
-        if not DASHBOARD_USER:
-            return  # no auth configured
-        if not session or session not in _sessions:
-            raise HTTPException(status_code=303, headers={"Location": "/login"})
-
     app = FastAPI()
     _html_cache: dict[str, str | None] = {"v": None}
 
@@ -402,12 +396,13 @@ def create_app(bot) -> FastAPI:
         for sym in list(bot.positions.keys()):
             st = bot.states.get(sym)
             if st and st.price > 0: bot._close_position(sym, st.price, now, "reset")
-        bot._total_pnl, bot._wins, bot._peak_balance = 0.0, 0, CAPITAL_USDT
-        bot._consecutive_losses, bot._loss_streak_until = 0, 0
-        bot._paused, bot._last_scan = False, 0
-        for c in (bot._cooldowns, bot.trades, bot._degraded,
-                  bot._feature_cache, bot._signal_first_seen): c.clear()
-        bot._oi_summary = {"falling": 0, "rising": 0}
+        with bot._pos_lock:
+            bot._total_pnl, bot._wins, bot._peak_balance = 0.0, 0, CAPITAL_USDT
+            bot._consecutive_losses, bot._loss_streak_until = 0, 0
+            bot._paused, bot._last_scan = False, 0
+            for c in (bot._cooldowns, bot.trades, bot._degraded,
+                      bot._feature_cache, bot._signal_first_seen): c.clear()
+            bot._oi_summary = {"falling": 0, "rising": 0}
         if os.path.exists(TRADES_CSV):
             os.rename(TRADES_CSV, TRADES_CSV + f".bak.{int(time.time())}")
         bot._save_state()

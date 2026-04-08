@@ -253,8 +253,10 @@ class MultiSignalBot:
                     self._refresh_feature_cache()
                     if self._exchange:
                         from .exchange import reconcile
+                        with self._pos_lock:
+                            pos_snapshot = dict(self.positions)
                         await asyncio.to_thread(reconcile, self._hl_info, self._hl_address,
-                                                self.positions, net.send_telegram)
+                                                pos_snapshot, net.send_telegram)
 
                     exits = await asyncio.to_thread(trading.check_exits, self)
                     if exits:

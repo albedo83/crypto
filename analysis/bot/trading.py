@@ -64,7 +64,9 @@ def check_exits(bot) -> int:
     exits = 0
 
     # Retry any previously failed exchange closes
-    for sym in list(bot._failed_closes):
+    with bot._pos_lock:
+        failed_snapshot = list(bot._failed_closes)
+    for sym in failed_snapshot:
         if sym in bot.positions:
             st = bot.states.get(sym)
             if st and st.price > 0:
@@ -138,9 +140,11 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
             fill_px = execute_close(bot._exchange, bot._hl_info, bot._hl_address, sym)
             if fill_px:
                 exit_price = fill_px
-            bot._failed_closes.discard(sym)
+            with bot._pos_lock:
+                bot._failed_closes.discard(sym)
         except Exception as e:
-            bot._failed_closes.add(sym)
+            with bot._pos_lock:
+                bot._failed_closes.add(sym)
             log.error("EXEC CLOSE FAILED %s: %s — keeping position, will retry next scan", sym, e)
             send_telegram(f"\u274c Close failed {sym}: {e} \u2014 will retry")
             return  # don't pop — position stays tracked, retried next scan
