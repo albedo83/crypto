@@ -27,8 +27,10 @@ HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live 
 echo "Live bot started (PID: $!)"
 
 # Live bot 2 (:8099) — inactive, waiting for private key
+# To activate: uncomment and set HL_PRIVATE_KEY
+# TG_BOT_TOKEN= TG_CHAT_ID= disables Telegram (separate account later)
 # HL_MODE=live HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 \
-#     HL_PRIVATE_KEY=<KEY_HERE> \
+#     HL_PRIVATE_KEY=<KEY_HERE> TG_BOT_TOKEN= TG_CHAT_ID= \
 #     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
 # echo "Live bot 2 started (PID: $!)"
 
