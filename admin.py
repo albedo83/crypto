@@ -197,6 +197,11 @@ async def index():
         _html_cache = Path(HTML_PATH).read_text()
     return _html_cache
 
+@app.get("/api/auth-token")
+async def api_auth_token():
+    """Generate a signed token for bot auto-login (same HMAC key)."""
+    return JSONResponse({"token": _sign_token(time.time())})
+
 @app.get("/api/bots")
 async def api_bots():
     """Fetch health + state from each bot, return combined."""

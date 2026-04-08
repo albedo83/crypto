@@ -264,7 +264,7 @@ def create_app(bot) -> FastAPI:
         class _AuthMiddleware(BaseHTTPMiddleware):
             async def dispatch(self, request: Request, call_next):
                 path = request.url.path
-                if path in ("/login", "/favicon.ico"):
+                if path in ("/login", "/favicon.ico") or path.startswith("/auth"):
                     return await call_next(request)
                 token = request.cookies.get("session")
                 if not token or not _verify_token(token):
@@ -273,6 +273,15 @@ def create_app(bot) -> FastAPI:
                     return RedirectResponse("/login", status_code=303)
                 return await call_next(request)
         app.add_middleware(_AuthMiddleware)
+
+    @app.get("/auth")
+    async def auth_bridge(token: str = ""):
+        """Auto-login via signed token (used by admin panel 'Open' button)."""
+        if _verify_token(token):
+            resp = RedirectResponse("/", status_code=303)
+            resp.set_cookie("session", token, httponly=True, samesite="strict", max_age=30 * 86400)
+            return resp
+        return RedirectResponse("/login", status_code=303)
 
     @app.get("/login", response_class=HTMLResponse)
     async def login_page():

@@ -124,19 +124,25 @@ function renderBots(bots){
       <div class="signals">${online&&b.active_signals&&b.active_signals.length?'<span>'+b.active_signals.join('</span> | <span>')+'</span>':'No active signals'}</div>
       <div class="card-footer">
         <span class="version">${online?'v'+(b.version||'?'):':'+b.port}</span>
-        <a class="btn-open" href="http://${location.hostname}:${b.port}/" target="_blank">Open</a>
+        <a class="btn-open" href="http://${location.hostname}:${b.port}/auth?token=${_authToken||''}" target="_blank">Open</a>
       </div>
     `;
     grid.appendChild(card);
   });
 }
 
+let _authToken='';
+function fetchToken(){
+  fetch('/api/auth-token',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{_authToken=d.token||''}).catch(()=>{});
+}
 function refresh(){
   fetch('/api/bots',{credentials:'same-origin'}).then(r=>r.json()).then(renderBots).catch(e=>console.warn('fetch error:',e));
 }
 
+fetchToken();
 refresh();
 setInterval(refresh,10000);
+setInterval(fetchToken,300000); // refresh token every 5 min
 </script>
 </body>
 </html>
