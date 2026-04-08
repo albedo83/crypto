@@ -85,6 +85,9 @@ function renderBots(bots){
     const pnlClass=pnl>=0?'green':'red';
     const wr=b.win_rate?Math.round(b.win_rate*100):0;
     const dd=b.drawdown_pct||0;
+    const ea=b.exchange_account;
+    const equity=ea?ea.equity:balance;
+    const equityClass=ea?(ea.unrealized>=0?'green':'red'):pnlClass;
 
     card.className='card'+(online?'':' offline-card');
     card.innerHTML=`
@@ -97,28 +100,28 @@ function renderBots(bots){
       </div>
       <div class="stats">
         <div class="stat">
-          <div class="stat-label">Balance</div>
-          <div class="stat-value ${pnlClass}">$${online?balance.toFixed(0):'--'}</div>
+          <div class="stat-label">Equity</div>
+          <div class="stat-value">${online?'$'+equity.toFixed(0):'--'}</div>
         </div>
         <div class="stat">
-          <div class="stat-label">P&L</div>
-          <div class="stat-value ${pnlClass}">${online?fmt(pnl,0):'--'} <span style="font-size:12px">${online?'('+fmt(pnlPct,1)+'%)':''}</span></div>
+          <div class="stat-label">${ea?'Unrealized':'P&L'}</div>
+          <div class="stat-value ${ea?equityClass:pnlClass}">${online?(ea?fmt(ea.unrealized,0):fmt(pnl,0)):'--'}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">${ea?'Marge':'Positions'}</div>
+          <div class="stat-value ${ea?'':'blue'}">${online?(ea?'$'+ea.margin_used.toFixed(0):(b.n_positions||0)+'/'+(b.max_positions||6)):'--'}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">${ea?'Disponible':'Win Rate'}</div>
+          <div class="stat-value">${online?(ea?'$'+ea.available.toFixed(0):wr+'%'):'--'}</div>
         </div>
         <div class="stat">
           <div class="stat-label">Positions</div>
           <div class="stat-value blue">${online?(b.n_positions||0)+'/'+(b.max_positions||6):'--'}</div>
         </div>
         <div class="stat">
-          <div class="stat-label">Win Rate</div>
-          <div class="stat-value">${online?wr+'% <span style="font-size:12px;color:#7d8590">('+( b.total_trades||0)+'t)</span>':'--'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Drawdown</div>
-          <div class="stat-value ${dd<-10?'red':''}">${online?fmt(dd,1)+'%':'--'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Uptime</div>
-          <div class="stat-value">${online?fmtTime(b.uptime_s):'offline'}</div>
+          <div class="stat-label">${ea?'Win Rate':'Uptime'}</div>
+          <div class="stat-value">${online?(ea?wr+'% <span style="font-size:12px;color:#7d8590">('+(b.total_trades||0)+'t)</span>':fmtTime(b.uptime_s)):'--'}</div>
         </div>
       </div>
       <div class="signals">${online&&b.active_signals&&b.active_signals.length?'<span>'+b.active_signals.join('</span> | <span>')+'</span>':'No active signals'}</div>
