@@ -158,7 +158,7 @@ def save_state(state_file: str, positions: dict, pos_lock,
                last_daily_report: float, paused: bool,
                consecutive_losses: int, loss_streak_until: float,
                cooldowns: dict, signal_first_seen: dict,
-               feature_cache: dict) -> None:
+               feature_cache: dict, capital: float = 0) -> None:
     """Atomically persist bot state (write to .tmp then os.replace)."""
     output_dir = os.path.dirname(state_file)
     os.makedirs(output_dir, exist_ok=True)
@@ -175,7 +175,7 @@ def save_state(state_file: str, positions: dict, pos_lock,
             "entry_confluence": p.entry_confluence, "entry_session": p.entry_session,
         } for p in positions.values()]
     data = {
-        "version": VERSION,
+        "version": VERSION, "capital": capital,
         "total_pnl": total_pnl, "wins": wins,
         "peak_balance": peak_balance, "last_daily_report": last_daily_report,
         "paused": paused,

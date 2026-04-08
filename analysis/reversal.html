@@ -110,6 +110,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="controls">
+  <button class="btn success" onclick="addCapital()">+ DCA</button>
   <button class="btn danger" onclick="fetch('api/pause',{method:'POST',credentials:'same-origin'}).then(r)">STOP</button>
   <button class="btn success" onclick="fetch('api/resume',{method:'POST',credentials:'same-origin'}).then(r)">RESUME</button>
   <button class="btn danger" onclick="if(confirm('Reset?'))fetch('api/reset',{method:'POST',credentials:'same-origin'}).then(r)">RAZ</button>
@@ -155,6 +156,7 @@ const r=()=>refresh();
 const cls=v=>v>=0?'green':'red';
 const fmt=(v,d=2)=>(v>=0?'+':'')+v.toFixed(d);
 function closePos(sym){if(!confirm('Close '+sym+' now?'))return;fetch('api/close/'+sym,{method:'POST',credentials:'same-origin'}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else refresh()}).catch(e=>alert('Error: '+e));}
+function addCapital(){const a=prompt('Montant DCA ($):');if(!a)return;const v=parseFloat(a);if(isNaN(v)||v===0){alert('Montant invalide');return}if(!confirm((v>0?'Injecter':'Retirer')+' $'+Math.abs(v)+' ?'))return;fetch('api/capital',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:v})}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else{alert('Capital: $'+j.old+' -> $'+j.new);refresh()}}).catch(e=>alert('Error: '+e));}
 
 // Live counters (tick every second)
 let _lastFetch=0;

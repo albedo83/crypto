@@ -38,6 +38,7 @@ class MultiSignalBot:
         self._dxy_cache: tuple[float, float] = (0.0, 0.0)
         self._shutdown_event: asyncio.Event | None = None
         self.started_at: datetime | None = None
+        self._capital = CAPITAL_USDT  # mutable — adjusted by DCA injections
         self._total_pnl = 0.0
         self._wins = 0
         self._peak_balance = CAPITAL_USDT
@@ -137,7 +138,8 @@ class MultiSignalBot:
             self._total_pnl, self._wins, self._peak_balance,
             self._last_daily_report, self._paused,
             self._consecutive_losses, self._loss_streak_until,
-            self._cooldowns, self._signal_first_seen, self._feature_cache)
+            self._cooldowns, self._signal_first_seen, self._feature_cache,
+            capital=self._capital)
 
     def _scan_and_trade(self) -> int:
         """Detect signals across all tokens, then rank and enter positions."""
@@ -275,7 +277,7 @@ class MultiSignalBot:
 
                     _bt = [t for t in self.trades if trading.is_bot_trade(t)]
                     n = len(_bt)
-                    balance = CAPITAL_USDT + self._total_pnl
+                    balance = self._capital + self._total_pnl
                     wr = sum(1 for t in _bt if t.pnl_usdt > 0) / n * 100 if n > 0 else 0
                     btc_f = self._compute_btc_features()
                     alt_idx = self._compute_alt_index()

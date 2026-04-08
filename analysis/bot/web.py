@@ -20,6 +20,7 @@ log = logging.getLogger("multisignal")
 
 # DRY: shared helpers live in trading.py
 from .trading import is_bot_trade, compute_signal_drift
+from .net import send_telegram
 
 def _collect_active_signals(bot, btc_f) -> list:
     """Scan all symbols and return active signal descriptions for the dashboard."""
@@ -59,7 +60,7 @@ def build_daily_summary(bot) -> str:
     by_s: dict[str, float] = defaultdict(float)
     for t in dt: by_s[t.strategy] += t.pnl_usdt
     sl = " | ".join(f"{s}: ${p:+.1f}" for s, p in sorted(by_s.items())) if by_s else "no trades"
-    bal = CAPITAL_USDT + bot._total_pnl
+    bal = bot._capital + bot._total_pnl
     dd = (bal - bot._peak_balance) / bot._peak_balance * 100 if bot._peak_balance > 0 else 0
     ab = [t for t in bot.trades if is_bot_trade(t)]
     n, wr = len(ab), (sum(1 for t in ab if t.pnl_usdt > 0) / len(ab) * 100 if ab else 0)
@@ -76,7 +77,7 @@ def build_state_response(bot) -> dict:
     now = datetime.now(timezone.utc)
     bt = [t for t in bot.trades if is_bot_trade(t)]
     n_bot, wins = len(bt), sum(1 for t in bt if t.pnl_usdt > 0)
-    balance = CAPITAL_USDT + bot._total_pnl
+    balance = bot._capital + bot._total_pnl
     btc_f, alt_idx = bot._compute_btc_features(), bot._compute_alt_index()
     positions = []
     with bot._pos_lock:
@@ -103,7 +104,7 @@ def build_state_response(bot) -> dict:
         "paused": bot._paused, "running": bot.running,
         "degraded": list(bot._degraded), "loss_streak": bot._consecutive_losses,
         "kill_switch_active": bot._total_pnl <= TOTAL_LOSS_CAP,
-        "balance": round(balance, 2), "capital": CAPITAL_USDT,
+        "balance": round(balance, 2), "capital": bot._capital,
         "total_pnl": round(bot._total_pnl, 2), "total_trades": n_bot,
         "win_rate": round(wins / n_bot, 3) if n_bot > 0 else 0,
         "n_positions": len(pos_snapshot), "max_positions": MAX_POSITIONS,
@@ -176,7 +177,7 @@ def build_pnl_curve(trades) -> list:
     for t in trades:
         cum += t.pnl_usdt
         pts.append({"time": t.exit_time, "cum_pnl": round(cum, 2),
-                    "balance": round(CAPITAL_USDT + cum, 2)})
+                    "balance": round(bot._capital + cum, 2)})
     return pts
 
 # ── FastAPI App Factory ───────────────────────────────────────────────
@@ -393,6 +394,26 @@ def create_app(bot) -> FastAPI:
         bot._save_state()
         return JSONResponse({"status": "closed", "symbol": sym})
 
+    @app.post("/api/capital")
+    async def api_capital(request: Request):
+        """Adjust capital (DCA injection or withdrawal). Body: {"amount": 100}"""
+        body = await request.json()
+        amount = body.get("amount")
+        if amount is None:
+            return JSONResponse({"error": "missing 'amount' field"}, status_code=400)
+        amount = float(amount)
+        if amount == 0:
+            return JSONResponse({"error": "amount cannot be zero"}, status_code=400)
+        old_capital = bot._capital
+        with bot._pos_lock:
+            bot._capital += amount
+            bot._peak_balance = max(bot._peak_balance, bot._capital + bot._total_pnl)
+        bot._save_state()
+        log.info("CAPITAL: $%.0f → $%.0f (%+.0f)", old_capital, bot._capital, amount)
+        send_telegram(f"\U0001f4b0 Capital adjusted: ${old_capital:.0f} → ${bot._capital:.0f} ({amount:+.0f})")
+        return JSONResponse({"status": "ok", "old": round(old_capital, 2),
+                            "new": round(bot._capital, 2), "amount": amount})
+
     @app.post("/api/pause")
     def api_pause():  # sync -- FastAPI runs in threadpool
         now, failed = datetime.now(timezone.utc), []
@@ -423,7 +444,7 @@ def create_app(bot) -> FastAPI:
             st = bot.states.get(sym)
             if st and st.price > 0: bot._close_position(sym, st.price, now, "reset")
         with bot._pos_lock:
-            bot._total_pnl, bot._wins, bot._peak_balance = 0.0, 0, CAPITAL_USDT
+            bot._total_pnl, bot._wins, bot._peak_balance = 0.0, 0, bot._capital
             bot._consecutive_losses, bot._loss_streak_until = 0, 0
             bot._paused, bot._last_scan = False, 0
             for c in (bot._cooldowns, bot.trades, bot._degraded,

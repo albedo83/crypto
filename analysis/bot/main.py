@@ -55,9 +55,12 @@ async def run():
 
     state = load_state(STATE_FILE, bot.states)
     if state:
+        if "capital" in state:
+            bot._capital = state["capital"]
+            log.info("Restored capital: $%.0f", bot._capital)
         bot._total_pnl = state.get("total_pnl", 0)
         bot._wins = state.get("wins", 0)
-        bot._peak_balance = state.get("peak_balance", CAPITAL_USDT)
+        bot._peak_balance = state.get("peak_balance", bot._capital)
         bot._last_daily_report = state.get("last_daily_report", 0)
         bot._paused = state.get("paused", False)
         bot._consecutive_losses = state.get("consecutive_losses", 0)

@@ -171,7 +171,7 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
         pnl = pos.size_usdt * net_bps / 1e4
 
         bot._total_pnl += pnl
-        balance = CAPITAL_USDT + bot._total_pnl
+        balance = bot._capital + bot._total_pnl
         if balance > bot._peak_balance:
             bot._peak_balance = balance
         if pnl > 0:
@@ -220,7 +220,7 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
     write_trajectory(sym, pos, OUTPUT_DIR, bot._db)
 
     n = len(bot.trades)
-    balance = CAPITAL_USDT + bot._total_pnl
+    balance = bot._capital + bot._total_pnl
     wr = bot._wins / n * 100 if n > 0 else 0
     arrow = "\u2713" if pnl > 0 else "\u2717"
     log.info("%s %s %s %s | %.0fh | %s | gross %+.1f | net %+.1f | $%+.2f | mae %+.0f | mfe %+.0f | bal $%.0f (#%d %.0f%%)",
@@ -292,7 +292,7 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
         st = bot.states[sym]
         hold_h = sig.get("hold_hours", HOLD_HOURS_DEFAULT)
         target_exit = now + timedelta(hours=hold_h)
-        current_capital = CAPITAL_USDT + bot._total_pnl
+        current_capital = bot._capital + bot._total_pnl
         size = strat_size(sig["strategy"], current_capital)
         # Loss streak penalty: protects against correlated losses
         # (e.g. flash crash hitting multiple positions simultaneously)
