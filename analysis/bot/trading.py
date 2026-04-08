@@ -313,6 +313,9 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
 
         # Execute order (live) or use market price (paper)
         entry_price = st.price
+        if entry_price <= 0:
+            log.warning("SKIP %s %s: invalid price %s", sig["strategy"], sym, entry_price)
+            continue
         side = "LONG" if sig["direction"] == 1 else "SHORT"
         if bot._exchange:
             try:

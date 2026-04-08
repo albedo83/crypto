@@ -281,6 +281,7 @@ def track_signal_age(
             retest = 0
         sig["info"] += f" age={age_h:.0f}h rt={retest}"
     # Mark disappeared signals (keep for 7 days to detect retests)
+    to_prune = []
     for k in list(signal_first_seen.keys()):
         if k not in current_keys:
             if signal_first_seen[k] > 0:
@@ -288,4 +289,6 @@ def track_signal_age(
                 signal_first_seen[k] = -now_ts
             elif now_ts - abs(signal_first_seen[k]) > 7 * 86400:
                 # Gone for >7 days — prune
-                del signal_first_seen[k]
+                to_prune.append(k)
+    for k in to_prune:
+        signal_first_seen.pop(k, None)
