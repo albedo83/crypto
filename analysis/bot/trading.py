@@ -17,7 +17,7 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, MAX_POSITIONS, MAX_SAME_D
                      TOKEN_SECTOR, STOP_LOSS_BPS, STOP_LOSS_S8, COOLDOWN_HOURS,
                      TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER,
                      LOSS_STREAK_COOLDOWN, HOLD_HOURS_DEFAULT, TRADES_CSV, OUTPUT_DIR,
-                     strat_size)
+                     S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS, strat_size)
 from .models import Position, Trade
 from .exchange import execute_open, execute_close
 from .persistence import write_trade, write_trajectory
@@ -118,6 +118,8 @@ def check_exits(bot) -> int:
             exit_reason = "timeout"
         elif unrealized < stop:
             exit_reason = "catastrophe_stop"
+        elif strategy == "S9" and hours_held >= S9_EARLY_EXIT_HOURS and unrealized < S9_EARLY_EXIT_BPS:
+            exit_reason = "s9_early_exit"
         if exit_reason:
             close_position(sym, st.price, now, exit_reason, bot)
             exits += 1

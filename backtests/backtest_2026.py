@@ -34,7 +34,7 @@ MAX_SECTOR = 2
 START_CAPITAL = 1000
 
 # Per-signal sizing multipliers (from config.py)
-SIGNAL_MULT = {"S1": 1.125, "S5": 1.50, "S8": 1.25, "S9": 1.35, "S10": 1.10}
+SIGNAL_MULT = {"S1": 1.125, "S5": 2.50, "S8": 1.25, "S9": 2.00, "S10": 2.00}
 STRAT_Z = {"S1": 6.42, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
 
 # Hold periods in 4h candles
@@ -43,6 +43,10 @@ HOLD = {"S1": 18, "S5": 12, "S8": 15, "S9": 12, "S10": 6}
 # Stops (in leveraged bps)
 STOP_DEFAULT = -2500
 STOP_S8 = -1500
+
+# S9 early exit: cut if < -1000 bps after 8h (2 candles)
+S9_EARLY_EXIT_BPS = -1000
+S9_EARLY_EXIT_CANDLES = 2  # 8h in 4h candles
 
 # Date filter
 START_2026 = datetime(2026, 1, 1, tzinfo=timezone.utc).timestamp() * 1000
@@ -194,6 +198,12 @@ def backtest_2026(features, data, sector_features, dxy_data, start_ts=None, star
 
             if held >= pos["hold"]:
                 exit_reason = "timeout"
+
+            # S9 early exit: cut losses early if not reverting after 8h
+            if not exit_reason and pos["strat"] == "S9" and held >= S9_EARLY_EXIT_CANDLES:
+                ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4 * LEVERAGE
+                if ur_bps < S9_EARLY_EXIT_BPS:
+                    exit_reason = "s9_early_exit"
 
             if exit_reason:
                 gross = pos["dir"] * (exit_price / pos["entry"] - 1) * 1e4 * LEVERAGE

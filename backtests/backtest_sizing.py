@@ -21,6 +21,7 @@ from backtests.backtest_2026 import (
     load_dxy, detect_squeeze, LEVERAGE, MAX_POS, MAX_DIR, MAX_MACRO,
     MAX_TOKEN, MAX_SECTOR, STRAT_Z, HOLD, STOP_DEFAULT, STOP_S8,
     S10_BREAKOUT_PCT, S10_REINT_CANDLES,
+    S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_CANDLES,
 )
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "output", "pairs_data")
@@ -104,6 +105,11 @@ def backtest_with_mults(features, data, sector_features, dxy_data, mults, start_
                     exit_price = pos["entry"] * (1 - eff_stop / 1e4)
 
             if held >= pos["hold"]: exit_reason = "timeout"
+
+            if not exit_reason and pos["strat"] == "S9" and held >= S9_EARLY_EXIT_CANDLES:
+                ur = pos["dir"] * (current / pos["entry"] - 1) * 1e4 * LEVERAGE
+                if ur < S9_EARLY_EXIT_BPS:
+                    exit_reason = "s9_early_exit"
 
             if exit_reason:
                 gross = pos["dir"] * (exit_price / pos["entry"] - 1) * 1e4 * LEVERAGE
