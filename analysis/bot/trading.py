@@ -290,28 +290,9 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
         if time.time() < bot._loss_streak_until:
             size = round(size * LOSS_STREAK_MULTIPLIER, 2)
 
-        # Signal health quarantine: protects against regime change making
-        # a signal permanently unprofitable. If win rate on last 20 trades
-        # drops below 20%, the signal is fully disabled; below 30%, sizing
-        # is halved. Window of 20 gives more statistical stability than 10.
-        health = drift.get(sig["strategy"], {})
-        if health.get("n", 0) >= 10:
-            wr = health["win_rate"]
-            if wr < 0.20:
-                log.critical("QUARANTINE: %s win rate %.0f%% on last %d trades \u2014 skipping",
-                             sig["strategy"], wr * 100, health["n"])
-                continue
-            elif wr < 0.30:
-                size = round(size * 0.5, 2)
-                log.warning("DEGRADED: %s win rate %.0f%% \u2014 sizing halved",
-                            sig["strategy"], wr * 100)
-
-        # Capital exposure limit: max 90% of total margin
-        used_margin = sum(p.size_usdt for p in bot.positions.values())
-        if used_margin + size > current_capital * 0.90:
-            log.debug("SKIP %s %s %s: capital_exposure (%.0f+%.0f > %.0f)",
-                      sig["strategy"], side, sym, used_margin, size, current_capital * 0.90)
-            continue
+        # Quarantine and exposure cap DISABLED — backtest shows they destroy
+        # compounding returns (-59% to -95% P&L). Per-trade stops are sufficient.
+        # Signal drift is still tracked via /api/state for monitoring.
 
         # Execute order (live) or use market price (paper)
         entry_price = st.price

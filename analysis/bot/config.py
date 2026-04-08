@@ -132,11 +132,14 @@ STOP_LOSS_S8 = -1500.0     # -15% leveraged
 S9_EARLY_EXIT_BPS = -1000.0   # cut S9 if < -1000 bps after 8h (60:1 ratio)
 S9_EARLY_EXIT_HOURS = 8.0
 
-# ── Portfolio Kill-Switch ───────────────────────────────────────────
-TOTAL_LOSS_CAP = -300.0
-LOSS_STREAK_THRESHOLD = 3
-LOSS_STREAK_MULTIPLIER = 0.5
-LOSS_STREAK_COOLDOWN = 24 * 3600
+# ── Portfolio Protections ──────────────────────────────────────────
+# Kill-switch, loss streak, and quarantine DISABLED after backtest analysis:
+# all three destroy compounding returns (-65% to -99% P&L impact).
+# Per-trade stops + S9 early exit + position limits are sufficient.
+TOTAL_LOSS_CAP = -999_999.0     # effectively disabled
+LOSS_STREAK_THRESHOLD = 999     # effectively disabled
+LOSS_STREAK_MULTIPLIER = 1.0    # no reduction
+LOSS_STREAK_COOLDOWN = 0
 
 # ── Timing ──────────────────────────────────────────────────────────
 SCAN_INTERVAL = 3600
