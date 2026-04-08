@@ -25,3 +25,7 @@ echo "Paper bot started (PID: $!)"
 HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 echo "Live bot started (PID: $!)"
+
+# Admin panel (:8090)
+nohup .venv/bin/python3 admin.py > analysis/output/admin.log 2>&1 &
+echo "Admin panel started (PID: $!)"

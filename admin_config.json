@@ -1,0 +1,6 @@
+{
+  "bots": [
+    {"port": 8097, "label": "Paper Bot", "mode": "paper"},
+    {"port": 8098, "label": "Live Bot",  "mode": "live"}
+  ]
+}

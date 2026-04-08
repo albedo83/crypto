@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin — Trading Bots</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;padding:20px}
+.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #21262d}
+.header h1{font-size:22px;font-weight:600}
+.header a{color:#7d8590;text-decoration:none;font-size:13px}
+.header a:hover{color:#e6edf3}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
+.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;transition:border-color .2s}
+.card:hover{border-color:#58a6ff}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.card-title{font-size:16px;font-weight:600}
+.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase}
+.badge.live{background:#da363322;color:#f85149;border:1px solid #da363388}
+.badge.paper{background:#1f6feb22;color:#58a6ff;border:1px solid #1f6feb88}
+.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.status-dot.ok{background:#3fb950}
+.status-dot.degraded{background:#d29922}
+.status-dot.stale{background:#f85149}
+.status-dot.offline{background:#484f58}
+.status-dot.paused{background:#d29922;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
+.stat{background:#0d1117;border-radius:8px;padding:10px 12px}
+.stat-label{font-size:11px;color:#7d8590;margin-bottom:2px}
+.stat-value{font-size:16px;font-weight:600}
+.stat-value.green{color:#3fb950}
+.stat-value.red{color:#f85149}
+.stat-value.blue{color:#58a6ff}
+.signals{font-size:12px;color:#7d8590;margin-bottom:16px;min-height:18px}
+.signals span{color:#e6edf3}
+.card-footer{display:flex;justify-content:space-between;align-items:center}
+.version{font-size:11px;color:#484f58}
+.btn-open{background:#238636;color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
+.btn-open:hover{background:#2ea043}
+.offline-card{opacity:.5}
+.offline-msg{text-align:center;padding:40px 0;color:#484f58;font-size:14px}
+@media(max-width:768px){
+  body{padding:12px}
+  .grid{grid-template-columns:1fr}
+  .stats{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Trading Bots</h1>
+  <a href="/logout">Logout</a>
+</div>
+
+<div class="grid" id="bot-grid">
+  <div class="offline-msg">Loading...</div>
+</div>
+
+<script>
+function fmt(v,d=2){return (v>=0?'+':'')+v.toFixed(d)}
+function fmtTime(s){
+  if(!s||s<0)return '--';
+  const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);
+  if(d>0)return d+'d '+h+'h';
+  if(h>0)return h+'h '+m+'m';
+  return m+'m';
+}
+
+function renderBots(bots){
+  const grid=document.getElementById('bot-grid');
+  grid.innerHTML='';
+  if(!bots.length){grid.innerHTML='<div class="offline-msg">No bots configured</div>';return}
+
+  bots.forEach(b=>{
+    const card=document.createElement('div');
+    const online=b.online;
+    const status=b.paused?'paused':(b.status||'offline');
+    const pnl=b.total_pnl||0;
+    const balance=b.balance||0;
+    const capital=b.capital||0;
+    const pnlPct=capital>0?(pnl/capital*100):0;
+    const pnlClass=pnl>=0?'green':'red';
+    const wr=b.win_rate?Math.round(b.win_rate*100):0;
+    const dd=b.drawdown_pct||0;
+
+    card.className='card'+(online?'':' offline-card');
+    card.innerHTML=`
+      <div class="card-header">
+        <span class="card-title">
+          <span class="status-dot ${online?status:'offline'}"></span>
+          ${b.label}
+        </span>
+        <span class="badge ${b.mode}">${b.mode}</span>
+      </div>
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-label">Balance</div>
+          <div class="stat-value ${pnlClass}">$${online?balance.toFixed(0):'--'}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">P&L</div>
+          <div class="stat-value ${pnlClass}">${online?fmt(pnl,0):'--'} <span style="font-size:12px">${online?'('+fmt(pnlPct,1)+'%)':''}</span></div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Positions</div>
+          <div class="stat-value blue">${online?(b.n_positions||0)+'/'+(b.max_positions||6):'--'}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Win Rate</div>
+          <div class="stat-value">${online?wr+'% <span style="font-size:12px;color:#7d8590">('+( b.total_trades||0)+'t)</span>':'--'}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Drawdown</div>
+          <div class="stat-value ${dd<-10?'red':''}">${online?fmt(dd,1)+'%':'--'}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Uptime</div>
+          <div class="stat-value">${online?fmtTime(b.uptime_s):'offline'}</div>
+        </div>
+      </div>
+      <div class="signals">${online&&b.active_signals&&b.active_signals.length?'<span>'+b.active_signals.join('</span> | <span>')+'</span>':'No active signals'}</div>
+      <div class="card-footer">
+        <span class="version">${online?'v'+(b.version||'?'):':'+b.port}</span>
+        <a class="btn-open" href="http://${location.hostname}:${b.port}/" target="_blank">Open</a>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function refresh(){
+  fetch('/api/bots',{credentials:'same-origin'}).then(r=>r.json()).then(renderBots).catch(e=>console.warn('fetch error:',e));
+}
+
+refresh();
+setInterval(refresh,10000);
+</script>
+</body>
+</html>
