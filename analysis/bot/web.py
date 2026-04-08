@@ -221,10 +221,30 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 def create_app(bot) -> FastAPI:
     """Create the FastAPI app with all routes wired to *bot*."""
     # ── Session-based auth ──
-    _sessions: set[str] = set()  # valid session tokens
+    _sessions: dict[str, float] = {}  # token → creation timestamp
+    _login_attempts: dict[str, list[float]] = {}  # ip → list of attempt timestamps
+    _SESSION_MAX_AGE = 30 * 86400  # 30 days server-side
+    _LOGIN_RATE_WINDOW = 300  # 5 min
+    _LOGIN_RATE_MAX = 10  # max attempts per window
 
     def _make_token() -> str:
         return _secrets.token_urlsafe(32)
+
+    def _is_session_valid(token: str) -> bool:
+        ts = _sessions.get(token)
+        if ts is None:
+            return False
+        if time.time() - ts > _SESSION_MAX_AGE:
+            _sessions.pop(token, None)
+            return False
+        return True
+
+    def _is_rate_limited(ip: str) -> bool:
+        now = time.time()
+        attempts = _login_attempts.get(ip, [])
+        attempts = [t for t in attempts if now - t < _LOGIN_RATE_WINDOW]
+        _login_attempts[ip] = attempts
+        return len(attempts) >= _LOGIN_RATE_MAX
 
     app = FastAPI()
     _html_cache: dict[str, str | None] = {"v": None}
@@ -237,7 +257,7 @@ def create_app(bot) -> FastAPI:
                 if path in ("/login", "/favicon.ico"):
                     return await call_next(request)
                 token = request.cookies.get("session")
-                if not token or token not in _sessions:
+                if not token or not _is_session_valid(token):
                     if path.startswith("/api/"):
                         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
                     return RedirectResponse("/login", status_code=303)
@@ -250,12 +270,18 @@ def create_app(bot) -> FastAPI:
         return _LOGIN_HTML.replace("{{VERSION}}", VERSION).replace("{{MODE}}", ml).replace("{{ERROR}}", "")
 
     @app.post("/login")
-    async def login_submit(username: str = Form(...), password: str = Form(...)):
+    async def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
         ml = "LIVE" if EXECUTION_MODE == "live" else "PAPER"
+        client_ip = request.client.host if request.client else "unknown"
+        if _is_rate_limited(client_ip):
+            html = (_LOGIN_HTML.replace("{{VERSION}}", VERSION)
+                    .replace("{{MODE}}", ml).replace("{{ERROR}}", "Too many attempts — wait 5 minutes"))
+            return HTMLResponse(html, status_code=429)
+        _login_attempts.setdefault(client_ip, []).append(time.time())
         if (_secrets.compare_digest(username, DASHBOARD_USER)
                 and _secrets.compare_digest(password, DASHBOARD_PASS)):
             token = _make_token()
-            _sessions.add(token)
+            _sessions[token] = time.time()
             resp = RedirectResponse("/", status_code=303)
             resp.set_cookie("session", token, httponly=True, samesite="strict", max_age=30 * 86400)
             return resp
@@ -266,7 +292,7 @@ def create_app(bot) -> FastAPI:
     @app.get("/logout")
     async def logout(session: str | None = Cookie(None)):
         if session:
-            _sessions.discard(session)
+            _sessions.pop(session, None)
         resp = RedirectResponse("/login", status_code=303)
         resp.delete_cookie("session")
         return resp

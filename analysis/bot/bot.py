@@ -265,6 +265,7 @@ class MultiSignalBot:
                         n_new = await asyncio.to_thread(self._scan_and_trade)
                         if n_new:
                             log.info("Opened %d new positions", n_new)
+                            self._save_state()  # persist immediately to avoid orphans on crash
 
                     self._last_scan = now
                     self._save_state()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import fcntl
 import logging
 import signal
 import time
@@ -30,6 +31,15 @@ log = logging.getLogger("multisignal")
 
 
 async def run():
+    # Prevent two instances from running on the same state file
+    lock_path = STATE_FILE + ".lock"
+    lock_file = open(lock_path, "w")
+    try:
+        fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except BlockingIOError:
+        log.critical("Another bot instance is running (lock: %s) — aborting", lock_path)
+        raise SystemExit(1)
+
     bot = MultiSignalBot()
     app = create_app(bot)
 

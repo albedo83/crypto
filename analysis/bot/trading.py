@@ -89,6 +89,11 @@ def check_exits(bot) -> int:
 
         st = bot.states.get(sym)
         if not st or st.price == 0:
+            # If price has been dead for >30 min and position expired, force close at entry price
+            if st and now >= target_exit:
+                log.warning("Force-closing %s: price unavailable, hold time expired", sym)
+                close_position(sym, entry_price, now, "stale_price", bot)
+                exits += 1
             continue
 
         unrealized = direction * (st.price / entry_price - 1) * 1e4 * LEVERAGE

@@ -189,8 +189,13 @@ def save_state(state_file: str, positions: dict, pos_lock,
         "positions": pos_snapshot,
     }
     tmp = state_file + ".tmp"
+    try:
+        payload = orjson.dumps(data, option=orjson.OPT_SERIALIZE_NUMPY)
+    except Exception:
+        log.exception("State serialization failed — keeping existing state file")
+        return
     with open(tmp, "wb") as f:
-        f.write(orjson.dumps(data, option=orjson.OPT_SERIALIZE_NUMPY))
+        f.write(payload)
     os.replace(tmp, state_file)  # atomic on POSIX
 
 
