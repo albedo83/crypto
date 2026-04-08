@@ -129,6 +129,43 @@ def execute_close(exchange, hl_info, address: str, sym: str) -> float | None:
     return None  # caller uses st.price as fallback
 
 
+def fetch_account_state(hl_info, address: str) -> dict | None:
+    """Fetch real account state from Hyperliquid. Returns equity, unrealized, available."""
+    if not hl_info:
+        return None
+    try:
+        state = hl_info.user_state(address)
+        spot = hl_info.spot_user_state(address)
+
+        # Spot USDC total = real equity
+        equity = 0.0
+        for b in spot.get("balances", []):
+            if b["coin"] == "USDC":
+                equity = float(b["total"])
+                break
+
+        # Unrealized from perps
+        unrealized = 0.0
+        for p in state.get("assetPositions", []):
+            sz = float(p["position"].get("szi", 0))
+            if abs(sz) > 0:
+                unrealized += float(p["position"].get("unrealizedPnl", 0))
+
+        # Margin used
+        margin_used = float(state.get("marginSummary", {}).get("totalMarginUsed", 0))
+        available = equity - margin_used
+
+        return {
+            "equity": round(equity, 2),
+            "unrealized": round(unrealized, 2),
+            "margin_used": round(margin_used, 2),
+            "available": round(available, 2),
+        }
+    except Exception as e:
+        log.warning("Account state fetch failed: %s", e)
+        return None
+
+
 def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> None:
     """Compare bot positions vs exchange. Log and alert on discrepancies."""
     if not hl_info:

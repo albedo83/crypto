@@ -105,6 +105,7 @@ def build_state_response(bot) -> dict:
         "degraded": list(bot._degraded), "loss_streak": bot._consecutive_losses,
         "kill_switch_active": bot._total_pnl <= TOTAL_LOSS_CAP,
         "balance": round(balance, 2), "capital": bot._capital,
+        "exchange_account": bot._exchange_account,  # real exchange balance (live only)
         "total_pnl": round(bot._total_pnl, 2), "total_trades": n_bot,
         "win_rate": round(wins / n_bot, 3) if n_bot > 0 else 0,
         "n_positions": len(pos_snapshot), "max_positions": MAX_POSITIONS,

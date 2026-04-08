@@ -52,6 +52,7 @@ class MultiSignalBot:
         self._loss_streak_until: float = 0
         self._pos_lock = threading.Lock()
         self._failed_closes: set[str] = set()  # symbols with exchange close failures
+        self._exchange_account: dict | None = None  # real exchange balance (live only)
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -245,6 +246,12 @@ class MultiSignalBot:
                 self._last_price_fetch = time.time()
                 if meta_u and ctxs:
                     db_mod.log_ticks(self._db, ctxs, meta_u)
+                # Fetch real exchange balance (live mode)
+                if self._exchange:
+                    from .exchange import fetch_account_state
+                    acct = await asyncio.to_thread(fetch_account_state, self._hl_info, self._hl_address)
+                    if acct:
+                        self._exchange_account = acct
 
                 if now - self._last_scan >= SCAN_INTERVAL:
                     log.info("Scanning signals...")

@@ -100,8 +100,8 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="cards">
-  <div class="card" id="card-balance"><div class="label">Balance</div><div class="value" id="balance">$1,000</div><div class="sub dim" id="capital"></div></div>
-  <div class="card" id="card-pnl"><div class="label">P&L</div><div class="value" id="pnl">$0.00</div><div class="sub" id="pnl-pct">+0.0%</div></div>
+  <div class="card" id="card-balance"><div class="label">Equity</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
+  <div class="card" id="card-pnl"><div class="label">Unrealized</div><div class="value" id="unrealized">--</div><div class="sub dim" id="available"></div></div>
   <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
   <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">--</div></div>
   <div class="card" id="card-total"><div class="label">Total (real+unreal)</div><div class="value" id="today-pnl">$0.00</div></div>
@@ -205,12 +205,24 @@ function refresh(){
     _nextScan=s.next_scan_s;
     _scanInterval=s.scan_interval||3600;
 
-    document.getElementById('balance').textContent='$'+s.balance.toFixed(2);
-    document.getElementById('capital').textContent='Capital: $'+s.capital.toFixed(0);
-    const pnlEl=document.getElementById('pnl');
-    pnlEl.textContent='$'+fmt(s.total_pnl);
-    pnlEl.className='value '+cls(s.total_pnl);
-    document.getElementById('pnl-pct').textContent=fmt(s.total_pnl/s.balance*100,2)+'%';
+    // Equity: use exchange account if available (live), else simulated balance
+    const acct=s.exchange_account;
+    if(acct){
+      document.getElementById('balance').textContent='$'+acct.equity.toFixed(2);
+      document.getElementById('capital').textContent='Dispo: $'+acct.available.toFixed(0)+' | Marge: $'+acct.margin_used.toFixed(0);
+      const urEl=document.getElementById('unrealized');
+      urEl.textContent='$'+fmt(acct.unrealized);
+      urEl.className='value '+cls(acct.unrealized);
+      document.getElementById('available').textContent='P&L bot: $'+fmt(s.total_pnl);
+    } else {
+      document.getElementById('balance').textContent='$'+s.balance.toFixed(2);
+      document.getElementById('capital').textContent='Capital: $'+s.capital.toFixed(0);
+      const urEl=document.getElementById('unrealized');
+      const unrealTotal=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);
+      urEl.textContent='$'+fmt(unrealTotal);
+      urEl.className='value '+cls(unrealTotal);
+      document.getElementById('available').textContent='P&L: $'+fmt(s.total_pnl);
+    }
     document.getElementById('pos-count').textContent=s.n_positions+'/'+s.max_positions;
 
     const nL=s.positions.filter(p=>p.direction==='LONG').length;
