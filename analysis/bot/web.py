@@ -8,7 +8,7 @@ from fastapi import Cookie, FastAPI, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from .config import (
     VERSION, EXECUTION_MODE, CAPITAL_USDT, LEVERAGE, DASHBOARD_USER,
-    DASHBOARD_PASS, HTML_PATH, TRADE_SYMBOLS, TOKEN_SECTOR, TRADES_CSV,
+    DASHBOARD_PASS, HTML_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
     MAX_POSITIONS, TOTAL_LOSS_CAP, SCAN_INTERVAL,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS,
     S5_DIV_THRESHOLD, S5_VOL_Z_MIN,
@@ -174,13 +174,13 @@ def build_trades_list(trades, limit: int = 50) -> list:
     tl = list(trades)
     return [t.__dict__ for t in tl[-limit:][::-1]]
 
-def build_pnl_curve(trades) -> list:
+def build_pnl_curve(trades, capital: float) -> list:
     """Cumulative P&L curve for the dashboard chart."""
     cum, pts = 0.0, []
     for t in trades:
         cum += t.pnl_usdt
         pts.append({"time": t.exit_time, "cum_pnl": round(cum, 2),
-                    "balance": round(bot._capital + cum, 2)})
+                    "balance": round(capital + cum, 2)})
     return pts
 
 # ── FastAPI App Factory ───────────────────────────────────────────────
@@ -394,7 +394,7 @@ def create_app(bot) -> FastAPI:
     @app.get("/api/trades")
     async def api_trades(limit: int = 50): return JSONResponse(build_trades_list(bot.trades, limit))
     @app.get("/api/pnl")
-    async def api_pnl(): return JSONResponse(build_pnl_curve(bot.trades))
+    async def api_pnl(): return JSONResponse(build_pnl_curve(bot.trades, bot._capital))
 
     @app.post("/api/close/{symbol}")
     def api_close_symbol(symbol: str):  # sync -- runs in threadpool
@@ -467,10 +467,15 @@ def create_app(bot) -> FastAPI:
             for c in (bot._cooldowns, bot.trades, bot._degraded,
                       bot._feature_cache, bot._signal_first_seen): c.clear()
             bot._oi_summary = {"falling": 0, "rising": 0}
-        if os.path.exists(TRADES_CSV):
-            os.rename(TRADES_CSV, TRADES_CSV + f".bak.{int(time.time())}")
+        # Clear trades from DB
+        if bot._db:
+            from .db import _db_lock
+            with _db_lock:
+                bot._db.execute("DELETE FROM trades")
+                bot._db.execute("DELETE FROM trajectories")
+                bot._db.commit()
         bot._save_state()
-        log.info("RESET: capital $%.0f, all state cleared", CAPITAL_USDT)
+        log.info("RESET: capital $%.0f, all state cleared", bot._capital)
         return JSONResponse({"status": "reset"})
 
     return app

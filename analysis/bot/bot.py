@@ -18,7 +18,7 @@ import numpy as np
 
 from .config import (
     VERSION, EXECUTION_MODE, HL_PRIVATE_KEY, CAPITAL_USDT,
-    TRADE_SYMBOLS, ALL_SYMBOLS, SCAN_INTERVAL, TICKS_DB, STATE_FILE, MARKET_CSV,
+    TRADE_SYMBOLS, ALL_SYMBOLS, SCAN_INTERVAL, TICKS_DB, STATE_FILE,
 )
 from .models import SymbolState, Position, Trade
 from . import features, signals, db as db_mod, net, persistence, trading, web
@@ -279,7 +279,7 @@ class MultiSignalBot:
                     self._last_scan = now
                     self._save_state()
                     persistence.log_market_snapshot(
-                        self.states, self._feature_cache, TRADE_SYMBOLS, MARKET_CSV,
+                        self.states, self._feature_cache, TRADE_SYMBOLS,
                         self._db, self._compute_oi_features, self._compute_crowding_score)
 
                     _bt = [t for t in self.trades if trading.is_bot_trade(t)]

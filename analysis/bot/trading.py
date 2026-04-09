@@ -16,7 +16,7 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, MAX_POSITIONS, MAX_SAME_D
                      MAX_PER_SECTOR, MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS, MACRO_STRATEGIES,
                      TOKEN_SECTOR, STOP_LOSS_BPS, STOP_LOSS_S8, COOLDOWN_HOURS,
                      TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER,
-                     LOSS_STREAK_COOLDOWN, HOLD_HOURS_DEFAULT, TRADES_CSV, OUTPUT_DIR,
+                     LOSS_STREAK_COOLDOWN, HOLD_HOURS_DEFAULT,
                      S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS, strat_size)
 from .models import Position, Trade
 from .exchange import execute_open, execute_close
@@ -217,8 +217,8 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
         entry_confluence=pos.entry_confluence, entry_session=pos.entry_session,
     )
     bot.trades.append(trade)
-    write_trade(trade, TRADES_CSV, bot._db)
-    write_trajectory(sym, pos, OUTPUT_DIR, bot._db)
+    write_trade(trade, bot._db)
+    write_trajectory(sym, pos, bot._db)
 
     n = len(bot.trades)
     balance = bot._capital + bot._total_pnl

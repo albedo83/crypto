@@ -1,9 +1,10 @@
-"""CSV/DB writes, market snapshots, state save/load, trade loading."""
+"""DB writes, market snapshots, state save/load, trade loading.
+
+All persistence goes through SQLite. CSV writing removed in v11.3.1.
+"""
 
 from __future__ import annotations
 
-import csv
-import json
 import logging
 import os
 import shutil
@@ -13,139 +14,89 @@ from datetime import datetime, timezone
 
 import orjson
 
-from .config import (OUTPUT_DIR, TRADES_CSV, MARKET_CSV, STATE_FILE,
-                     TRADE_SYMBOLS, CAPITAL_USDT, VERSION)
+from .config import OUTPUT_DIR, STATE_FILE, CAPITAL_USDT, VERSION
 from .models import Position, Trade
 
 log = logging.getLogger("multisignal")
 
 # ── Trade & Trajectory Writing ────────────────────────────────────────
 
-def write_trade(trade: Trade, trades_csv: str, db: sqlite3.Connection | None) -> None:
-    """Append trade to CSV + SQLite."""
-    output_dir = os.path.dirname(trades_csv)
-    os.makedirs(output_dir, exist_ok=True)
-    header = not os.path.exists(trades_csv)
-    try:
-        with open(trades_csv, "a", newline="") as f:
-            w = csv.writer(f)
-            if header:
-                w.writerow(["symbol", "direction", "strategy", "entry_time", "exit_time",
-                           "entry_price", "exit_price", "hold_hours", "size_usdt",
-                           "signal_info", "gross_bps", "net_bps", "pnl_usdt",
-                           "mae_bps", "mfe_bps", "reason",
-                           "entry_oi_delta", "entry_crowding", "entry_confluence", "entry_session"])
-            w.writerow([trade.symbol, trade.direction, trade.strategy,
-                       trade.entry_time, trade.exit_time,
-                       trade.entry_price, trade.exit_price, trade.hold_hours, trade.size_usdt,
-                       trade.signal_info, trade.gross_bps, trade.net_bps, trade.pnl_usdt,
-                       trade.mae_bps, trade.mfe_bps, trade.reason,
-                       trade.entry_oi_delta, trade.entry_crowding, trade.entry_confluence,
-                       trade.entry_session])
-    except Exception:
-        log.exception("Trade CSV write failed — trade recorded in memory but not on disk")
-    # Also write to SQLite
-    if db:
-        from .db import _db_lock
-        try:
-            with _db_lock:
-                db.execute("""INSERT INTO trades
-                    (symbol, direction, strategy, entry_time, exit_time, entry_price,
-                     exit_price, hold_hours, size_usdt, signal_info, gross_bps, net_bps,
-                     pnl_usdt, mae_bps, mfe_bps, reason, entry_oi_delta, entry_crowding,
-                     entry_confluence, entry_session)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (trade.symbol, trade.direction, trade.strategy,
-                     trade.entry_time, trade.exit_time,
-                     trade.entry_price, trade.exit_price, trade.hold_hours, trade.size_usdt,
-                     trade.signal_info, trade.gross_bps, trade.net_bps, trade.pnl_usdt,
-                     trade.mae_bps, trade.mfe_bps, trade.reason,
-                     trade.entry_oi_delta, trade.entry_crowding, trade.entry_confluence,
-                     trade.entry_session))
-                db.commit()
-        except Exception as e:
-            log.warning("Trade DB write failed: %s", e)
-
-
-def write_trajectory(sym: str, pos: Position, output_dir: str,
-                     db: sqlite3.Connection | None) -> None:
-    """Write hourly trajectory to CSV + SQLite. One row per hour of the trade's life."""
-    if not pos.trajectory:
+def write_trade(trade: Trade, db: sqlite3.Connection | None) -> None:
+    """Write trade to SQLite."""
+    if not db:
+        log.warning("No DB — trade recorded in memory only")
         return
-    traj_csv = os.path.join(output_dir, "reversal_trajectories.csv")
-    header = not os.path.exists(traj_csv)
+    from .db import _db_lock
+    try:
+        with _db_lock:
+            db.execute("""INSERT INTO trades
+                (symbol, direction, strategy, entry_time, exit_time, entry_price,
+                 exit_price, hold_hours, size_usdt, signal_info, gross_bps, net_bps,
+                 pnl_usdt, mae_bps, mfe_bps, reason, entry_oi_delta, entry_crowding,
+                 entry_confluence, entry_session)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (trade.symbol, trade.direction, trade.strategy,
+                 trade.entry_time, trade.exit_time,
+                 trade.entry_price, trade.exit_price, trade.hold_hours, trade.size_usdt,
+                 trade.signal_info, trade.gross_bps, trade.net_bps, trade.pnl_usdt,
+                 trade.mae_bps, trade.mfe_bps, trade.reason,
+                 trade.entry_oi_delta, trade.entry_crowding, trade.entry_confluence,
+                 trade.entry_session))
+            db.commit()
+    except Exception as e:
+        log.warning("Trade DB write failed: %s", e)
+
+
+def write_trajectory(sym: str, pos: Position, db: sqlite3.Connection | None) -> None:
+    """Write hourly trajectory to SQLite. One row per hour of the trade's life."""
+    if not pos.trajectory or not db:
+        return
+    from .db import _db_lock
     entry_t = pos.entry_time.isoformat(timespec="seconds")
     try:
-        with open(traj_csv, "a", newline="") as f:
-            w = csv.writer(f)
-            if header:
-                w.writerow(["symbol", "strategy", "entry_time", "hours", "unrealized_bps"])
-            for hours, bps in pos.trajectory:
-                w.writerow([sym, pos.strategy, entry_t, hours, bps])
-    except Exception:
-        log.exception("Trajectory write failed")
-    # Also write to SQLite
-    if db:
-        from .db import _db_lock
-        try:
-            with _db_lock:
-                db.executemany("""INSERT INTO trajectories
-                    (symbol, strategy, entry_time, hours, unrealized_bps)
-                    VALUES (?,?,?,?,?)""",
-                    [(sym, pos.strategy, entry_t, h, b) for h, b in pos.trajectory])
-                db.commit()
-        except Exception as e:
-            log.warning("Trajectory DB write failed: %s", e)
+        with _db_lock:
+            db.executemany("""INSERT INTO trajectories
+                (symbol, strategy, entry_time, hours, unrealized_bps)
+                VALUES (?,?,?,?,?)""",
+                [(sym, pos.strategy, entry_t, h, b) for h, b in pos.trajectory])
+            db.commit()
+    except Exception as e:
+        log.warning("Trajectory DB write failed: %s", e)
 
 
 # ── Market Snapshots ──────────────────────────────────────────────────
 
 def log_market_snapshot(states: dict, feature_cache: dict,
-                        trade_symbols: list, market_csv: str,
+                        trade_symbols: list,
                         db: sqlite3.Connection | None,
                         compute_oi_fn, compute_crowding_fn) -> None:
-    """Append hourly snapshot of OI/funding/premium/crowding for all tokens to CSV + SQLite.
+    """Write hourly snapshot of OI/funding/premium/crowding for all tokens to SQLite.
 
     compute_oi_fn(sym) -> dict with 'oi_delta_1h' key.
     compute_crowding_fn(sym, oi_f=oi_f) -> int (0-100).
     """
-    output_dir = os.path.dirname(market_csv)
-    os.makedirs(output_dir, exist_ok=True)
-    header = not os.path.exists(market_csv)
-    ts_str = datetime.now(timezone.utc).isoformat(timespec="seconds")
+    if not db:
+        return
+    from .db import _db_lock
     ts_epoch = int(time.time())
-    db_rows: list[tuple] = []
-    try:
-        with open(market_csv, "a", newline="") as f:
-            w = csv.writer(f)
-            if header:
-                w.writerow(["timestamp", "symbol", "price", "oi", "oi_delta_1h_pct",
-                            "funding_ppm", "premium_ppm", "crowding", "vol_z"])
-            for sym in trade_symbols:
-                st = states.get(sym)
-                if not st or st.price == 0:
-                    continue
-                oi_f = compute_oi_fn(sym)
-                feat = feature_cache.get(sym)
-                crowd = compute_crowding_fn(sym, oi_f=oi_f)
-                price = round(st.price, 6)
-                oi = round(st.oi, 2)
-                oi_d = oi_f["oi_delta_1h"]
-                fund = round(st.funding * 1e6, 2)
-                prem = round(st.premium * 1e6, 2)
-                vz = round(feat.get("vol_z", 0), 2) if feat else 0
-                w.writerow([ts_str, sym, price, oi, oi_d, fund, prem, crowd, vz])
-                db_rows.append((ts_epoch, sym, price, oi, oi_d, fund, prem, crowd, vz))
-    except Exception:
-        log.exception("Market snapshot write failed")
-    # Also write to SQLite
-    if db and db_rows:
-        from .db import _db_lock
+    rows: list[tuple] = []
+    for sym in trade_symbols:
+        st = states.get(sym)
+        if not st or st.price == 0:
+            continue
+        oi_f = compute_oi_fn(sym)
+        feat = feature_cache.get(sym)
+        crowd = compute_crowding_fn(sym, oi_f=oi_f)
+        rows.append((ts_epoch, sym, round(st.price, 6), round(st.oi, 2),
+                      oi_f["oi_delta_1h"], round(st.funding * 1e6, 2),
+                      round(st.premium * 1e6, 2), crowd,
+                      round(feat.get("vol_z", 0), 2) if feat else 0))
+    if rows:
         try:
             with _db_lock:
                 db.executemany("""INSERT OR IGNORE INTO market_snapshots
                     (ts, symbol, price, oi, oi_delta_1h_pct, funding_ppm, premium_ppm, crowding, vol_z)
-                    VALUES (?,?,?,?,?,?,?,?,?)""", db_rows)
+                    VALUES (?,?,?,?,?,?,?,?,?)""", rows)
                 db.commit()
         except Exception as e:
             log.warning("Market snapshot DB write failed: %s", e)
@@ -267,39 +218,38 @@ def load_state(state_file: str, states: dict) -> dict:
 
 # ── Trade History Loading ─────────────────────────────────────────────
 
-def load_trades(trades_csv: str) -> list[Trade]:
-    """Reload trade history from CSV (needed for drift computation and dashboard).
+def load_trades(db: sqlite3.Connection | None) -> list[Trade]:
+    """Reload trade history from SQLite (needed for drift computation and dashboard).
 
     Returns list of Trade objects (caller appends to its deque).
     """
     result: list[Trade] = []
-    if not os.path.exists(trades_csv):
+    if not db:
         return result
     try:
-        with open(trades_csv) as f:
-            for row in csv.DictReader(f):
-                result.append(Trade(
-                    symbol=row["symbol"], direction=row["direction"],
-                    strategy=row.get("strategy", "?"),
-                    entry_time=row["entry_time"], exit_time=row["exit_time"],
-                    entry_price=float(row["entry_price"]),
-                    exit_price=float(row["exit_price"]),
-                    hold_hours=float(row["hold_hours"]),
-                    size_usdt=float(row["size_usdt"]),
-                    signal_info=row.get("signal_info", ""),
-                    gross_bps=float(row["gross_bps"]),
-                    net_bps=float(row["net_bps"]),
-                    pnl_usdt=float(row["pnl_usdt"]),
-                    mae_bps=float(row.get("mae_bps", 0)),
-                    mfe_bps=float(row.get("mfe_bps", 0)),
-                    reason=row["reason"],
-                    entry_oi_delta=float(row.get("entry_oi_delta", 0)),
-                    entry_crowding=int(float(row.get("entry_crowding", 0))),
-                    entry_confluence=int(float(row.get("entry_confluence", 0))),
-                    entry_session=row.get("entry_session", ""),
-                ))
+        rows = db.execute("""SELECT symbol, direction, strategy, entry_time, exit_time,
+            entry_price, exit_price, hold_hours, size_usdt, signal_info,
+            gross_bps, net_bps, pnl_usdt, mae_bps, mfe_bps, reason,
+            entry_oi_delta, entry_crowding, entry_confluence, entry_session
+            FROM trades ORDER BY exit_time""").fetchall()
+        for r in rows:
+            result.append(Trade(
+                symbol=r[0], direction=r[1], strategy=r[2] or "?",
+                entry_time=r[3], exit_time=r[4],
+                entry_price=float(r[5] or 0), exit_price=float(r[6] or 0),
+                hold_hours=float(r[7] or 0), size_usdt=float(r[8] or 0),
+                signal_info=r[9] or "",
+                gross_bps=float(r[10] or 0), net_bps=float(r[11] or 0),
+                pnl_usdt=float(r[12] or 0),
+                mae_bps=float(r[13] or 0), mfe_bps=float(r[14] or 0),
+                reason=r[15] or "?",
+                entry_oi_delta=float(r[16] or 0),
+                entry_crowding=int(r[17] or 0) if isinstance(r[17], (int, float)) else 0,
+                entry_confluence=int(r[18] or 0) if isinstance(r[18], (int, float)) else 0,
+                entry_session=r[19] if isinstance(r[19], str) else "",
+            ))
         if result:
-            log.info("Loaded %d historical trades", len(result))
+            log.info("Loaded %d historical trades from DB", len(result))
     except Exception:
         log.exception("Load trades failed")
     return result

@@ -17,7 +17,7 @@ from .config import (
     STOP_LOSS_BPS, STOP_LOSS_S8, MAX_POSITIONS, MAX_SAME_DIRECTION,
     MAX_PER_SECTOR, MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS,
     TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER,
-    LOSS_STREAK_COOLDOWN, SIZE_PCT, SIZE_BONUS, WEB_PORT, TRADES_CSV,
+    LOSS_STREAK_COOLDOWN, SIZE_PCT, SIZE_BONUS, WEB_PORT,
     strat_size,
 )
 from .bot import MultiSignalBot
@@ -47,11 +47,9 @@ async def run():
     bot.started_at = datetime.now(timezone.utc)
     bot._shutdown_event = asyncio.Event()
 
-    # Load history
-    for t in load_trades(TRADES_CSV):
+    # Load history from SQLite
+    for t in load_trades(bot._db):
         bot.trades.append(t)
-    if bot.trades:
-        log.info("Loaded %d historical trades", len(bot.trades))
 
     state = load_state(STATE_FILE, bot.states)
     if state:
