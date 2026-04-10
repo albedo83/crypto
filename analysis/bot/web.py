@@ -177,12 +177,19 @@ def build_trades_list(trades, limit: int = 50) -> list:
     return [t.__dict__ for t in tl[-limit:][::-1]]
 
 def build_pnl_curve(trades, capital: float) -> list:
-    """Cumulative P&L curve for the dashboard chart."""
+    """Cumulative P&L curve for the dashboard chart.
+
+    `balance` uses the *initial* CAPITAL_USDT constant as baseline rather than
+    the live bot._capital — this keeps historical balance points consistent
+    after DCA injections. DCA itself shifts the current reference, not the
+    historical curve.
+    """
+    _ = capital  # accepted for backwards compat but unused; baseline is CAPITAL_USDT
     cum, pts = 0.0, []
     for t in trades:
         cum += t.pnl_usdt
         pts.append({"time": t.exit_time, "cum_pnl": round(cum, 2),
-                    "balance": round(capital + cum, 2)})
+                    "balance": round(CAPITAL_USDT + cum, 2)})
     return pts
 
 # ── FastAPI App Factory ───────────────────────────────────────────────
@@ -352,11 +359,17 @@ def create_app(bot) -> FastAPI:
 
     @app.get("/api/chart/{symbol}")
     async def api_chart(symbol: str, hours: int = 24):
-        """Price history for chart: 4h candles + 60s ticks merged."""
+        """Price history for chart: 4h candles + 60s ticks merged.
+
+        Ticks are bucketed so the response stays under ~600 points regardless of
+        the requested window — LightweightCharts can't render denser data than
+        its minimum bar spacing on a typical dashboard width.
+        """
         from .config import ALL_SYMBOLS as _all_syms
         if symbol not in _all_syms:
             return JSONResponse({"symbol": symbol, "points": [], "position": None})
         hours = max(1, min(hours, 168))
+        MAX_POINTS = 600
 
         def _build_chart():
             pts = []
@@ -369,9 +382,15 @@ def create_app(bot) -> FastAPI:
             if bot._db:
                 try:
                     cutoff_ts = int(time.time() - hours * 3600)
+                    # Compute bucket size so we return at most MAX_POINTS tick samples.
+                    bucket_s = max(60, (hours * 3600) // MAX_POINTS)
                     rows = bot._db.execute(
-                        "SELECT ts, mark_px FROM ticks WHERE symbol=? AND ts>? ORDER BY ts",
-                        (symbol, cutoff_ts)).fetchall()
+                        """SELECT (ts / ?) * ? AS bucket, AVG(mark_px)
+                           FROM ticks
+                           WHERE symbol = ? AND ts > ?
+                           GROUP BY bucket
+                           ORDER BY bucket""",
+                        (bucket_s, bucket_s, symbol, cutoff_ts)).fetchall()
                     tick_start = rows[0][0] if rows else 0
                     pts_filtered = [p for p in pts if p["ts"] < tick_start]
                     pts_filtered.extend({"ts": r[0], "price": r[1]} for r in rows)

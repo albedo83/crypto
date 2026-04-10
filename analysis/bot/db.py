@@ -1,7 +1,7 @@
-"""All storage: SQLite DB, CSV writes, market snapshots, state save/load, trade loading.
+"""SQLite init, schema, migration helper, tick/event logging.
 
-Functions are standalone (not methods). Caller passes DB connections, file paths,
-and callback functions as arguments to avoid coupling to the bot class.
+Functions are standalone (not methods). Caller passes DB connections and
+callback functions as arguments to avoid coupling to the bot class.
 """
 
 from __future__ import annotations
@@ -10,17 +10,11 @@ import csv
 import json
 import logging
 import os
-import shutil
 import sqlite3
 import threading
 import time
-from datetime import datetime, timezone
 
-import orjson
-
-from .config import (OUTPUT_DIR, TRADES_CSV, MARKET_CSV, STATE_FILE, TICKS_DB,
-                     TRADE_SYMBOLS, ALL_SYMBOLS, CAPITAL_USDT, VERSION)
-from .models import Position, Trade
+from .config import OUTPUT_DIR, ALL_SYMBOLS
 
 log = logging.getLogger("multisignal")
 
@@ -126,7 +120,7 @@ def init_db(db_path: str) -> sqlite3.Connection | None:
         db.execute("CREATE INDEX IF NOT EXISTS idx_tf_symbol_ts ON trade_flow(symbol, ts)")
         db.commit()
         # Migrate existing CSV data if tables are empty
-        migrate_csv_to_db(db, TRADES_CSV, MARKET_CSV, OUTPUT_DIR)
+        migrate_csv_to_db(db, OUTPUT_DIR)
         log.info("Tick database ready: %s", db_path)
         return db
     except Exception as e:
@@ -134,11 +128,16 @@ def init_db(db_path: str) -> sqlite3.Connection | None:
         return None
 
 
-def migrate_csv_to_db(db: sqlite3.Connection, trades_csv: str,
-                      market_csv: str, output_dir: str) -> None:
-    """One-time migration of existing CSV data into SQLite tables."""
+def migrate_csv_to_db(db: sqlite3.Connection, output_dir: str) -> None:
+    """One-time migration of pre-v11.3.1 CSV data into SQLite tables.
+
+    Kept for upgrade safety — runs only if the target tables are empty, so it's
+    a no-op on fresh installs and on already-migrated systems.
+    """
     if not db:
         return
+    trades_csv = os.path.join(output_dir, "reversal_trades.csv")
+    market_csv = os.path.join(output_dir, "reversal_market.csv")
     # Trades
     count = db.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
     if count == 0 and os.path.exists(trades_csv):

@@ -222,6 +222,11 @@ def load_trades(db: sqlite3.Connection | None) -> list[Trade]:
     """Reload trade history from SQLite (needed for drift computation and dashboard).
 
     Returns list of Trade objects (caller appends to its deque).
+
+    Called once at startup before the scan thread and collector start, so no
+    _db_lock is needed here. Do not call from another thread after boot — SQLite
+    in WAL mode allows concurrent reads, but this function is not meant to be
+    called on hot paths.
     """
     result: list[Trade] = []
     if not db:

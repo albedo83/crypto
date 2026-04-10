@@ -391,7 +391,7 @@ function refreshTrades(){
     trades.forEach(t=>{
       const tr=document.createElement('tr');
       const sc=t.direction==='LONG'?'green':'red';
-      const time=t.exit_time.replace('T',' ').slice(5,16);
+      const _d=new Date(t.exit_time);const time=`${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')} ${String(_d.getHours()).padStart(2,'0')}:${String(_d.getMinutes()).padStart(2,'0')}`;
       tr.innerHTML=`
         <td class="dim">${time}</td>
         <td><b>${t.symbol}</b></td>

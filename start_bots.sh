@@ -26,7 +26,8 @@ HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live 
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 echo "Live bot started (PID: $!)"
 
-# Bot 2 (:8099) — paper mode until private key is set
+# Bot 2 (:8099) — paper mode until private key is set.
+# No HL_ROOT_PATH: no nginx /bot2/ location configured, direct-port access only.
 # To switch to live: add HL_MODE=live HL_PRIVATE_KEY=<KEY> HL_CAPITAL=<amount>
 TG_BOT_TOKEN= TG_CHAT_ID= WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &

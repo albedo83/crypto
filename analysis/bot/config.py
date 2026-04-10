@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.3.1"
+VERSION = "11.3.2"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -148,8 +148,6 @@ COOLDOWN_HOURS = 24
 # bot/ -> analysis/ for base paths
 _analysis_dir = os.path.dirname(os.path.dirname(__file__))
 OUTPUT_DIR = os.environ.get("HL_OUTPUT_DIR", os.path.join(_analysis_dir, "output"))
-TRADES_CSV = os.path.join(OUTPUT_DIR, "reversal_trades.csv")
-MARKET_CSV = os.path.join(OUTPUT_DIR, "reversal_market.csv")
 STATE_FILE = os.path.join(OUTPUT_DIR, "reversal_state.json")
 TICKS_DB = os.path.join(OUTPUT_DIR, "reversal_ticks.db")
 HTML_PATH = os.path.join(_analysis_dir, "reversal.html")
