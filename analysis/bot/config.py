@@ -118,11 +118,19 @@ MAX_MACRO_SLOTS = 2
 MAX_TOKEN_SLOTS = 4       # was 3, +157% P&L with 4
 MACRO_STRATEGIES = {"S1"}
 
-# ── Costs (per leg, scaled by leverage) ─────────────────────────────
-TAKER_FEE_BPS = 7.0
-SLIPPAGE_BPS = 3.0
-FUNDING_DRAG_BPS = 2.0
-COST_BPS = TAKER_FEE_BPS + SLIPPAGE_BPS + FUNDING_DRAG_BPS  # 12
+# ── Costs (round-trip total, applied once at close) ─────────────────
+# Values calibrated from 80 live fills on Hyperliquid (v11.3.4, 2026-04-10):
+#   - Taker fee measured at 4.50 bps per leg = 9.00 bps round-trip (current
+#     volume tier, will decrease at higher tiers).
+#   - Slippage is 0 for live mode: the bot uses the exact avgPx from each
+#     order response, so slippage is already baked into gross_bps. Backtests
+#     need to model slippage separately since they use candle closes.
+#   - Funding drag measured at ~0.5 bps on average across trades (positions
+#     held 24-72h × typical funding < 0.3 bps/8h). We keep 1 bps for safety.
+TAKER_FEE_BPS = 9.0
+SLIPPAGE_BPS = 0.0        # already in avgPx for live; backtest adds its own
+FUNDING_DRAG_BPS = 1.0
+COST_BPS = TAKER_FEE_BPS + SLIPPAGE_BPS + FUNDING_DRAG_BPS  # 10
 
 # ── Stop Losses ─────────────────────────────────────────────────────
 STOP_LOSS_BPS = -1250.0    # -12.5% price move (was -2500 leveraged)

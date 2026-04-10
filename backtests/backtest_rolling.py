@@ -57,8 +57,16 @@ S9_EARLY_EXIT_CANDLES = int(S9_EARLY_EXIT_HOURS // 4)
 S10_BREAKOUT_PCT = 0.5
 S10_REINT_CANDLES = 2
 
-# Cost per round-trip: entry + exit, no leverage multiplier (v11.3.0 fix)
-COST = COST_BPS  # just the one-leg cost applied at close (matches bot trading.py)
+# Cost per round-trip in the backtest.
+#
+# Live bot uses COST_BPS from config which assumes avgPx-based gross_bps (no
+# slippage to add). The backtest uses candle closes (midprice) so it needs an
+# extra slippage estimate on top. Realistic taker slippage on the traded
+# universe: 3-5 bps round-trip on majors, 8-15 bps on thin tokens. Use 4 bps
+# as a blended average — re-calibrate if position sizes exceed $5k on thin
+# tokens (see docs/backtests.md).
+BACKTEST_SLIPPAGE_BPS = 4.0
+COST = COST_BPS + BACKTEST_SLIPPAGE_BPS  # applied once at close
 
 
 # ── Data loading ───────────────────────────────────────────────────────
@@ -423,8 +431,15 @@ def build_report(results: list[dict], end_dt: datetime, version: str) -> str:
         "les paramètres actuels du bot, combien aurais-je fini ?*",
         "",
         "P&L calculé avec la formule corrigée v11.3.0+ (`size_usdt` est le "
-        "notionnel, pas de multiplication par le levier). Coûts : "
-        f"{COST_BPS:.0f} bps par trade. Capital de départ : $1 000.",
+        "notionnel, pas de multiplication par le levier). Capital de départ : "
+        "$1 000.",
+        "",
+        f"**Coûts backtest** : {COST:.0f} bps round-trip = {COST_BPS:.0f} bps "
+        f"(taker {TAKER_FEE_BPS:.0f} + funding {FUNDING_DRAG_BPS:.0f}, "
+        f"calibrés depuis les fills live) + {BACKTEST_SLIPPAGE_BPS:.0f} bps "
+        "de slippage moyen que le backtest doit modéliser puisqu'il utilise "
+        "les closes 4h au lieu de l'avgPx réel. Le live bot lui n'applique "
+        f"que {COST_BPS:.0f} bps car le slippage est déjà dans l'avgPx.",
         "",
         "Ce fichier est **régénéré automatiquement** par "
         "`python3 -m backtests.backtest_rolling`. Relancer après tout changement "
@@ -477,7 +492,9 @@ def build_report(results: list[dict], end_dt: datetime, version: str) -> str:
         f"{S9_EARLY_EXIT_BPS:.0f} bps après {S9_EARLY_EXIT_HOURS:.0f}h.",
         "- **Positions restantes** en fin de fenêtre : mark-to-market au dernier close.",
         "- **Costs** : "
-        f"{COST_BPS:.0f} bps par trade (taker + slippage + funding, pas de multiplication levier).",
+        f"{COST:.0f} bps par trade round-trip ({TAKER_FEE_BPS:.0f} taker + "
+        f"{FUNDING_DRAG_BPS:.0f} funding + {BACKTEST_SLIPPAGE_BPS:.0f} slippage "
+        "backtest). Pas de multiplication par le levier.",
         "",
         "## Limites",
         "",
