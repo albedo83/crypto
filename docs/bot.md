@@ -220,6 +220,8 @@ HL_MODE=live HL_CAPITAL=260 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
 
 Auto-restart : `@reboot /home/crypto/start_bots.sh`. Accessible via `https://echonym.fr/bot/` (live), `https://echonym.fr/paper/` (paper), `https://echonym.fr/crypto/` (admin panel multi-bots).
 
+Resultats rolling simules avec les parametres actuels : voir `docs/backtests.md` (a regenerer apres tout changement de parametres avec `python3 -m backtests.backtest_rolling`).
+
 ---
 
 ## Recherche (26 backtests)

@@ -129,4 +129,5 @@ Things that will bite you when modifying the code. For signal-specific details, 
 
 ## Related docs
 - `docs/bot.md` — detailed bot description (French): signals, parameters, protections, research, architecture.
+- `docs/backtests.md` — rolling backtest results for the current parameters, regenerated via `python3 -m backtests.backtest_rolling`.
 - `CHANGELOG.md` — release history, maintained via `/release` skill.
