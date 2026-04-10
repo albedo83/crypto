@@ -18,7 +18,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 **Pourquoi** : quand BTC pump fort, les alts suivent avec du retard. On achete ce retard.
 **Type** : continuation / momentum retarde.
 **Frequence** : rare, quelques fois par an.
-**Hold** : 72h. **Stop** : -25% leveraged.
+**Hold** : 72h. **Stop** : -12.5% de mouvement de prix.
 **z-score** : 6.42. **Walk-forward** : 3/4 (75%).
 
 ### ~~S2 — Retire (alt crash)~~
@@ -35,7 +35,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 **Pourquoi** : quand un token casse de son secteur avec du volume, le mouvement continue. Le "fade" a ete teste et ne marche pas.
 **Type** : continuation / breakout sectoriel.
 **Frequence** : 10-20 fois par mois.
-**Hold** : 48h. **Stop** : -25% leveraged.
+**Hold** : 48h. **Stop** : -12.5% de mouvement de prix.
 **z-score** : 3.67.
 
 **Secteurs** :
@@ -54,7 +54,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 **Pourquoi** : quand tout tombe en meme temps, c'est un flush de liquidation force. Le rebond est violent.
 **Type** : contrarien / capitulation.
 **Frequence** : rare, ~1/mois en portfolio.
-**Hold** : 60h. **Stop** : **-15%** leveraged (plus serre, backteste). **Haircut** : 0.8x (liquidite mince).
+**Hold** : 60h. **Stop** : **-7.5%** de mouvement de prix (plus serre, backteste). **Haircut** : 0.8x (liquidite mince).
 **z-score** : 6.99.
 **Conditions** : `drawdown < -4000 bps AND vol_z > 1.0 AND ret_24h < -50 bps AND btc_7d < -300 bps`.
 
@@ -64,7 +64,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 **Pourquoi** : les mouvements extremes individuels revertent.
 **Type** : contrarien / mean reversion individuelle.
 **Frequence** : ~12/mois au seuil 20%.
-**Hold** : 48h. **Stop** : adaptatif (`max(-2500, -1000 - abs(ret_24h)/4)`) — plus le move est gros, plus le stop est serre.
+**Hold** : 48h. **Stop** : adaptatif (`max(-1250, -500 - abs(ret_24h)/8)`) — plus le move est gros, plus le stop est serre. Early exit : coupe si unrealized < -500 bps apres 8h.
 **z-score** : 8.71 (MC). Le signal le plus fort du bot.
 **Conditions** : `abs(ret_24h) >= 2000 bps`.
 
@@ -74,7 +74,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 **Pourquoi** : le faux breakout piege les traders, le vrai mouvement va dans l'autre sens.
 **Type** : contrarien / pattern. Mode B (fade).
 **Frequence** : ~50/mois sur 28 tokens.
-**Hold** : 24h. **Stop** : -25% leveraged. **Capital** : pocket separe (15%).
+**Hold** : 24h. **Stop** : -12.5% de mouvement de prix. **Capital** : part entiere (pocket separe supprime — backtest +48% P&L).
 **z-score** : 3.66. Config gelee (ne pas re-optimiser).
 **Params** : squeeze_window=3 (12h), vol_ratio<0.9, breakout 50% du range, reintegration dans 2 candles.
 
@@ -85,36 +85,46 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 | Parametre | Valeur | Pourquoi |
 |---|---|---|
 | **Levier** | 2x | Sweep 1x-3x : 2x optimal. 3x = ruine par compounding des pertes. |
-| **Sizing** | 12% base + 3% bonus (z>4), z-weighted, mult S5×2.50 S9×2.00 S10×2.00 | z-score + frequence. S8 haircut ×0.8. Sweep 3m/12m/24m (backtest_sizing.py). |
+| **Sizing** | 18% base + 3% bonus (z>4), z-weighted, mult S1×1.125 S5×2.50 S8×1.25 S9×2.00 S10×2.00 | Relevé de 12% à 18% (v11.3.0, +138% P&L backtest). Haircut S8 ×0.8. |
 | **Compounding** | Oui | Capital = initial + P&L cumule. Les mises suivent les gains et les pertes. |
 | **Hold** | 72h (S1), 48h (S5/S9), 60h (S8), 24h (S10) | Timeout automatique. |
-| **Stop loss** | -2500 bps (S1/S5), -1500 bps (S8), adaptatif (S9) | S9 : plus le move est gros, plus le stop est serre. |
-| **S9 early exit** | Coupe si < -1000 bps apres 8h | Winners revertent immediatement, losers non. 23:1 ratio. Non generalisable a S5/S8. |
-| **Frais simules** | 12 bps × 2 = 24 bps/trade | 7 taker + 3 slippage + 2 funding. |
+| **Stop loss** | -1250 bps de mouvement de prix (S1/S5/S10), -750 bps (S8), adaptatif S9 | Valeurs halved en v11.3.0 apres fix du bug P&L double-leverage. S9 : `max(-1250, -500 - abs(ret_24h)/8)`. |
+| **S9 early exit** | Coupe si unrealized < -500 bps apres 8h | Winners revertent vite, losers non. Non generalisable a S5/S8/S10 (testes, tous perdent en compounding). |
+| **Frais simules** | 12 bps par leg (24 bps round-trip) | 7 taker + 3 slippage + 2 funding. |
 | **Cooldown** | 24h par token apres exit | Evite de re-entrer immediatement. |
-| **Slot reservation** | Max 2 macro (S1) + 4 token (S5/S8/S9/S10) | Macro limité, token élargi à 4 (+157% P&L vs 3). |
+| **Slot reservation** | Max 2 macro (S1) + 4 token (S5/S8/S9/S10) | Token slots elargis a 4 (+157% P&L vs 3). |
+
+P&L : `size_usdt` est le **notionnel** (deja leveraged). `pnl = notionnel × mouvement_prix`. Pas de multiplication par le levier en plus — c'etait le bug v11.3.0.
 
 ---
 
 ## Protections
 
+### Actives
 | Protection | Seuil | Ce que ca empeche |
 |---|---|---|
 | **Max 6 positions** | Absolu | Surexposition |
 | **Max 4 meme direction** | 4 LONG ou 4 SHORT | Pari directionnel total |
 | **Max 2 par secteur** | 2 par groupe | Concentration sectorielle |
-| **Slot reservation** | 2 macro / 4 token | Macro limité, token élargi |
-| **Exposition 90%** | Par pocket (S10 vs S1-S9) | Toujours 10% de cash par pocket |
-| **Stop loss** | -25% (S8: -15%, S9: adaptatif) | Crash extreme |
-| **Kill-switch** | P&L cumule < -$300 → auto-pause | Perte catastrophique |
-| **Loss streak** | 3 pertes consecutives → sizing /2 pendant 24h | Serie noire |
-| **Signal quarantine** | Win rate < 20% sur 20 trades → signal coupe | Signal mort |
+| **Slot reservation** | 2 macro / 4 token | Macro limite, token elargi |
+| **Stop loss** | -12.5% / -7.5% (S8) / adaptatif (S9) | Crash extreme sur un trade |
+| **S9 early exit** | Coupe S9 si -500 bps apres 8h | Perte qui s'enkyste sur un S9 |
 | **Cooldown** | 24h par token apres exit | Re-entree impulsive |
-| **DXY degradation** | Stale 6-48h (jaune), expire >48h (S4 off) | Yahoo tombe |
 | **Reconciliation** | Chaque scan horaire, bot vs exchange | Position orpheline ou fantome |
-| **Telegram** | Entry, exit, erreur, kill-switch, reboot, resume quotidien | On sait toujours ce qui se passe |
-| **Dashboard auth** | HTTP Basic Auth (timing-safe) | Acces non autorise |
+| **Telegram** | Entry, exit, erreur, reboot, resume quotidien | On sait toujours ce qui se passe |
+| **Dashboard auth** | HTML login + HMAC sessions (survivent aux restarts) | Acces non autorise |
+| **File lock** | fcntl sur STATE_FILE.lock | Deux instances sur le meme state |
 | **Auto-restart** | Crontab @reboot + alerte Telegram | VPS reboot |
+
+### Desactivees (v11.3.0) — toutes detruisaient le compounding en backtest
+| Protection | Seuil initial | Pourquoi desactivee |
+|---|---|---|
+| **Kill-switch** | ~~P&L cumule < -$300 → auto-pause~~ | -65% a -99% P&L en backtest |
+| **Loss streak cooldown** | ~~3 pertes consecutives → sizing /2 pendant 24h~~ | Idem |
+| **Signal quarantine** | ~~Win rate < 20% sur 20 trades → signal coupe~~ | Idem |
+| **Exposure cap 90%** | ~~Limite notionnel / balance~~ | Idem |
+
+Les stops par trade + les limites de positions couvrent ce que ces protections pretendaient gerer, sans etouffer le compounding.
 
 ---
 
@@ -134,7 +144,11 @@ Parcours heure par heure : `(heures, unrealized_bps)`. MAE/MFE mis a jour toutes
 
 ### Snapshots marche horaires
 
-`reversal_market.csv` — 28 lignes/heure : timestamp, symbol, price, OI, oi_delta_1h, funding, premium, crowding, vol_z. ~24 MB/an.
+Table SQLite `market_snapshots` dans `{OUTPUT_DIR}/reversal_ticks.db` — 28 lignes/heure : ts, symbol, price, oi, oi_delta_1h, funding_ppm, premium_ppm, crowding, vol_z.
+
+### Tick database
+
+Toutes les 60s, `db.log_ticks` ecrit dans la table `ticks` : mark_px, oracle_px, open_interest, funding, premium, day_ntl_vlm, impact_bid/ask. ~5 MB/jour, WAL mode. Source de verite pour les trades, trajectoires, events (v11.3.1, CSV supprimes).
 
 ### Dashboard
 
@@ -163,24 +177,30 @@ Hyperliquid REST API (toutes les 60s, avec retry 3x backoff)
     │     Tri par z-score, puis force du signal
     │
     ├── Position manager
-    │     6 max / 4 dir / 2 sect / 90% expo / S10 pocket 15%
-    │     Stop -25% (S8: -15%, S9: adaptatif max(-2500,-1000-ret/4))
-    │     Kill-switch -$300 / Streak 3→/2 / Quarantine WR<20%
+    │     6 max / 4 dir / 2 sect / 2 macro / 4 token
+    │     Stop -12.5% (S8: -7.5%, S9: adaptatif max(-1250,-500-ret/8))
+    │     S9 early exit a -500 bps apres 8h
+    │     (kill-switch, streak, quarantine, expo cap tous desactives v11.3.0)
     │
     ├── Execution (live)
     │     market_open/close via SDK, fill price depuis avgPx reponse
-    │     Telegram alerts dans daemon thread (non-bloquant)
-    │     Reconciliation bot vs exchange a chaque scan
+    │     Account state refresh chaque 60s (equity, unrealized, margin)
+    │     Reconciliation bot vs exchange chaque scan horaire
+    │     Failed closes retries via _failed_closes set
     │     pause/reset en threadpool (non-bloquant event loop)
+    │     Telegram alerts dans daemon thread
     │
     ├── Persistence
-    │     JSON atomic (state + positions + feature cache)
-    │     CSV trades, trajectoires, market snapshots
+    │     JSON atomic (state + positions + feature cache + capital)
+    │     SQLite source de verite (trades, trajectories, market, ticks, events)
+    │     File lock fcntl evite deux instances sur meme state
     │     Survit aux restarts (feature cache < 2h restaure)
     │
     └── Dashboard (FastAPI)
-          Paper :8097 (bordure bleue) / Live :8098 (bordure rouge)
+          Paper :8097 / Live :8098 / Bot 2 :8099 / Admin :8090
+          Auth HMAC signee, sessions 30j
           /api/health, /api/state, /api/signals, /api/trades, /api/pnl
+          /api/chart/{sym}, /api/close/{sym}, /api/capital (DCA)
           /api/pause, /api/resume, /api/reset
 ```
 
@@ -198,7 +218,7 @@ HL_MODE=live HL_CAPITAL=260 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 ```
 
-Auto-restart : `@reboot /home/crypto/start_bots.sh`. Accessible via `https://echonym.fr/bot/` (live) et `https://echonym.fr/paper/`.
+Auto-restart : `@reboot /home/crypto/start_bots.sh`. Accessible via `https://echonym.fr/bot/` (live), `https://echonym.fr/paper/` (paper), `https://echonym.fr/crypto/` (admin panel multi-bots).
 
 ---
 
