@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.3] — 2026-04-10
+
+### Fixed
+- Price charts could only display ~24h even though the API returned 72h of data. Root cause was LightweightCharts silently clamping due to `minBarSpacing` constraints on narrower containers.
+
+### Changed
+- `/api/chart` downsamples to 200 points (was 600) — 22-minute granularity for a 72h window, plenty for visual inspection and safer for rendering across all container widths.
+- Chart `timeScale` uses `minBarSpacing: 0.001` and `rightOffset: 0` so the full data range always fits regardless of viewport.
+- Chart x-axis labels use an explicit `tickMarkFormatter` showing `JJ/MM HHh` on every tick so the date is never ambiguous.
+
 ## [11.3.2] — 2026-04-10
 
 ### Fixed

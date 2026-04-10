@@ -504,8 +504,9 @@ function initChart(){
     grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
     crosshair:{mode:0},
     rightPriceScale:{borderColor:'#30363d'},
-    timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false},
-    localization:{locale:navigator.language,dateFormat:'dd/MM',timeFormatter:t=>{const d=new Date(t*1000);return d.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'})}},
+    timeScale:{borderColor:'#30363d',timeVisible:true,secondsVisible:false,rightOffset:0,minBarSpacing:0.001,
+      tickMarkFormatter:t=>{const d=new Date(t*1000);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}h`}},
+    localization:{locale:navigator.language,dateFormat:'dd/MM',timeFormatter:t=>{const d=new Date(t*1000);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`}},
   });
   _lwSeries=_lwChart.addLineSeries({color:'#58a6ff',lineWidth:2,crosshairMarkerRadius:4,
     priceFormat:{type:'price',minMove:0.0001,precision:4}});
@@ -517,6 +518,8 @@ function refreshChart(){
     document.getElementById('chart-title').textContent=_chartSym+(d.position?' — '+d.position.strategy+' '+d.position.direction:'');
     if(!d.points.length) return;
     const data=d.points.map(p=>({time:p.ts, value:p.price}));
+    const spanH=(data[data.length-1].time-data[0].time)/3600;
+    console.log(`[chart] ${_chartSym}: ${data.length} pts, span=${spanH.toFixed(1)}h, from=${new Date(data[0].time*1000).toISOString()}, to=${new Date(data[data.length-1].time*1000).toISOString()}`);
     _lwSeries.setData(data);
     // Auto-fit precision based on price magnitude
     const lastP=d.points[d.points.length-1].price;
@@ -545,6 +548,10 @@ function refreshChart(){
       _lwSeries.setMarkers([]);
     }
     _lwChart.timeScale().fitContent();
+    setTimeout(()=>{
+      const r=_lwChart.timeScale().getVisibleRange();
+      if(r){const h=(r.to-r.from)/3600;console.log(`[chart] visible after fit: ${h.toFixed(1)}h (${new Date(r.from*1000).toISOString()} -> ${new Date(r.to*1000).toISOString()})`)}
+    },100);
   }).catch(e=>console.warn('chart error:',e));
 }
 

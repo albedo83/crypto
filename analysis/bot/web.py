@@ -369,7 +369,7 @@ def create_app(bot) -> FastAPI:
         if symbol not in _all_syms:
             return JSONResponse({"symbol": symbol, "points": [], "position": None})
         hours = max(1, min(hours, 168))
-        MAX_POINTS = 600
+        MAX_POINTS = 200
 
         def _build_chart():
             pts = []
