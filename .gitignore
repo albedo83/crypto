@@ -9,6 +9,10 @@ __pycache__/
 # Analysis output (generated, not tracked)
 analysis/output/
 analysis/output_live/
+analysis/output_live2/
+
+# Backtest output (generated DBs, charts, intermediate dumps)
+backtests/output/
 
 # IDE
 .vscode/

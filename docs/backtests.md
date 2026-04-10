@@ -50,7 +50,7 @@ Ce fichier est **régénéré automatiquement** par `python3 -m backtests.backte
 
 ## Limites
 
-- Les S10 features (squeeze detection) utilisent les mêmes bougies 4h que les autres signaux. Le live bot utilise aussi des ticks 60s pour certains contextes (OI delta, crowding) qui ne sont pas disponibles dans l'historique → cette dimension est absente du backtest.
+- Le backtest et le live bot prennent leurs décisions sur les **mêmes** features 4h. Le live collecte aussi OI delta 1h et crowding via les ticks 60s, mais ces valeurs ne sont **que loguées** (entry_ctx, market_snapshots) et n'entrent dans aucune condition d'entrée/sortie. Le backtest ne perd donc rien côté décisions.
 - Pas de modélisation du slippage variable selon la liquidité du carnet — on applique un coût fixe de 10 bps.
 - Pas de modélisation des funding rates variables — on utilise le coût moyen.
 - Les fenêtres courtes (1 mois, 3 mois) sont statistiquement bruitées : S8 fire ~1/mois, S1 rarement. Prendre les résultats avec précaution.

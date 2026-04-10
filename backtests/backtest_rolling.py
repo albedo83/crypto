@@ -129,7 +129,8 @@ def strat_size(strat: str, capital: float) -> float:
 # ── Backtest engine ────────────────────────────────────────────────────
 
 def run_window(features, data, sector_features, dxy_data,
-               start_ts_ms: int, end_ts_ms: int, start_capital: float = 1000.0) -> dict:
+               start_ts_ms: int, end_ts_ms: int, start_capital: float = 1000.0,
+               skip_fn=None) -> dict:
     """Run the portfolio backtest on a time window.
 
     P&L math matches the live bot (v11.3.0+): size_usdt is the notional, so
@@ -306,6 +307,8 @@ def run_window(features, data, sector_features, dxy_data,
             if coin in seen or coin in positions:
                 continue
             seen.add(coin)
+            if skip_fn is not None and skip_fn(coin, ts, cand["strat"], cand["dir"]):
+                continue
             if len(positions) >= MAX_POSITIONS:
                 break
             if cand["dir"] == 1 and n_long >= MAX_SAME_DIRECTION:
@@ -393,6 +396,7 @@ def run_window(features, data, sector_features, dxy_data,
             "wr": round(v["wins"] / v["n"] * 100, 0) if v["n"] else 0,
         } for k, v in by_strat.items()},
         "best_strat": best_strat,
+        "trades": trades,
     }
 
 
