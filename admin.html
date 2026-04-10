@@ -52,7 +52,7 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 
 <div class="header">
   <h1>Trading Bots</h1>
-  <a href="/logout">Logout</a>
+  <a href="logout">Logout</a>
 </div>
 
 <div class="grid" id="bot-grid">
@@ -127,7 +127,7 @@ function renderBots(bots){
       <div class="signals">${online&&b.active_signals&&b.active_signals.length?'<span>'+b.active_signals.join('</span> | <span>')+'</span>':'No active signals'}</div>
       <div class="card-footer">
         <span class="version">${online?'v'+(b.version||'?'):':'+b.port}</span>
-        <a class="btn-open" href="http://${location.hostname}:${b.port}/auth?token=${_authToken||''}" target="_blank">Open</a>
+        <a class="btn-open" href="${b.path?b.path+'/auth?token='+(_authToken||''):'http://'+location.hostname+':'+b.port+'/auth?token='+(_authToken||'')}" target="_blank">Open</a>
       </div>
     `;
     grid.appendChild(card);
@@ -136,10 +136,10 @@ function renderBots(bots){
 
 let _authToken='';
 function fetchToken(){
-  fetch('/api/auth-token',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{_authToken=d.token||''}).catch(()=>{});
+  fetch('api/auth-token',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{_authToken=d.token||''}).catch(()=>{});
 }
 function refresh(){
-  fetch('/api/bots',{credentials:'same-origin'}).then(r=>r.json()).then(renderBots).catch(e=>console.warn('fetch error:',e));
+  fetch('api/bots',{credentials:'same-origin'}).then(r=>r.json()).then(renderBots).catch(e=>console.warn('fetch error:',e));
 }
 
 fetchToken();

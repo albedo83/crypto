@@ -1,6 +1,8 @@
 """FastAPI app, routes, auth, and API response builders."""
 from __future__ import annotations
 import hashlib, hmac, logging, os, time, secrets as _secrets
+
+ROOT_PATH = os.environ.get("HL_ROOT_PATH", "")  # e.g. "/bot" when behind nginx subpath
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
@@ -208,7 +210,7 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
   border-radius:6px;margin-bottom:16px;font-size:13px;text-align:center;display:none}
 </style>
 </head><body>
-<form class="login-box" method="POST" action="/login" autocomplete="on">
+<form class="login-box" method="POST" action="login" autocomplete="on">
   <h1>Trading Bot</h1>
   <div class="sub">{{VERSION}} — {{MODE}}</div>
   <div class="error" id="err">{{ERROR}}</div>
@@ -258,7 +260,7 @@ def create_app(bot) -> FastAPI:
         _login_attempts[ip] = attempts
         return len(attempts) >= _LOGIN_RATE_MAX
 
-    app = FastAPI()
+    app = FastAPI(root_path=ROOT_PATH)
     _html_cache: dict[str, str | None] = {"v": None}
 
     if DASHBOARD_USER:
@@ -272,7 +274,7 @@ def create_app(bot) -> FastAPI:
                 if not token or not _verify_token(token):
                     if path.startswith("/api/"):
                         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
-                    return RedirectResponse("/login", status_code=303)
+                    return RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
                 return await call_next(request)
         app.add_middleware(_AuthMiddleware)
 
@@ -280,10 +282,10 @@ def create_app(bot) -> FastAPI:
     async def auth_bridge(token: str = ""):
         """Auto-login via signed token (used by admin panel 'Open' button)."""
         if _verify_token(token):
-            resp = RedirectResponse("/", status_code=303)
+            resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
             resp.set_cookie("session", token, httponly=True, samesite="strict", max_age=30 * 86400)
             return resp
-        return RedirectResponse("/login", status_code=303)
+        return RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
 
     @app.get("/login", response_class=HTMLResponse)
     async def login_page():
@@ -302,7 +304,7 @@ def create_app(bot) -> FastAPI:
         if (_secrets.compare_digest(username, DASHBOARD_USER)
                 and _secrets.compare_digest(password, DASHBOARD_PASS)):
             token = _sign_token(time.time())
-            resp = RedirectResponse("/", status_code=303)
+            resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
             resp.set_cookie("session", token, httponly=True, samesite="strict", max_age=30 * 86400)
             return resp
         html = (_LOGIN_HTML.replace("{{VERSION}}", VERSION)
@@ -311,7 +313,7 @@ def create_app(bot) -> FastAPI:
 
     @app.get("/logout")
     async def logout():
-        resp = RedirectResponse("/login", status_code=303)
+        resp = RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
         resp.delete_cookie("session")
         return resp
 

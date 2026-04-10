@@ -19,6 +19,7 @@ load_dotenv()
 DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "")
 DASHBOARD_PASS = os.environ.get("DASHBOARD_PASS", "")
 ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8090"))
+ROOT_PATH = os.environ.get("ADMIN_ROOT_PATH", "")  # e.g. "/crypto" when behind nginx subpath
 
 CONFIG_PATH = os.path.join(os.path.dirname(__file__), "admin_config.json")
 HTML_PATH = os.path.join(os.path.dirname(__file__), "admin.html")
@@ -110,7 +111,7 @@ async def _bot_fetch(port: int, path: str) -> dict | None:
     return None
 
 # ── FastAPI App ──
-app = FastAPI()
+app = FastAPI(root_path=ROOT_PATH)
 
 if DASHBOARD_USER:
     from starlette.middleware.base import BaseHTTPMiddleware
@@ -123,7 +124,7 @@ if DASHBOARD_USER:
             if not token or not _verify_token(token):
                 if path.startswith("/api/") or path.startswith("/proxy/"):
                     return JSONResponse({"detail": "Unauthorized"}, status_code=401)
-                return RedirectResponse("/login", status_code=303)
+                return RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
             return await call_next(request)
     app.add_middleware(_AuthMiddleware)
 
@@ -150,7 +151,7 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
   border-radius:6px;margin-bottom:16px;font-size:13px;text-align:center;display:none}
 </style>
 </head><body>
-<form class="login-box" method="POST" action="/login" autocomplete="on">
+<form class="login-box" method="POST" action="login" autocomplete="on">
   <h1>Admin Panel</h1>
   <div class="sub">Trading Bots</div>
   <div class="error" id="err">{{ERROR}}</div>
@@ -176,7 +177,7 @@ async def login_submit(request: Request, username: str = Form(...), password: st
     if (_secrets.compare_digest(username, DASHBOARD_USER)
             and _secrets.compare_digest(password, DASHBOARD_PASS)):
         token = _sign_token(time.time())
-        resp = RedirectResponse("/", status_code=303)
+        resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
         resp.set_cookie("admin_session", token, httponly=True, samesite="strict", max_age=30 * 86400)
         return resp
     return HTMLResponse(_LOGIN_HTML.replace("{{ERROR}}", "Invalid credentials"), status_code=401)
@@ -184,7 +185,7 @@ async def login_submit(request: Request, username: str = Form(...), password: st
 @app.get("/logout")
 async def logout(admin_session: str | None = Cookie(None)):
     _ = admin_session  # unused, token is stateless
-    resp = RedirectResponse("/login", status_code=303)
+    resp = RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
     resp.delete_cookie("admin_session")
     return resp
 
@@ -208,7 +209,8 @@ async def api_bots():
     results = []
     for bot in _config["bots"]:
         port = bot["port"]
-        info = {"port": port, "label": bot["label"], "mode": bot["mode"], "online": False}
+        info = {"port": port, "label": bot["label"], "mode": bot["mode"],
+                "path": bot.get("path", ""), "online": False}
         health = await _bot_fetch(port, "health")
         if health:
             info["online"] = True
