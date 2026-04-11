@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.5] — 2026-04-11
+
+### Added
+- **S10 health card** on the dashboard (`analysis/reversal.html`), fed by new `compute_s10_health(trades, days=30)` in `analysis/bot/trading.py` and exposed via `/api/state.s10_health`. Shows P&L, trade count, WR and average net bps over the last 30 days with a coloured status dot:
+  - **green** — pnl > 0 and avg net > +10 bps
+  - **yellow** — pnl ≥ 0 or avg net ≥ −20 bps
+  - **red** — pnl < 0 and avg net < −20 bps (signal to flip the v11.3.4 S10 kill-switch)
+  - **idle** — no S10 trades in the window
+- **LLM supervisor bot** (`/home/crypto/supervisor.py`, ~450 lines): standalone Python process run once a day via crontab. Pulls `/api/state`, `/api/trades`, `/api/health`, `/api/pnl` from each bot, assembles a static context (`CLAUDE.md` + `docs/bot.md` + `docs/backtests.md`, ~25 kB / ~6 k tokens with `cache_control: ephemeral`), calls the Anthropic SDK (`claude-haiku-4-5` default, configurable via `SUPERVISOR_MODEL`), parses a strict JSON report and ships it as plain text via Telegram. Observation + suggestions only — never writes to the bot. Zero import from `analysis/bot/*` for runtime isolation. Configuration lives entirely in `.env`: `ANTHROPIC_API_KEY`, `SUPERVISOR_MODEL`, `SUPERVISOR_ENABLED`. Audit log in the `events` table (`event = 'SUPERVISOR_REPORT'`). Report language is French, focused on the live bot (paper used as a comparison baseline, Bot2 marked `DISABLED` in the per-bot `notes` field so it doesn't trigger false-positive anomalies). Cost measured in practice: ~$0.017/run with prompt cache hit → ~$0.50/month at one run per day. Crontab entry installed:
+  ```
+  0 8 * * * /home/crypto/.venv/bin/python3 /home/crypto/supervisor.py >> /home/crypto/analysis/output/supervisor.log 2>&1
+  ```
+
+### Fixed
+- Dashboard silently stopped refreshing any card after the v11.3.4 S10 health card was added. Root cause: `const h = s.s10_health || {}` collided with `const h = Math.floor(up/3600)` declared earlier in the same `update()` scope, producing a `SyntaxError: Identifier 'h' has already been declared` at script load time that killed the whole update loop. All variables in the S10 health section renamed to `s10h`. Extracted script block now validates cleanly with `node --check`.
+- `supervisor.py` Telegram delivery: the original `send_telegram` only checked HTTP status; Telegram returns `HTTP 200` with `ok: false` in the JSON body when Markdown parsing fails (routine on LLM-generated content containing underscores like `S10_ALLOW_LONGS` or unbalanced asterisks). Messages were accepted by the socket, logged as "Telegram sent", and never delivered. `send_telegram` now parses the response body, checks `ok == true`, and logs `description` on failure. `format_telegram` switched to pure plain text (no `parse_mode`) — emoji + whitespace structure is readable and immune to LLM content quirks.
+
+### Changed
+- `supervisor.py`: `BOTS` list gained a `notes` free-form field per bot, propagated into the Claude prompt so the model knows the operational status of each instance. Paper and Live carry descriptive notes; Bot2 is marked `DISABLED — running as paper placeholder, ignore P&L/trade counts`. `build_user_prompt` now explicitly instructs Claude to target the report at the Live bot (summary, `key_metrics`, anomalies, suggestions focused on Live), keeping Paper only as a comparison baseline for cross-bot divergence detection. The system prompt mandates French output for every textual field (`summary`, `detail`, `action`, `rationale`), with an explicit exclusion list of English filler words the model routinely slipped in.
+
 ## [11.3.4] — 2026-04-11
 
 ### Changed

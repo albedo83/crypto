@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.3.3). Dashboard on `:8097`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.3.5). Paper dashboard on `:8097`, live on `:8098`, Bot 2 on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
@@ -23,8 +23,8 @@ Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_
 # Paper bot (:8097, $1000 simulated)
 nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 
-# Live bot (:8098, $260 real)
-HL_MODE=live HL_CAPITAL=260 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
+# Live bot (:8098, ~$255 real — see start_bots.sh for current HL_CAPITAL)
+HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 
 # Both restart automatically on VPS reboot via crontab (@reboot $PROJECT_DIR/start_bots.sh)
@@ -69,7 +69,7 @@ Hyperliquid SDK (write)
 
 ### Signals in one line
 
-5 active signals: **S1** (BTC momentum → LONG alts), **S5** (sector divergence follow), **S8** (capitulation flush LONG), **S9** (fade ±20%/24h extreme moves), **S10** (squeeze + false breakout fade). S2 removed, S4 suspended.
+5 active signals: **S1** (BTC momentum → LONG alts), **S5** (sector divergence follow), **S8** (capitulation flush LONG), **S9** (fade ±20%/24h extreme moves), **S10** (squeeze + false breakout fade — **v11.3.4 filters: SHORT-only + 13-token whitelist**, kill-switch via `S10_ALLOW_LONGS` and `S10_ALLOWED_TOKENS` in `config.py`). S2 removed, S4 suspended.
 
 For detailed conditions, parameters, and research behind each signal see **`docs/bot.md`** (French). For the history of changes see **`CHANGELOG.md`**.
 
@@ -127,15 +127,20 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - `/api/state.signal_drift` exposes rolling WR/avg bps/P&L for monitoring. Quarantine logic itself is disabled (protections list in `docs/bot.md`).
 - `S9F_OBS` events (±3% / 2h) are logged but not traded — need 6+ months of live data.
 
-### Supervisor (v11.3.5+)
-`supervisor.py` is a standalone Python process meant to run daily via crontab (08:00 UTC). It reads `/api/state`, `/api/trades`, `/api/health`, `/api/pnl` from each bot, assembles a context (plus `CLAUDE.md`/`docs/bot.md`/`docs/backtests.md`), calls Claude via the Anthropic SDK with prompt caching on the static block, and ships a structured report via Telegram. **Observation + suggestions only — never writes to the bot.**
-- Config: `ANTHROPIC_API_KEY`, `SUPERVISOR_MODEL` (default `claude-haiku-4-5`), `SUPERVISOR_ENABLED` in `.env`
-- Zero runtime coupling: no imports from `analysis/bot/*`, reads endpoints over `127.0.0.1` only
-- Kill-switch: `SUPERVISOR_ENABLED=0` or `crontab -e` comment the line
-- Audit: every run writes a `SUPERVISOR_REPORT` event into the existing `events` table
-- Testing: `supervisor.py --dry-run` (no API), `--no-telegram` (API but stdout), `--model X` (override)
-- Crontab: `0 8 * * * cd /home/crypto && .venv/bin/python3 supervisor.py >> analysis/output/supervisor.log 2>&1`
-- Cost: ~$1.50/month on haiku with prompt caching (~6k cached tokens per run)
+### Supervisor (v11.3.5)
+`supervisor.py` at the repo root is a standalone Python process launched once a day by crontab (08:00 UTC = 10:00 Paris summer / 09:00 winter). It reads `/api/state`, `/api/trades`, `/api/health`, `/api/pnl` from each bot via authenticated HTTP on `127.0.0.1`, assembles a static context from `CLAUDE.md`, `docs/bot.md` and `docs/backtests.md` (~25 kB / ~6k tokens, flagged `cache_control: ephemeral`), calls the Anthropic SDK (`claude-haiku-4-5` default), parses a strict JSON report and ships it as plain text via Telegram. **Observation + suggestions only — never writes to the bot's config or state.**
+- Config in `.env`: `ANTHROPIC_API_KEY` (required), `SUPERVISOR_MODEL=claude-haiku-4-5` (default), `SUPERVISOR_ENABLED=1` (kill-switch)
+- Zero runtime coupling: no imports from `analysis/bot/*`, only stdlib + `anthropic` SDK
+- Bot-level scoping: `BOTS` list in `supervisor.py` with a `notes` field per instance. Bot2 is marked `DISABLED` to skip false-positive anomaly reports on its low-volume paper mode. Live is the sole target of the Telegram report; Paper is kept as a comparison baseline only.
+- Report language is French, format is strict JSON parsed into a plain-text Telegram message (no `parse_mode` — LLM content routinely contains underscores and asterisks that break Markdown parsing; `send_telegram` also now checks `ok: true` in the response body instead of trusting HTTP status alone).
+- Kill-switch: `SUPERVISOR_ENABLED=0` in `.env` or `crontab -l | grep -v supervisor.py | crontab -`
+- Audit: every run writes a `SUPERVISOR_REPORT` event (full JSON payload) into the `events` table of `analysis/output/reversal_ticks.db`. Query via `SELECT datetime(ts,'unixepoch'), json_extract(data,'$.health'), json_extract(data,'$.summary') FROM events WHERE event='SUPERVISOR_REPORT' ORDER BY ts DESC LIMIT 10;`
+- Testing: `supervisor.py --dry-run` (context fetch + prompt assembly, no API), `--no-telegram` (real API, stdout), `--model X` (override default)
+- Crontab line (installed, absolute paths so it runs correctly from any cwd):
+  ```
+  0 8 * * * /home/crypto/.venv/bin/python3 /home/crypto/supervisor.py >> /home/crypto/analysis/output/supervisor.log 2>&1
+  ```
+- Cost measured in practice: first run ~$0.036 (cache creation), subsequent runs ~$0.017 (cache hit, 10k cached tokens). Daily cadence ≈ **$0.50/month**.
 
 ## Related docs
 - `docs/bot.md` — detailed bot description (French): signals, parameters, protections, research, architecture.

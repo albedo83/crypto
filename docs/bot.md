@@ -1,6 +1,6 @@
-# Multi-Signal Bot v11.3.3
+# Multi-Signal Bot v11.3.5
 
-Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. 12 modules Python dans `analysis/bot/` + SQLite tick database.
+Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. 12 modules Python dans `analysis/bot/` + SQLite tick database. Un supervisor LLM (`supervisor.py`) tourne en plus via crontab et envoie un rapport quotidien en français sur Telegram.
 
 ---
 
@@ -68,15 +68,22 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 **z-score** : 8.71 (MC). Le signal le plus fort du bot.
 **Conditions** : `abs(ret_24h) >= 2000 bps`.
 
-### S10 — Squeeze + faux breakout (config gelee)
+### S10 — Squeeze + faux breakout (detection gelée + filtres walk-forward v11.3.4)
 
 **Quoi** : compression de range → faux breakout → reintegration → fade le breakout.
 **Pourquoi** : le faux breakout piege les traders, le vrai mouvement va dans l'autre sens.
 **Type** : contrarien / pattern. Mode B (fade).
-**Frequence** : ~50/mois sur 28 tokens.
+**Frequence** : ~50/mois sur 28 tokens bruts, **réduits à ~25/mois** après les filtres v11.3.4.
 **Hold** : 24h. **Stop** : -12.5% de mouvement de prix. **Capital** : part entiere (pocket separe supprime — backtest +48% P&L).
-**z-score** : 3.66. Config gelee (ne pas re-optimiser).
-**Params** : squeeze_window=3 (12h), vol_ratio<0.9, breakout 50% du range, reintegration dans 2 candles.
+**z-score** : 3.66. Detection gelée (ne pas re-optimiser les params du squeeze).
+**Params detection** : `S10_SQUEEZE_WINDOW=3` (12h), `S10_VOL_RATIO_MAX=0.9`, `S10_BREAKOUT_PCT=0.5` (50% du range), `S10_REINT_CANDLES=2`.
+
+**Filtres walk-forward v11.3.4** (ajoutés au-dessus de la détection, pas de re-optimisation) :
+- `S10_ALLOW_LONGS = False` — **les LONG fades sont bloqués**. Sur 28 mois de backtest : LONG 45% WR / −$4.8k, SHORT 58% WR / +$7.5k. Rationnel économique : fader un down-move revient à combattre du panic-selling en chaîne ; fader un up-move attrape l'exhaustion du top.
+- `S10_ALLOWED_TOKENS` — **whitelist de 13 tokens** dont le S10 a été positif sur la fenêtre d'entraînement 2023-10 → 2025-02 : AAVE, APT, ARB, BLUR, COMP, CRV, INJ, MINA, OP, PYTH, SEI, SNX, WLD. Les 15 autres (STX, MKR, SEI, PENDLE, LDO, APT, WLD, DOGE, NEAR, BLUR, PYTH, SOL, INJ, CRV, GMX, COMP, SAND, GALA, SUI, AVAX, LINK, MINA) sont skippés à la source.
+- **Impact mesuré sur test out-of-sample 12m (2025-02 → 2026-02)** : P&L S10 $4 278 → $9 545 (+123%), DD -41.3% → -32.6%. Caveats : 28m in-sample DD s'aggrave de 8.7pp (perte de diversification des LONGs), 1m post-test régresse −$181. C'est un pari sur le régime 2025-26 actuel, pas une loi universelle.
+- **Kill-switch** : remettre `S10_ALLOW_LONGS = True` et `S10_ALLOWED_TOKENS = set(ALL_SYMBOLS)` dans `analysis/bot/config.py` puis restart bots → comportement pré-v11.3.4 restauré.
+- **Monitoring** : la carte `S10 30d` sur le dashboard (alimentée par `compute_s10_health` dans `trading.py`) affiche un dot 🟢/🟡/🔴/⚫ selon P&L et avg bps des 30 derniers jours de S10. Passe en 🔴 si pnl<0 ET avg<−20 bps → flip du kill-switch à considérer.
 
 ---
 
@@ -90,7 +97,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 | **Hold** | 72h (S1), 48h (S5/S9), 60h (S8), 24h (S10) | Timeout automatique. |
 | **Stop loss** | -1250 bps de mouvement de prix (S1/S5/S10), -750 bps (S8), adaptatif S9 | Valeurs halved en v11.3.0 apres fix du bug P&L double-leverage. S9 : `max(-1250, -500 - abs(ret_24h)/8)`. |
 | **S9 early exit** | Coupe si unrealized < -500 bps apres 8h | Winners revertent vite, losers non. Non generalisable a S5/S8/S10 (testes, tous perdent en compounding). |
-| **Frais simules** | 12 bps par leg (24 bps round-trip) | 7 taker + 3 slippage + 2 funding. |
+| **Frais** | Live : **10 bps round-trip** fixe. Backtest : **14 bps** = 10 + 4 slippage moyen. | Calibrés depuis 80 fills live Hyperliquid en v11.3.4 : taker 4.50 bps/leg = 9 round-trip, funding ~0.5 bps/trade → 1 par sécurité. Slippage live = 0 (déjà dans `avgPx` de la réponse SDK). Backtest ajoute 4 bps car il utilise les closes 4h. |
 | **Cooldown** | 24h par token apres exit | Evite de re-entrer immediatement. |
 | **Slot reservation** | Max 2 macro (S1) + 4 token (S5/S8/S9/S10) | Token slots elargis a 4 (+157% P&L vs 3). |
 
@@ -153,10 +160,12 @@ Toutes les 60s, `db.log_ticks` ecrit dans la table `ticks` : mark_px, oracle_px,
 ### Dashboard
 
 - Balance, P&L, drawdown peak, utilisation capital
-- Tableau P&L par strategie (signal_drift)
-- Regime de marche (BULL/BEAR/NEUTRAL)
-- Endpoint `/api/health` (status, price_age, scan_age, exchange_ok)
-- Resume quotidien Telegram a minuit UTC
+- **Carte `S10 30d`** (v11.3.5) : dot colorée 🟢🟡🔴⚫ + P&L + trade count + WR + avg bps sur 30j glissants. Sert à monitorer si les filtres walk-forward S10 restent rentables dans le régime actuel.
+- Tableau P&L par strategie (`signal_drift`, `/api/state.signal_drift`) — rolling 20 derniers trades par signal
+- Regime de marche (BULL/MILD BULL/NEUTRAL/MILD BEAR/BEAR) calculé côté JS depuis `market.btc_30d/btc_7d/alt_index_7d`
+- Endpoint `/api/health` (status, price_age, scan_age, exchange_ok, degraded, positions_count, paused)
+- Resume quotidien Telegram a minuit UTC (code côté bot, `bot.py::_send_daily_summary`)
+- **Rapport supervisor LLM quotidien à 08:00 UTC via Telegram** (crontab + `supervisor.py`) — observation + suggestions, n'écrit rien
 - Responsive mobile
 
 ---
@@ -210,15 +219,17 @@ Hyperliquid REST API (toutes les 60s, avec retry 3x backoff)
 
 ```bash
 # Paper (:8097, $1000 simule)
-TG_BOT_TOKEN= TG_CHAT_ID= \
+TG_BOT_TOKEN= TG_CHAT_ID= HL_ROOT_PATH=/paper \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 
-# Live (:8098, $260 reel)
-HL_MODE=live HL_CAPITAL=260 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live \
+# Live (:8098, ~$255 reel)
+HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 ```
 
 Auto-restart : `@reboot /home/crypto/start_bots.sh`. Accessible via `https://echonym.fr/bot/` (live), `https://echonym.fr/paper/` (paper), `https://echonym.fr/crypto/` (admin panel multi-bots).
+
+**Supervisor LLM** (rapport quotidien Telegram) : `0 8 * * * /home/crypto/.venv/bin/python3 /home/crypto/supervisor.py >> /home/crypto/analysis/output/supervisor.log 2>&1`. Config via `.env` (`ANTHROPIC_API_KEY`, `SUPERVISOR_MODEL=claude-haiku-4-5`, `SUPERVISOR_ENABLED=1`). Coût mesuré : ~$0.017/run avec cache hit → ~$0.50/mois.
 
 Resultats rolling simules avec les parametres actuels : voir `docs/backtests.md` (a regenerer apres tout changement de parametres avec `python3 -m backtests.backtest_rolling`).
 
