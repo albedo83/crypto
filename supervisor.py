@@ -44,10 +44,17 @@ STATIC_CONTEXT_FILES = [
 
 # Bots to supervise. Matches admin_config.json when present but stays
 # self-contained so the supervisor works even if that file is missing.
+#
+# `notes` is a free-form status string passed to Claude so it can frame
+# anomalies correctly. Use it to flag idle / disabled / test instances
+# that would otherwise look suspicious (e.g. low trade count, 100% WR).
 BOTS = [
-    {"port": 8097, "label": "Paper", "mode": "paper"},
-    {"port": 8098, "label": "Live",  "mode": "live"},
-    {"port": 8099, "label": "Bot2",  "mode": "paper"},
+    {"port": 8097, "label": "Paper", "mode": "paper",
+     "notes": "primary paper instance, full production config"},
+    {"port": 8098, "label": "Live",  "mode": "live",
+     "notes": "real capital ~$255, full production config"},
+    {"port": 8099, "label": "Bot2",  "mode": "paper",
+     "notes": "DISABLED — running as paper placeholder, ignore P&L/trade counts"},
 ]
 
 HTTP_TIMEOUT = 6  # seconds
@@ -73,23 +80,32 @@ RÈGLES STRICTES (non négociables):
 FORMAT DE SORTIE — réponds EXCLUSIVEMENT en JSON valide, rien avant, rien après:
 {
   "health": "green" | "yellow" | "red",
-  "summary": "<=500 chars, résumé exécutif",
+  "summary": "<=500 chars, résumé exécutif EN FRANÇAIS",
   "key_metrics": {
-    "paper_pnl_24h": <number>,
     "live_pnl_24h": <number>,
-    "total_positions": <int>,
-    "wr_recent": <float 0-1>
+    "live_balance": <number>,
+    "live_drawdown_pct": <number>,
+    "live_positions": <int>,
+    "live_wr_recent": <float 0-1>
   },
   "anomalies": [
     {"severity": "info|warn|alert", "signal": "S5|S9|etc|global",
-     "detail": "<=200 chars"}
+     "detail": "<=200 chars EN FRANÇAIS"}
   ],
   "suggestions": [
-    {"action": "<=200 chars", "rationale": "<=300 chars",
+    {"action": "<=200 chars EN FRANÇAIS",
+     "rationale": "<=300 chars EN FRANÇAIS",
      "urgency": "now|this_week|later"}
   ],
   "next_check": "daily" | "hourly"
 }
+
+**LANGUE : TOUT le contenu textuel doit être en français.** Les noms de champs
+JSON (health, summary, anomalies, etc.) restent en anglais (convention), mais
+les valeurs textuelles (summary, detail, action, rationale) sont obligatoirement
+en français. Pas d'anglais dans les phrases — pas de "dry powder", "monitor",
+"concern", "review", etc. Utilise "cash disponible", "surveiller", "préoccupation",
+"examiner", etc. Termes techniques (bps, P&L, WR, drawdown, S5, S10) autorisés.
 
 Max 5 anomalies, max 3 suggestions. Concision > exhaustivité. Si tout va
 bien: health=green, anomalies=[], suggestions=[].
@@ -189,6 +205,7 @@ def fetch_bot_state(bot: dict, user: str, password: str) -> dict:
         "label": bot["label"],
         "port": bot["port"],
         "mode": bot["mode"],
+        "notes": bot.get("notes", ""),
         "online": False,
     }
     health = client.fetch("/api/health")
@@ -238,6 +255,7 @@ def compress_bot_state(bot_data: dict) -> dict:
         "label": bot_data["label"],
         "port": bot_data["port"],
         "mode": bot_data["mode"],
+        "notes": bot_data.get("notes", ""),
         "online": bot_data["online"],
     }
     if not bot_data["online"]:
@@ -281,9 +299,25 @@ def build_user_prompt(bot_states: list[dict]) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     header = (
         f"Rapport supervisor demandé {now}.\n\n"
-        "État actuel des 3 instances du bot (paper, live, bot2). Analyse "
-        "l'activité des 24-48 dernières heures, détecte les anomalies, "
-        "propose des suggestions concrètes si pertinent.\n\n"
+        "État actuel des instances du bot. **Lis le champ `notes` de chaque "
+        "entrée** : il indique le statut opérationnel (production vs "
+        "disabled/test). Les bots marqués DISABLED doivent être exclus des "
+        "métriques et ne pas générer d'anomalies.\n\n"
+        "## Cible du rapport\n\n"
+        "**Ce rapport est destiné au bot LIVE uniquement** (le seul avec "
+        "du capital réel). Formate ta sortie en conséquence :\n\n"
+        "- `summary` : parle du Live bot, pas de Paper/Bot2\n"
+        "- `key_metrics` : métriques du Live uniquement "
+        "(`live_pnl_24h`, `live_balance`, `live_drawdown_pct`, `live_positions`, "
+        "`live_wr_recent`)\n"
+        "- `anomalies` / `suggestions` : ciblent le comportement du Live\n\n"
+        "**Paper bot** reste utile comme **baseline de comparaison** : "
+        "si tu détectes une divergence Live vs Paper (ex: Live S5 WR 40% "
+        "vs Paper S5 WR 70%), c'est une anomalie Live qui mérite d'être "
+        "remontée. Mais ne liste pas les métriques Paper pour elles-mêmes. "
+        "Utilise Paper comme référence contextuelle, pas comme sujet.\n\n"
+        "Analyse l'activité des 24-48h, détecte anomalies sur le Live, "
+        "propose des suggestions concrètes.\n\n"
     )
     payload = json.dumps(bot_states, indent=2, default=str)
     return header + "```json\n" + payload + "\n```"
@@ -354,47 +388,57 @@ EMOJI_URGENCY = {"now": "🔥", "this_week": "📅", "later": "📝"}
 
 
 def format_telegram(report: dict) -> str:
-    """Markdown-formatted Telegram message. Safe for ~4096 char limit."""
+    """Plain-text Telegram message (no markdown).
+
+    Markdown/HTML parse modes were tried but routinely choke on LLM-
+    generated content that contains underscores (e.g. S10_ALLOW_LONGS),
+    asterisks, or unbalanced formatting. Plain text renders cleanly via
+    emoji + whitespace structure and never fails to parse.
+    """
     lines = []
     hdr = EMOJI_HEALTH.get(report.get("health", ""), "⚪")
-    lines.append(f"{hdr} *Supervisor daily*")
+    lines.append(f"{hdr} SUPERVISOR DAILY")
     summary = (report.get("summary") or "").strip()
     if summary:
+        lines.append("")
         lines.append(summary)
     km = report.get("key_metrics") or {}
     if km:
-        parts = []
+        lines.append("")
         for k, v in km.items():
-            parts.append(f"{k}={v}")
-        lines.append("`" + " | ".join(parts) + "`")
+            lines.append(f"  {k} = {v}")
 
     anomalies = report.get("anomalies") or []
     if anomalies:
-        lines.append("\n*Anomalies*")
+        lines.append("")
+        lines.append("── Anomalies ──")
         for a in anomalies[:5]:
             sev = EMOJI_SEVERITY.get(a.get("severity", ""), "•")
             sig = a.get("signal", "?")
             det = a.get("detail", "")
-            lines.append(f"{sev} `{sig}` {det}")
+            lines.append(f"{sev} [{sig}] {det}")
 
     suggestions = report.get("suggestions") or []
     if suggestions:
-        lines.append("\n*Suggestions*")
+        lines.append("")
+        lines.append("── Suggestions ──")
         for s in suggestions[:3]:
             ur = EMOJI_URGENCY.get(s.get("urgency", ""), "•")
             act = s.get("action", "")
             rat = s.get("rationale", "")
             lines.append(f"{ur} {act}")
             if rat:
-                lines.append(f"   _{rat}_")
+                lines.append(f"   → {rat}")
 
     usage = report.get("_usage") or {}
     if usage:
         in_tok = usage.get("input_tokens", 0)
         out_tok = usage.get("output_tokens", 0)
         cache_read = usage.get("cache_read_input_tokens", 0)
+        lines.append("")
         lines.append(
-            f"\n_{in_tok}in/{out_tok}out cache-read={cache_read} model={report.get('_model','?')}_"
+            f"[{in_tok}in / {out_tok}out / cache={cache_read}] "
+            f"{report.get('_model', '?')}"
         )
 
     msg = "\n".join(lines)
@@ -404,14 +448,21 @@ def format_telegram(report: dict) -> str:
 
 
 def send_telegram(text: str, token: str, chat_id: str) -> bool:
+    """Send a plain-text message. Parses the JSON body to detect silent
+    failures (Telegram returns HTTP 200 with ok:false on parse errors)."""
     url = f"https://api.telegram.org/bot{token}/sendMessage"
     data = urllib.parse.urlencode(
-        {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
+        {"chat_id": chat_id, "text": text}
     ).encode()
     req = urllib.request.Request(url, data=data)
     try:
         with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
-            return resp.status == 200
+            body = json.loads(resp.read().decode())
+            if body.get("ok"):
+                return True
+            print(f"[supervisor] Telegram API error: {body.get('description')}",
+                  file=sys.stderr)
+            return False
     except Exception as e:
         print(f"[supervisor] Telegram send failed: {e}", file=sys.stderr)
         return False
