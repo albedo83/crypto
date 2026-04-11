@@ -127,6 +127,16 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - `/api/state.signal_drift` exposes rolling WR/avg bps/P&L for monitoring. Quarantine logic itself is disabled (protections list in `docs/bot.md`).
 - `S9F_OBS` events (±3% / 2h) are logged but not traded — need 6+ months of live data.
 
+### Supervisor (v11.3.5+)
+`supervisor.py` is a standalone Python process meant to run daily via crontab (08:00 UTC). It reads `/api/state`, `/api/trades`, `/api/health`, `/api/pnl` from each bot, assembles a context (plus `CLAUDE.md`/`docs/bot.md`/`docs/backtests.md`), calls Claude via the Anthropic SDK with prompt caching on the static block, and ships a structured report via Telegram. **Observation + suggestions only — never writes to the bot.**
+- Config: `ANTHROPIC_API_KEY`, `SUPERVISOR_MODEL` (default `claude-haiku-4-5`), `SUPERVISOR_ENABLED` in `.env`
+- Zero runtime coupling: no imports from `analysis/bot/*`, reads endpoints over `127.0.0.1` only
+- Kill-switch: `SUPERVISOR_ENABLED=0` or `crontab -e` comment the line
+- Audit: every run writes a `SUPERVISOR_REPORT` event into the existing `events` table
+- Testing: `supervisor.py --dry-run` (no API), `--no-telegram` (API but stdout), `--model X` (override)
+- Crontab: `0 8 * * * cd /home/crypto && .venv/bin/python3 supervisor.py >> analysis/output/supervisor.log 2>&1`
+- Cost: ~$1.50/month on haiku with prompt caching (~6k cached tokens per run)
+
 ## Related docs
 - `docs/bot.md` — detailed bot description (French): signals, parameters, protections, research, architecture.
 - `docs/backtests.md` — rolling backtest results for the current parameters, regenerated via `python3 -m backtests.backtest_rolling`.
