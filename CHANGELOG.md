@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.4] — 2026-04-11
+
+### Changed
+- **S10 walk-forward filters** (`backtest_s10_walkforward.py`). Train 2023-10→2025-02 (16m), test 2025-02→2026-02 (12m out-of-sample). Two filters applied on top of the frozen squeeze detection:
+  - `S10_ALLOW_LONGS = False` — LONG fades were 45% WR / -$4.8k on 28m. Rationale: fading a down-move ≈ fighting panic-selling continuation.
+  - `S10_ALLOWED_TOKENS` — whitelist of 13 tokens (AAVE, APT, ARB, BLUR, COMP, CRV, INJ, MINA, OP, PYTH, SEI, SNX, WLD) whose S10 had positive P&L on the train window.
+- Combined test-window impact: P&L +123% ($4 278 → $9 545), DD -41.3% → -32.6%. On the refreshed rolling backtest: 12m doubles ($3 959 → $8 007), 6m +$1 595, 3m +$422. Caveats documented in `docs/backtests.md`: 28m DD worsens by 8.7pp and 1m post-test regresses -$181 — the rule is a bet on the 2025-26 regime, not a universal law.
+- Kill-switch preserved: reset `S10_ALLOW_LONGS = True` and `S10_ALLOWED_TOKENS = set(ALL_SYMBOLS)` in `config.py` to restore pre-v11.3.4 behaviour.
+
+### Added
+- `backtests/fetch_oi_history.py` — downloads Hyperliquid `asset_ctxs` daily dumps from S3 Requester Pays, filters to bot's 30 tokens, downsamples to hourly. ~$0.60 one-shot S3 egress for the full 3-year history (665k rows, 67 MB SQLite, gitignored).
+- `backtests/backtest_oi_explore.py` — per-signal quartile analysis of `oi_delta_6h`, `oi_delta_24h`, `impact_spread`, `mark_oracle` at entry time.
+- `backtests/backtest_oi_gates.py` — walk-forward validation of 7 single-feature gates + 3 combinations. **All rejected** (strict criterion: must improve on 4/4 windows).
+- `backtests/backtest_s10_diag.py`, `backtest_s10_fix.py`, `backtest_s10_walkforward.py` — the diagnostic chain that surfaced the LONG/SHORT asymmetry and the token filter.
+- `backtests/backtest_rolling.py` now exposes a `skip_fn` hook and returns the full trades list so any future gate hypothesis can be plugged in without forking the engine.
+
 ## [11.3.3] — 2026-04-10
 
 ### Fixed

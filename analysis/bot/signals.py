@@ -18,6 +18,7 @@ from .config import (
     S8_DRAWDOWN_THRESH, S8_VOL_Z_MIN, S8_RET_24H_THRESH, S8_BTC_7D_THRESH,
     S9_RET_THRESH, S9_ADAPTIVE_STOP, STOP_LOSS_BPS,
     S10_SQUEEZE_WINDOW, S10_VOL_RATIO_MAX, S10_BREAKOUT_PCT, S10_REINT_CANDLES,
+    S10_ALLOW_LONGS, S10_ALLOWED_TOKENS,
 )
 
 log = logging.getLogger("multisignal")
@@ -211,16 +212,21 @@ def detect_token_signals(
         })
 
     # S10: Squeeze expansion — compression + false breakout + reintegration.
-    # Mode B: fade the failed breakout. Config frozen, do not re-optimize.
+    # Mode B: fade the failed breakout. Two walk-forward filters layered on top
+    # of the frozen squeeze detection (v11.3.4): LONG fades skipped, and only
+    # tokens whose S10 made money on the 2023-10→2025-02 train window allowed.
     if squeeze_result:
         sq = squeeze_result
-        signals.append({
-            "symbol": sym, "direction": sq["direction"], "strategy": "S10",
-            "z": STRAT_Z["S10"],
-            "info": f"Squeeze bo={sq['bo_dir']} rng={sq['squeeze_range']:.1f}%{oi_tag}",
-            "strength": 1000 / max(sq["squeeze_range"], 0.1),  # tighter range = higher priority
-            "hold_hours": HOLD_HOURS_S10, "ctx": entry_ctx,
-        })
+        direction = sq["direction"]
+        wf_block = (not S10_ALLOW_LONGS and direction == 1) or sym not in S10_ALLOWED_TOKENS
+        if not wf_block:
+            signals.append({
+                "symbol": sym, "direction": direction, "strategy": "S10",
+                "z": STRAT_Z["S10"],
+                "info": f"Squeeze bo={sq['bo_dir']} rng={sq['squeeze_range']:.1f}%{oi_tag}",
+                "strength": 1000 / max(sq["squeeze_range"], 0.1),  # tighter range = higher priority
+                "hold_hours": HOLD_HOURS_S10, "ctx": entry_ctx,
+            })
 
     return signals
 

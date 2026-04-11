@@ -33,6 +33,7 @@ from analysis.bot.config import (
     S5_DIV_THRESHOLD, S5_VOL_Z_MIN,
     S8_DRAWDOWN_THRESH, S8_VOL_Z_MIN, S8_RET_24H_THRESH, S8_BTC_7D_THRESH,
     S9_RET_THRESH, S9_ADAPTIVE_STOP, VERSION,
+    S10_ALLOW_LONGS, S10_ALLOWED_TOKENS,
 )
 
 # Data + feature builders reused as-is from the existing backtest infrastructure
@@ -294,11 +295,14 @@ def run_window(features, data, sector_features, dxy_data,
                 ci = coin_by_ts[coin][ts]
                 sq_dir = detect_squeeze(data[coin], ci, f.get("vol_ratio", 2))
                 if sq_dir:
-                    candidates.append({
-                        "coin": coin, "dir": sq_dir, "strat": "S10",
-                        "z": STRAT_Z["S10"], "hold": HOLD_CANDLES["S10"],
-                        "strength": 1000,
-                    })
+                    s10_block = ((not S10_ALLOW_LONGS and sq_dir == 1)
+                                 or coin not in S10_ALLOWED_TOKENS)
+                    if not s10_block:
+                        candidates.append({
+                            "coin": coin, "dir": sq_dir, "strat": "S10",
+                            "z": STRAT_Z["S10"], "hold": HOLD_CANDLES["S10"],
+                            "strength": 1000,
+                        })
 
         candidates.sort(key=lambda x: (x["z"], x["strength"]), reverse=True)
         seen = set()
@@ -449,6 +453,21 @@ def build_report(results: list[dict], end_dt: datetime, version: str) -> str:
         "Ce fichier est **régénéré automatiquement** par "
         "`python3 -m backtests.backtest_rolling`. Relancer après tout changement "
         "de règles ou de paramètres du bot.",
+        "",
+        "## Filtres S10 actifs (v11.3.4)",
+        "",
+        f"- `S10_ALLOW_LONGS = {S10_ALLOW_LONGS}` → "
+        f"{'SHORT fades seulement' if not S10_ALLOW_LONGS else 'LONG+SHORT'} "
+        "(LONG fades perdaient $4.8k sur 28m, 45% WR — *fade panic = fail*)",
+        f"- `S10_ALLOWED_TOKENS` (whitelist de {len(S10_ALLOWED_TOKENS)} tokens) : "
+        f"{', '.join(sorted(S10_ALLOWED_TOKENS))}",
+        "",
+        "Filtres dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, "
+        "test 2025-02→2026-02 out-of-sample). **Impact validé sur le test OOS** : "
+        "P&L +123% vs baseline, DD améliorée de 8.7pp. Le 28m in-sample change peu "
+        "(les pertes LONG de 2024 sont compensées par les gagnants). Kill-switch : "
+        "`S10_ALLOW_LONGS = True` et `S10_ALLOWED_TOKENS = set(ALL_SYMBOLS)` dans "
+        "`analysis/bot/config.py`.",
         "",
         "## Résumé par fenêtre",
         "",

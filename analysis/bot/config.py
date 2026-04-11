@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.3.3"
+VERSION = "11.3.4"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -89,6 +89,16 @@ S10_VOL_RATIO_MAX = 0.9
 S10_BREAKOUT_PCT = 0.5
 S10_REINT_CANDLES = 2
 S10_CAPITAL_SHARE = 0.0      # no pocket — full capital (backtest: +48% P&L vs 15%)
+
+# S10 walk-forward filters (backtest_s10_walkforward.py).
+# Train 16m (2023-10→2025-02), test 12m (2025-02→2026-02 OOS).
+# Test P&L +123% vs baseline, DD improves by 8.7pp.
+# Kill-switch: set ALLOW_LONGS=True and ALLOWED_TOKENS=set(ALL_SYMBOLS).
+S10_ALLOW_LONGS = False      # LONG fades were 45% WR, -$4.8k on 28m
+S10_ALLOWED_TOKENS = {       # tokens with positive S10 P&L on train window
+    "AAVE", "APT", "ARB", "BLUR", "COMP", "CRV", "INJ",
+    "MINA", "OP", "PYTH", "SEI", "SNX", "WLD",
+}
 
 # ── DXY (S4 suspended, kept for dashboard display) ────────────────
 DXY_CACHE = os.path.join(
