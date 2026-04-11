@@ -171,11 +171,15 @@ class BotClient:
                     if header.startswith("session="):
                         self.cookie = header.split(";", 1)[0].split("=", 1)[1]
                         return True
-        except Exception:
-            pass
+            # 401 bad creds or 5xx: fall through to return False
+        except Exception as e:
+            print(f"[supervisor] login error {self.base}: {e}", file=sys.stderr)
         return False
 
-    def fetch(self, path: str) -> Any:
+    def fetch(self, path: str, _retry: bool = False) -> Any:
+        """Authenticated GET. On 401, re-login and retry once (`_retry=True`
+        prevents unbounded recursion if the bot keeps rejecting the cookie).
+        """
         if not self.cookie:
             if not self._login():
                 return None
@@ -187,11 +191,10 @@ class BotClient:
             with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
                 return json.loads(resp.read().decode())
         except urllib.error.HTTPError as e:
-            if e.code == 401:
-                # Cookie stale, try once more
+            if e.code == 401 and not _retry:
                 self.cookie = None
                 if self._login():
-                    return self.fetch(path)
+                    return self.fetch(path, _retry=True)
             return None
         except Exception:
             return None
@@ -353,18 +356,18 @@ def call_claude(system_static: str, user_prompt: str, model: str) -> dict:
     # Extract text
     parts = [b.text for b in resp.content if getattr(b, "type", None) == "text"]
     raw = "".join(parts).strip()
-    # Strip markdown code fences if present
-    if raw.startswith("```"):
-        raw = raw.split("\n", 1)[1] if "\n" in raw else raw[3:]
-        if raw.endswith("```"):
-            raw = raw.rsplit("```", 1)[0]
-        raw = raw.strip()
-        if raw.startswith("json"):
-            raw = raw[4:].strip()
+    # Extract the outer JSON object even if Claude wraps it in code fences
+    # or prepends/appends prose. Matches the first `{` and the last `}` —
+    # survives trailing commentary, markdown fences, and "json" language tags.
+    import re
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not match:
+        raise RuntimeError(f"Claude did not return a JSON object:\n---\n{raw}")
+    json_str = match.group(0)
     try:
-        report = json.loads(raw)
+        report = json.loads(json_str)
     except json.JSONDecodeError as e:
-        raise RuntimeError(f"Claude did not return valid JSON: {e}\n---\n{raw}")
+        raise RuntimeError(f"Claude returned malformed JSON: {e}\n---\n{json_str}")
 
     # Attach API usage for cost tracking
     usage = getattr(resp, "usage", None)
