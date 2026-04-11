@@ -1,6 +1,6 @@
 # Rolling backtests
 
-**Générée le** : 2026-04-11 09:50 UTC
+**Générée le** : 2026-04-11 10:25 UTC
 **Bot version** : v11.3.4
 **Données jusqu'à** : 2026-04-08
 

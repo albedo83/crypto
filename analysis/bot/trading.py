@@ -78,6 +78,8 @@ def compute_s10_health(trades, days: int = 30) -> dict:
             exit_dt = datetime.fromisoformat(t.exit_time.replace("Z", "+00:00"))
         except (ValueError, AttributeError):
             continue
+        if exit_dt.tzinfo is None:
+            exit_dt = exit_dt.replace(tzinfo=timezone.utc)
         if exit_dt >= cutoff:
             recent.append(t)
 

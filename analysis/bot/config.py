@@ -92,7 +92,8 @@ S10_CAPITAL_SHARE = 0.0      # no pocket — full capital (backtest: +48% P&L vs
 
 # S10 walk-forward filters (backtest_s10_walkforward.py).
 # Train 16m (2023-10→2025-02), test 12m (2025-02→2026-02 OOS).
-# Test P&L +123% vs baseline, DD improves by 8.7pp.
+# Test-window P&L +123% vs baseline, test DD improves by 8.7pp.
+# Note: 28m in-sample DD worsens by ~8.7pp (lost S10-LONG diversification).
 # Kill-switch: set ALLOW_LONGS=True and ALLOWED_TOKENS=set(ALL_SYMBOLS).
 S10_ALLOW_LONGS = False      # LONG fades were 45% WR, -$4.8k on 28m
 S10_ALLOWED_TOKENS = {       # tokens with positive S10 P&L on train window

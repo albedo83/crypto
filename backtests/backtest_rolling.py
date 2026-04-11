@@ -33,6 +33,7 @@ from analysis.bot.config import (
     S5_DIV_THRESHOLD, S5_VOL_Z_MIN,
     S8_DRAWDOWN_THRESH, S8_VOL_Z_MIN, S8_RET_24H_THRESH, S8_BTC_7D_THRESH,
     S9_RET_THRESH, S9_ADAPTIVE_STOP, VERSION,
+    S10_SQUEEZE_WINDOW, S10_VOL_RATIO_MAX, S10_BREAKOUT_PCT, S10_REINT_CANDLES,
     S10_ALLOW_LONGS, S10_ALLOWED_TOKENS,
 )
 
@@ -54,10 +55,6 @@ HOLD_CANDLES = {
 
 # S9 early exit threshold in 4h candles
 S9_EARLY_EXIT_CANDLES = int(S9_EARLY_EXIT_HOURS // 4)
-
-# S10 squeeze params (frozen, from signals.py)
-S10_BREAKOUT_PCT = 0.5
-S10_REINT_CANDLES = 2
 
 # Cost per round-trip in the backtest.
 #
@@ -88,14 +85,14 @@ def load_dxy():
 
 
 def detect_squeeze(candles, idx, vol_ratio):
-    if vol_ratio > 0.9 or idx < 7:
+    if vol_ratio > S10_VOL_RATIO_MAX or idx < S10_SQUEEZE_WINDOW + S10_REINT_CANDLES + 2:
         return None
     for bo_offset in range(1, S10_REINT_CANDLES + 1):
         bo_idx = idx - bo_offset
-        sq_start = bo_idx - 3
+        sq_start = bo_idx - S10_SQUEEZE_WINDOW
         if sq_start < 0:
             continue
-        sq = candles[sq_start:sq_start + 3]
+        sq = candles[sq_start:sq_start + S10_SQUEEZE_WINDOW]
         rh = max(c["h"] for c in sq)
         rl = min(c["l"] for c in sq)
         rs = rh - rl
@@ -454,7 +451,7 @@ def build_report(results: list[dict], end_dt: datetime, version: str) -> str:
         "`python3 -m backtests.backtest_rolling`. Relancer après tout changement "
         "de règles ou de paramètres du bot.",
         "",
-        "## Filtres S10 actifs (v11.3.4)",
+        f"## Filtres S10 actifs (v{version})",
         "",
         f"- `S10_ALLOW_LONGS = {S10_ALLOW_LONGS}` → "
         f"{'SHORT fades seulement' if not S10_ALLOW_LONGS else 'LONG+SHORT'} "

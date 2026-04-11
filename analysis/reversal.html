@@ -300,15 +300,17 @@ function refresh(){
     const h=s.s10_health||{};
     const dotColors={green:'#3fb950',yellow:'#d29922',red:'#f85149',idle:'#6e7681'};
     document.getElementById('s10-dot').style.background=dotColors[h.status]||'#6e7681';
-    const s10pnl=h.pnl||0;
+    const s10pnl=h.pnl??0;
     const s10pnlEl=document.getElementById('s10-pnl');
-    s10pnlEl.textContent=(s10pnl>=0?'+$':'-$')+Math.abs(s10pnl).toFixed(0);
-    s10pnlEl.className='value '+(h.status==='green'?'green':h.status==='red'?'red':h.status==='yellow'?'yellow':'');
     const s10det=document.getElementById('s10-detail');
-    if(h.n>0){
-      s10det.textContent=`${h.n}t ${(h.wr*100).toFixed(0)}% ${h.avg_bps>=0?'+':''}${h.avg_bps.toFixed(0)}bps (${h.days}d)`;
-    }else{
+    if(h.status==='idle'||!h.n){
+      s10pnlEl.textContent='$--';
+      s10pnlEl.className='value dim';
       s10det.textContent=`idle (${h.days||30}d)`;
+    }else{
+      s10pnlEl.textContent=(s10pnl>=0?'+$':'-$')+Math.abs(s10pnl).toFixed(0);
+      s10pnlEl.className='value '+(h.status==='green'?'green':h.status==='red'?'red':h.status==='yellow'?'yellow':'');
+      s10det.textContent=`${h.n}t ${(h.wr*100).toFixed(0)}% ${h.avg_bps>=0?'+':''}${h.avg_bps.toFixed(0)}bps (${h.days}d)`;
     }
     document.getElementById('card-s10').title=h.message||'';
 
