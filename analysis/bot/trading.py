@@ -56,6 +56,60 @@ def compute_signal_drift(trades) -> dict:
     return result
 
 
+def compute_s10_health(trades, days: int = 30) -> dict:
+    """S10 rolling health check over the last N days.
+
+    Monitors the v11.3.4 walk-forward filters (SHORT-only + token whitelist).
+    The filters improved P&L on 12m OOS but the rule is regime-dependent —
+    this health card tells you at a glance whether to flip the kill-switch.
+
+    Status:
+      green  — S10 profitable (pnl > 0 and avg net > +10 bps)
+      yellow — neutral (pnl >= 0 or avg net >= -20 bps)
+      red    — bleeding, consider flipping the kill-switch
+      idle   — no S10 trades in the window (too quiet to judge)
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(days=days)
+    recent = []
+    for t in trades:
+        if not is_bot_trade(t) or t.strategy != "S10":
+            continue
+        try:
+            exit_dt = datetime.fromisoformat(t.exit_time.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            continue
+        if exit_dt >= cutoff:
+            recent.append(t)
+
+    if not recent:
+        return {
+            "status": "idle", "n": 0, "days": days,
+            "pnl": 0.0, "wr": 0.0, "avg_bps": 0.0,
+            "message": f"No S10 trades in last {days}d",
+        }
+
+    pnl = sum(t.pnl_usdt for t in recent)
+    wins = sum(1 for t in recent if t.pnl_usdt > 0)
+    wr = wins / len(recent)
+    avg_bps = sum(t.net_bps for t in recent) / len(recent)
+
+    if pnl > 0 and avg_bps > 10:
+        status = "green"
+        message = "S10 performing as expected"
+    elif pnl >= 0 or avg_bps >= -20:
+        status = "yellow"
+        message = "S10 neutral — keep monitoring"
+    else:
+        status = "red"
+        message = "S10 bleeding — consider flipping kill-switch"
+
+    return {
+        "status": status, "n": len(recent), "days": days,
+        "pnl": round(pnl, 2), "wr": round(wr, 2),
+        "avg_bps": round(avg_bps, 1), "message": message,
+    }
+
+
 # ── Exit Logic ───────────────────────────────────────────────────────
 
 def check_exits(bot) -> int:

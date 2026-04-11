@@ -21,7 +21,7 @@ from .config import (
 log = logging.getLogger("multisignal")
 
 # DRY: shared helpers live in trading.py
-from .trading import is_bot_trade, compute_signal_drift
+from .trading import is_bot_trade, compute_signal_drift, compute_s10_health
 from .net import send_telegram
 
 def _collect_active_signals(bot, btc_f) -> list:
@@ -130,6 +130,7 @@ def build_state_response(bot) -> dict:
         "next_scan_s": max(0, SCAN_INTERVAL - (time.time() - bot._last_scan)) if bot._last_scan else 0,
         "scan_interval": SCAN_INTERVAL,
         "signal_drift": compute_signal_drift(bot.trades),
+        "s10_health": compute_s10_health(bot.trades),
         "peak_balance": round(bot._peak_balance, 2),
         "drawdown_pct": round((balance - bot._peak_balance) / bot._peak_balance * 100, 2) if bot._peak_balance > 0 else 0,
         "capital_utilization_pct": round(sum(p.size_usdt for p in pos_snapshot.values()) / max(balance, 1) * 100, 1),
