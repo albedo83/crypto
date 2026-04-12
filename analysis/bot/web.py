@@ -133,6 +133,7 @@ def build_state_response(bot) -> dict:
         "s10_health": compute_s10_health(bot.trades),
         "peak_balance": round(bot._peak_balance, 2),
         "drawdown_pct": round((balance - bot._peak_balance) / bot._peak_balance * 100, 2) if bot._peak_balance > 0 else 0,
+        "pnl_pct": round((balance - bot._capital) / bot._capital * 100, 2) if bot._capital > 0 else 0,
         "capital_utilization_pct": round(sum(p.size_usdt for p in pos_snapshot.values()) / max(balance, 1) * 100, 1),
     }
 

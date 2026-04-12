@@ -1,4 +1,4 @@
-# Multi-Signal Bot v11.3.5
+# Multi-Signal Bot v11.3.6
 
 Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. 12 modules Python dans `analysis/bot/` + SQLite tick database. Un supervisor LLM (`supervisor.py`) tourne en plus via crontab et envoie un rapport quotidien en français sur Telegram.
 
