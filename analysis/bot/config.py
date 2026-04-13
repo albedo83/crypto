@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.3.7"
+VERSION = "11.4.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -95,6 +95,12 @@ S10_CAPITAL_SHARE = 0.0      # no pocket — full capital (backtest: +48% P&L vs
 # Test-window P&L +123% vs baseline, test DD improves by 8.7pp.
 # Note: 28m in-sample DD worsens by ~8.7pp (lost S10-LONG diversification).
 # Kill-switch: set ALLOW_LONGS=True and ALLOWED_TOKENS=set(ALL_SYMBOLS).
+# S10 trailing stop (backtest_exits.py walk-forward, passes 4/4 windows).
+# When MFE exceeds trigger, exit if unrealized drops below MFE - offset.
+# S10 gives back 70% of MFE on average; this locks in gains on big winners.
+S10_TRAILING_TRIGGER = 600   # activate trailing after +600 bps MFE
+S10_TRAILING_OFFSET = 150    # exit at MFE - 150 bps
+
 S10_ALLOW_LONGS = False      # LONG fades were 45% WR, -$4.8k on 28m
 S10_ALLOWED_TOKENS = {       # tokens with positive S10 P&L on train window
     "AAVE", "APT", "ARB", "BLUR", "COMP", "CRV", "INJ",

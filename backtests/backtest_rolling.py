@@ -35,6 +35,7 @@ from analysis.bot.config import (
     S9_RET_THRESH, S9_ADAPTIVE_STOP, VERSION,
     S10_SQUEEZE_WINDOW, S10_VOL_RATIO_MAX, S10_BREAKOUT_PCT, S10_REINT_CANDLES,
     S10_ALLOW_LONGS, S10_ALLOWED_TOKENS,
+    S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
 )
 
 # Data + feature builders reused as-is from the existing backtest infrastructure
@@ -186,6 +187,14 @@ def run_window(features, data, sector_features, dxy_data,
             if current <= 0:
                 continue
 
+            # Track MFE (best unrealized during the trade)
+            if pos["dir"] == 1:
+                best_bps = (candle["h"] / pos["entry"] - 1) * 1e4
+            else:
+                best_bps = -(candle["l"] / pos["entry"] - 1) * 1e4
+            if best_bps > pos.get("mfe", 0):
+                pos["mfe"] = best_bps
+
             # Per-strategy stop in price-move bps (not leveraged)
             if pos["strat"] == "S8":
                 stop = STOP_LOSS_S8
@@ -215,6 +224,14 @@ def run_window(features, data, sector_features, dxy_data,
                 ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
                 if ur_bps < S9_EARLY_EXIT_BPS:
                     exit_reason = "s9_early_exit"
+
+            # S10 trailing stop: lock gains when MFE exceeds trigger
+            if not exit_reason and pos["strat"] == "S10":
+                mfe = pos.get("mfe", 0)
+                if mfe >= S10_TRAILING_TRIGGER:
+                    ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                    if ur_bps <= mfe - S10_TRAILING_OFFSET:
+                        exit_reason = "s10_trailing"
 
             if exit_reason:
                 # P&L math matches trading.py close_position (v11.3.0+)
@@ -342,6 +359,7 @@ def run_window(features, data, sector_features, dxy_data,
                 "strat": cand["strat"], "hold": cand["hold"],
                 "size": size, "coin": coin,
                 "stop": cand.get("stop", 0),
+                "mfe": 0.0,
             }
             if cand["dir"] == 1:
                 n_long += 1

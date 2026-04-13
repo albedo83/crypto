@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.0] — 2026-04-13
+
+### Added
+- **S10 trailing stop** (`backtest_exits.py` walk-forward validation, passes 4/4 rolling windows). When an S10 trade reaches +600 bps MFE, a trailing floor is set at MFE − 150 bps. If price drops below this floor, the position exits immediately instead of waiting for the 24h timeout. S10 trades were giving back 70% of their MFE on average; this locks in gains on the big winners. Impact: 28m P&L +$11,667 (+27%), 12m +$1,321, 6m +$1,121, 3m +$0. Config: `S10_TRAILING_TRIGGER` and `S10_TRAILING_OFFSET` in `config.py`.
+- **Exit optimization backtest** (`backtests/backtest_exits.py`): systematic sweep of trailing stops (global and per-strategy), flat exits, and combined rules. Walk-forward validated on 4 rolling windows. Findings: global trailing stops and flat exits all degrade performance (mean-reversion signals oscillate); only S10-specific trailing passes.
+- **Token scoring backtest** (`backtests/backtest_token_score.py`): walk-forward token rotation analysis. Result: all exclusion sets degrade recent windows. Token performance rotates too fast (NEAR: worst on train, #1 on full 28m). Keeping all 28 tokens is the right strategy.
+- **Live audit backtest** (`backtests/backtest_live_audit.py`): compares 30 live trades against paper, analyzes cost structure and MFE gave-back patterns.
+
+### Changed
+- Backtest engine (`backtest_rolling.py`) now tracks MFE per position and applies the S10 trailing stop, matching the live bot exit logic.
+
 ## [11.3.7] — 2026-04-13
 
 ### Added

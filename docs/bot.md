@@ -82,6 +82,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 - `S10_ALLOW_LONGS = False` — **les LONG fades sont bloqués**. Sur 28 mois de backtest : LONG 45% WR / −$4.8k, SHORT 58% WR / +$7.5k. Rationnel économique : fader un down-move revient à combattre du panic-selling en chaîne ; fader un up-move attrape l'exhaustion du top.
 - `S10_ALLOWED_TOKENS` — **whitelist de 13 tokens** dont le S10 a été positif sur la fenêtre d'entraînement 2023-10 → 2025-02 : AAVE, APT, ARB, BLUR, COMP, CRV, INJ, MINA, OP, PYTH, SEI, SNX, WLD. Les 15 autres (AVAX, DOGE, DYDX, GALA, GMX, IMX, LDO, LINK, MKR, NEAR, PENDLE, SAND, SOL, STX, SUI) sont skippés à la source.
 - **Impact mesuré sur test out-of-sample 12m (2025-02 → 2026-02)** : P&L S10 $4 278 → $9 545 (+123%), DD -41.3% → -32.6%. Caveats : 28m in-sample DD s'aggrave de 8.7pp (perte de diversification des LONGs), 1m post-test régresse −$181. C'est un pari sur le régime 2025-26 actuel, pas une loi universelle.
+- **Trailing stop v11.4.0** (`backtest_exits.py` walk-forward, passe 4/4 fenêtres rolling) : quand un trade S10 atteint +600 bps de MFE, un plancher glissant est posé à MFE − 150 bps. Si le prix redescend sous ce plancher, sortie immédiate au lieu d'attendre le timeout 24h. S10 rendait 70% de son MFE en moyenne ; ce trailing protège les gros winners. Impact : 28m +$11 667 (+27%), 12m +$1 321, 6m +$1 121. Config : `S10_TRAILING_TRIGGER=600` et `S10_TRAILING_OFFSET=150` dans `config.py`.
 - **Kill-switch** : remettre `S10_ALLOW_LONGS = True` et `S10_ALLOWED_TOKENS = set(ALL_SYMBOLS)` dans `analysis/bot/config.py` puis restart bots → comportement pré-v11.3.4 restauré.
 - **Monitoring** : la carte `S10 30d` sur le dashboard (alimentée par `compute_s10_health` dans `trading.py`) affiche un dot 🟢/🟡/🔴/⚫ selon P&L et avg bps des 30 derniers jours de S10. Passe en 🔴 si pnl<0 ET avg<−20 bps → flip du kill-switch à considérer.
 
@@ -97,6 +98,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 | **Hold** | 72h (S1), 48h (S5/S9), 60h (S8), 24h (S10) | Timeout automatique. |
 | **Stop loss** | -1250 bps de mouvement de prix (S1/S5/S10), -750 bps (S8), adaptatif S9 | Valeurs halved en v11.3.0 apres fix du bug P&L double-leverage. S9 : `max(-1250, -500 - abs(ret_24h)/8)`. |
 | **S9 early exit** | Coupe si unrealized < -500 bps apres 8h | Winners revertent vite, losers non. Non generalisable a S5/S8/S10 (testes, tous perdent en compounding). |
+| **S10 trailing stop** | MFE > 600 bps → plancher a MFE − 150 bps | Verrouille les gains S10. Walk-forward 4/4. S10 rendait 70% de son MFE avant. |
 | **Frais** | Live : **10 bps round-trip** fixe. Backtest : **14 bps** = 10 + 4 slippage moyen. | Calibrés depuis 80 fills live Hyperliquid en v11.3.4 : taker 4.50 bps/leg = 9 round-trip, funding ~0.5 bps/trade → 1 par sécurité. Slippage live = 0 (déjà dans `avgPx` de la réponse SDK). Backtest ajoute 4 bps car il utilise les closes 4h. |
 | **Cooldown** | 24h par token apres exit | Evite de re-entrer immediatement. |
 | **Slot reservation** | Max 2 macro (S1) + 4 token (S5/S8/S9/S10) | Token slots elargis a 4 (+157% P&L vs 3). |
@@ -116,6 +118,7 @@ P&L : `size_usdt` est le **notionnel** (deja leveraged). `pnl = notionnel × mou
 | **Slot reservation** | 2 macro / 4 token | Macro limite, token elargi |
 | **Stop loss** | -12.5% / -7.5% (S8) / adaptatif (S9) | Crash extreme sur un trade |
 | **S9 early exit** | Coupe S9 si -500 bps apres 8h | Perte qui s'enkyste sur un S9 |
+| **S10 trailing stop** | MFE > +600 bps → plancher MFE − 150 | Verrouille les gains S10 (rendait 70% du MFE) |
 | **Cooldown** | 24h par token apres exit | Re-entree impulsive |
 | **Reconciliation** | Chaque scan horaire, bot vs exchange | Position orpheline ou fantome |
 | **Telegram** | Entry, exit, erreur, reboot, resume quotidien | On sait toujours ce qui se passe |
@@ -243,7 +246,7 @@ Chaque signal doit passer : (1) train/test split, (2) Monte Carlo z > 2.0, (3) p
 
 ### Ce qui a ete teste et rejete
 
-1500+ regles testees. Rejetes : regime gating, trailing stop, signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum.
+1500+ regles testees. Rejetes : regime gating, trailing stop global (toutes les configs degradent le P&L — signaux mean-reversion oscillent), flat exit, token rotation (performance tourne trop vite), signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum, OI gates (7 singles + 3 combos, tous echouent sur 4/4 fenetres), OI divergence S11 (6 variantes A-F). Seul le trailing stop S10-specifique passe le walk-forward (v11.4.0).
 
 ### Backtests d'optimisation portfolio (cette session)
 
