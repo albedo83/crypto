@@ -246,7 +246,7 @@ Chaque signal doit passer : (1) train/test split, (2) Monte Carlo z > 2.0, (3) p
 
 ### Ce qui a ete teste et rejete
 
-1500+ regles testees. Rejetes : regime gating, trailing stop global (toutes les configs degradent le P&L — signaux mean-reversion oscillent), flat exit, token rotation (performance tourne trop vite), signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum, OI gates (7 singles + 3 combos, tous echouent sur 4/4 fenetres), OI divergence S11 (6 variantes A-F). Seul le trailing stop S10-specifique passe le walk-forward (v11.4.0).
+1500+ regles testees. Rejetes : regime gating, trailing stop global (toutes les configs degradent le P&L — signaux mean-reversion oscillent), flat exit, token rotation (performance tourne trop vite), signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum, OI gates (7 singles + 3 combos, tous echouent sur 4/4 fenetres), OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h, meme pattern que les gates), OI divergence S11 (6 variantes A-F). Seul le trailing stop S10-specifique passe le walk-forward (v11.4.0).
 
 ### Backtests d'optimisation portfolio (cette session)
 

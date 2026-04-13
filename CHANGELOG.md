@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Exit optimization backtest** (`backtests/backtest_exits.py`): systematic sweep of trailing stops (global and per-strategy), flat exits, and combined rules. Walk-forward validated on 4 rolling windows. Findings: global trailing stops and flat exits all degrade performance (mean-reversion signals oscillate); only S10-specific trailing passes.
 - **Token scoring backtest** (`backtests/backtest_token_score.py`): walk-forward token rotation analysis. Result: all exclusion sets degrade recent windows. Token performance rotates too fast (NEAR: worst on train, #1 on full 28m). Keeping all 28 tokens is the right strategy.
 - **Live audit backtest** (`backtests/backtest_live_audit.py`): compares 30 live trades against paper, analyzes cost structure and MFE gave-back patterns.
+- **OI sizing backtest** (`backtests/backtest_oi_sizing.py`): tests OI as a continuous sizing modifier instead of binary gate. Sweep of alpha (0.01–0.20) × lookback (6h/24h). **All rejected** — same pattern as OI gates: marginal gain on 28m, degrades all recent windows. OI on Hyperliquid is a lagging indicator for this bot.
 
 ### Changed
 - Backtest engine (`backtest_rolling.py`) now tracks MFE per position and applies the S10 trailing stop, matching the live bot exit logic.
