@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.3.6). Paper dashboard on `:8097`, live on `:8098`, Bot 2 on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.3.7). Paper dashboard on `:8097`, live on `:8098`, Bot 2 on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
@@ -24,7 +24,7 @@ Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_
 nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 
 # Live bot (:8098, ~$255 real — see start_bots.sh for current HL_CAPITAL)
-HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
+HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 
 # Both restart automatically on VPS reboot via crontab (@reboot $PROJECT_DIR/start_bots.sh)

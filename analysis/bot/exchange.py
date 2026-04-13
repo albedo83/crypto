@@ -130,36 +130,57 @@ def execute_close(exchange, hl_info, address: str, sym: str) -> float | None:
 
 
 def fetch_account_state(hl_info, address: str) -> dict | None:
-    """Fetch real account state from Hyperliquid. Returns equity, unrealized, available."""
+    """Fetch real account state from Hyperliquid. Returns equity, unrealized, available, fees."""
     if not hl_info:
         return None
     try:
         state = hl_info.user_state(address)
         spot = hl_info.spot_user_state(address)
 
-        # Spot USDC total = real equity
-        equity = 0.0
+        # Spot USDC balance (collateral)
+        spot_usdc = 0.0
         for b in spot.get("balances", []):
             if b["coin"] == "USDC":
-                equity = float(b["total"])
+                spot_usdc = float(b["total"])
                 break
 
-        # Unrealized from perps
+        # Total account value = spot USDC + unrealized perps P&L
+        # (spot_usdc includes margin held for perps, so just add unrealized)
         unrealized = 0.0
         for p in state.get("assetPositions", []):
             sz = float(p["position"].get("szi", 0))
             if abs(sz) > 0:
                 unrealized += float(p["position"].get("unrealizedPnl", 0))
+        equity = spot_usdc + unrealized
 
         # Margin used
         margin_used = float(state.get("marginSummary", {}).get("totalMarginUsed", 0))
         available = equity - margin_used
+
+        # Fees: taker fees from fills, funding from funding history
+        import time as _time
+        start_ms = int((_time.time() - 90 * 86400) * 1000)
+        end_ms = int(_time.time() * 1000)
+        try:
+            fills = hl_info.user_fills_by_time(address, start_ms, end_ms)
+            taker_fees = sum(float(f.get("fee", 0)) for f in fills)
+            closed_pnl = sum(float(f.get("closedPnl", 0)) for f in fills)
+        except Exception:
+            taker_fees, closed_pnl = 0.0, 0.0
+        try:
+            funding_hist = hl_info.user_funding_history(address, start_ms, end_ms)
+            funding_paid = sum(float(f["delta"]["usdc"]) for f in funding_hist)
+        except Exception:
+            funding_paid = 0.0
 
         return {
             "equity": round(equity, 2),
             "unrealized": round(unrealized, 2),
             "margin_used": round(margin_used, 2),
             "available": round(available, 2),
+            "taker_fees": round(taker_fees, 2),
+            "funding_paid": round(funding_paid, 2),
+            "closed_pnl": round(closed_pnl, 2),
         }
     except Exception as e:
         log.warning("Account state fetch failed: %s", e)

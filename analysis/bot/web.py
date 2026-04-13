@@ -134,7 +134,7 @@ def build_state_response(bot) -> dict:
         "peak_balance": round(bot._peak_balance, 2),
         "drawdown_pct": round((balance - bot._peak_balance) / bot._peak_balance * 100, 2) if bot._peak_balance > 0 else 0,
         "pnl_pct": round((balance - bot._capital) / bot._capital * 100, 2) if bot._capital > 0 else 0,
-        "capital_utilization_pct": round(sum(p.size_usdt for p in pos_snapshot.values()) / max(balance, 1) * 100, 1),
+        "capital_utilization_pct": round(sum(p.size_usdt / LEVERAGE for p in pos_snapshot.values()) / max(balance, 1) * 100, 1),
     }
 
 def build_signals_response(bot) -> dict:

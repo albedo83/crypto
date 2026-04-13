@@ -123,6 +123,14 @@ function renderBots(bots){
           <div class="stat-label">${ea?'Win Rate':'Uptime'}</div>
           <div class="stat-value">${online?(ea?wr+'% <span style="font-size:12px;color:#7d8590">('+(b.total_trades||0)+'t)</span>':fmtTime(b.uptime_s)):'--'}</div>
         </div>
+        <div class="stat">
+          <div class="stat-label">P&L %</div>
+          <div class="stat-value ${pnlClass}">${online?fmt(pnlPct,1)+'%':'--'}</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Capital</div>
+          <div class="stat-value">${online?'$'+capital.toFixed(0):'--'}</div>
+        </div>
       </div>
       <div class="signals">${online&&b.active_signals&&b.active_signals.length?'<span>'+b.active_signals.join('</span> | <span>')+'</span>':'No active signals'}</div>
       <div class="card-footer">

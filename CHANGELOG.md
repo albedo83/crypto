@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.3.7] — 2026-04-13
+
+### Added
+- **"Frais exchange" card** on live dashboard: shows total taker fees and funding paid, fetched from Hyperliquid fill and funding history. Hidden in paper mode.
+- **P&L % and Capital stats** added to admin panel bot cards.
+
+### Changed
+- **"P&L cumulé" card** now uses real equity (`spot USDC + unrealized`) on live instead of bot's `total_pnl` — shows true gain/loss including fees and funding.
+- **Equity calculation** fixed: was using `marginSummary.accountValue` (perps only, ~$186), now correctly uses `spot USDC + unrealized perps` (~$302).
+- **Utilization** now divides notional by leverage — no longer shows >100% with 2x leverage.
+- Bot names: "Paper Bot" → **Paper**, "Live Bot" → **Live**, "Bot 2" → **Junior** (admin + supervisor).
+- Live bot `HL_CAPITAL` corrected to **$300** ($270 initial + $30 DCA).
+
+### Fixed
+- Dashboard P&L % showed `++6.9%` — `fmt()` already prepends `+`, removed redundant prefix.
+
 ## [11.3.6] — 2026-04-12
 
 ### Changed

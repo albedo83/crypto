@@ -231,6 +231,7 @@ async def api_bots():
                 info["uptime_s"] = state.get("uptime_s", 0)
                 info["drawdown_pct"] = state.get("drawdown_pct", 0)
                 info["peak_balance"] = state.get("peak_balance", 0)
+                info["pnl_pct"] = state.get("pnl_pct", 0)
                 info["exchange_account"] = state.get("exchange_account")
                 info["active_signals"] = state.get("active_signals", [])
         results.append(info)

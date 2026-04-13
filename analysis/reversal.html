@@ -101,12 +101,13 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 
 <div class="cards">
   <div class="card" id="card-balance"><div class="label">Equity</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
+  <div class="card"><div class="label">P&L cumulé</div><div class="value" id="pnl-amt">$0</div><div class="sub" id="pnl-pct">0%</div><div class="sub dim" id="pnl-fees"></div></div>
   <div class="card" id="card-pnl"><div class="label">Unrealized</div><div class="value" id="unrealized">--</div><div class="sub dim" id="available"></div></div>
   <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
   <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">--</div></div>
   <div class="card" id="card-total"><div class="label">Total (real+unreal)</div><div class="value" id="today-pnl">$0.00</div></div>
-  <div class="card"><div class="label">P&L %</div><div class="value" id="pnl-pct">0%</div><div class="sub dim" id="pnl-cap"></div></div>
   <div class="card"><div class="label">Utilization</div><div class="value" id="util-pct">0%</div></div>
+  <div class="card" id="card-fees"><div class="label">Frais exchange</div><div class="value red" id="fees-total">--</div><div class="sub dim" id="fees-detail">--</div></div>
   <div class="card" id="card-s10" title="S10 rolling P&L over last 30d — walk-forward filter health">
     <div class="label">S10 30d <span id="s10-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:4px;vertical-align:middle"></span></div>
     <div class="value" id="s10-pnl">$--</div>
@@ -287,15 +288,29 @@ function refresh(){
     document.getElementById('today-pnl').className='value '+cls(todayTotal);
 
     // Drawdown + utilization
-    const pnlPctEl=document.getElementById('pnl-pct');
-    const pnlPct=s.pnl_pct||0;
-    pnlPctEl.textContent=(pnlPct>=0?'+':'')+fmt(pnlPct,1)+'%';
-    pnlPctEl.className='value '+(pnlPct<-5?'red':pnlPct<0?'yellow':'green');
-    document.getElementById('pnl-cap').textContent='Capital: $'+(s.capital||0).toFixed(0);
+    const ea=s.exchange_account;
+    const realPnl=ea?ea.equity-(s.capital||0):(s.total_pnl||0);
+    const realPct=(s.capital||0)>0?realPnl/(s.capital||1)*100:0;
+    const pnlAmtEl=document.getElementById('pnl-amt');
+    pnlAmtEl.textContent='$'+fmt(realPnl);
+    pnlAmtEl.className='value '+(realPct<-5?'red':realPct<0?'yellow':'green');
+    document.getElementById('pnl-pct').textContent=fmt(realPct,1)+'% sur $'+(s.capital||0).toFixed(0);
+    document.getElementById('pnl-fees').textContent='';
     const utilEl=document.getElementById('util-pct');
     const util=s.capital_utilization_pct||0;
     utilEl.textContent=util.toFixed(0)+'%';
     utilEl.className='value '+(util>75?'red':util>50?'yellow':'blue');
+
+    // Exchange fees card (live only)
+    const feesCard=document.getElementById('card-fees');
+    if(ea){
+      const taker=ea.taker_fees||0;
+      const fund=ea.funding_paid||0;
+      const totalFees=taker+Math.abs(Math.min(fund,0));
+      document.getElementById('fees-total').textContent='$'+fmt(-totalFees);
+      document.getElementById('fees-detail').textContent='Taker: $'+fmt(-taker)+' | Funding: $'+fmt(fund);
+      feesCard.style.display='';
+    }else{feesCard.style.display='none';}
 
     // S10 health card (walk-forward filter monitoring — v11.3.4)
     const s10h=s.s10_health||{};

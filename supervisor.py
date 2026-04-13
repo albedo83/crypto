@@ -52,8 +52,8 @@ BOTS = [
     {"port": 8097, "label": "Paper", "mode": "paper",
      "notes": "primary paper instance, full production config"},
     {"port": 8098, "label": "Live",  "mode": "live",
-     "notes": "real capital ~$255, full production config"},
-    {"port": 8099, "label": "Bot2",  "mode": "paper",
+     "notes": "real capital $300 (270 initial + 30 DCA), full production config"},
+    {"port": 8099, "label": "Junior",  "mode": "paper",
      "notes": "DISABLED — running as paper placeholder, ignore P&L/trade counts"},
 ]
 

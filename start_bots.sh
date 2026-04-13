@@ -22,7 +22,7 @@ TG_BOT_TOKEN= TG_CHAT_ID= HL_ROOT_PATH=/paper \
 echo "Paper bot started (PID: $!)"
 
 # Live bot (:8098) — served behind nginx at /bot/
-HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
+HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 echo "Live bot started (PID: $!)"
 

@@ -1,4 +1,4 @@
-# Multi-Signal Bot v11.3.6
+# Multi-Signal Bot v11.3.7
 
 Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. 12 modules Python dans `analysis/bot/` + SQLite tick database. Un supervisor LLM (`supervisor.py`) tourne en plus via crontab et envoie un rapport quotidien en français sur Telegram.
 
@@ -223,7 +223,7 @@ TG_BOT_TOKEN= TG_CHAT_ID= HL_ROOT_PATH=/paper \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 
 # Live (:8098, ~$255 reel)
-HL_MODE=live HL_CAPITAL=254.92 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
+HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 ```
 
