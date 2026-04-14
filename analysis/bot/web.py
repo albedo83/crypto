@@ -125,6 +125,8 @@ def build_state_response(bot) -> dict:
                    "cost_bps": COST_BPS, "stop_bps": STOP_LOSS_BPS,
                    "max_pos": MAX_POSITIONS},
         "uptime_s": (now - bot.started_at).total_seconds() if bot.started_at else 0,
+        "started_at": bot.started_at.isoformat() if bot.started_at else None,
+        "first_trade_date": bot.trades[0].entry_time if bot.trades else None,
         "last_price_s": time.time() - bot._last_price_fetch if bot._last_price_fetch else None,
         "last_scan_s": time.time() - bot._last_scan if bot._last_scan else None,
         "next_scan_s": max(0, SCAN_INTERVAL - (time.time() - bot._last_scan)) if bot._last_scan else 0,

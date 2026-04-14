@@ -253,7 +253,13 @@ function refresh(){
 
     const up=s.uptime_s;
     const h=Math.floor(up/3600),m=Math.floor((up%3600)/60);
-    document.getElementById('uptime').textContent='Up: '+h+'h'+m+'m';
+    let upText='Up: '+h+'h'+m+'m';
+    if(s.first_trade_date){
+      const ft=new Date(s.first_trade_date);
+      const days=Math.floor((Date.now()-ft.getTime())/86400000);
+      upText+=' | Depuis le '+ft.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' ('+days+'j)';
+    }
+    document.getElementById('uptime').textContent=upText;
     document.getElementById('params').textContent=
       'Hold: '+s.params.hold_h+'h | Stop: '+s.params.stop_bps+'bps | Cost: '+s.params.cost_bps+'bps | Max: '+s.params.max_pos+'pos';
 

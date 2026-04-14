@@ -134,7 +134,7 @@ function renderBots(bots){
       </div>
       <div class="signals">${online&&b.active_signals&&b.active_signals.length?'<span>'+b.active_signals.join('</span> | <span>')+'</span>':'No active signals'}</div>
       <div class="card-footer">
-        <span class="version">${online?'v'+(b.version||'?'):':'+b.port}</span>
+        <span class="version">${online?(()=>{let v='v'+(b.version||'?');if(b.first_trade_date){const ft=new Date(b.first_trade_date);const days=Math.floor((Date.now()-ft.getTime())/86400000);v+=' | '+ft.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' ('+days+'j)';}return v;})():':'+b.port}</span>
         <a class="btn-open" href="${b.path?b.path+'/auth?token='+(_authToken||''):'http://'+location.hostname+':'+b.port+'/auth?token='+(_authToken||'')}" target="_blank">Open</a>
       </div>
     `;
