@@ -81,6 +81,19 @@ FORMAT DE SORTIE — réponds EXCLUSIVEMENT en JSON valide, rien avant, rien apr
 {
   "health": "green" | "yellow" | "red",
   "summary": "<=500 chars, résumé exécutif EN FRANÇAIS",
+  "bilan": {
+    "days_live": <int>,
+    "pnl_realized": <number>,
+    "pnl_pct": <number>,
+    "trades": <int>,
+    "wr": <float 0-1>,
+    "positions_open": <int>,
+    "unrealized_bps_sum": <number>,
+    "backtest_expected_pnl": <number>,
+    "backtest_expected_pct": <number>,
+    "vs_backtest_ratio": <float>,
+    "regime_note": "<=150 chars — regime actuel vs attentes"
+  },
   "key_metrics": {
     "live_pnl_24h": <number>,
     "live_balance": <number>,
@@ -273,6 +286,10 @@ def compress_bot_state(bot_data: dict) -> dict:
     compressed["total_pnl"] = state.get("total_pnl")
     compressed["peak_balance"] = state.get("peak_balance")
     compressed["drawdown_pct"] = state.get("drawdown_pct")
+    compressed["pnl_pct"] = state.get("pnl_pct")
+    compressed["first_trade_date"] = state.get("first_trade_date")
+    compressed["started_at"] = state.get("started_at")
+    compressed["exchange_account"] = state.get("exchange_account")
     compressed["capital_utilization_pct"] = state.get("capital_utilization_pct")
     compressed["positions"] = state.get("positions")
     compressed["total_trades"] = state.get("total_trades")
@@ -319,6 +336,27 @@ def build_user_prompt(bot_states: list[dict]) -> str:
         "vs Paper S5 WR 70%), c'est une anomalie Live qui mérite d'être "
         "remontée. Mais ne liste pas les métriques Paper pour elles-mêmes. "
         "Utilise Paper comme référence contextuelle, pas comme sujet.\n\n"
+        "## Section `bilan` — comparaison live vs backtest\n\n"
+        "Remplis le champ `bilan` en **calculant** les comparaisons :\n\n"
+        "1. `days_live` : jours depuis le premier trade (utilise `first_trade_date` "
+        "du state)\n"
+        "2. `pnl_realized` et `pnl_pct` : valeurs directes du state\n"
+        "3. `unrealized_bps_sum` : somme des MFE actuels des positions ouvertes "
+        "(optionnel, 0 si pas de positions)\n"
+        "4. `backtest_expected_pnl` et `backtest_expected_pct` : le backtest 28m "
+        "affiche +5000% soit ~+181%/an compounded ≈ **+9.1%/mois compounded**. "
+        "Extrapole au prorata des `days_live` sur le capital initial Live "
+        "(regarde `capital` dans state). Formule : "
+        "`capital * ((1.091)^(days/30) - 1)`.\n"
+        "5. `vs_backtest_ratio` : `pnl_realized / backtest_expected_pnl`. "
+        "1.0 = aligné, <0.5 = sous-performance, >1.5 = surperformance.\n"
+        "6. `regime_note` : **1 phrase** expliquant si l'écart vient du régime "
+        "(ex: 'S10 idle 3j — pas de squeezes en vol élevée'), d'un drawdown, "
+        "ou d'un bug. Context : `docs/backtests.md` montre que mars-avril 2026 "
+        "est -16.3% (régime flat/bear) vs +93.5% sur 1m antérieur.\n\n"
+        "Ne pas paniquer si `vs_backtest_ratio < 0.5` sur <30 jours : variance "
+        "normale d'un petit échantillon. Signaler une anomalie seulement si "
+        "<0.3 pendant 7+ jours consécutifs ou si drawdown > -20%.\n\n"
         "Analyse l'activité des 24-48h, détecte anomalies sur le Live, "
         "propose des suggestions concrètes.\n\n"
     )
@@ -405,6 +443,27 @@ def format_telegram(report: dict) -> str:
     if summary:
         lines.append("")
         lines.append(summary)
+
+    bilan = report.get("bilan") or {}
+    if bilan:
+        lines.append("")
+        lines.append("── Bilan ──")
+        days = bilan.get("days_live", 0)
+        pnl = bilan.get("pnl_realized", 0)
+        pct = bilan.get("pnl_pct", 0)
+        n = bilan.get("trades", 0)
+        wr = bilan.get("wr", 0)
+        pos = bilan.get("positions_open", 0)
+        exp = bilan.get("backtest_expected_pnl", 0)
+        exp_pct = bilan.get("backtest_expected_pct", 0)
+        ratio = bilan.get("vs_backtest_ratio", 0)
+        regime = bilan.get("regime_note", "")
+        lines.append(f"  Jour {days} — P&L réalisé: ${pnl:+.2f} ({pct:+.1f}%)")
+        lines.append(f"  {n} trades, WR {wr*100:.0f}%, {pos} positions ouvertes")
+        lines.append(f"  Backtest attendu: ${exp:+.2f} ({exp_pct:+.1f}%) → ratio {ratio:.0%}")
+        if regime:
+            lines.append(f"  Régime: {regime}")
+
     km = report.get("key_metrics") or {}
     if km:
         lines.append("")
