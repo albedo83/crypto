@@ -72,6 +72,11 @@ RÈGLES STRICTES (non négociables):
 5. Les filtres S10 v11.3.4 (SHORT-only + whitelist 13 tokens) sont régime-
    dépendants: si S10 bleeds 30j consécutifs, flip le kill-switch via
    S10_ALLOW_LONGS=True + S10_ALLOWED_TOKENS=set(ALL_SYMBOLS) dans config.py.
+6. METRIQUE `last_scan_s` = secondes DEPUIS le dernier scan (pas retard).
+   SCAN_INTERVAL=3600s donc `last_scan_s` oscille naturellement entre 0 et
+   3600. C'est normal si entre 0 et 3700. Signaler une anomalie UNIQUEMENT
+   si `last_scan_s > 5400` (1h30 sans scan) ou si `next_scan_s=0` depuis
+   plusieurs minutes avec positions ouvertes non traitées.
 
 FORMAT DE SORTIE — réponds EXCLUSIVEMENT en JSON valide, rien avant, rien après:
 {
