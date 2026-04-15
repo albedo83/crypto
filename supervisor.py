@@ -49,12 +49,8 @@ STATIC_CONTEXT_FILES = [
 # anomalies correctly. Use it to flag idle / disabled / test instances
 # that would otherwise look suspicious (e.g. low trade count, 100% WR).
 BOTS = [
-    {"port": 8097, "label": "Paper", "mode": "paper",
-     "notes": "primary paper instance, full production config"},
     {"port": 8098, "label": "Live",  "mode": "live",
      "notes": "real capital $300 (270 initial + 30 DCA), full production config"},
-    {"port": 8099, "label": "Junior",  "mode": "paper",
-     "notes": "DISABLED — running as paper placeholder, ignore P&L/trade counts"},
 ]
 
 HTTP_TIMEOUT = 6  # seconds
@@ -324,18 +320,13 @@ def build_user_prompt(bot_states: list[dict]) -> str:
         "disabled/test). Les bots marqués DISABLED doivent être exclus des "
         "métriques et ne pas générer d'anomalies.\n\n"
         "## Cible du rapport\n\n"
-        "**Ce rapport est destiné au bot LIVE uniquement** (le seul avec "
-        "du capital réel). Formate ta sortie en conséquence :\n\n"
-        "- `summary` : parle du Live bot, pas de Paper/Bot2\n"
-        "- `key_metrics` : métriques du Live uniquement "
+        "**Ce rapport couvre UNIQUEMENT le bot Live.** Paper/Junior ne sont "
+        "plus fournis et ne doivent être ni mentionnés ni comparés.\n\n"
+        "- `summary` : statut du Live bot\n"
+        "- `key_metrics` : métriques du Live "
         "(`live_pnl_24h`, `live_balance`, `live_drawdown_pct`, `live_positions`, "
         "`live_wr_recent`)\n"
         "- `anomalies` / `suggestions` : ciblent le comportement du Live\n\n"
-        "**Paper bot** reste utile comme **baseline de comparaison** : "
-        "si tu détectes une divergence Live vs Paper (ex: Live S5 WR 40% "
-        "vs Paper S5 WR 70%), c'est une anomalie Live qui mérite d'être "
-        "remontée. Mais ne liste pas les métriques Paper pour elles-mêmes. "
-        "Utilise Paper comme référence contextuelle, pas comme sujet.\n\n"
         "## Section `bilan` — comparaison live vs backtest\n\n"
         "Remplis le champ `bilan` en **calculant** les comparaisons :\n\n"
         "1. `days_live` : jours depuis le premier trade (utilise `first_trade_date` "
