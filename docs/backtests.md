@@ -1,8 +1,8 @@
 # Rolling backtests
 
-**Générée le** : 2026-04-13 14:13 UTC
-**Bot version** : v11.3.7
-**Données jusqu'à** : 2026-04-08
+**Générée le** : 2026-04-17 13:07 UTC
+**Bot version** : v11.4.10
+**Données jusqu'à** : 2026-04-17
 
 Chaque ligne répond à la question : *si j'avais lancé le bot avec $1 000 au début de cette fenêtre jusqu'à la date des données, avec les paramètres actuels du bot, combien aurais-je fini ?*
 
@@ -12,38 +12,51 @@ P&L calculé avec la formule corrigée v11.3.0+ (`size_usdt` est le notionnel, p
 
 Ce fichier est **régénéré automatiquement** par `python3 -m backtests.backtest_rolling`. Relancer après tout changement de règles ou de paramètres du bot.
 
-## Filtres S10 actifs (v11.3.7)
+## Filtres actifs (v11.4.10)
 
+**S10 filters** (v11.3.4)
 - `S10_ALLOW_LONGS = False` → SHORT fades seulement (LONG fades perdaient $4.8k sur 28m, 45% WR — *fade panic = fail*)
 - `S10_ALLOWED_TOKENS` (whitelist de 13 tokens) : AAVE, APT, ARB, BLUR, COMP, CRV, INJ, MINA, OP, PYTH, SEI, SNX, WLD
 
-Filtres dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, test 2025-02→2026-02 out-of-sample). **Impact validé sur le test OOS** : P&L +123% vs baseline, DD améliorée de 8.7pp. Le 28m in-sample change peu (les pertes LONG de 2024 sont compensées par les gagnants). Kill-switch : `S10_ALLOW_LONGS = True` et `S10_ALLOWED_TOKENS = set(ALL_SYMBOLS)` dans `analysis/bot/config.py`.
+Dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, test 2025-02→2026-02 OOS). Impact OOS : P&L +123% vs baseline, DD −8.7pp.
+
+**OI gate LONG** (v11.4.9) — `OI_LONG_GATE_BPS = 1000`
+- Skip LONG entries quand `Δ(OI, 24h) < -10%`. Longs qui se débouclent = flow baissier encore actif = LONG catche un couteau qui tombe.
+- Validé walk-forward 4/4 : +$2 498 / +$816 / +$380 / +$252 sur 28m/12m/6m/3m, zéro impact DD. Helper : `features.oi_delta_24h_bps()`.
+- Source : `backtests/backtest_external_gates.py`, `backtests/backtest_oi_gate_validate.py`.
+
+**Trade blacklist** (v11.4.10) — `TRADE_BLACKLIST = {IMX, LINK, SUI}`
+- Tokens net-négatifs sur les 4 fenêtres walk-forward : SUI (−$5 311 28m, −$1 045 12m, −$336 6m, −$98 3m), IMX (−$2 952 / −$566 / −$156 / −$53), LINK (−$2 415 / −$387 / −$185 / −$75).
+- Validé sur `backtest_rolling` : +91% sur 28m (+$49 687), +63% 12m, +34% 6m, +18% 3m.
+- DD 28m dégradée de ~10pp (swings absolus plus grands sur un capital plus haut), DD améliorée ou inchangée sur toutes les fenêtres récentes.
+- Source : `backtests/backtest_worst_losers.py`, `backtests/backtest_loser_filters.py`.
+- Kill-switch (réactiver un token) : supprimer de `TRADE_BLACKLIST` dans `analysis/bot/config.py`.
 
 ## Résumé par fenêtre
 
 | Fenêtre | Start | Balance finale | P&L | P&L % | DD max | Trades | WR | Best strat |
 |---|---|---|---|---|---|---|---|---|
-| 28 mois | 2023-12-08 | $50 997 | +$49 997 | +4999.7% | -52.3% | 1138 | 53% | S9 |
-| 12 mois | 2025-04-08 | $8 328 | +$7 328 | +732.8% | -32.6% | 480 | 53% | S9 |
-| 6 mois | 2025-10-08 | $4 060 | +$3 060 | +306.0% | -22.2% | 243 | 56% | S9 |
-| depuis 2025-11-01 | 2025-11-01 | $2 980 | +$1 980 | +198.0% | -21.1% | 208 | 54% | S9 |
-| depuis 2025-12-01 | 2025-12-01 | $2 110 | +$1 110 | +111.0% | -21.1% | 163 | 52% | S9 |
-| depuis 2026-01-01 | 2026-01-01 | $2 007 | +$1 007 | +100.7% | -21.1% | 132 | 48% | S9 |
-| 3 mois | 2026-01-08 | $1 935 | +$935 | +93.5% | -21.1% | 121 | 49% | S9 |
-| depuis 2026-02-01 | 2026-02-01 | $1 357 | +$357 | +35.7% | -31.0% | 100 | 48% | S9 |
-| depuis 2026-03-01 | 2026-03-01 | $837 | $-163 | -16.3% | -21.1% | 50 | 42% | S10 |
-| 1 mois | 2026-03-08 | $789 | $-211 | -21.1% | -21.1% | 46 | 39% | S10 |
-| depuis 2026-04-01 | 2026-04-01 | $855 | $-145 | -14.5% | -14.5% | 12 | 33% | S10 |
+| 28 mois | 2023-12-17 | $115 079 | +$114 079 | +11407.9% | -58.8% | 1083 | 53% | S9 |
+| 12 mois | 2025-04-17 | $15 846 | +$14 846 | +1484.6% | -29.9% | 455 | 55% | S9 |
+| 6 mois | 2025-10-17 | $5 313 | +$4 313 | +431.3% | -22.2% | 232 | 57% | S9 |
+| depuis 2025-11-01 | 2025-11-01 | $4 104 | +$3 104 | +310.4% | -22.2% | 212 | 55% | S9 |
+| depuis 2025-12-01 | 2025-12-01 | $2 834 | +$1 834 | +183.4% | -22.2% | 172 | 53% | S9 |
+| depuis 2026-01-01 | 2026-01-01 | $2 427 | +$1 427 | +142.7% | -22.2% | 144 | 50% | S9 |
+| 3 mois | 2026-01-17 | $2 448 | +$1 448 | +144.8% | -22.2% | 126 | 52% | S9 |
+| depuis 2026-02-01 | 2026-02-01 | $1 584 | +$584 | +58.4% | -27.5% | 113 | 49% | S9 |
+| depuis 2026-03-01 | 2026-03-01 | $955 | $-45 | -4.5% | -21.0% | 65 | 45% | S10 |
+| 1 mois | 2026-03-17 | $944 | $-56 | -5.6% | -21.0% | 50 | 44% | S10 |
+| depuis 2026-04-01 | 2026-04-01 | $928 | $-72 | -7.2% | -15.7% | 29 | 41% | S10 |
 
 ## Breakdown par stratégie sur la fenêtre la plus longue (28 mois)
 
 | Stratégie | Trades | Win Rate | P&L |
 |---|---|---|---|
-| S1 | 71 | 52% | +$827 |
-| S10 | 314 | 56% | +$8 589 |
-| S5 | 490 | 50% | +$5 069 |
-| S8 | 127 | 60% | +$15 222 |
-| S9 | 136 | 49% | +$20 291 |
+| S1 | 73 | 51% | +$471 |
+| S10 | 331 | 56% | +$14 689 |
+| S5 | 441 | 49% | +$22 404 |
+| S8 | 116 | 61% | +$31 532 |
+| S9 | 122 | 50% | +$44 983 |
 
 ## Méthodologie
 

@@ -120,6 +120,7 @@ P&L : `size_usdt` est le **notionnel** (deja leveraged). `pnl = notionnel × mou
 | **S9 early exit** | Coupe S9 si -500 bps apres 8h | Perte qui s'enkyste sur un S9 |
 | **S10 trailing stop** | MFE > +600 bps → plancher MFE − 150 | Verrouille les gains S10 (rendait 70% du MFE) |
 | **OI gate LONG** (v11.4.9) | Skip LONG si `Δ(OI,24h) < -10%` | Entrer LONG pendant que les longs se débouclent |
+| **Trade blacklist** (v11.4.10) | Skip tout trade sur `{SUI, IMX, LINK}` | Tokens structurellement net-négatifs |
 | **Cooldown** | 24h par token apres exit | Re-entree impulsive |
 | **Reconciliation** | Chaque scan horaire, bot vs exchange | Position orpheline ou fantome |
 | **Telegram** | Entry, exit, erreur, reboot, resume quotidien | On sait toujours ce qui se passe |
@@ -247,7 +248,29 @@ Chaque signal doit passer : (1) train/test split, (2) Monte Carlo z > 2.0, (3) p
 
 ### Ce qui a ete teste et rejete
 
-1500+ regles testees. Rejetes : regime gating, trailing stop global (toutes les configs degradent le P&L — signaux mean-reversion oscillent), flat exit, token rotation (performance tourne trop vite), signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum, OI gates (7 singles + 3 combos, tous echouent sur 4/4 fenetres), OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h, meme pattern que les gates), OI divergence S11 (6 variantes A-F), inverse-exit sur signal oppose (+$20k sur 28m mais perd sur 12m/6m/3m — overfit), filtre regime BTC 30d sur S5 (perd sur 28m/12m, gagne sur 3m/6m — curve-fit du regime recent), kill-switch drift par strategie (aucune config N/seuil ne bat la baseline sur 4/4), sizing adaptatif WR/Sharpe (degrade partout). Passent le walk-forward : trailing stop S10-specifique (v11.4.0) et **OI gate LONG** (v11.4.9).
+1500+ regles testees. Rejetes : regime gating, trailing stop global (toutes les configs degradent le P&L — signaux mean-reversion oscillent), flat exit, token rotation (performance tourne trop vite), signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum, OI gates (7 singles + 3 combos, tous echouent sur 4/4 fenetres), OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h, meme pattern que les gates), OI divergence S11 (6 variantes A-F), inverse-exit sur signal oppose (+$20k sur 28m mais perd sur 12m/6m/3m — overfit), filtre regime BTC 30d sur S5 (perd sur 28m/12m, gagne sur 3m/6m — curve-fit du regime recent), kill-switch drift par strategie (aucune config N/seuil ne bat la baseline sur 4/4), sizing adaptatif WR/Sharpe (degrade partout), ATR stops adaptatifs / breakeven / OI exit miroir / MAE cry-uncle (aucun passe 4/4), vol_z min filter (0/4), reduction sizing S9 (0/4). Passent le walk-forward : trailing stop S10-specifique (v11.4.0), **OI gate LONG** (v11.4.9), **trade blacklist SUI/IMX/LINK** (v11.4.10).
+
+### Trade blacklist (v11.4.10)
+
+Après autopsie des 50 pires perdants sur 28m (`backtest_worst_losers.py`), quatre tokens sont apparus net-négatifs sur **toutes les fenêtres walk-forward** (28m/12m/6m/3m) : SUI, IMX, MINA, LINK.
+
+Test walk-forward (`backtest_loser_filters.py`) sur chaque sous-ensemble :
+
+| Blacklist | 28m | 12m | 6m | 3m | Verdict |
+|---|---|---|---|---|---|
+| `{SUI}` | +$35 603 | +$3 578 | +$567 | +$63 | 4/4 ✓ |
+| `{SUI, IMX}` | +$48 586 | +$5 979 | +$951 | +$146 | 4/4 ✓ |
+| **`{SUI, IMX, LINK}`** | **+$49 687** | **+$5 704** | **+$1 077** | **+$207** | **4/4 ✓ — retenu** |
+| `{SUI, IMX, MINA, LINK}` | +$9 839 | +$3 758 | +$1 093 | +$126 | 4/4 ✓ mais moins bon |
+
+Ajouter MINA réduit paradoxalement le gain (path-dependence : libérer un slot quand MINA est bloquée permet à un autre trade moins bon de prendre sa place). On s'arrête à 3 tokens.
+
+Interprétation causale :
+- **SUI** : L1 au comportement atypique (gros gainers suivis de retournements persistants). Les signaux mean-reversion se font piéger par les tendances longues.
+- **IMX** : gaming peu liquide → whipsaw sur les stops.
+- **LINK** : blue-chip mais dynamique OI très différente. Les signaux calibrés sur des alts plus volatiles ne matchent pas.
+
+Implémentation : `TRADE_BLACKLIST = {"SUI", "IMX", "LINK"}` dans `analysis/bot/config.py`, enforced dans `trading.rank_and_enter()`. Les tokens restent dans `TRADE_SYMBOLS` pour continuer la collecte de données (dispersion, ré-activation future). Kill-switch : vider le set.
 
 ### OI gate LONG (v11.4.9)
 

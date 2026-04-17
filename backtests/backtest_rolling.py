@@ -36,7 +36,9 @@ from analysis.bot.config import (
     S10_SQUEEZE_WINDOW, S10_VOL_RATIO_MAX, S10_BREAKOUT_PCT, S10_REINT_CANDLES,
     S10_ALLOW_LONGS, S10_ALLOWED_TOKENS,
     S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
+    OI_LONG_GATE_BPS, TRADE_BLACKLIST,
 )
+from bisect import bisect_right
 
 # Data + feature builders reused as-is from the existing backtest infrastructure
 from backtests.backtest_genetic import load_3y_candles, build_features, TOKENS
@@ -44,6 +46,37 @@ from backtests.backtest_sector import compute_sector_features
 
 DATA_DIR = os.path.join(os.path.dirname(__file__), "output", "pairs_data")
 DOCS_PATH = os.path.join(os.path.dirname(__file__), "..", "docs", "backtests.md")
+
+
+def load_oi():
+    """Load OI per coin → sorted list of (ts, oi)."""
+    d = {}
+    for coin in TOKENS:
+        path = os.path.join(DATA_DIR, f"{coin}_oi_4h.json")
+        if not os.path.exists(path):
+            continue
+        with open(path) as f:
+            raw = json.load(f)
+        pts = [(int(r["t"]), float(r["oi"])) for r in raw]
+        pts.sort()
+        d[coin] = pts
+    return d
+
+
+def oi_delta_24h_pct(oi_data, coin, ts_ms):
+    """OI delta over 24h in bps (6 4h-candles). None if insufficient history."""
+    pts = oi_data.get(coin)
+    if not pts:
+        return None
+    times = [p[0] for p in pts]
+    i = bisect_right(times, ts_ms) - 1
+    if i < 6:
+        return None
+    oi_now = pts[i][1]
+    oi_then = pts[i - 6][1]
+    if oi_then <= 0:
+        return None
+    return (oi_now / oi_then - 1) * 1e4
 
 # Hold periods converted to 4h candle counts
 HOLD_CANDLES = {
@@ -129,11 +162,15 @@ def strat_size(strat: str, capital: float) -> float:
 
 def run_window(features, data, sector_features, dxy_data,
                start_ts_ms: int, end_ts_ms: int, start_capital: float = 1000.0,
-               skip_fn=None) -> dict:
+               skip_fn=None, oi_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
     P&L math matches the live bot (v11.3.0+): size_usdt is the notional, so
     pnl = notional × (exit/entry - 1). No extra leverage multiplier.
+
+    Mirrors current bot filters:
+    - v11.4.9 OI gate LONG: skip LONG entries when Δ(OI,24h) < -OI_LONG_GATE_BPS
+    - v11.4.10 TRADE_BLACKLIST: skip any entry on blacklisted tokens
     """
     coins = [c for c in TOKENS if c in features and c in data]
     macro_strats = set(MACRO_STRATEGIES)
@@ -325,6 +362,14 @@ def run_window(features, data, sector_features, dxy_data,
             if coin in seen or coin in positions:
                 continue
             seen.add(coin)
+            # v11.4.10 blacklist
+            if coin in TRADE_BLACKLIST:
+                continue
+            # v11.4.9 OI gate LONG
+            if cand["dir"] == 1 and oi_data is not None:
+                oi_d = oi_delta_24h_pct(oi_data, coin, ts)
+                if oi_d is not None and oi_d < -OI_LONG_GATE_BPS:
+                    continue
             if skip_fn is not None and skip_fn(coin, ts, cand["strat"], cand["dir"]):
                 continue
             if len(positions) >= MAX_POSITIONS:
@@ -469,20 +514,34 @@ def build_report(results: list[dict], end_dt: datetime, version: str) -> str:
         "`python3 -m backtests.backtest_rolling`. Relancer après tout changement "
         "de règles ou de paramètres du bot.",
         "",
-        f"## Filtres S10 actifs (v{version})",
+        f"## Filtres actifs (v{version})",
         "",
+        f"**S10 filters** (v11.3.4)",
         f"- `S10_ALLOW_LONGS = {S10_ALLOW_LONGS}` → "
         f"{'SHORT fades seulement' if not S10_ALLOW_LONGS else 'LONG+SHORT'} "
         "(LONG fades perdaient $4.8k sur 28m, 45% WR — *fade panic = fail*)",
         f"- `S10_ALLOWED_TOKENS` (whitelist de {len(S10_ALLOWED_TOKENS)} tokens) : "
         f"{', '.join(sorted(S10_ALLOWED_TOKENS))}",
         "",
-        "Filtres dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, "
-        "test 2025-02→2026-02 out-of-sample). **Impact validé sur le test OOS** : "
-        "P&L +123% vs baseline, DD améliorée de 8.7pp. Le 28m in-sample change peu "
-        "(les pertes LONG de 2024 sont compensées par les gagnants). Kill-switch : "
-        "`S10_ALLOW_LONGS = True` et `S10_ALLOWED_TOKENS = set(ALL_SYMBOLS)` dans "
-        "`analysis/bot/config.py`.",
+        "Dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, "
+        "test 2025-02→2026-02 OOS). Impact OOS : P&L +123% vs baseline, DD −8.7pp.",
+        "",
+        f"**OI gate LONG** (v11.4.9) — `OI_LONG_GATE_BPS = {OI_LONG_GATE_BPS:.0f}`",
+        "- Skip LONG entries quand `Δ(OI, 24h) < -10%`. Longs qui se débouclent = "
+        "flow baissier encore actif = LONG catche un couteau qui tombe.",
+        "- Validé walk-forward 4/4 : +$2 498 / +$816 / +$380 / +$252 sur 28m/12m/6m/3m, "
+        "zéro impact DD. Helper : `features.oi_delta_24h_bps()`.",
+        "- Source : `backtests/backtest_external_gates.py`, `backtests/backtest_oi_gate_validate.py`.",
+        "",
+        f"**Trade blacklist** (v11.4.10) — `TRADE_BLACKLIST = {{{', '.join(sorted(TRADE_BLACKLIST))}}}`",
+        "- Tokens net-négatifs sur les 4 fenêtres walk-forward : SUI (−$5 311 28m, "
+        "−$1 045 12m, −$336 6m, −$98 3m), IMX (−$2 952 / −$566 / −$156 / −$53), "
+        "LINK (−$2 415 / −$387 / −$185 / −$75).",
+        "- Validé sur `backtest_rolling` : +91% sur 28m (+$49 687), +63% 12m, +34% 6m, +18% 3m.",
+        "- DD 28m dégradée de ~10pp (swings absolus plus grands sur un capital plus haut), "
+        "DD améliorée ou inchangée sur toutes les fenêtres récentes.",
+        "- Source : `backtests/backtest_worst_losers.py`, `backtests/backtest_loser_filters.py`.",
+        "- Kill-switch (réactiver un token) : supprimer de `TRADE_BLACKLIST` dans `analysis/bot/config.py`.",
         "",
         "## Résumé par fenêtre",
         "",
@@ -558,6 +617,8 @@ def main():
     print("Computing sector features...")
     sector_features = compute_sector_features(features, data)
     dxy_data = load_dxy()
+    oi_data = load_oi()
+    print(f"Loaded OI for {len(oi_data)} coins (for v11.4.9 OI gate)")
 
     # Determine end_ts as the latest available candle
     latest_ts = max(c["t"] for c in data["BTC"])
@@ -570,7 +631,8 @@ def main():
         start_ts = int(start_dt.timestamp() * 1000)
         end_ts = latest_ts
         print(f"  Running {label} ({start_dt.strftime('%Y-%m-%d')} → {end_dt.strftime('%Y-%m-%d')})...")
-        r = run_window(features, data, sector_features, dxy_data, start_ts, end_ts)
+        r = run_window(features, data, sector_features, dxy_data, start_ts, end_ts,
+                       oi_data=oi_data)
         r["label"] = label
         r["start_date"] = start_dt.strftime("%Y-%m-%d")
         results.append(r)

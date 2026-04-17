@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.4.9"
+VERSION = "11.4.10"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -61,6 +61,18 @@ TRADE_SYMBOLS = [
 ]
 REFERENCE = ["BTC", "ETH"]
 ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
+
+# Tokens blacklisted from trading based on autopsy of worst losers
+# (backtest_worst_losers.py, backtest_loser_filters.py). These 3 were net-negative
+# on EVERY walk-forward window (28m/12m/6m/3m). Validated on the official
+# backtest_rolling engine:
+#   28m: +$49 687 (+91%) | 12m: +$5 704 (+63%) | 6m: +$1 077 (+34%) | 3m: +$207 (+18%)
+# DD penalty -10pp on 28m (bigger capital swings on higher peak); DD improves or
+# unchanged on all recent windows.
+# Kept in TRADE_SYMBOLS to continue data collection for potential re-activation
+# (market dispersion features still use them). Blacklist is enforced at the
+# entry decision in trading.rank_and_enter(), logged as SKIP reason=blacklist.
+TRADE_BLACKLIST: set[str] = {"SUI", "IMX", "LINK"}
 
 # ── Sectors (for S5 divergence) ─────────────────────────────────────
 SECTORS = {

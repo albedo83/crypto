@@ -19,7 +19,7 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, MAX_POSITIONS, MAX_SAME_D
                      LOSS_STREAK_COOLDOWN, HOLD_HOURS_DEFAULT,
                      S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS,
                      S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
-                     OI_LONG_GATE_BPS, strat_size)
+                     OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size)
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
 from .exchange import execute_open, execute_close
@@ -326,6 +326,13 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
         if sym in seen_symbols:
             continue
         seen_symbols.add(sym)
+
+        # Blacklist: tokens structurally net-negative on walk-forward (v11.4.10)
+        if sym in TRADE_BLACKLIST:
+            log.debug("SKIP %s %s %s: blacklist", sig["strategy"], side, sym)
+            log_event(bot._db, "SKIP", sym,
+                      {"strategy": sig["strategy"], "dir": side, "reason": "blacklist"})
+            continue
 
         if sig["direction"] == 1 and n_longs >= MAX_SAME_DIRECTION:
             log.debug("SKIP %s %s %s: max_direction", sig["strategy"], side, sym)

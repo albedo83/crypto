@@ -73,6 +73,8 @@ Hyperliquid SDK (write)
 
 **v11.4.9 OI gate LONG**: entries with `direction=1` are blocked when the token's OI has fallen >10% over 24h (`OI_LONG_GATE_BPS=1000` in `config.py`). Inactive for the first ~23h after a restart (insufficient `oi_history`). Rationale: longs unwinding = bearish flow still active = LONG catches a falling knife. Walk-forward validated 4/4 on 28m/12m/6m/3m, zero DD penalty. Affects mostly S8 and S5-LONG. Helper: `features.oi_delta_24h_bps()`.
 
+**v11.4.10 Trade blacklist**: `TRADE_BLACKLIST = {"SUI", "IMX", "LINK"}` in `config.py`. These tokens were net-negative on every walk-forward window (28m/12m/6m/3m). Enforced at entry in `trading.rank_and_enter` — SKIP logged with `reason=blacklist`. Tokens stay in `TRADE_SYMBOLS` to preserve data collection. Kill-switch: empty the set. Walk-forward impact (on backtest_rolling baseline): +91% on 28m, +63% on 12m, +34% on 6m, +18% on 3m.
+
 For detailed conditions, parameters, and research behind each signal see **`docs/bot.md`** (French). For the history of changes see **`CHANGELOG.md`**.
 
 ### API endpoints (summary)

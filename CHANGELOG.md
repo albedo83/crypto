@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.10] — 2026-04-17
+
+### Added — Trade blacklist
+- **`TRADE_BLACKLIST = {"SUI", "IMX", "LINK"}`** in `config.py`: tokens structurally net-negative on every walk-forward window (28m/12m/6m/3m). Enforced at entry in `trading.rank_and_enter` — SKIP event logged with `reason=blacklist` for audit. Kept in `TRADE_SYMBOLS` to preserve data collection (market dispersion, potential re-activation).
+
+### Validation — regenerated `docs/backtests.md`
+`backtests/backtest_rolling.py` updated to mirror current live filters (v11.4.9 OI gate + v11.4.10 blacklist). Results vs pre-v11.4.9 baseline, data up to 2026-04-16:
+
+| Fenêtre | Avant v11.4.9 | v11.4.10 | Delta |
+|---|---|---|---|
+| 28m | +$54 389 | **+$114 079** | **+$59 690 (+110%)** |
+| 12m | +$9 005 | **+$14 846** | **+$5 841 (+65%)** |
+| 6m | +$3 190 | **+$4 313** | **+$1 123 (+35%)** |
+| 3m | +$1 178 | **+$1 448** | **+$270 (+23%)** |
+
+4/4 walk-forward positive, DD améliorée ou inchangée sur toutes les fenêtres récentes (6m/3m), dégradée de −6.5pp sur 28m (compounding plus fort = swings absolus plus grands sur un capital plus haut).
+
+### Research in this session (all rejected)
+- Signal-inverse exit, BTC 30d regime filter on S5, per-strategy drift kill-switch, adaptive WR/Sharpe sizing, 11 external gates other than OI, 4 exit variants (ATR stops, breakeven, OI exit mirror, MAE cry-uncle), vol_z minimum filter, S9 sizing reduction. See `backtests/backtest_*.py` added in this session.
+
+### Methodology
+Per-coin P&L audit on 28m baseline revealed SUI (−$5 311), IMX (−$2 952), MINA (−$2 453), LINK (−$2 415) all net-negative on all 4 walk-forward windows. Testing blacklists: `{SUI, IMX, LINK}` = best (+91% on 28m), adding MINA reduces gain due to position-slot cascading. See `backtests/backtest_worst_losers.py` and `backtests/backtest_loser_filters.py`.
+
 ## [11.4.9] — 2026-04-17
 
 ### Added — OI gate LONG
