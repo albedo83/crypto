@@ -18,7 +18,9 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, MAX_POSITIONS, MAX_SAME_D
                      TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER,
                      LOSS_STREAK_COOLDOWN, HOLD_HOURS_DEFAULT,
                      S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS,
-                     S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET, strat_size)
+                     S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
+                     OI_LONG_GATE_BPS, strat_size)
+from .features import oi_delta_24h_bps
 from .models import Position, Trade
 from .exchange import execute_open, execute_close
 from .persistence import write_trade, write_trajectory
@@ -353,6 +355,20 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                 continue
 
         st = bot.states[sym]
+
+        # OI gate: block LONG entries when OI has fallen heavily in 24h.
+        # Longs unwinding = bearish flow not yet exhausted, LONG catches a
+        # falling knife. Backtest walk-forward 4/4 (28m/12m/6m/3m), zero DD
+        # penalty. Inactive until ~24h of OI history after restart (fail-open).
+        if sig["direction"] == 1:
+            oi_d = oi_delta_24h_bps(st.oi_history)
+            if oi_d is not None and oi_d < -OI_LONG_GATE_BPS:
+                log.info("SKIP %s LONG %s: oi_gate Δ24h=%+.0f bps (<%.0f)",
+                         sig["strategy"], sym, oi_d, -OI_LONG_GATE_BPS)
+                log_event(bot._db, "SKIP", sym,
+                          {"strategy": sig["strategy"], "dir": "LONG",
+                           "reason": "oi_gate", "oi_delta_24h_bps": round(oi_d, 1)})
+                continue
         hold_h = sig.get("hold_hours", HOLD_HOURS_DEFAULT)
         target_exit = now + timedelta(hours=hold_h)
         current_capital = bot._capital + bot._total_pnl

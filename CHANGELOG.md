@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.9] — 2026-04-17
+
+### Added — OI gate LONG
+- **Skip LONG entry when Δ(OI, 24h) < −10%**: new entry filter in `rank_and_enter`. Blocks LONG signals on tokens where open interest has fallen >1000 bps over the last 24h — longs are unwinding, bearish flow isn't exhausted, entry is catching a falling knife. Helps S8 (capitulation LONG) and S5 LONG primarily. Implementation fails open for the first ~23h after a restart (insufficient `oi_history`).
+- Constant `OI_LONG_GATE_BPS = 1000` in `config.py` — plateau validated 1000–1200 bps.
+- Helper `features.oi_delta_24h_bps(oi_history)` returns delta in bps or `None` when history < 23h.
+- `oi_history` deque extended from `maxlen=360` (6h) to `maxlen=1500` (25h) to support the 24h lookback.
+- SKIP events logged to the `events` table with `reason=oi_gate` and `oi_delta_24h_bps` for audit.
+
+### Validation
+Walk-forward on 28m/12m/6m/3m, data up to 2026-04-16, vs current v11.4.8 baseline: +$2 498 / +$816 / +$380 / +$252 (4/4 positive), zero DD penalty. Only gate out of 12 tested (funding abs/dir/align, OI delta abs/align long/short, premium abs, BTC vol high/low, n_signals, sessions) to pass 4/4 walk-forward. Threshold plateau 1000–1200 bps (not a sharp optimum). See `backtests/backtest_external_gates.py` and `backtests/backtest_oi_gate_validate.py`.
+
+### Rejected in this session
+- Signal-inverse exit (+$20k on 28m, loses on 12m/6m/3m — overfit)
+- BTC 30d regime filter on S5 (loses on 28m/12m, wins on 3m/6m — curve-fit to recent regime)
+- Per-strategy drift kill-switch (no (N, threshold) config beats baseline on 4/4)
+- Adaptive per-strategy sizing based on rolling WR or Sharpe (degrades across all windows)
+- 11 other external gates (only `oi_align_long` passed)
+
 ## [11.4.8] — 2026-04-17
 
 ### Changed

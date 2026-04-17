@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.4.8"
+VERSION = "11.4.9"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -177,6 +177,14 @@ TOTAL_LOSS_CAP = -999_999.0     # effectively disabled
 LOSS_STREAK_THRESHOLD = 999     # effectively disabled
 LOSS_STREAK_MULTIPLIER = 1.0    # no reduction
 LOSS_STREAK_COOLDOWN = 0
+
+# ── OI Gate (backtest_external_gates.py, backtest_oi_gate_validate.py) ──
+# Skip LONG entries when token OI has fallen >10% in 24h: longs are unwinding,
+# flow is still bearish, entering LONG is catching a falling knife. Helps S8
+# (capitulation LONG) and S5 LONG most. Validated walk-forward 4/4 windows
+# (28m/12m/6m/3m) with zero DD penalty. Sweet spot plateau 1000-1100 bps.
+OI_LONG_GATE_BPS = 1000.0   # -10% OI in 24h blocks LONG entries
+OI_GATE_MIN_HISTORY_HOURS = 23  # require at least 23h of OI history to activate
 
 # ── Timing ──────────────────────────────────────────────────────────
 SCAN_INTERVAL = 3600

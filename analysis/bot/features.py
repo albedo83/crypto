@@ -92,6 +92,36 @@ def compute_features(candles: list) -> dict | None:
     return f
 
 
+def oi_delta_24h_bps(oi_history) -> float | None:
+    """OI delta 24h in bps, looking up the oldest sample >= 23h back.
+
+    Returns None if history is too short (< ~23h) — in that case the caller
+    should treat it as "gate inactive" (fail-open). Avoids false readings
+    right after a restart.
+    """
+    if not oi_history:
+        return None
+    history = list(oi_history)
+    if len(history) < 2:
+        return None
+    now_ts, oi_now = history[-1]
+    if oi_now <= 0:
+        return None
+    oldest_ts = history[0][0]
+    if now_ts - oldest_ts < 23 * 3600:
+        return None  # not enough history yet
+    # Find sample closest to 24h ago (history is sorted by ts ascending)
+    target_ts = now_ts - 24 * 3600
+    oi_then = None
+    for t, oi in history:
+        if t >= target_ts:
+            oi_then = oi
+            break
+    if oi_then is None or oi_then <= 0:
+        return None
+    return (oi_now / oi_then - 1) * 1e4
+
+
 def compute_oi_features(oi_history: list, funding: float = 0.0) -> dict:
     """Compute OI delta as % change over 1h/4h from live 60s samples.
     Percentage (not absolute) normalizes across tokens with different OI levels.

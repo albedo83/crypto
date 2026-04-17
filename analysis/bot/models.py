@@ -19,7 +19,7 @@ class SymbolState:
     oi: float = 0.0
     funding: float = 0.0
     premium: float = 0.0
-    oi_history: deque = field(default_factory=lambda: deque(maxlen=360))  # 6h @ 60s
+    oi_history: deque = field(default_factory=lambda: deque(maxlen=1500))  # 25h @ 60s (supports 24h OI gate)
 
 
 @dataclass

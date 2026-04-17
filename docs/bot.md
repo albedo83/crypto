@@ -119,6 +119,7 @@ P&L : `size_usdt` est le **notionnel** (deja leveraged). `pnl = notionnel × mou
 | **Stop loss** | -12.5% / -7.5% (S8) / adaptatif (S9) | Crash extreme sur un trade |
 | **S9 early exit** | Coupe S9 si -500 bps apres 8h | Perte qui s'enkyste sur un S9 |
 | **S10 trailing stop** | MFE > +600 bps → plancher MFE − 150 | Verrouille les gains S10 (rendait 70% du MFE) |
+| **OI gate LONG** (v11.4.9) | Skip LONG si `Δ(OI,24h) < -10%` | Entrer LONG pendant que les longs se débouclent |
 | **Cooldown** | 24h par token apres exit | Re-entree impulsive |
 | **Reconciliation** | Chaque scan horaire, bot vs exchange | Position orpheline ou fantome |
 | **Telegram** | Entry, exit, erreur, reboot, resume quotidien | On sait toujours ce qui se passe |
@@ -246,7 +247,22 @@ Chaque signal doit passer : (1) train/test split, (2) Monte Carlo z > 2.0, (3) p
 
 ### Ce qui a ete teste et rejete
 
-1500+ regles testees. Rejetes : regime gating, trailing stop global (toutes les configs degradent le P&L — signaux mean-reversion oscillent), flat exit, token rotation (performance tourne trop vite), signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum, OI gates (7 singles + 3 combos, tous echouent sur 4/4 fenetres), OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h, meme pattern que les gates), OI divergence S11 (6 variantes A-F). Seul le trailing stop S10-specifique passe le walk-forward (v11.4.0).
+1500+ regles testees. Rejetes : regime gating, trailing stop global (toutes les configs degradent le P&L — signaux mean-reversion oscillent), flat exit, token rotation (performance tourne trop vite), signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum, OI gates (7 singles + 3 combos, tous echouent sur 4/4 fenetres), OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h, meme pattern que les gates), OI divergence S11 (6 variantes A-F), inverse-exit sur signal oppose (+$20k sur 28m mais perd sur 12m/6m/3m — overfit), filtre regime BTC 30d sur S5 (perd sur 28m/12m, gagne sur 3m/6m — curve-fit du regime recent), kill-switch drift par strategie (aucune config N/seuil ne bat la baseline sur 4/4), sizing adaptatif WR/Sharpe (degrade partout). Passent le walk-forward : trailing stop S10-specifique (v11.4.0) et **OI gate LONG** (v11.4.9).
+
+### OI gate LONG (v11.4.9)
+
+Skip une entree LONG si l'OI du token a chute de plus de 10% sur les dernieres 24h. Intuition causale : OI qui baisse = longs qui sortent = pression vendeuse encore active, entrer en LONG = couteau qui tombe. Le gate aide surtout **S8 (capitulation LONG)** et **S5 LONG** — causal : une flush de capitulation sur fond de delevering non termine n'est pas une opportunite.
+
+**Walk-forward** (`backtest_external_gates.py`, `backtest_oi_gate_validate.py`, data jusqu'au 2026-04-16) :
+
+| Fenetre | Baseline | Avec gate | Delta | DD |
+|---|---|---|---|---|
+| 28m | +$54 389 | +$56 887 | **+$2 498** | inchange |
+| 12m | +$9 005 | +$9 821 | **+$816** | inchange |
+| 6m | +$3 190 | +$3 570 | **+$380** | inchange |
+| 3m | +$1 178 | +$1 430 | **+$252** | inchange |
+
+4/4 fenetres positives, zero impact DD, plateau stable de threshold 1000-1200 bps. Parametre `OI_LONG_GATE_BPS = 1000`. Skip rate faible (~3%). Evalue sur 12 gates externes testes (funding absolu, funding directionnel, OI delta absolu, OI alignement long/short, premium, BTC vol high/low, number of concurrent signals, sessions Asia/EU/US) : **seul gate a passer 4/4**. Implementation : fail-open pendant les 23 premieres heures apres un restart (insufficient OI history), gate active des que `len(oi_history) >= 23h`.
 
 ### Backtests d'optimisation portfolio (cette session)
 
