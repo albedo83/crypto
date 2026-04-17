@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.4.3"
+VERSION = "11.4.4"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -32,6 +32,10 @@ if os.path.exists(_env_path):
                 os.environ.setdefault(_k.strip(), _v)
 
 EXECUTION_MODE = os.environ.get("HL_MODE", "paper")
+# Display label in login/dashboard. Defaults derive from EXECUTION_MODE
+# (PAPER/LIVE). Override via env for named instances (e.g. Junior).
+BOT_LABEL = os.environ.get("BOT_LABEL", "")
+BOT_LABEL_COLOR = os.environ.get("BOT_LABEL_COLOR", "")
 HL_PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
 TG_CHAT_ID = os.environ.get("TG_CHAT_ID", "")

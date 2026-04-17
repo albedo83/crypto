@@ -9,7 +9,8 @@ from pathlib import Path
 from fastapi import Cookie, FastAPI, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from .config import (
-    VERSION, EXECUTION_MODE, CAPITAL_USDT, LEVERAGE, DASHBOARD_USER,
+    VERSION, EXECUTION_MODE, BOT_LABEL, BOT_LABEL_COLOR,
+    CAPITAL_USDT, LEVERAGE, DASHBOARD_USER,
     DASHBOARD_PASS, HTML_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
     MAX_POSITIONS, TOTAL_LOSS_CAP, SCAN_INTERVAL,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS,
@@ -17,6 +18,18 @@ from .config import (
     S8_DRAWDOWN_THRESH, S8_VOL_Z_MIN, S8_RET_24H_THRESH, S8_BTC_7D_THRESH,
     S9_RET_THRESH,
 )
+
+def _mode_label() -> str:
+    """Display label (BOT_LABEL override, else PAPER/LIVE from EXECUTION_MODE)."""
+    if BOT_LABEL:
+        return BOT_LABEL
+    return "LIVE" if EXECUTION_MODE == "live" else "PAPER"
+
+def _mode_color() -> str:
+    """Color for the top border / tag (BOT_LABEL_COLOR override or defaults)."""
+    if BOT_LABEL_COLOR:
+        return BOT_LABEL_COLOR
+    return "#da3633" if EXECUTION_MODE == "live" else "#58a6ff"
 
 log = logging.getLogger("multisignal")
 
@@ -300,12 +313,12 @@ def create_app(bot) -> FastAPI:
 
     @app.get("/login", response_class=HTMLResponse)
     async def login_page():
-        ml = "LIVE" if EXECUTION_MODE == "live" else "PAPER"
+        ml = _mode_label()
         return _LOGIN_HTML.replace("{{VERSION}}", VERSION).replace("{{MODE}}", ml).replace("{{ERROR}}", "")
 
     @app.post("/login")
     async def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
-        ml = "LIVE" if EXECUTION_MODE == "live" else "PAPER"
+        ml = _mode_label()
         client_ip = request.client.host if request.client else "unknown"
         if _is_rate_limited(client_ip):
             html = (_LOGIN_HTML.replace("{{VERSION}}", VERSION)
@@ -332,8 +345,8 @@ def create_app(bot) -> FastAPI:
     async def index():
         if _html_cache["v"] is None:
             if os.path.exists(HTML_PATH):
-                ml = "LIVE" if EXECUTION_MODE == "live" else "PAPER"
-                mc = "#da3633" if EXECUTION_MODE == "live" else "#58a6ff"
+                ml = _mode_label()
+                mc = _mode_color()
                 _html_cache["v"] = (Path(HTML_PATH).read_text()
                                     .replace("{{VERSION}}", VERSION)
                                     .replace("{{MODE}}", ml)

@@ -5,6 +5,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.4] — 2026-04-17
+
+### Added
+- **Configurable bot label** (`BOT_LABEL`, `BOT_LABEL_COLOR` env vars): override the default PAPER/LIVE display label and top-border color. Used for Junior (label "JUNIOR", green `#3fb950`) so the bot presents itself as JUNIOR everywhere: login page, browser tab title, dashboard border.
+- Helpers `_mode_label()` and `_mode_color()` in `web.py` centralize the label/color resolution (env override → fallback to `EXECUTION_MODE`).
+
 ## [11.4.3] — 2026-04-17
 
 ### Added
