@@ -32,6 +32,19 @@ with open(CONFIG_PATH) as f:
     _config = json.load(f)
 _allowed_ports = {b["port"] for b in _config["bots"]}
 
+# Per-bot credentials for authenticating admin → bot HTTP calls.
+# admin_config.json stores env var NAMES (not values) per bot; we resolve them
+# here. Missing values fall back to DASHBOARD_USER/PASS for backward-compat.
+_bot_creds: dict[int, tuple[str, str]] = {}
+for _b in _config["bots"]:
+    _env = _b.get("auth_env", {})
+    _u = os.environ.get(_env.get("user", "DASHBOARD_USER"), DASHBOARD_USER)
+    _p = os.environ.get(_env.get("pass", "DASHBOARD_PASS"), DASHBOARD_PASS)
+    _bot_creds[_b["port"]] = (_u, _p)
+    if not _p:
+        log.warning("No password configured for bot on port %d (env %s)",
+                    _b["port"], _env.get("pass", "DASHBOARD_PASS"))
+
 # ── Stateless signed sessions (survive restarts) ──
 _SECRET = hashlib.sha256(DASHBOARD_PASS.encode()).digest() if DASHBOARD_PASS else b""
 _SESSION_MAX_AGE = 30 * 86400
@@ -70,12 +83,17 @@ def _is_rate_limited(ip: str) -> bool:
 _bot_cookies: dict[int, str] = {}  # port -> session cookie
 
 async def _bot_auth(port: int) -> str:
-    """Login to a bot instance and cache its session cookie."""
+    """Login to a bot instance and cache its session cookie.
+
+    Uses per-bot credentials from _bot_creds (populated from admin_config.json's
+    auth_env mapping). Falls back to DASHBOARD_USER/PASS if no mapping exists.
+    """
+    user, password = _bot_creds.get(port, (DASHBOARD_USER, DASHBOARD_PASS))
     try:
         async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
             resp = await session.post(
                 f"http://localhost:{port}/login",
-                data={"username": DASHBOARD_USER, "password": DASHBOARD_PASS},
+                data={"username": user, "password": password},
                 allow_redirects=False,
             )
             cookie = resp.cookies.get("session")

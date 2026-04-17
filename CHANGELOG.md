@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.3] — 2026-04-17
+
+### Added
+- **Junior bot isolation**: Junior (:8099) now runs with its own `DASHBOARD_USER`/`DASHBOARD_PASS` (separate from Paper/Live), its own `TG_BOT_TOKEN`/`TG_CHAT_ID`, and a hard DCA cap that prevents its `_capital` from ever exceeding Live's. Admin panel still accesses Junior transparently via per-bot credentials in `admin_config.json` (env var names, values stay in `.env`).
+- **DCA cap** (`web.py::api_capital`): if `DCA_CAP_STATE_FILE` env var is set (path to a reference bot's `reversal_state.json`), deposits that would bring `_capital` above the reference bot's capital are refused with `max_dca` hint. Withdrawals always allowed. Paper/Live don't set this var → no change for them.
+- **Per-bot auth in admin panel** (`admin.py`): `admin_config.json` gains an `auth_env` field per bot mapping to env var names. `_bot_auth()` resolves credentials at module load time, with fallback to `DASHBOARD_USER/PASS` for rétrocompat.
+
+### Required user action
+Add 4 lines to `.env`:
+```
+JUNIOR_USER=<username>
+JUNIOR_PASS=<password>
+JUNIOR_TG_BOT_TOKEN=<BotFather token, optional>
+JUNIOR_TG_CHAT_ID=<chat_id, optional>
+```
+Then restart bots with `fuser -k 8097/tcp 8098/tcp 8099/tcp 8090/tcp && start_bots.sh`.
+
 ## [11.4.2] — 2026-04-17
 
 ### Fixed

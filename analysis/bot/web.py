@@ -1,6 +1,6 @@
 """FastAPI app, routes, auth, and API response builders."""
 from __future__ import annotations
-import hashlib, hmac, logging, os, time, secrets as _secrets
+import hashlib, hmac, json, logging, os, time, secrets as _secrets
 
 ROOT_PATH = os.environ.get("HL_ROOT_PATH", "")  # e.g. "/bot" when behind nginx subpath
 from collections import defaultdict
@@ -438,7 +438,13 @@ def create_app(bot) -> FastAPI:
 
     @app.post("/api/capital")
     async def api_capital(request: Request):
-        """Adjust capital (DCA injection or withdrawal). Body: {"amount": 100}"""
+        """Adjust capital (DCA injection or withdrawal). Body: {"amount": 100}
+
+        If DCA_CAP_STATE_FILE is set in the environment, refuses deposits that
+        would bring this bot's _capital above the capital of the reference bot
+        (read from its persisted state.json). Withdrawals (amount < 0) are
+        always allowed.
+        """
         body = await request.json()
         amount = body.get("amount")
         if amount is None:
@@ -446,6 +452,24 @@ def create_app(bot) -> FastAPI:
         amount = float(amount)
         if amount == 0:
             return JSONResponse({"error": "amount cannot be zero"}, status_code=400)
+
+        # Cap DCA on the reference bot's capital (Junior must stay ≤ Live).
+        cap_file = os.environ.get("DCA_CAP_STATE_FILE")
+        if cap_file and amount > 0:
+            try:
+                with open(cap_file) as f:
+                    ref_state = json.load(f)
+                ref_capital = float(ref_state.get("capital", 0))
+                new_capital = bot._capital + amount
+                if new_capital > ref_capital:
+                    return JSONResponse({
+                        "error": f"DCA refused: would bring capital to ${new_capital:.0f}, "
+                                 f"exceeds reference capital ${ref_capital:.0f}",
+                        "max_dca": round(ref_capital - bot._capital, 2),
+                    }, status_code=400)
+            except Exception as e:
+                log.warning("DCA cap check failed (%s) — allowing", e)
+
         old_capital = bot._capital
         with bot._pos_lock:
             bot._capital += amount
