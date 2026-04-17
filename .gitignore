@@ -30,3 +30,4 @@ nohup.out
 
 # Deploy secrets
 deploy/*.key
+backtests/output
