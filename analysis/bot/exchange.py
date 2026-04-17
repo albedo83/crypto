@@ -192,7 +192,10 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
 
     Checks three things: missing-on-exchange (ghost), missing-in-bot (orphan),
     and — new in v11.4.1 — direction/size mismatches on symbols present in both.
-    Size tolerance 10% to accommodate mark price drift vs entry notional.
+    Size comparison uses coin-unit quantities (szi), not notional. Notional
+    drifts naturally with mark price — a LONG up +15% would falsely appear as
+    a size mismatch if we compared positionValue to the entry notional.
+    Tolerance 5% on coin quantity to allow for szDecimals rounding.
     """
     if not hl_info:
         return
@@ -203,10 +206,7 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
             p = pos["position"]
             sz = float(p.get("szi", 0))
             if abs(sz) > 0:
-                exchange_positions[p["coin"]] = {
-                    "szi": sz,
-                    "position_value": abs(float(p.get("positionValue", 0))),
-                }
+                exchange_positions[p["coin"]] = {"szi": sz}
 
         bot_syms = set(bot_positions.keys())
         exch_syms = set(exchange_positions.keys())
@@ -231,14 +231,19 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
                 send_telegram_fn(
                     f"🚨 DIRECTION MISMATCH {sym}: bot={'LONG' if bot_pos.direction==1 else 'SHORT'} "
                     f"exch={'LONG' if exch_dir==1 else 'SHORT'}")
-            elif ex["position_value"] > 0 and bot_pos.size_usdt > 0:
-                ratio = ex["position_value"] / bot_pos.size_usdt
-                if ratio < 0.9 or ratio > 1.1:
-                    log.warning("RECONCILE: SIZE MISMATCH %s bot=$%.0f exch=$%.0f (ratio %.2f)",
-                                sym, bot_pos.size_usdt, ex["position_value"], ratio)
-                    send_telegram_fn(
-                        f"⚠️ Size mismatch {sym}: bot=${bot_pos.size_usdt:.0f} "
-                        f"exch=${ex['position_value']:.0f}")
+                continue
+            # Compare coin quantities (invariant under price moves)
+            if bot_pos.entry_price > 0:
+                bot_coin_qty = bot_pos.size_usdt / bot_pos.entry_price
+                exch_coin_qty = abs(ex["szi"])
+                if bot_coin_qty > 0:
+                    ratio = exch_coin_qty / bot_coin_qty
+                    if ratio < 0.95 or ratio > 1.05:
+                        log.warning("RECONCILE: SIZE MISMATCH %s bot=%.4f coins exch=%.4f (ratio %.2f)",
+                                    sym, bot_coin_qty, exch_coin_qty, ratio)
+                        send_telegram_fn(
+                            f"⚠️ Size mismatch {sym}: bot={bot_coin_qty:.4f} "
+                            f"exch={exch_coin_qty:.4f} coins")
 
         if not orphans and not ghosts:
             log.debug("Reconcile OK: %d positions match", len(bot_syms))

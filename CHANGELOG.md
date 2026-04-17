@@ -5,6 +5,11 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.2] — 2026-04-17
+
+### Fixed
+- **Reconcile size check false positives**: v11.4.1 compared bot `size_usdt` (notional at entry) to exchange `positionValue` (current mark notional), which drifts naturally with price moves. A LONG position up +16% triggered a false "Size mismatch" alert. Reconcile now compares coin quantities (invariant under price moves) with a 5% tolerance for szDecimals rounding. Verified on live ARB position: bot 1075.40 ARB vs exchange 1073.90 ARB = 0.14% drift (szDecimals rounding only).
+
 ## [11.4.1] — 2026-04-14
 
 ### Added
