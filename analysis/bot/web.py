@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from .config import (
     VERSION, EXECUTION_MODE, BOT_LABEL, BOT_LABEL_COLOR,
     CAPITAL_USDT, LEVERAGE, DASHBOARD_USER,
-    DASHBOARD_PASS, HTML_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
+    DASHBOARD_PASS, HTML_PATH, CHANGELOG_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
     MAX_POSITIONS, TOTAL_LOSS_CAP, SCAN_INTERVAL,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS,
     S5_DIV_THRESHOLD, S5_VOL_Z_MIN,
@@ -427,6 +427,14 @@ def create_app(bot) -> FastAPI:
 
     @app.get("/api/state")
     def api_state(): return JSONResponse(build_state_response(bot))  # sync — numpy in threadpool
+    @app.get("/api/changelog")
+    def api_changelog():
+        """Return CHANGELOG.md as plain text for display in dashboard modal."""
+        try:
+            with open(CHANGELOG_PATH) as f:
+                return JSONResponse({"content": f.read()})
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
     @app.get("/api/signals")
     def api_signals(): return JSONResponse(build_signals_response(bot))  # sync — numpy in threadpool
     @app.get("/api/trades")

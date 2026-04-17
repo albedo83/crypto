@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.4.4"
+VERSION = "11.4.5"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -180,6 +180,7 @@ OUTPUT_DIR = os.environ.get("HL_OUTPUT_DIR", os.path.join(_analysis_dir, "output
 STATE_FILE = os.path.join(OUTPUT_DIR, "reversal_state.json")
 TICKS_DB = os.path.join(OUTPUT_DIR, "reversal_ticks.db")
 HTML_PATH = os.path.join(_analysis_dir, "reversal.html")
+CHANGELOG_PATH = os.path.join(os.path.dirname(_analysis_dir), "CHANGELOG.md")
 WEB_PORT = int(os.environ.get("WEB_PORT", "8097"))
 
 
