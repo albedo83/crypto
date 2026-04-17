@@ -253,6 +253,7 @@ async def api_bots():
                 info["first_trade_date"] = state.get("first_trade_date")
                 info["exchange_account"] = state.get("exchange_account")
                 info["active_signals"] = state.get("active_signals", [])
+                info["bot_label_color"] = state.get("bot_label_color")
         results.append(info)
     return JSONResponse(results)
 

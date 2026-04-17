@@ -32,6 +32,7 @@ echo "Live bot started (PID: $!)"
 # /api/resume to activate. Empty JUNIOR_TG_* = muted (current state).
 # No HL_ROOT_PATH: no nginx /bot2/ location configured, direct-port access only.
 TG_BOT_TOKEN="$JUNIOR_TG_BOT_TOKEN" TG_CHAT_ID="$JUNIOR_TG_CHAT_ID" \
+    TG_CATEGORIES="trade,daily" \
     DASHBOARD_USER="$JUNIOR_USER" DASHBOARD_PASS="$JUNIOR_PASS" \
     HL_PRIVATE_KEY="$JUNIOR_HL_PRIVATE_KEY" \
     BOT_LABEL="JUNIOR" BOT_LABEL_COLOR="#3fb950" \

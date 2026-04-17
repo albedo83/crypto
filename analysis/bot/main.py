@@ -107,7 +107,8 @@ async def run():
     log.info("Kill-switch: loss cap $%.0f | streak threshold %d \u2192 %.0f%% sizing for %dh",
              TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER * 100,
              LOSS_STREAK_COOLDOWN // 3600)
-    send_telegram(f"\U0001f916 Bot v{VERSION} started | {mode_tag} | ${CAPITAL_USDT:.0f} | {len(bot.positions)} pos")
+    send_telegram(f"\U0001f916 Bot v{VERSION} started | {mode_tag} | ${CAPITAL_USDT:.0f} | {len(bot.positions)} pos",
+                  category="system")
 
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")
     server = uvicorn.Server(config)

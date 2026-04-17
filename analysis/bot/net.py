@@ -8,7 +8,16 @@ import threading
 import time
 import urllib.request
 
-from .config import ALL_SYMBOLS, TG_BOT_TOKEN, TG_CHAT_ID, EXECUTION_MODE
+from .config import (ALL_SYMBOLS, TG_BOT_TOKEN, TG_CHAT_ID, TG_CATEGORIES,
+                     EXECUTION_MODE, BOT_LABEL)
+
+_TG_ALLOWED: set[str] | None = (
+    None if TG_CATEGORIES.strip() == "*"
+    else {c.strip() for c in TG_CATEGORIES.split(",") if c.strip()}
+)
+# Prefix every Telegram message with the bot label so multiple instances
+# sharing a Telegram chat stay distinguishable (e.g. Junior1 vs Junior2).
+_TG_PREFIX = f"[{BOT_LABEL}] " if BOT_LABEL else ""
 
 log = logging.getLogger("multisignal")
 
@@ -98,14 +107,20 @@ def fetch_candles(symbol: str, states: dict) -> None:
         log.warning("Candle fetch %s: %s", symbol, e)
 
 
-def send_telegram(msg: str) -> None:
-    """Send alert via Telegram Bot API. Fire-and-forget in a daemon thread."""
+def send_telegram(msg: str, category: str = "other") -> None:
+    """Send alert via Telegram Bot API. Fire-and-forget in a daemon thread.
+
+    `category` filters against TG_CATEGORIES env var (default "*" = all).
+    Known categories: trade, daily, reconcile, security, admin, system.
+    """
     if not TG_BOT_TOKEN or not TG_CHAT_ID or EXECUTION_MODE == "paper":
+        return
+    if _TG_ALLOWED is not None and category not in _TG_ALLOWED:
         return
 
     def _do_send():
         try:
-            payload = json.dumps({"chat_id": TG_CHAT_ID, "text": msg}).encode()
+            payload = json.dumps({"chat_id": TG_CHAT_ID, "text": _TG_PREFIX + msg}).encode()
             req = urllib.request.Request(
                 f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage",
                 data=payload, headers={"Content-Type": "application/json"})

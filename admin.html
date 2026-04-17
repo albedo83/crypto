@@ -12,7 +12,7 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 .header a{color:#7d8590;text-decoration:none;font-size:13px}
 .header a:hover{color:#e6edf3}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
-.card{background:#161b22;border:1px solid #30363d;border-radius:12px;padding:20px;transition:border-color .2s}
+.card{background:#161b22;border:1px solid #30363d;border-top:3px solid #30363d;border-radius:12px;padding:20px;transition:border-color .2s}
 .card:hover{border-color:#58a6ff}
 .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
 .card-title{font-size:16px;font-weight:600}
@@ -90,6 +90,7 @@ function renderBots(bots){
     const equityClass=ea?(ea.unrealized>=0?'green':'red'):pnlClass;
 
     card.className='card'+(online?'':' offline-card');
+    if(online&&b.bot_label_color){card.style.borderTopColor=b.bot_label_color;}
     card.innerHTML=`
       <div class="card-header">
         <span class="card-title">

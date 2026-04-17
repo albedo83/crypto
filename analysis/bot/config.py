@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.4.6"
+VERSION = "11.4.7"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -39,6 +39,10 @@ BOT_LABEL_COLOR = os.environ.get("BOT_LABEL_COLOR", "")
 HL_PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
 TG_CHAT_ID = os.environ.get("TG_CHAT_ID", "")
+# Telegram category allowlist. "*" = all (default). Comma-separated category names
+# filter which messages reach Telegram. Categories: trade, daily, reconcile,
+# security, admin, system. Junior uses "trade,daily" to avoid noise.
+TG_CATEGORIES = os.environ.get("TG_CATEGORIES", "*")
 DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "")
 DASHBOARD_PASS = os.environ.get("DASHBOARD_PASS", "")
 # AUTH_SALT adds entropy to the HMAC secret. A leaked session cookie no longer

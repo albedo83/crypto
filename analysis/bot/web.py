@@ -118,6 +118,7 @@ def build_state_response(bot) -> dict:
     return {
         "version": VERSION, "strategy": "Multi-Signal (S1+S5+S8+S9+S10)",
         "execution_mode": EXECUTION_MODE,
+        "bot_label": _mode_label(), "bot_label_color": _mode_color(),
         "paused": bot._paused, "running": bot.running,
         "degraded": list(bot._degraded), "loss_streak": bot._consecutive_losses,
         "kill_switch_active": bot._total_pnl <= TOTAL_LOSS_CAP,
@@ -387,7 +388,8 @@ def create_app(bot) -> FastAPI:
             resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
             resp.set_cookie("session", token, httponly=True, samesite="strict", max_age=30 * 86400)
             log.info("LOGIN OK: user=%s ip=%s label=%s", username, client_ip, ml)
-            send_telegram(f"\U0001f511 Login OK {ml} — user={username} ip={client_ip}")
+            send_telegram(f"\U0001f511 Login OK {ml} — user={username} ip={client_ip}",
+                          category="security")
             return resp
 
         _record_failure(client_ip)
@@ -397,7 +399,8 @@ def create_app(bot) -> FastAPI:
         # Alert Telegram on every failure — noisy but explicit (you can filter
         # later if spammy). Includes attempt count so repeated attempts are
         # visible as a pattern in the Telegram history.
-        send_telegram(f"\u26a0\ufe0f Login FAIL {ml} — user={username} ip={client_ip} (attempt #{n_fails})")
+        send_telegram(f"\u26a0\ufe0f Login FAIL {ml} — user={username} ip={client_ip} (attempt #{n_fails})",
+                      category="security")
         html = (_LOGIN_HTML.replace("{{VERSION}}", VERSION)
                 .replace("{{MODE}}", ml).replace("{{ERROR}}", "Invalid username or password"))
         return HTMLResponse(html, status_code=401)
@@ -564,7 +567,8 @@ def create_app(bot) -> FastAPI:
             bot._peak_balance = max(bot._peak_balance, bot._capital + bot._total_pnl)
         bot._save_state()
         log.info("CAPITAL: $%.0f → $%.0f (%+.0f)", old_capital, bot._capital, amount)
-        send_telegram(f"\U0001f4b0 Capital adjusted: ${old_capital:.0f} → ${bot._capital:.0f} ({amount:+.0f})")
+        send_telegram(f"\U0001f4b0 Capital adjusted: ${old_capital:.0f} → ${bot._capital:.0f} ({amount:+.0f})",
+                      category="admin")
         return JSONResponse({"status": "ok", "old": round(old_capital, 2),
                             "new": round(bot._capital, 2), "amount": amount})
 

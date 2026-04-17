@@ -211,7 +211,7 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
             with bot._pos_lock:
                 bot._failed_closes.add(sym)
             log.error("EXEC CLOSE FAILED %s: %s — keeping position, will retry next scan", sym, e)
-            send_telegram(f"\u274c Close failed {sym}: {e} \u2014 will retry")
+            send_telegram(f"\u274c Close failed {sym}: {e} \u2014 will retry", category="trade")
             return  # don't pop — position stays tracked, retried next scan
 
     with bot._pos_lock:
@@ -260,7 +260,8 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
     # Kill-switch telegram (outside lock — I/O)
     if bot._total_pnl <= TOTAL_LOSS_CAP:
         send_telegram(
-            f"\U0001f6d1 KILL-SWITCH: P&L ${bot._total_pnl:.2f} < cap ${TOTAL_LOSS_CAP:.0f} \u2014 bot paused")
+            f"\U0001f6d1 KILL-SWITCH: P&L ${bot._total_pnl:.2f} < cap ${TOTAL_LOSS_CAP:.0f} \u2014 bot paused",
+            category="trade")
 
     trade = Trade(
         symbol=sym, direction="LONG" if pos.direction == 1 else "SHORT",
@@ -289,7 +290,8 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
              gross_bps, net_bps, pnl, pos.mae_bps, pos.mfe_bps, balance, n, wr)
     emoji = "\u2705" if pnl > 0 else "\U0001f534"
     send_telegram(
-        f"{emoji} {pos.strategy} {trade.direction} {sym} | {net_bps:+.0f} bps | ${pnl:+.2f} | bal ${balance:.0f}")
+        f"{emoji} {pos.strategy} {trade.direction} {sym} | {net_bps:+.0f} bps | ${pnl:+.2f} | bal ${balance:.0f}",
+        category="trade")
 
 
 # ── Entry Logic ──────────────────────────────────────────────────────
@@ -376,10 +378,11 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                     bot._exchange, bot._hl_info, bot._hl_address, bot._sz_decimals,
                     sym, sig["direction"] == 1, size, st.price)
                 send_telegram(
-                    f"\U0001f7e2 {sig['strategy']} {side} {sym} @ ${entry_price:.4f} | ${size:.0f}")
+                    f"\U0001f7e2 {sig['strategy']} {side} {sym} @ ${entry_price:.4f} | ${size:.0f}",
+                    category="trade")
             except Exception as e:
                 log.error("EXEC OPEN FAILED %s %s: %s", sym, sig["strategy"], e)
-                send_telegram(f"\u274c Open failed {sym} {sig['strategy']}: {e}")
+                send_telegram(f"\u274c Open failed {sym} {sig['strategy']}: {e}", category="trade")
                 continue
 
         ctx = sig.get("ctx", {})

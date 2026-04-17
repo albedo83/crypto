@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.7] — 2026-04-17
+
+### Added — multi-instance identification
+- **Telegram category filter** (`TG_CATEGORIES` env var): comma-separated allowlist of message categories. Default `*` = send everything (Paper/Live behavior unchanged). Junior uses `trade,daily` so it only receives trade open/close/fail alerts and the daily bilan — no reconcile, login, DCA, or startup noise.
+- **Bot label prefix in Telegram**: when `BOT_LABEL` is set, every message is prefixed with `[LABEL]`. Multiple Junior-like bots sharing a chat stay visually distinguishable.
+- **Colored card border in admin panel**: each bot's `BOT_LABEL_COLOR` is exposed via `/api/state` and propagated through `/api/bots` to `admin.html`, which renders it as `border-top` on the card. Makes N juniors visually identifiable at a glance without reading the label.
+
+### Changed
+- `send_telegram(msg, category="other")` — call sites now tag each message: `trade` (open/close/failures/kill-switch), `daily` (daily summary), `reconcile` (orphan/ghost/mismatch/drift), `security` (login OK/FAIL), `admin` (capital DCA), `system` (startup).
+
 ## [11.4.6] — 2026-04-17
 
 ### Added — security hardening (level 1)

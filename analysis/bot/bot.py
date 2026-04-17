@@ -265,7 +265,8 @@ class MultiSignalBot:
                                         bot_realized, exch_realized, drift)
                             net.send_telegram(
                                 f"⚠️ Equity drift: bot ${bot_realized:.2f} vs exchange "
-                                f"${exch_realized:.2f} (Δ${drift:+.2f}) — check fees/funding")
+                                f"${exch_realized:.2f} (Δ${drift:+.2f}) — check fees/funding",
+                                category="reconcile")
                             self._drift_alerted = True
                         elif abs(drift) < 2.0:
                             self._drift_alerted = False  # reset when back in line
@@ -312,7 +313,7 @@ class MultiSignalBot:
                     _utc_h = datetime.now(timezone.utc).hour
                     if _utc_h == 0 and now - self._last_daily_report > 43200:
                         msg = web.build_daily_summary(self)
-                        net.send_telegram(msg)
+                        net.send_telegram(msg, category="daily")
                         self._last_daily_report = time.time()
                 else:
                     exits = await asyncio.to_thread(trading.check_exits, self)
