@@ -5,6 +5,16 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.1] — 2026-04-14
+
+### Added
+- **Enhanced reconciliation** (`exchange.py::reconcile`): now detects direction mismatches (bot says LONG but exchange says SHORT) and size mismatches (>10% drift between bot `size_usdt` and exchange `positionValue`). Previously only detected missing-symbol cases (orphan/ghost). Direction mismatch triggers a 🚨 Telegram alert — this would have been silent before.
+- **Equity drift alert**: the live scan loop now compares `bot._total_pnl` against `exchange_account.closed_pnl + funding_paid` every 60s. Alerts once (then resets when back in line) when the drift exceeds $5, catching accounting errors or unexpected fee/funding costs that the bot's flat COST_BPS model doesn't capture.
+- **Startup P&L sanity check** (`main.py`): on boot, sums all bot trades and compares to the stored `_total_pnl`. A drift > $1 indicates a crash occurred between SQLite commit and `state.json` write in a previous session. Logs a warning for audit but does not alter state.
+
+### Fixed
+- Code review findings from v11.4.0 audit: reconciliation too permissive (I1), no drift alert between bot accounting and real exchange equity (I2), crash-window between DB commit and state save is now detected at startup (I3).
+
 ## [11.4.0] — 2026-04-13
 
 ### Added

@@ -53,6 +53,7 @@ class MultiSignalBot:
         self._pos_lock = threading.Lock()
         self._failed_closes: set[str] = set()  # symbols with exchange close failures
         self._exchange_account: dict | None = None  # real exchange balance (live only)
+        self._drift_alerted: bool = False  # one-shot alert for bot vs exchange P&L drift
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -252,6 +253,22 @@ class MultiSignalBot:
                     acct = await asyncio.to_thread(fetch_account_state, self._hl_info, self._hl_address)
                     if acct:
                         self._exchange_account = acct
+                        # Alert on significant drift between bot accounting and real equity.
+                        # Bot P&L uses flat COST_BPS; exchange includes real fees+funding.
+                        # Unrealized P&L on open positions naturally creates a delta — compare
+                        # bot realized P&L vs exchange closed_pnl which measures the same thing.
+                        bot_realized = self._total_pnl
+                        exch_realized = acct.get("closed_pnl", 0) + acct.get("funding_paid", 0)
+                        drift = bot_realized - exch_realized
+                        if abs(drift) > 5.0 and not self._drift_alerted:
+                            log.warning("EQUITY DRIFT: bot realized $%.2f vs exchange $%.2f (Δ$%.2f)",
+                                        bot_realized, exch_realized, drift)
+                            net.send_telegram(
+                                f"⚠️ Equity drift: bot ${bot_realized:.2f} vs exchange "
+                                f"${exch_realized:.2f} (Δ${drift:+.2f}) — check fees/funding")
+                            self._drift_alerted = True
+                        elif abs(drift) < 2.0:
+                            self._drift_alerted = False  # reset when back in line
 
                 if now - self._last_scan >= SCAN_INTERVAL:
                     log.info("Scanning signals...")

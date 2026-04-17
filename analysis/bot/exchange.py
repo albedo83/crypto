@@ -188,21 +188,31 @@ def fetch_account_state(hl_info, address: str) -> dict | None:
 
 
 def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> None:
-    """Compare bot positions vs exchange. Log and alert on discrepancies."""
+    """Compare bot positions vs exchange. Log and alert on discrepancies.
+
+    Checks three things: missing-on-exchange (ghost), missing-in-bot (orphan),
+    and — new in v11.4.1 — direction/size mismatches on symbols present in both.
+    Size tolerance 10% to accommodate mark price drift vs entry notional.
+    """
     if not hl_info:
         return
     try:
         state = hl_info.user_state(address)
-        exchange_positions: set[str] = set()
+        exchange_positions: dict[str, dict] = {}
         for pos in state.get("assetPositions", []):
             p = pos["position"]
             sz = float(p.get("szi", 0))
             if abs(sz) > 0:
-                exchange_positions.add(p["coin"])
+                exchange_positions[p["coin"]] = {
+                    "szi": sz,
+                    "position_value": abs(float(p.get("positionValue", 0))),
+                }
 
         bot_syms = set(bot_positions.keys())
-        orphans = exchange_positions - bot_syms
-        ghosts = bot_syms - exchange_positions
+        exch_syms = set(exchange_positions.keys())
+        orphans = exch_syms - bot_syms
+        ghosts = bot_syms - exch_syms
+        common = bot_syms & exch_syms
 
         if orphans:
             log.warning("RECONCILE: orphan positions on exchange: %s", orphans)
@@ -210,6 +220,26 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
         if ghosts:
             log.warning("RECONCILE: ghost positions in bot (not on exchange): %s", ghosts)
             send_telegram_fn(f"⚠️ Ghost in bot (not on exchange): {ghosts}")
+
+        for sym in common:
+            ex = exchange_positions[sym]
+            bot_pos = bot_positions[sym]
+            exch_dir = 1 if ex["szi"] > 0 else -1
+            if exch_dir != bot_pos.direction:
+                log.critical("RECONCILE: DIRECTION MISMATCH %s bot=%s exch=%s",
+                             sym, bot_pos.direction, exch_dir)
+                send_telegram_fn(
+                    f"🚨 DIRECTION MISMATCH {sym}: bot={'LONG' if bot_pos.direction==1 else 'SHORT'} "
+                    f"exch={'LONG' if exch_dir==1 else 'SHORT'}")
+            elif ex["position_value"] > 0 and bot_pos.size_usdt > 0:
+                ratio = ex["position_value"] / bot_pos.size_usdt
+                if ratio < 0.9 or ratio > 1.1:
+                    log.warning("RECONCILE: SIZE MISMATCH %s bot=$%.0f exch=$%.0f (ratio %.2f)",
+                                sym, bot_pos.size_usdt, ex["position_value"], ratio)
+                    send_telegram_fn(
+                        f"⚠️ Size mismatch {sym}: bot=${bot_pos.size_usdt:.0f} "
+                        f"exch=${ex['position_value']:.0f}")
+
         if not orphans and not ghosts:
             log.debug("Reconcile OK: %d positions match", len(bot_syms))
     except Exception as e:

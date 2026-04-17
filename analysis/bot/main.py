@@ -72,6 +72,17 @@ async def run():
         if bot.positions or bot._total_pnl:
             log.info("Restored: %d positions, P&L $%.2f", len(bot.positions), bot._total_pnl)
 
+    # Startup sanity check: sum of bot trades should match stored _total_pnl.
+    # Mismatch indicates a crash between close_position's DB commit and the
+    # subsequent _save_state() write. Non-fatal but logged for audit.
+    from .trading import is_bot_trade
+    trades_sum = sum(t.pnl_usdt for t in bot.trades if is_bot_trade(t))
+    drift = trades_sum - bot._total_pnl
+    if abs(drift) > 1.0:
+        log.warning("STARTUP P&L DRIFT: stored=$%.2f, trades_sum=$%.2f (Δ$%.2f) — "
+                    "possible crash during close_position between DB commit and state save",
+                    bot._total_pnl, trades_sum, drift)
+
     def _sig(sig, frame):
         log.info("Shutdown signal")
         bot.running = False
