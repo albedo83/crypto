@@ -5,6 +5,17 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.4.6] — 2026-04-17
+
+### Added — security hardening (level 1)
+- **Telegram alerts on login** (success + failure) with user, IP, mode label, and attempt count. Gives real-time visibility into access patterns.
+- **HTTP security headers** on every response (applied before auth middleware): `X-Frame-Options: DENY` (blocks clickjacking), `X-Content-Type-Options: nosniff`, `Referrer-Policy: same-origin`, `Permissions-Policy` (disables geolocation/mic/camera), `Content-Security-Policy` (limits script/style/img sources), `Strict-Transport-Security` when served over HTTPS.
+- **AUTH_SALT**: random salt mixed into the HMAC secret (`sha256(password + salt)`). A leaked session cookie no longer permits offline password brute-force without also leaking the salt. Stored in `.env`, generated once (48 chars, cryptographically random). **Changing the salt invalidates all existing sessions.**
+- **Exponential backoff on failed logins**: replaces the flat "10 attempts / 5 min" rate limit. Each failure doubles the required delay (1s → 2s → 4s → ... → 300s cap) per IP. Counter resets on success or 1h idle. Correctly honors `X-Forwarded-For` when request comes via nginx proxy so real client IP is logged.
+
+### Required user action
+None — `AUTH_SALT` was auto-generated and added to `.env` during the release. All bot sessions need re-login once after the restart (expected, since the salt change invalidates old cookies).
+
 ## [11.4.5] — 2026-04-17
 
 ### Added

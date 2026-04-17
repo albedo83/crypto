@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.4.5"
+VERSION = "11.4.6"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -41,6 +41,11 @@ TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
 TG_CHAT_ID = os.environ.get("TG_CHAT_ID", "")
 DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "")
 DASHBOARD_PASS = os.environ.get("DASHBOARD_PASS", "")
+# AUTH_SALT adds entropy to the HMAC secret. A leaked session cookie no longer
+# allows offline password brute-force without also leaking this salt. Keep it
+# long (>=32 chars) and distinct from the password. Missing = empty salt (no
+# effect; kept for backward compat with existing cookies).
+AUTH_SALT = os.environ.get("AUTH_SALT", "")
 
 # ── Symbols ─────────────────────────────────────────────────────────
 TRADE_SYMBOLS = [

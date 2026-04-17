@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from .config import (
     VERSION, EXECUTION_MODE, BOT_LABEL, BOT_LABEL_COLOR,
     CAPITAL_USDT, LEVERAGE, DASHBOARD_USER,
-    DASHBOARD_PASS, HTML_PATH, CHANGELOG_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
+    DASHBOARD_PASS, AUTH_SALT, HTML_PATH, CHANGELOG_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
     MAX_POSITIONS, TOTAL_LOSS_CAP, SCAN_INTERVAL,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS,
     S5_DIV_THRESHOLD, S5_VOL_Z_MIN,
@@ -251,11 +251,20 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 def create_app(bot) -> FastAPI:
     """Create the FastAPI app with all routes wired to *bot*."""
     # ── Stateless signed sessions (survive restarts) ──
-    _SECRET = hashlib.sha256(DASHBOARD_PASS.encode()).digest() if DASHBOARD_PASS else b""
+    # AUTH_SALT adds entropy so a leaked cookie does not allow offline password
+    # brute-force (attacker would need the salt too, which lives only in .env).
+    # If the salt changes, all existing sessions become invalid.
+    _SECRET = (hashlib.sha256((DASHBOARD_PASS + AUTH_SALT).encode()).digest()
+               if DASHBOARD_PASS else b"")
     _SESSION_MAX_AGE = 30 * 86400
-    _login_attempts: dict[str, list[float]] = {}
-    _LOGIN_RATE_WINDOW = 300
-    _LOGIN_RATE_MAX = 10
+    # Exponential backoff per IP: each failed login doubles the required delay
+    # before the next attempt from the same IP (1s → 2s → 4s → ... up to 300s).
+    # Stored as (fail_count, last_failed_ts) per IP. State is in-memory only;
+    # a bot restart resets counters — acceptable given realistic restart cadence.
+    _login_failures: dict[str, tuple[int, float]] = {}
+    _BACKOFF_BASE = 1.0   # seconds after 1st failure
+    _BACKOFF_MAX = 300.0  # cap at 5 min
+    _BACKOFF_RESET = 3600 # success or long idle clears the counter
 
     def _sign_token(ts: float) -> str:
         msg = str(int(ts)).encode()
@@ -278,17 +287,55 @@ def create_app(bot) -> FastAPI:
         expected = hmac.new(_SECRET, ts_str.encode(), hashlib.sha256).hexdigest()[:16]
         return hmac.compare_digest(sig, expected)
 
-    def _is_rate_limited(ip: str) -> bool:
-        now = time.time()
-        attempts = [t for t in _login_attempts.get(ip, []) if now - t < _LOGIN_RATE_WINDOW]
-        _login_attempts[ip] = attempts
-        return len(attempts) >= _LOGIN_RATE_MAX
+    def _backoff_delay(ip: str) -> float:
+        """Returns seconds remaining before this IP may attempt login again."""
+        rec = _login_failures.get(ip)
+        if not rec:
+            return 0.0
+        n_fails, last_ts = rec
+        if time.time() - last_ts > _BACKOFF_RESET:
+            # long idle: clear the counter
+            _login_failures.pop(ip, None)
+            return 0.0
+        required = min(_BACKOFF_BASE * (2 ** (n_fails - 1)), _BACKOFF_MAX)
+        elapsed = time.time() - last_ts
+        return max(0.0, required - elapsed)
+
+    def _record_failure(ip: str) -> None:
+        n_fails, _ = _login_failures.get(ip, (0, 0.0))
+        _login_failures[ip] = (n_fails + 1, time.time())
+
+    def _record_success(ip: str) -> None:
+        _login_failures.pop(ip, None)
 
     app = FastAPI(root_path=ROOT_PATH)
     _html_cache: dict[str, str | None] = {"v": None}
 
+    # ── Security headers on every response ──
+    from starlette.middleware.base import BaseHTTPMiddleware
+
+    class _SecurityHeadersMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            response = await call_next(request)
+            response.headers["X-Frame-Options"] = "DENY"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["Referrer-Policy"] = "same-origin"
+            response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+            # Allow unpkg.com for LightweightCharts lib + inline scripts/styles
+            response.headers["Content-Security-Policy"] = (
+                "default-src 'self'; "
+                "script-src 'self' 'unsafe-inline' https://unpkg.com; "
+                "style-src 'self' 'unsafe-inline'; "
+                "img-src 'self' data:; "
+                "connect-src 'self'; "
+                "frame-ancestors 'none'"
+            )
+            # HSTS only over HTTPS (detected via X-Forwarded-Proto from nginx)
+            if request.headers.get("x-forwarded-proto") == "https":
+                response.headers["Strict-Transport-Security"] = "max-age=31536000"
+            return response
+
     if DASHBOARD_USER:
-        from starlette.middleware.base import BaseHTTPMiddleware
         class _AuthMiddleware(BaseHTTPMiddleware):
             async def dispatch(self, request: Request, call_next):
                 path = request.url.path
@@ -301,6 +348,8 @@ def create_app(bot) -> FastAPI:
                     return RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
                 return await call_next(request)
         app.add_middleware(_AuthMiddleware)
+
+    app.add_middleware(_SecurityHeadersMiddleware)
 
     @app.get("/auth")
     async def auth_bridge(token: str = ""):
@@ -319,18 +368,36 @@ def create_app(bot) -> FastAPI:
     @app.post("/login")
     async def login_submit(request: Request, username: str = Form(...), password: str = Form(...)):
         ml = _mode_label()
-        client_ip = request.client.host if request.client else "unknown"
-        if _is_rate_limited(client_ip):
-            html = (_LOGIN_HTML.replace("{{VERSION}}", VERSION)
-                    .replace("{{MODE}}", ml).replace("{{ERROR}}", "Too many attempts — wait 5 minutes"))
+        # Trust X-Forwarded-For only for known proxies (nginx on localhost).
+        # Falls back to the socket peer for direct connections.
+        xff = request.headers.get("x-forwarded-for", "")
+        direct_ip = request.client.host if request.client else "unknown"
+        client_ip = xff.split(",")[0].strip() if xff and direct_ip == "127.0.0.1" else direct_ip
+
+        delay = _backoff_delay(client_ip)
+        if delay > 0:
+            html = (_LOGIN_HTML.replace("{{VERSION}}", VERSION).replace("{{MODE}}", ml)
+                    .replace("{{ERROR}}", f"Too many failed attempts — retry in {int(delay)}s"))
             return HTMLResponse(html, status_code=429)
-        _login_attempts.setdefault(client_ip, []).append(time.time())
+
         if (_secrets.compare_digest(username, DASHBOARD_USER)
                 and _secrets.compare_digest(password, DASHBOARD_PASS)):
+            _record_success(client_ip)
             token = _sign_token(time.time())
             resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
             resp.set_cookie("session", token, httponly=True, samesite="strict", max_age=30 * 86400)
+            log.info("LOGIN OK: user=%s ip=%s label=%s", username, client_ip, ml)
+            send_telegram(f"\U0001f511 Login OK {ml} — user={username} ip={client_ip}")
             return resp
+
+        _record_failure(client_ip)
+        n_fails = _login_failures.get(client_ip, (0, 0))[0]
+        log.warning("LOGIN FAIL: user=%s ip=%s attempts=%d label=%s",
+                    username, client_ip, n_fails, ml)
+        # Alert Telegram on every failure — noisy but explicit (you can filter
+        # later if spammy). Includes attempt count so repeated attempts are
+        # visible as a pattern in the Telegram history.
+        send_telegram(f"\u26a0\ufe0f Login FAIL {ml} — user={username} ip={client_ip} (attempt #{n_fails})")
         html = (_LOGIN_HTML.replace("{{VERSION}}", VERSION)
                 .replace("{{MODE}}", ml).replace("{{ERROR}}", "Invalid username or password"))
         return HTMLResponse(html, status_code=401)
