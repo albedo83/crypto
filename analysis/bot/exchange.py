@@ -57,8 +57,14 @@ def init_exchange(private_key: str) -> tuple:
 
 
 def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
-                 sym: str, is_buy: bool, size_usdt: float, price: float) -> float:
-    """Place market order on Hyperliquid. Returns fill price or raises."""
+                 sym: str, is_buy: bool, size_usdt: float, price: float) -> dict:
+    """Place market order on Hyperliquid.
+
+    Returns {"avgPx": float, "sz": float} so the caller can compute the real
+    filled notional (sz × avgPx) and update Position.size_usdt. Rounding to
+    szDecimals introduces a quantity discrepancy vs requested notional; using
+    the filled notional keeps reconcile + P&L accurate vs exchange reality.
+    """
     if price <= 0:
         raise ValueError(f"Invalid price for {sym}: {price}")
     sz = size_usdt / price
@@ -82,7 +88,7 @@ def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
     # Extract fill price from order response (immediate, no API lag)
     filled = first.get("filled") if isinstance(first, dict) else None
     if filled and "avgPx" in filled:
-        return float(filled["avgPx"])
+        return {"avgPx": float(filled["avgPx"]), "sz": sz}
 
     # Fallback: query fills API (may lag a few hundred ms behind L1)
     try:
@@ -91,11 +97,11 @@ def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
             address, int((time.time() - 30) * 1000))
         for f in reversed(fills):
             if f.get("coin") == sym:
-                return float(f["px"])
+                return {"avgPx": float(f["px"]), "sz": sz}
     except Exception as e:
         log.warning("Fill lookup failed: %s — using market price", e)
 
-    return price  # last resort fallback
+    return {"avgPx": price, "sz": sz}  # last resort fallback
 
 
 def execute_close(exchange, hl_info, address: str, sym: str) -> float | None:

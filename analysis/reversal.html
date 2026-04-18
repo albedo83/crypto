@@ -233,9 +233,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="section">
-  <h2>Strategy Performance <span class="dim" style="font-size:12px;font-weight:400">— lifetime + recent 20 with trend arrow</span>
-    <button class="btn-small" style="margin-left:12px;font-size:11px" onclick="toggleDetails()" id="toggle-details-btn">Show more ▾</button>
-  </h2>
+  <h2>Strategy Performance <span class="dim" style="font-size:12px;font-weight:400">— lifetime + recent 20 with trend arrow</span></h2>
   <table id="strat-table"><thead><tr>
     <th rowspan="2">Signal</th>
     <th colspan="4" style="text-align:center;border-bottom:1px solid #30363d">Lifetime</th>
@@ -244,6 +242,28 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
     <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
     <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
   </tr></thead><tbody id="strat-drift"></tbody></table>
+</div>
+
+<div class="section">
+  <h2>P&L Curve</h2>
+  <div class="pnl-chart"><canvas id="pnl-canvas" width="800" height="180"></canvas></div>
+</div>
+
+<div class="section">
+  <h2 id="chart-title">BTC — Live</h2>
+  <div class="sym-bar" id="sym-bar"></div>
+  <div class="price-chart" id="price-chart-container"></div>
+</div>
+
+<div class="section">
+  <h2>Trade History</h2>
+  <table><thead><tr>
+    <th>Time</th><th>Symbol</th><th>Strat</th><th>Side</th><th>Gross</th><th>Net</th><th>P&L</th><th>Hold</th><th>Exit</th>
+  </tr></thead><tbody id="trades-body"></tbody></table>
+</div>
+
+<div style="text-align:center;margin:20px 0 10px;padding:10px 0;border-top:1px dashed #30363d">
+  <button class="btn-small" style="font-size:12px;padding:6px 16px" onclick="toggleDetails()" id="toggle-details-btn">Show advanced indicators ▾</button>
 </div>
 
 <div id="details-wrap" style="display:none">
@@ -279,26 +299,8 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="section">
-  <h2>P&L Curve</h2>
-  <div class="pnl-chart"><canvas id="pnl-canvas" width="800" height="180"></canvas></div>
-</div>
-
-<div class="section">
-  <h2 id="chart-title">BTC — Live</h2>
-  <div class="sym-bar" id="sym-bar"></div>
-  <div class="price-chart" id="price-chart-container"></div>
-</div>
-
-<div class="section">
   <h2>Signals</h2>
   <div class="signal-grid" id="signals"></div>
-</div>
-
-<div class="section">
-  <h2>Trade History</h2>
-  <table><thead><tr>
-    <th>Time</th><th>Symbol</th><th>Strat</th><th>Side</th><th>Gross</th><th>Net</th><th>P&L</th><th>Hold</th><th>Exit</th>
-  </tr></thead><tbody id="trades-body"></tbody></table>
 </div>
 
 <div class="section">
@@ -318,7 +320,7 @@ function toggleDetails(){
   if(!el||!btn)return;
   const open=el.style.display!=='none';
   el.style.display=open?'none':'';
-  btn.textContent=open?'Show more ▾':'Hide ▴';
+  btn.textContent=open?'Show advanced indicators ▾':'Hide advanced indicators ▴';
   try{localStorage.setItem('dash-details-open',open?'0':'1')}catch(e){}
 }
 document.addEventListener('DOMContentLoaded',()=>{

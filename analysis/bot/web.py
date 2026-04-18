@@ -84,7 +84,10 @@ def build_daily_summary(bot) -> str:
     ab = [t for t in bot.trades if is_bot_trade(t)]
     n, wr = len(ab), (sum(1 for t in ab if t.pnl_usdt > 0) / len(ab) * 100 if ab else 0)
     drift = compute_signal_drift(bot.trades)
-    q = [s for s, d in drift.items() if d.get("n", 0) >= 10 and d.get("win_rate", 1) < 0.20]
+    # v11.6.0: top-level fields are now lifetime; DEGRADED flag reads recent20.
+    q = [s for s, d in drift.items()
+         if d.get("recent20", {}).get("n", 0) >= 10
+         and d.get("recent20", {}).get("win_rate", 1) < 0.20]
     dg = f" | DEGRADED: {', '.join(q)}" if q else ""
     return (f"\U0001f4ca Daily {yesterday}\n"
             f"{len(dt)} trades | ${dp:+.2f} | {dw:.0f}% win\n{sl}\n"
@@ -177,15 +180,26 @@ def build_state_response(bot) -> dict:
         _s = TOKEN_SECTOR.get(p.symbol)
         if _s:
             sector_counts[_s] = sector_counts.get(_s, 0) + 1
+    # S1 is a macro signal (BTC 30d > threshold) — same fire state across all tokens.
+    # Emit once here with a synthetic symbol; per-token blocking is not meaningful.
+    _s1_fires = btc_f.get("btc_30d", 0) > 2000
+    if _s1_fires:
+        _s1_reason = "would enter"
+        if len(bot.positions) >= MAX_POSITIONS:
+            _s1_reason = "max_positions"
+        elif n_macro >= MAX_MACRO_SLOTS:
+            _s1_reason = "max_macro"
+        elif n_long >= MAX_SAME_DIRECTION:
+            _s1_reason = "max_long"
+        preview.append({"symbol": "ALTS", "strategy": "S1",
+                        "direction": "LONG", "status": _s1_reason})
     for _sym in TRADE_SYMBOLS:
         _st = bot.states.get(_sym)
         _f = bot._get_cached_features(_sym) if hasattr(bot, "_get_cached_features") else None
         if not _st or not _f:
             continue
-        # Gather triggered signals for this token
+        # Gather triggered signals for this token (S1 emitted above, macro-wide)
         _fires: list = []
-        if btc_f.get("btc_30d", 0) > 2000:
-            _fires.append(("S1", 1))
         _sd = bot._compute_sector_divergence(_sym) if hasattr(bot, "_compute_sector_divergence") else None
         if _sd and abs(_sd["divergence"]) >= S5_DIV_THRESHOLD and _sd["vol_z"] >= S5_VOL_Z_MIN:
             _fires.append(("S5", 1 if _sd["divergence"] > 0 else -1))
@@ -196,6 +210,13 @@ def build_state_response(bot) -> dict:
         _ret24 = _f.get("ret_24h", 0)
         if abs(_ret24) >= S9_RET_THRESH:
             _fires.append(("S9", -1 if _ret24 > 0 else 1))
+        # S10: squeeze detector (same logic as signals.py). Uses st.candles_4h.
+        if hasattr(bot, "_detect_squeeze"):
+            _sq = bot._detect_squeeze(_sym)
+            if _sq:
+                from .config import S10_ALLOW_LONGS as _SAL, S10_ALLOWED_TOKENS as _SAT
+                if not ((not _SAL and _sq["direction"] == 1) or _sym not in _SAT):
+                    _fires.append(("S10", _sq["direction"]))
         for _strat, _dir in _fires:
             _reason = "would enter"
             if _sym in bot.positions:
@@ -316,17 +337,17 @@ def _signal_proximity(btc_f, f, sd) -> dict:
         s5 = min(div_prox, volz_prox)
     else:
         s5 = 0.0
-    # S8: 4 conditions — drawdown, vol_z, ret_24h, btc_7d
+    # S8: 4 conditions — drawdown, vol_z, ret_24h, btc_7d (all must fire; clamp each to [0,1])
     s8 = min(
-        min(1.0, drawdown / S8_DRAWDOWN_THRESH) if S8_DRAWDOWN_THRESH != 0 else 0.0,
+        min(1.0, max(0.0, drawdown / S8_DRAWDOWN_THRESH)) if S8_DRAWDOWN_THRESH != 0 else 0.0,
         min(1.0, max(0.0, vol_z / S8_VOL_Z_MIN)),
-        min(1.0, ret_24h / S8_RET_24H_THRESH) if S8_RET_24H_THRESH != 0 else 0.0,
-        min(1.0, btc7 / S8_BTC_7D_THRESH) if S8_BTC_7D_THRESH != 0 else 0.0,
+        min(1.0, max(0.0, ret_24h / S8_RET_24H_THRESH)) if S8_RET_24H_THRESH != 0 else 0.0,
+        min(1.0, max(0.0, btc7 / S8_BTC_7D_THRESH)) if S8_BTC_7D_THRESH != 0 else 0.0,
     )
     # S9: |ret_24h| / threshold
     s9 = min(1.0, abs(ret_24h) / S9_RET_THRESH)
-    # S10: vol_ratio < 0.9 → vol_ratio low = close to squeeze
-    s10 = min(1.0, max(0.0, (0.9 - vol_ratio) / 0.4 + 0.5)) if vol_ratio > 0 else 0.0
+    # S10: normalize so vol_ratio == S10_VOL_RATIO_MAX (0.9) → 1.0 (firing), higher = further away
+    s10 = min(1.0, max(0.0, (1.5 - vol_ratio) / 0.6)) if vol_ratio > 0 else 0.0
     return {"S1": round(s1, 2), "S5": round(s5, 2), "S8": round(s8, 2),
             "S9": round(s9, 2), "S10": round(s10, 2)}
 
@@ -696,6 +717,7 @@ def create_app(bot) -> FastAPI:
         """Recent events (SKIP / S9F_OBS / SUPERVISOR_REPORT / etc) for timeline ticker."""
         if not bot._db:
             return JSONResponse([])
+        limit = max(1, min(limit, 200))  # cap to prevent accidental / abusive large queries
         try:
             cur = bot._db.execute(
                 "SELECT ts, event, symbol, data FROM events ORDER BY ts DESC LIMIT ?",

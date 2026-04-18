@@ -5,6 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.6.2] — 2026-04-18
+
+### Fixed — code-review fixes (trading engine audit)
+- **C2 — Stops fill at the stop price, not the intra-scan live price.** For catastrophe_stop / s9_early_exit / s10_trailing, `check_exits` now computes `entry × (1 + direction × threshold/1e4)` and passes it as `exit_price`. Paper mode now books losses at exactly the stop, matching backtest behavior. Live mode unchanged (exchange avgPx overrides).
+- **C3 — Position `size_usdt` tracks real filled notional.** `execute_open` returns `{avgPx, sz}`; `rank_and_enter` sets `size_usdt = sz × avgPx` (the actually-filled notional) instead of the requested notional. Eliminates systematic reconcile "size mismatch" warnings and closes the drift against exchange `closed_pnl` (silences false "Equity drift" Telegram alerts).
+- **I4 — Race-free position counters in entry loop.** `rank_and_enter` now snapshots `bot.positions` once under `_pos_lock` and tracks `n_total / n_longs / n_shorts / n_macro / n_token_sig / sector_counts` locally, avoiding `RuntimeError: dictionary changed size during iteration` if `/api/close` or `/api/pause` runs concurrently.
+- **M12 — `self.trades` deque capacity 500 → 5000.** Lifetime strategy stats now accurate to ~4 years of live trading (was silently dropping oldest trades past 500, making the "Lifetime" column in Strategy Performance lie).
+
+### Fixed — dashboard fixes (from UI code review)
+- Daily Telegram DEGRADED flag reads `recent20` WR, not the now-lifetime top-level field (regression introduced in v11.6.0).
+- Signal proximity S8 clamped to [0, 1] (was producing negative values on positive drawdown due to missing `max(0.0, ...)` on three ratio terms).
+- Signal proximity S10 normalized so `vol_ratio == S10_VOL_RATIO_MAX` → 1.0 (was 0.5, made S10 never reach "firing" in the heatmap).
+- Next-scan preview no longer emits 28 duplicate "S1 LONG" rows when BTC 30d > 2000; S1 emits once as `ALTS`.
+- Next-scan preview now includes S10 squeeze candidates (were invisible).
+- `/api/events?limit=` capped to `[1, 200]` to prevent accidental/abusive large queries.
+
+### Changed — dashboard layout
+- "Show advanced indicators ▾" toggle moved out of Strategy Performance header into a dedicated centered button just above the collapsed block, on a dashed divider.
+- P&L Curve, BTC live chart, and Trade History are now always visible (moved out of the collapse wrap). Default collapsed section still holds Sector overview, Capital flow, Next-scan preview, Event timeline, OI delta grid, Signals cards, Signal proximity heatmap.
+
 ## [11.6.0] — 2026-04-18
 
 ### Added

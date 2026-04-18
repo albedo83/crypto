@@ -212,17 +212,27 @@ def check_exits(bot) -> int:
             stop = STOP_LOSS_BPS
 
         exit_reason = None
+        # Exit price defaults to live mark (used for timeout and for live-mode
+        # fallback). For price-triggered exits, use the trigger price so paper
+        # P&L matches the trigger and doesn't book the worse intra-scan drift.
+        # In live mode `close_position` overrides with the real fill avgPx.
+        exit_price = st.price
         if now >= target_exit:
             exit_reason = "timeout"
         elif unrealized < stop:
             exit_reason = "catastrophe_stop"
+            # Stop triggered at bps=stop: synthetic price = entry × (1 + dir × stop/1e4)
+            exit_price = entry_price * (1 + direction * stop / 1e4)
         elif strategy == "S9" and hours_held >= S9_EARLY_EXIT_HOURS and unrealized < S9_EARLY_EXIT_BPS:
             exit_reason = "s9_early_exit"
+            exit_price = entry_price * (1 + direction * S9_EARLY_EXIT_BPS / 1e4)
         elif strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER:
-            if unrealized <= pos.mfe_bps - S10_TRAILING_OFFSET:
+            trailing_bps = pos.mfe_bps - S10_TRAILING_OFFSET
+            if unrealized <= trailing_bps:
                 exit_reason = "s10_trailing"
+                exit_price = entry_price * (1 + direction * trailing_bps / 1e4)
         if exit_reason:
-            close_position(sym, st.price, now, exit_reason, bot)
+            close_position(sym, exit_price, now, exit_reason, bot)
             exits += 1
 
     return exits
@@ -340,8 +350,21 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
     # before S5 when multiple signals fire simultaneously.
     signals.sort(key=lambda s: (s["z"], s["strength"]), reverse=True)
 
-    n_longs = sum(1 for p in bot.positions.values() if p.direction == 1)
-    n_shorts = sum(1 for p in bot.positions.values() if p.direction == -1)
+    # Snapshot positions under lock once, then track counters locally to
+    # prevent "dict changed size during iteration" if /api/close or /api/pause
+    # runs concurrently. Local counters are updated as we add new positions.
+    with bot._pos_lock:
+        positions_snapshot = list(bot.positions.values())
+    n_total = len(positions_snapshot)
+    n_longs = sum(1 for p in positions_snapshot if p.direction == 1)
+    n_shorts = sum(1 for p in positions_snapshot if p.direction == -1)
+    n_macro = sum(1 for p in positions_snapshot if p.strategy in MACRO_STRATEGIES)
+    n_token_sig = sum(1 for p in positions_snapshot if p.strategy not in MACRO_STRATEGIES)
+    sector_counts: dict[str, int] = {}
+    for _p in positions_snapshot:
+        _s = TOKEN_SECTOR.get(_p.symbol)
+        if _s:
+            sector_counts[_s] = sector_counts.get(_s, 0) + 1
 
     entries = 0
     seen_symbols: set = set()       # one entry per symbol per scan
@@ -350,7 +373,7 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
         sym = sig["symbol"]
         side = "LONG" if sig["direction"] == 1 else "SHORT"
 
-        if len(bot.positions) >= MAX_POSITIONS:
+        if n_total >= MAX_POSITIONS:
             log.debug("SKIP %s %s %s: max_positions", sig["strategy"], side, sym)
             log_event(bot._db, "SKIP", sym, {"strategy": sig["strategy"], "dir": side, "reason": "max_positions"})
             break
@@ -373,9 +396,7 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             log.debug("SKIP %s %s %s: max_direction", sig["strategy"], side, sym)
             continue
 
-        # Slot reservation: macro vs token-level signals
-        n_macro = sum(1 for p in bot.positions.values() if p.strategy in MACRO_STRATEGIES)
-        n_token_sig = sum(1 for p in bot.positions.values() if p.strategy not in MACRO_STRATEGIES)
+        # Slot reservation: macro vs token-level signals (counters tracked locally)
         if sig["strategy"] in MACRO_STRATEGIES and n_macro >= MAX_MACRO_SLOTS:
             log.debug("SKIP %s %s %s: max_macro (%d/%d)", sig["strategy"], side, sym, n_macro, MAX_MACRO_SLOTS)
             log_event(bot._db, "SKIP", sym, {"strategy": sig["strategy"], "dir": side, "reason": "max_macro"})
@@ -387,11 +408,9 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
 
         # Sector concentration limit
         sym_sector = TOKEN_SECTOR.get(sym)
-        if sym_sector:
-            sector_count = sum(1 for p in bot.positions.values() if TOKEN_SECTOR.get(p.symbol) == sym_sector)
-            if sector_count >= MAX_PER_SECTOR:
-                log.debug("SKIP %s %s %s: max_sector (%s)", sig["strategy"], side, sym, sym_sector)
-                continue
+        if sym_sector and sector_counts.get(sym_sector, 0) >= MAX_PER_SECTOR:
+            log.debug("SKIP %s %s %s: max_sector (%s)", sig["strategy"], side, sym, sym_sector)
+            continue
 
         st = bot.states[sym]
 
@@ -427,13 +446,19 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             log.warning("SKIP %s %s: invalid price %s", sig["strategy"], sym, entry_price)
             continue
         side = "LONG" if sig["direction"] == 1 else "SHORT"
+        # Live: actual filled notional = sz_rounded × avgPx (drifts from requested
+        # `size` by szDecimals rounding). Update size_usdt so reconcile +
+        # P&L track exchange reality. Paper: size_usdt == requested size.
+        filled_size = size
         if bot._exchange:
             try:
-                entry_price = execute_open(
+                fill = execute_open(
                     bot._exchange, bot._hl_info, bot._hl_address, bot._sz_decimals,
                     sym, sig["direction"] == 1, size, st.price)
+                entry_price = fill["avgPx"]
+                filled_size = fill["sz"] * entry_price
                 send_telegram(
-                    f"\U0001f7e2 {sig['strategy']} {side} {sym} @ ${entry_price:.4f} | ${size:.0f}",
+                    f"\U0001f7e2 {sig['strategy']} {side} {sym} @ ${entry_price:.4f} | ${filled_size:.0f}",
                     category="trade")
             except Exception as e:
                 log.error("EXEC OPEN FAILED %s %s: %s", sym, sig["strategy"], e)
@@ -446,7 +471,7 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                 symbol=sym, direction=sig["direction"],
                 strategy=sig["strategy"],
                 entry_price=entry_price, entry_time=now,
-                size_usdt=size, signal_info=sig["info"],
+                size_usdt=filled_size, signal_info=sig["info"],
                 target_exit=target_exit,
                 trajectory=[(0.0, 0.0)],  # t=0 anchor point
                 stop_bps=sig.get("stop_bps", 0.0),
@@ -456,15 +481,23 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                 entry_session=ctx.get("session", ""),
             )
 
+        # Update local counters (avoid re-reading bot.positions mid-scan)
+        n_total += 1
         if sig["direction"] == 1:
             n_longs += 1
         else:
             n_shorts += 1
+        if sig["strategy"] in MACRO_STRATEGIES:
+            n_macro += 1
+        else:
+            n_token_sig += 1
+        if sym_sector:
+            sector_counts[sym_sector] = sector_counts.get(sym_sector, 0) + 1
         entries += 1
 
         log.info("\u2192 %s %s %s @ $%.4f | %s | $%.0f | exit ~%s | %d/%d pos",
                  sig["strategy"], side, sym, entry_price, sig["info"],
                  size, target_exit.strftime("%m-%d %H:%M"),
-                 len(bot.positions), MAX_POSITIONS)
+                 n_total, MAX_POSITIONS)
 
     return entries

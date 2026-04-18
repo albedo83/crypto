@@ -30,7 +30,10 @@ class MultiSignalBot:
     def __init__(self):
         self.states: dict[str, SymbolState] = {s: SymbolState() for s in ALL_SYMBOLS}
         self.positions: dict[str, Position] = {}
-        self.trades: deque[Trade] = deque(maxlen=500)
+        # Bumped from 500 → 5000 in v11.6.2: "lifetime" strategy stats
+        # (compute_signal_drift) read this deque, and beyond 500 trades the
+        # oldest would drop silently → wrong lifetime WR/P&L.
+        self.trades: deque[Trade] = deque(maxlen=5000)
         self.running = False
         self._paused = False
         self._feature_cache: dict[str, dict | None] = {}

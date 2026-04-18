@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.6.0"
+VERSION = "11.6.2"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
