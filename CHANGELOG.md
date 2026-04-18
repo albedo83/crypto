@@ -5,6 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.5.0] — 2026-04-18
+
+### Added — dashboard batch 1 (inline position indicators)
+- Stop-distance bar under each position's Unrealized cell (green→yellow→red gradient)
+- Hold-progress bar under Hold cell
+- Trajectory sparkline column showing unrealized_bps since entry
+- OI delta 24h grid below positions: every token with Δ(OI,24h) %, gate-blocked cells highlighted, blacklisted tokens struck through
+- Backend: `stop_progress`, `hold_progress`, `trajectory`, `oi_deltas_24h` in `/api/state`
+
+### Added — dashboard batch 2 (context indicators)
+- Regime badge in top bar (BULL / BEAR / CHOPPY / STRESSED / RALLY / FLUSH), computed backend-side from BTC 30d/7d + n_stress. STRESSED pulses.
+- Signal proximity heatmap (28 tokens × 5 strategies): per-pair "% to firing" 0-100, gradient grey→green, rendered at the bottom of the dashboard.
+- Sector overview grid (DeFi / L1 / Meme / Infra / Gaming) with position count, unrealized P&L, avg 24h return.
+- Strategy Performance rows now show trend arrow (↑ / ↓ / =) based on first-half vs second-half WR within the last 20 trades. Red when WR < 40% AND trending down.
+- Backend: `regime`, `regime_stress`, `sector_stats`, `proximity` per signal, `trend` in `signal_drift`.
+
+### Added — dashboard batch 3 (forward-looking indicators)
+- Next-scan preview: every token currently firing a signal with status (`would enter` / `max_positions` / `blacklist` / `oi_gate` / `cooldown` / `max_long` / `max_sector` / etc.).
+- Capital flow bars (muted palette, 10px rail): breakdown of open notional by strategy / direction / sector, with dollar legend.
+- Event timeline ticker at the bottom: last 30 events (TRADE_OPEN / TRADE_CLOSE / SKIP / S9F_OBS / RECONCILE / SUPERVISOR_REPORT / PAUSE / RESUME) with icons, colored borders, relative time.
+- S10 trailing floor displayed inline on S10 positions with MFE ≥ trigger (`▼ trail @ +XXX`).
+- Backend: `preview` list, `trailing_active`, `trailing_floor_bps`; new `/api/events` endpoint.
+
+### Fixed
+- Admin panel auto-login: "Open" button no longer forces a re-auth. Each bot derives its HMAC secret from `sha256(password + AUTH_SALT)` since v11.4.6, but the admin was still signing tokens with its own salt-less secret. `/api/auth-token?port=<p>` now signs using the target bot's exact secret.
+
+### Changed
+- Dashboard UI fully English (removed remaining FR strings in labels, prompts, and error messages).
+- Layout: Open Positions moved directly under the Equity/P&L cards. Action buttons (DCA / STOP / RESUME / RAZ / Release notes) relocated into the header.
+- Position table adds columns "Path" (sparkline) and per-cell inline bars; column count unchanged.
+
 ## [11.4.10] — 2026-04-17
 
 ### Added — Trade blacklist

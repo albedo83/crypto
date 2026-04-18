@@ -18,6 +18,7 @@ from pathlib import Path
 load_dotenv()
 DASHBOARD_USER = os.environ.get("DASHBOARD_USER", "")
 DASHBOARD_PASS = os.environ.get("DASHBOARD_PASS", "")
+AUTH_SALT = os.environ.get("AUTH_SALT", "")  # v11.4.6: salt mixed into bot HMAC secrets
 ADMIN_PORT = int(os.environ.get("ADMIN_PORT", "8090"))
 ROOT_PATH = os.environ.get("ADMIN_ROOT_PATH", "")  # e.g. "/crypto" when behind nginx subpath
 
@@ -47,6 +48,13 @@ for _b in _config["bots"]:
 
 # ── Stateless signed sessions (survive restarts) ──
 _SECRET = hashlib.sha256(DASHBOARD_PASS.encode()).digest() if DASHBOARD_PASS else b""
+# Per-bot HMAC secrets for signing auto-login tokens. Each bot computes its own
+# secret as sha256(password + AUTH_SALT); the admin signs tokens identically so
+# the bot's /auth endpoint accepts them without a fresh login.
+_bot_secrets: dict[int, bytes] = {}
+for _p, (_u, _pw) in _bot_creds.items():
+    _bot_secrets[_p] = (hashlib.sha256((_pw + AUTH_SALT).encode()).digest()
+                        if _pw else b"")
 _SESSION_MAX_AGE = 30 * 86400
 _login_attempts: dict[str, list[float]] = {}
 _LOGIN_RATE_WINDOW = 300
@@ -217,8 +225,21 @@ async def index():
     return _html_cache
 
 @app.get("/api/auth-token")
-async def api_auth_token():
-    """Generate a signed token for bot auto-login (same HMAC key)."""
+async def api_auth_token(port: int = 0):
+    """Generate a signed token for bot auto-login.
+
+    Without `port`: signed with admin's own secret (legacy, does not work for
+    bot `/auth` endpoints now that each bot uses a salted secret).
+    With `port`: signed with that specific bot's secret so the bot's `/auth`
+    endpoint accepts it and sets its session cookie.
+    """
+    if port and port in _bot_secrets:
+        secret = _bot_secrets[port]
+        if not secret:
+            return JSONResponse({"error": "no password for bot"}, status_code=400)
+        ts = int(time.time())
+        sig = hmac.new(secret, str(ts).encode(), hashlib.sha256).hexdigest()[:16]
+        return JSONResponse({"token": f"{ts}:{sig}"})
     return JSONResponse({"token": _sign_token(time.time())})
 
 @app.get("/api/bots")

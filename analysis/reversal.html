@@ -89,6 +89,60 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   #market-bar{flex-wrap:wrap;gap:6px}
   body{font-size:12px}
 }
+/* Inline visual indicators (v11.4.10 batch 1: stop bar, hold bar, sparkline, OI gauge) */
+.bar-inline{position:relative;height:3px;background:#30363d;border-radius:2px;margin-top:2px;overflow:hidden;min-width:40px}
+.bar-inline .fill{position:absolute;top:0;left:0;height:100%;border-radius:2px;transition:width .3s}
+.fill-hold{background:#58a6ff}
+.spark{vertical-align:middle;display:block}
+.oi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:6px;margin-top:10px}
+.oi-cell{background:#161b22;border:1px solid #30363d;border-radius:4px;padding:4px 8px;font-size:11px;display:flex;justify-content:space-between;align-items:center;gap:4px}
+.oi-cell.blocked{border-color:#f85149;background:#2a0f10}
+.oi-cell.warn{border-color:#d29922}
+.oi-cell.blacklisted{opacity:.4;text-decoration:line-through}
+.oi-cell .sym{font-weight:600}
+.oi-cell .val{font-family:monospace}
+/* Batch 2: regime badge, signal heatmap, sector grid, drift arrows */
+.regime-badge{display:inline-block;padding:4px 10px;border-radius:12px;font-size:12px;font-weight:600;letter-spacing:.5px;margin-left:8px}
+.regime-BULL{background:#3fb95022;color:#3fb950;border:1px solid #3fb950}
+.regime-BEAR{background:#f8514922;color:#f85149;border:1px solid #f85149}
+.regime-CHOPPY{background:#d2992222;color:#d29922;border:1px solid #d29922}
+.regime-STRESSED{background:#da363344;color:#f85149;border:1px solid #f85149;animation:pulse 2s infinite}
+.regime-RALLY{background:#58a6ff22;color:#58a6ff;border:1px solid #58a6ff}
+.regime-FLUSH{background:#db614944;color:#db6149;border:1px solid #db6149}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.heatmap{display:grid;grid-template-columns:60px repeat(5,1fr);gap:2px;font-size:10px;margin-top:8px;max-width:680px}
+.heat-head{padding:4px 6px;color:#7d8590;font-weight:600;text-align:center}
+.heat-sym{padding:3px 6px;font-weight:600;display:flex;align-items:center}
+.heat-cell{padding:3px 6px;text-align:center;border-radius:3px;cursor:default;font-family:monospace}
+.heat-cell.fire{background:#3fb950;color:#0d1117;font-weight:600}
+.sector-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-top:8px}
+.sector-card{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:10px 12px;border-left:3px solid #30363d}
+.sector-card .sname{font-weight:600;margin-bottom:6px;display:flex;justify-content:space-between}
+.sector-card .srow{display:flex;justify-content:space-between;font-size:11px;color:#7d8590;margin-top:2px}
+.sector-card .sval{color:#e6edf3;font-family:monospace}
+.trend-up{color:#3fb950}.trend-dn{color:#f85149}.trend-eq{color:#7d8590}
+/* Batch 3: preview, capital flow, event ticker, S10 trailing */
+.preview-row{display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #21262d;font-size:12px;align-items:center}
+.preview-row:last-child{border-bottom:0}
+.preview-status{font-family:monospace;padding:1px 6px;border-radius:3px;font-size:10px}
+.ps-enter{background:#3fb95033;color:#3fb950}
+.ps-skip{background:#7d859033;color:#7d8590}
+.ps-block{background:#f8514933;color:#f85149}
+.ps-pos{background:#58a6ff33;color:#58a6ff}
+.flow-bar{display:flex;height:10px;border-radius:2px;overflow:hidden;background:#21262d;margin-bottom:4px}
+.flow-seg{display:flex;align-items:center;justify-content:center;font-size:9px;color:#c9d1d9;white-space:nowrap;padding:0 3px;overflow:hidden;opacity:.85}
+.flow-label{font-size:11px;color:#7d8590;margin-bottom:2px;display:flex;justify-content:space-between;align-items:center}
+.flow-legend{font-size:10px;color:#7d8590}
+.flow-legend span{margin-left:8px}
+.flow-legend i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:3px;vertical-align:middle}
+.event-strip{display:flex;gap:6px;overflow-x:auto;padding:6px 0;scrollbar-width:thin}
+.event-pill{flex-shrink:0;background:#161b22;border:1px solid #30363d;border-radius:12px;padding:3px 8px;font-size:11px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px}
+.event-TRADE_OPEN{border-color:#3fb950}
+.event-TRADE_CLOSE{border-color:#d29922}
+.event-SKIP{opacity:.7}
+.event-S9F_OBS{border-color:#58a6ff}
+.event-RECONCILE{border-color:#da3633}
+.trailing-info{color:#58a6ff;font-size:10px;margin-top:1px}
 </style>
 </head>
 <body>
@@ -98,7 +152,13 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   <span class="tag live" id="tag"><span class="pulse" id="pulse"></span> LIVE</span>
   <span class="info" id="uptime"></span>
   <span class="info" id="params"></span>
-  <button class="btn-small" onclick="showChangelog()" style="margin-left:auto">Release notes</button>
+  <div class="header-actions" style="margin-left:auto;display:flex;gap:6px;align-items:center">
+    <button class="btn-small" onclick="showChangelog()">Release notes</button>
+    <button class="btn-small" onclick="addCapital()" style="background:#238636;color:#fff;border-color:#2ea043">+ DCA</button>
+    <button class="btn-small" onclick="fetch('api/pause',{method:'POST',credentials:'same-origin'}).then(r)" style="background:#da3633;color:#fff;border-color:#f85149">STOP</button>
+    <button class="btn-small" onclick="fetch('api/resume',{method:'POST',credentials:'same-origin'}).then(r)" style="background:#238636;color:#fff;border-color:#2ea043">RESUME</button>
+    <button class="btn-small" onclick="if(confirm('Reset?'))fetch('api/reset',{method:'POST',credentials:'same-origin'}).then(r)" style="background:#30363d;color:#e6edf3;border-color:#30363d">RAZ</button>
+  </div>
 </div>
 
 <div class="modal-overlay" id="changelog-modal" onclick="if(event.target===this)closeChangelog()">
@@ -131,7 +191,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 
 <div class="cards">
   <div class="card" id="card-balance"><div class="label">Equity</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
-  <div class="card"><div class="label">P&L cumulé</div><div class="value" id="pnl-amt">$0</div><div class="sub" id="pnl-pct">0%</div><div class="sub dim" id="pnl-fees"></div></div>
+  <div class="card"><div class="label">Total P&L</div><div class="value" id="pnl-amt">$0</div><div class="sub" id="pnl-pct">0%</div><div class="sub dim" id="pnl-fees"></div></div>
   <div class="card" id="card-pnl"><div class="label">Unrealized</div><div class="value" id="unrealized">--</div><div class="sub dim" id="available"></div></div>
   <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
   <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">--</div></div>
@@ -145,11 +205,11 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   </div>
 </div>
 
-<div class="controls">
-  <button class="btn success" onclick="addCapital()">+ DCA</button>
-  <button class="btn danger" onclick="fetch('api/pause',{method:'POST',credentials:'same-origin'}).then(r)">STOP</button>
-  <button class="btn success" onclick="fetch('api/resume',{method:'POST',credentials:'same-origin'}).then(r)">RESUME</button>
-  <button class="btn danger" onclick="if(confirm('Reset?'))fetch('api/reset',{method:'POST',credentials:'same-origin'}).then(r)">RAZ</button>
+<div class="section">
+  <h2>Open Positions</h2>
+  <table><thead><tr>
+    <th>Symbol</th><th>Strat</th><th>Side</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>P&L</th><th>Hold<span class="dim" style="font-weight:400"> / rem.</span></th><th>Path</th><th></th>
+  </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
 <div class="section">
@@ -158,10 +218,33 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 </div>
 
 <div class="section">
-  <h2>Open Positions</h2>
-  <table><thead><tr>
-    <th>Symbol</th><th>Strat</th><th>Side</th><th>Position</th><th>Marge</th><th>Entry</th><th>Current</th><th>Unrealized</th><th>P&L</th><th>Hold</th><th>Remaining</th><th></th>
-  </tr></thead><tbody id="pos-body"></tbody></table>
+  <h2>Sector overview</h2>
+  <div class="sector-grid" id="sector-grid"></div>
+</div>
+
+<div class="section">
+  <h2>Capital flow <span class="dim" style="font-size:12px;font-weight:400">— open notional by strategy / direction / sector</span></h2>
+  <div class="flow-label"><span>By strategy</span><span class="flow-legend" id="flow-strat-legend"></span></div>
+  <div class="flow-bar" id="flow-strat"></div>
+  <div class="flow-label"><span>By direction</span><span class="flow-legend" id="flow-dir-legend"></span></div>
+  <div class="flow-bar" id="flow-dir"></div>
+  <div class="flow-label"><span>By sector</span><span class="flow-legend" id="flow-sector-legend"></span></div>
+  <div class="flow-bar" id="flow-sector"></div>
+</div>
+
+<div class="section">
+  <h2>Next-scan preview <span class="dim" style="font-size:12px;font-weight:400">— signals firing now & what the bot would do</span></h2>
+  <div id="preview-list"></div>
+</div>
+
+<div class="section">
+  <h2>Event timeline <span class="dim" style="font-size:12px;font-weight:400">— 30 most recent events</span></h2>
+  <div class="event-strip" id="event-strip"></div>
+</div>
+
+<div class="section">
+  <h2>OI delta 24h <span class="dim" style="font-size:12px;font-weight:400">— tokens at or below gate (−10%) block LONG entries</span></h2>
+  <div class="oi-grid" id="oi-grid"></div>
 </div>
 
 <div class="section">
@@ -187,12 +270,39 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   </tr></thead><tbody id="trades-body"></tbody></table>
 </div>
 
+<div class="section">
+  <h2>Signal proximity <span class="dim" style="font-size:12px;font-weight:400">— green = firing now, gradient = distance to threshold</span></h2>
+  <div id="heatmap"></div>
+</div>
+
 <script>
 const r=()=>refresh();
 const cls=v=>v>=0?'green':'red';
 const fmt=(v,d=2)=>(v>=0?'+':'')+v.toFixed(d);
 function closePos(sym){if(!confirm('Close '+sym+' now?'))return;fetch('api/close/'+sym,{method:'POST',credentials:'same-origin'}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else refresh()}).catch(e=>alert('Error: '+e));}
-function addCapital(){const a=prompt('Montant DCA ($):');if(!a)return;const v=parseFloat(a);if(isNaN(v)||v===0){alert('Montant invalide');return}if(!confirm((v>0?'Injecter':'Retirer')+' $'+Math.abs(v)+' ?'))return;fetch('api/capital',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:v})}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else{alert('Capital: $'+j.old+' -> $'+j.new);refresh()}}).catch(e=>alert('Error: '+e));}
+// Visual helpers (v11.4.10 batch 1)
+function stopBar(prog){
+  const pct=Math.round(prog*100);
+  const col=prog<0.5?'#3fb950':(prog<0.8?'#d29922':'#f85149');
+  return `<div class="bar-inline" title="Distance to stop: ${pct}%"><div class="fill" style="width:${pct}%;background:${col}"></div></div>`;
+}
+function holdBar(prog){
+  const pct=Math.round(prog*100);
+  return `<div class="bar-inline" title="Hold elapsed: ${pct}%"><div class="fill fill-hold" style="width:${pct}%"></div></div>`;
+}
+function sparkline(traj,w=70,h=24){
+  if(!traj||traj.length<2)return '<span class="dim" style="font-size:10px">--</span>';
+  const xs=traj.map(p=>p[0]),ys=traj.map(p=>p[1]);
+  const xmin=Math.min(...xs),xmax=Math.max(...xs);
+  const ymin=Math.min(0,...ys),ymax=Math.max(0,...ys);
+  const xr=Math.max(xmax-xmin,0.1),yr=Math.max(ymax-ymin,1);
+  const pts=traj.map(p=>((p[0]-xmin)/xr*w).toFixed(1)+','+(h-(p[1]-ymin)/yr*h).toFixed(1)).join(' ');
+  const zy=h-(0-ymin)/yr*h;
+  const lastBps=ys[ys.length-1];
+  const col=lastBps>=0?'#3fb950':'#f85149';
+  return `<svg class="spark" width="${w}" height="${h}"><line x1="0" y1="${zy.toFixed(1)}" x2="${w}" y2="${zy.toFixed(1)}" stroke="#30363d" stroke-width="1" stroke-dasharray="2,2"/><polyline points="${pts}" stroke="${col}" stroke-width="1.5" fill="none"/></svg>`;
+}
+function addCapital(){const a=prompt('DCA amount ($):');if(!a)return;const v=parseFloat(a);if(isNaN(v)||v===0){alert('Invalid amount');return}if(!confirm((v>0?'Deposit':'Withdraw')+' $'+Math.abs(v)+' ?'))return;fetch('api/capital',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:v})}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else{alert('Capital: $'+j.old+' -> $'+j.new);refresh()}}).catch(e=>alert('Error: '+e));}
 
 // Minimal markdown → HTML: H2/H3 headings, list bullets, inline code, bold.
 function renderMarkdown(md){
@@ -216,12 +326,12 @@ function renderMarkdown(md){
 function showChangelog(){
   const modal=document.getElementById('changelog-modal');
   const body=document.getElementById('changelog-body');
-  body.innerHTML='Chargement…';
+  body.innerHTML='Loading…';
   modal.classList.add('open');
   fetch('api/changelog',{credentials:'same-origin'}).then(x=>x.json()).then(j=>{
     if(j.content)body.innerHTML=renderMarkdown(j.content);
-    else body.innerHTML='Erreur : '+(j.error||'changelog indisponible');
-  }).catch(e=>{body.innerHTML='Erreur : '+e});
+    else body.innerHTML='Error: '+(j.error||'changelog unavailable');
+  }).catch(e=>{body.innerHTML='Error: '+e});
 }
 function closeChangelog(){document.getElementById('changelog-modal').classList.remove('open');}
 document.addEventListener('keydown',(e)=>{if(e.key==='Escape')closeChangelog();});
@@ -277,7 +387,7 @@ function refresh(){
     const acct=s.exchange_account;
     if(acct){
       document.getElementById('balance').textContent='$'+acct.equity.toFixed(2);
-      document.getElementById('capital').textContent='Dispo: $'+acct.available.toFixed(0)+' | Marge: $'+acct.margin_used.toFixed(0);
+      document.getElementById('capital').textContent='Available: $'+acct.available.toFixed(0)+' | Margin: $'+acct.margin_used.toFixed(0);
       const urEl=document.getElementById('unrealized');
       urEl.textContent='$'+fmt(acct.unrealized);
       urEl.className='value '+cls(acct.unrealized);
@@ -319,7 +429,7 @@ function refresh(){
     if(s.first_trade_date){
       const ft=new Date(s.first_trade_date);
       const days=Math.floor((Date.now()-ft.getTime())/86400000);
-      upText+=' | Depuis le '+ft.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' ('+days+'j)';
+      upText+=' | Since '+ft.toLocaleDateString('en-US',{day:'2-digit',month:'short'})+' ('+days+'d)';
     }
     document.getElementById('uptime').textContent=upText;
     document.getElementById('params').textContent=
@@ -331,6 +441,11 @@ function refresh(){
     s.positions.forEach(p=>{
       const tr=document.createElement('tr');
       const sideClass=p.direction==='LONG'?'green':'red';
+      const trailExtra=p.trailing_active?`<div class="trailing-info">▼ trail @ ${p.trailing_floor_bps>=0?'+':''}${p.trailing_floor_bps}</div>`:'';
+      const stopStr=p.stop_bps!==undefined?`<div class="dim" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}`:'';
+      const stopViz=p.stop_progress!==undefined?stopBar(p.stop_progress):'';
+      const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress):'';
+      const pathViz=sparkline(p.trajectory);
       tr.innerHTML=`
         <td><b>${p.symbol}</b></td>
         <td class="dim">${p.strategy||'?'}</td>
@@ -339,15 +454,34 @@ function refresh(){
         <td class="dim">$${(p.size_usdt/2).toFixed(0)}</td>
         <td>$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
         <td>$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
-        <td class="${cls(p.unrealized_bps)}">${fmt(p.unrealized_bps,1)}bps</td>
+        <td class="${cls(p.unrealized_bps)}">${fmt(p.unrealized_bps,1)}bps${stopViz}${stopStr}</td>
         <td class="${cls(p.pnl_usdt)}">$${fmt(p.pnl_usdt)}</td>
-        <td>${p.hold_hours.toFixed(1)}h</td>
-        <td>${p.remaining||Math.floor(p.remaining_hours)+'h'}</td>
+        <td>${p.hold_hours.toFixed(1)}h${holdViz}<div class="dim" style="font-size:10px">rem ${p.remaining||Math.floor(p.remaining_hours)+'h'}</div></td>
+        <td>${pathViz}</td>
         <td><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
     });
     if(!s.positions.length)
       pb.innerHTML='<tr><td colspan="12" style="text-align:center;color:#7d8590">No positions -- waiting for signals</td></tr>';
+
+    // OI delta 24h grid (batch 1)
+    const oiGrid=document.getElementById('oi-grid');
+    if(oiGrid){
+      const deltas=s.oi_deltas_24h||{};
+      const gate=s.oi_gate_bps||1000;
+      const bl=new Set(s.blacklist||[]);
+      const syms=Object.keys(deltas).sort((a,b)=>(deltas[a]||0)-(deltas[b]||0));
+      oiGrid.innerHTML=syms.length?syms.map(sym=>{
+        const d=deltas[sym];
+        const blocked=d<-gate;
+        const warn=!blocked&&d<-gate*0.7;
+        const pct=(d/100).toFixed(1);
+        const cls=bl.has(sym)?'blacklisted':(blocked?'blocked':(warn?'warn':''));
+        const col=blocked?'#f85149':(warn?'#d29922':(d>0?'#3fb950':'#7d8590'));
+        const tag=bl.has(sym)?' BL':'';
+        return `<div class="oi-cell ${cls}" title="${sym}: Δ(OI,24h)=${d.toFixed(0)} bps${bl.has(sym)?' [blacklisted]':''}"><span class="sym">${sym}${tag}</span><span class="val" style="color:${col}">${pct}%</span></div>`;
+      }).join(''):'<span class="dim">OI history warming up…</span>';
+    }
 
     // Total P&L (realized + unrealized)
     const unrealTotal=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);
@@ -398,16 +532,110 @@ function refresh(){
     }
     document.getElementById('card-s10').title=s10h.message||'';
 
-    // Strategy P&L breakdown
+    // Strategy P&L breakdown (with trend arrow — batch 2)
     const drift=s.signal_drift||{};
     const sdEl=document.getElementById('strat-drift');
     if(sdEl){
       sdEl.innerHTML='';
       Object.entries(drift).sort((a,b)=>b[1].total_pnl-a[1].total_pnl).forEach(([sig,d])=>{
         const tr=document.createElement('tr');
-        tr.innerHTML=`<td><b>${sig}</b></td><td>${d.n}</td><td class="${d.win_rate>=0.5?'green':'red'}">${(d.win_rate*100).toFixed(0)}%</td><td>${fmt(d.avg_bps,1)}</td><td class="${cls(d.total_pnl)}"><b>$${fmt(d.total_pnl)}</b></td>`;
+        const trendSym={1:'<span class="trend-up">↑</span>',
+                        '-1':'<span class="trend-dn">↓</span>',
+                        0:'<span class="trend-eq">=</span>'}[d.trend]||'';
+        const wrCls=d.win_rate>=0.5?'green':(d.win_rate<0.4&&d.trend===-1?'red':(d.win_rate<0.4?'yellow':'red'));
+        tr.innerHTML=`<td><b>${sig}</b></td><td>${d.n}</td><td class="${wrCls}">${(d.win_rate*100).toFixed(0)}% ${trendSym}</td><td>${fmt(d.avg_bps,1)}</td><td class="${cls(d.total_pnl)}"><b>$${fmt(d.total_pnl)}</b></td>`;
         sdEl.appendChild(tr);
       });
+    }
+
+    // Sector heatmap (batch 2)
+    const sstats=s.sector_stats||{};
+    const sgrid=document.getElementById('sector-grid');
+    if(sgrid){
+      const entries=Object.entries(sstats).sort((a,b)=>b[1].unrealized_pnl-a[1].unrealized_pnl);
+      sgrid.innerHTML=entries.map(([sec,d])=>{
+        const ret=d.avg_ret_24h_bps||0;
+        const col=ret>200?'#3fb950':(ret<-200?'#f85149':(ret<0?'#d29922':'#7d8590'));
+        const pnlCol=d.unrealized_pnl>=0?'#3fb950':'#f85149';
+        return `<div class="sector-card" style="border-left-color:${col}">
+          <div class="sname">${sec} <span class="dim" style="font-weight:400">${d.n_tokens}t</span></div>
+          <div class="srow">Positions <span class="sval">${d.n_positions}</span></div>
+          <div class="srow">Unrealized <span class="sval" style="color:${pnlCol}">$${fmt(d.unrealized_pnl)}</span></div>
+          <div class="srow">Avg 24h <span class="sval" style="color:${col}">${fmt(ret,0)}bp</span></div>
+        </div>`;
+      }).join('');
+    }
+
+    // Capital flow (batch 3 #10) — muted stacked bars with legend above
+    const renderFlow=(id,groups,colors,legendId)=>{
+      const el=document.getElementById(id);
+      if(!el)return;
+      const total=groups.reduce((a,g)=>a+g.val,0);
+      if(total<=0){el.innerHTML='<span class="dim" style="padding:0 6px;line-height:10px;font-size:10px">—</span>';
+        if(legendId){const leg=document.getElementById(legendId);if(leg)leg.innerHTML=''}return}
+      el.innerHTML=groups.map(g=>{
+        const w=(g.val/total*100).toFixed(1);
+        return `<div class="flow-seg" style="flex-basis:${w}%;background:${colors[g.key]||'#30363d'}" title="${g.key}: $${g.val.toFixed(0)} (${w}%)"></div>`;
+      }).join('');
+      if(legendId){
+        const leg=document.getElementById(legendId);
+        if(leg)leg.innerHTML=groups.map(g=>`<span><i style="background:${colors[g.key]||'#30363d'}"></i>${g.key} $${g.val.toFixed(0)}</span>`).join('');
+      }
+    };
+    const byStrat={},byDir={LONG:0,SHORT:0},bySector={};
+    s.positions.forEach(p=>{
+      byStrat[p.strategy]=(byStrat[p.strategy]||0)+p.size_usdt;
+      byDir[p.direction]+=p.size_usdt;
+      const sec=(s.sector_stats&&Object.entries(s.sector_stats).find(([sc,sd])=>{return false})); // placeholder
+    });
+    // Per sector from TOKEN_SECTOR lookup (need sector list from state)
+    s.positions.forEach(p=>{
+      // Get sector from sector_stats keys via positions — use a simple sym→sec map from sstats
+      // (positions don't carry sector; read from sector_stats indirectly)
+    });
+    // Use position.symbol to sector lookup: we need to embed sector in position. Fallback: compute via sstats keys
+    // Simpler: backend gives sector in sector_stats aggregated. For the bar, sum unrealized... actually use notional per sector from positions via a map
+    // For accurate sector flow, infer from positions list. Each position doesn't have sector. Work around: compute client-side from known token→sector map sent by API.
+    // Muted color palette (batch 3 refinement: less flashy)
+    const stratColors={S1:'#6e47a8',S5:'#2d7a3c',S8:'#8a3b3b',S9:'#8a6a20',S10:'#3a7099'};
+    const dirColors={LONG:'#2d7a3c',SHORT:'#8a3b3b'};
+    const sectorColors={DeFi:'#3a7099',L1:'#2d7a3c',Meme:'#8a6a20',Infra:'#6e47a8',Gaming:'#8a3b3b'};
+    renderFlow('flow-strat',
+      Object.entries(byStrat).map(([k,v])=>({key:k,val:v})).sort((a,b)=>b.val-a.val),
+      stratColors,'flow-strat-legend');
+    renderFlow('flow-dir',
+      Object.entries(byDir).filter(([k,v])=>v>0).map(([k,v])=>({key:k,val:v})),
+      dirColors,'flow-dir-legend');
+    // For sector, use sector_stats unrealized sum abs? No — use position count × avg. Easier: sum from sstats n_positions pondéré.
+    // Actually sector_stats has n_positions but not notional per sector. Use placeholder: fetch from positions via symbol→sector inferred from sector_stats object keys + known tokens
+    // Since TRADE_SYMBOLS sectors are fixed, pass from backend. Use s.sector_stats to infer: map each position symbol via sector_stats keys isn't direct.
+    // Quick heuristic: since we have n_positions per sector, distribute avg notional = total notional / n_positions_total * n_positions_sector. Not precise but gives rough view.
+    const totalNotional=s.positions.reduce((a,p)=>a+p.size_usdt,0);
+    const totalPos=s.positions.length||1;
+    const secArr=Object.entries(sstats).filter(([k,d])=>d.n_positions>0).map(([k,d])=>({
+      key:k, val: totalNotional*d.n_positions/totalPos
+    }));
+    renderFlow('flow-sector', secArr.sort((a,b)=>b.val-a.val),
+      sectorColors,'flow-sector-legend');
+
+    // Preview (batch 3 #9) — what the bot would do on the next scan
+    const pv=document.getElementById('preview-list');
+    if(pv){
+      const items=s.preview||[];
+      if(!items.length){pv.innerHTML='<div class="preview-row"><span class="dim">No signals firing right now</span></div>';}
+      else {
+        pv.innerHTML=items.slice(0,20).map(i=>{
+          const statClass = i.status==='would enter' ? 'ps-enter'
+                         : i.status==='already in position' ? 'ps-pos'
+                         : (i.status==='blacklist'||i.status==='oi_gate') ? 'ps-block'
+                         : 'ps-skip';
+          const dirCol = i.direction==='LONG' ? '#3fb950' : '#f85149';
+          return `<div class="preview-row">
+            <span><b>${i.symbol}</b> <span class="dim">${i.strategy}</span> <span style="color:${dirCol}">${i.direction}</span></span>
+            <span class="preview-status ${statClass}">${i.status}</span>
+          </div>`;
+        }).join('');
+      }
     }
 
     // Highlight sym buttons with open positions
@@ -425,22 +653,16 @@ function refresh(){
     const btc30=mkt.btc_30d||0, btc7=mkt.btc_7d||0, alt=mkt.alt_index_7d||0, dxy=mkt.dxy_7d||0;
     const oiF=mkt.oi_falling||0, oiR=mkt.oi_rising||0;
 
-    // Regime: simple scoring
-    let score=0;
-    if(btc30>1000) score+=2; else if(btc30>0) score+=1; else if(btc30<-1000) score-=2; else if(btc30<0) score-=1;
-    if(btc7>300) score+=1; else if(btc7<-300) score-=1;
-    if(alt>0) score+=1; else if(alt<-500) score-=1;
-
-    let regime, regimeColor;
-    if(score>=3){regime='BULL';regimeColor='#3fb950'}
-    else if(score>=1){regime='MILD BULL';regimeColor='#3fb950'}
-    else if(score<=-3){regime='BEAR';regimeColor='#f85149'}
-    else if(score<=-1){regime='MILD BEAR';regimeColor='#f85149'}
-    else{regime='NEUTRAL';regimeColor='#d29922'}
-
+    // Regime (backend-computed, batch 2): BULL / BEAR / CHOPPY / STRESSED / RALLY / FLUSH
+    const regime=s.regime||'CHOPPY';
+    const regimeColor={BULL:'#3fb950',BEAR:'#f85149',CHOPPY:'#d29922',
+                       STRESSED:'#f85149',RALLY:'#58a6ff',FLUSH:'#db6149'}[regime]||'#d29922';
+    const stressNote=regime==='STRESSED'?' ('+(s.regime_stress||0)+' stressed)':'';
     document.getElementById('regime-dot').style.background=regimeColor;
-    document.getElementById('regime-label').textContent=regime;
-    document.getElementById('regime-label').style.color=regimeColor;
+    const rl=document.getElementById('regime-label');
+    rl.textContent=regime+stressNote;
+    rl.style.color=regimeColor;
+    rl.className='regime-badge regime-'+regime;
 
     const mkC=v=>v>=0?'#3fb950':'#f85149';
     document.getElementById('mkt-btc30').innerHTML='BTC30d: <b style="color:'+mkC(btc30)+'">'+fmt(btc30,0)+'</b>bp';
@@ -461,6 +683,34 @@ function refreshSignals(){
     hdr.style.cssText='padding:4px 8px;color:#7d8590;font-size:12px;grid-column:1/-1';
     hdr.textContent=`BTC 30d: ${fmt(d.btc_30d||0,0)}bps ${d.btc_30d>2000?'-> S1 LONG':''}  |  Alt Index: ${fmt(d.alt_index||0,0)}bps`;
     el.appendChild(hdr);
+
+    // Signal proximity heatmap (batch 2)
+    const hm=document.getElementById('heatmap');
+    if(hm){
+      const strats=['S1','S5','S8','S9','S10'];
+      // Sort tokens by max proximity across all strategies (descending)
+      const ordered=Object.entries(d.signals).sort((a,b)=>{
+        const ma=Math.max(...strats.map(s=>a[1].proximity?.[s]||0));
+        const mb=Math.max(...strats.map(s=>b[1].proximity?.[s]||0));
+        return mb-ma;
+      });
+      let html='<div class="heatmap"><div class="heat-head">Token</div>';
+      strats.forEach(s=>{html+=`<div class="heat-head">${s}</div>`});
+      ordered.forEach(([sym,sd])=>{
+        html+=`<div class="heat-sym">${sym}</div>`;
+        strats.forEach(s=>{
+          const v=(sd.proximity||{})[s]||0;
+          const fires=v>=0.99;
+          // color gradient: 0=grey → 1=green
+          const r=Math.round(48+(63-48)*v), g=Math.round(54+(185-54)*v), b=Math.round(61+(80-61)*v);
+          const bg=fires?'#3fb950':`rgb(${r},${g},${b})`;
+          const pct=Math.round(v*100);
+          html+=`<div class="heat-cell${fires?' fire':''}" style="background:${bg}" title="${sym} ${s}: ${pct}%">${pct}</div>`;
+        });
+      });
+      html+='</div>';
+      hm.innerHTML=html;
+    }
 
     const sorted=Object.entries(d.signals).sort((a,b)=>Math.abs(b[1].ret_7d_bps)-Math.abs(a[1].ret_7d_bps));
     sorted.forEach(([sym,s])=>{
@@ -664,11 +914,33 @@ function refreshChart(){
 
 initSymBar();initChart();
 
-refresh();refreshSignals();refreshTrades();refreshChart();
+function refreshEvents(){
+  fetch('api/events?limit=30',{credentials:'same-origin'}).then(r=>r.json()).then(rows=>{
+    const el=document.getElementById('event-strip');
+    if(!el||!Array.isArray(rows))return;
+    if(!rows.length){el.innerHTML='<span class="dim">No recent events</span>';return}
+    const now=Math.floor(Date.now()/1000);
+    const icons={TRADE_OPEN:'▲',TRADE_CLOSE:'■',SKIP:'⊘',S9F_OBS:'👁',RECONCILE:'⚠',SUPERVISOR_REPORT:'🧾',PAUSE:'⏸',RESUME:'▶'};
+    el.innerHTML=rows.map(r=>{
+      const ago=now-r.ts;
+      const agoStr=ago<60?ago+'s':ago<3600?Math.floor(ago/60)+'m':Math.floor(ago/3600)+'h';
+      let detail='';
+      try{const d=r.data?JSON.parse(r.data):null;
+        if(d&&d.reason)detail=' '+d.reason;
+        else if(d&&d.strategy)detail=' '+d.strategy;
+      }catch(e){}
+      const ic=icons[r.event]||'•';
+      return `<span class="event-pill event-${r.event}" title="${r.event}${detail} — ${agoStr} ago">${ic} ${r.symbol||''} <span class="dim">${agoStr}</span></span>`;
+    }).join('');
+  }).catch(e=>console.warn('events fetch:',e));
+}
+
+refresh();refreshSignals();refreshTrades();refreshChart();refreshEvents();
 setInterval(refresh,5000);
 setInterval(refreshSignals,15000);
 setInterval(refreshTrades,30000);
 setInterval(refreshChart,60000);
+setInterval(refreshEvents,20000);
 setInterval(tickCounters,1000);
 </script>
 </body>

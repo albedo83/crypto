@@ -40,7 +40,8 @@ def is_bot_trade(t) -> bool:
 def compute_signal_drift(trades) -> dict:
     """Rolling stats per signal on last 20 bot trades (excludes manual stops).
 
-    Used by quarantine logic and exposed via /api/state for monitoring.
+    `trend` compares first 10 vs last 10 WR to detect improving/degrading signals:
+    +1 = improving (last 10 WR higher), -1 = degrading, 0 = stable / too few trades.
     """
     by_strat: dict[str, list] = defaultdict(list)
     for t in trades:
@@ -50,11 +51,25 @@ def compute_signal_drift(trades) -> dict:
     for strat, strat_trades in by_strat.items():
         recent = strat_trades[-20:]
         if recent:
+            wr = sum(1 for t in recent if t.pnl_usdt > 0) / len(recent)
+            # Trend: compare first half WR vs second half WR (requires >= 10 trades)
+            trend = 0
+            if len(recent) >= 10:
+                half = len(recent) // 2
+                first = recent[:half]
+                last = recent[half:]
+                wr_first = sum(1 for t in first if t.pnl_usdt > 0) / len(first)
+                wr_last = sum(1 for t in last if t.pnl_usdt > 0) / len(last)
+                if wr_last - wr_first >= 0.10:
+                    trend = 1
+                elif wr_last - wr_first <= -0.10:
+                    trend = -1
             result[strat] = {
                 "n": len(recent),
-                "win_rate": round(sum(1 for t in recent if t.pnl_usdt > 0) / len(recent), 2),
+                "win_rate": round(wr, 2),
                 "avg_bps": round(sum(t.net_bps for t in recent) / len(recent), 1),
                 "total_pnl": round(sum(t.pnl_usdt for t in recent), 2),
+                "trend": trend,
             }
     return result
 

@@ -13,11 +13,15 @@ from .config import (
     CAPITAL_USDT, LEVERAGE, DASHBOARD_USER,
     DASHBOARD_PASS, AUTH_SALT, HTML_PATH, CHANGELOG_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
     MAX_POSITIONS, TOTAL_LOSS_CAP, SCAN_INTERVAL,
-    HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS,
+    HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS, STOP_LOSS_S8,
+    OI_LONG_GATE_BPS, TRADE_BLACKLIST, S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
+    MACRO_STRATEGIES, MAX_SAME_DIRECTION, MAX_PER_SECTOR, MAX_MACRO_SLOTS,
+    MAX_TOKEN_SLOTS, COOLDOWN_HOURS,
     S5_DIV_THRESHOLD, S5_VOL_Z_MIN,
     S8_DRAWDOWN_THRESH, S8_VOL_Z_MIN, S8_RET_24H_THRESH, S8_BTC_7D_THRESH,
     S9_RET_THRESH,
 )
+from .features import oi_delta_24h_bps
 
 def _mode_label() -> str:
     """Display label (BOT_LABEL override, else PAPER/LIVE from EXECUTION_MODE)."""
@@ -94,6 +98,24 @@ def build_state_response(bot) -> dict:
     n_bot, wins = len(bt), sum(1 for t in bt if t.pnl_usdt > 0)
     balance = bot._capital + bot._total_pnl
     btc_f, alt_idx = bot._compute_btc_features(), bot._compute_alt_index()
+    # Regime classifier (v11.4.11 batch 2): stress > BTC trend > default
+    from . import signals as signals_mod
+    cross = signals_mod.compute_cross_context(bot._feature_cache)
+    n_stress = cross.get("n_stress_global", 0)
+    btc30 = btc_f.get("btc_30d", 0)
+    btc7 = btc_f.get("btc_7d", 0)
+    if n_stress >= 5:
+        regime = "STRESSED"
+    elif btc30 > 2000:
+        regime = "BULL"
+    elif btc30 < -1500:
+        regime = "BEAR"
+    elif btc7 > 1000 and btc30 > 500:
+        regime = "RALLY"
+    elif btc7 < -700:
+        regime = "FLUSH"
+    else:
+        regime = "CHOPPY"
     positions = []
     with bot._pos_lock:
         pos_snapshot = dict(bot.positions)
@@ -104,17 +126,131 @@ def build_state_response(bot) -> dict:
         # so unrealized = direction * price_change_pct * size_usdt (no extra leverage)
         ur = pos.direction * (px / pos.entry_price - 1) * 1e4 if pos.entry_price > 0 else 0
         rem = max(0, (pos.target_exit - now).total_seconds() / 3600)
+        hold_h = round((now - pos.entry_time).total_seconds() / 3600, 1)
+        # Effective stop: S8 uses STOP_LOSS_S8, S9 has per-position adaptive stop
+        if pos.strategy == "S8":
+            effective_stop = STOP_LOSS_S8
+        elif pos.stop_bps != 0:
+            effective_stop = pos.stop_bps
+        else:
+            effective_stop = STOP_LOSS_BPS
+        # 0.0 = at entry or in profit; 1.0 = at stop; clamps to [0, 1]
+        stop_progress = max(0.0, min(1.0, -ur / abs(effective_stop))) if effective_stop < 0 else 0.0
+        total_hold = hold_h + rem
+        hold_progress = round(hold_h / total_hold, 3) if total_hold > 0 else 0.0
         positions.append({
             "symbol": sym, "direction": "LONG" if pos.direction == 1 else "SHORT",
             "strategy": pos.strategy, "entry_price": pos.entry_price,
             "current_price": px, "size_usdt": pos.size_usdt,
             "signal_info": pos.signal_info, "unrealized_bps": round(ur, 1),
             "pnl_usdt": round(pos.size_usdt * ur / 1e4, 2),
-            "hold_hours": round((now - pos.entry_time).total_seconds() / 3600, 1),
+            "hold_hours": hold_h,
             "remaining_hours": round(rem, 1),
             "remaining": f"{int(rem)}h{int((rem % 1) * 60):02d}m",
             "mae_bps": round(pos.mae_bps, 1), "mfe_bps": round(pos.mfe_bps, 1),
+            "stop_bps": round(effective_stop, 0),
+            "stop_progress": round(stop_progress, 3),
+            "hold_progress": hold_progress,
+            "trajectory": list(pos.trajectory),
+            # S10 trailing: exit when unrealized drops below mfe - offset (if mfe >= trigger)
+            "trailing_active": bool(pos.strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER),
+            "trailing_floor_bps": round(pos.mfe_bps - S10_TRAILING_OFFSET, 0)
+                                   if pos.strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER else None,
         })
+    # OI delta 24h per token (for dashboard gauge + gate visualization)
+    oi_deltas = {}
+    for _sym in TRADE_SYMBOLS:
+        _st = bot.states.get(_sym)
+        if _st:
+            _d = oi_delta_24h_bps(_st.oi_history)
+            if _d is not None:
+                oi_deltas[_sym] = round(_d, 0)
+    # Scan preview (batch 3, #9): for each token currently firing a signal,
+    # report what the bot would do right now: ENTER / SKIP with reason.
+    preview: list = []
+    n_long = sum(1 for p in pos_snapshot.values() if p.direction == 1)
+    n_short = sum(1 for p in pos_snapshot.values() if p.direction == -1)
+    n_macro = sum(1 for p in pos_snapshot.values() if p.strategy in MACRO_STRATEGIES)
+    n_token_sig = sum(1 for p in pos_snapshot.values() if p.strategy not in MACRO_STRATEGIES)
+    sector_counts: dict[str, int] = {}
+    for p in pos_snapshot.values():
+        _s = TOKEN_SECTOR.get(p.symbol)
+        if _s:
+            sector_counts[_s] = sector_counts.get(_s, 0) + 1
+    for _sym in TRADE_SYMBOLS:
+        _st = bot.states.get(_sym)
+        _f = bot._get_cached_features(_sym) if hasattr(bot, "_get_cached_features") else None
+        if not _st or not _f:
+            continue
+        # Gather triggered signals for this token
+        _fires: list = []
+        if btc_f.get("btc_30d", 0) > 2000:
+            _fires.append(("S1", 1))
+        _sd = bot._compute_sector_divergence(_sym) if hasattr(bot, "_compute_sector_divergence") else None
+        if _sd and abs(_sd["divergence"]) >= S5_DIV_THRESHOLD and _sd["vol_z"] >= S5_VOL_Z_MIN:
+            _fires.append(("S5", 1 if _sd["divergence"] > 0 else -1))
+        if (_f.get("drawdown", 0) < S8_DRAWDOWN_THRESH and _f.get("vol_z", 0) > S8_VOL_Z_MIN
+                and _f.get("ret_24h", 0) < S8_RET_24H_THRESH
+                and btc_f.get("btc_7d", 0) < S8_BTC_7D_THRESH):
+            _fires.append(("S8", 1))
+        _ret24 = _f.get("ret_24h", 0)
+        if abs(_ret24) >= S9_RET_THRESH:
+            _fires.append(("S9", -1 if _ret24 > 0 else 1))
+        for _strat, _dir in _fires:
+            _reason = "would enter"
+            if _sym in bot.positions:
+                _reason = "already in position"
+            elif _sym in TRADE_BLACKLIST:
+                _reason = "blacklist"
+            elif _sym in bot._cooldowns and time.time() < bot._cooldowns[_sym]:
+                _reason = "cooldown"
+            elif len(bot.positions) >= MAX_POSITIONS:
+                _reason = "max_positions"
+            elif _dir == 1 and n_long >= MAX_SAME_DIRECTION:
+                _reason = "max_long"
+            elif _dir == -1 and n_short >= MAX_SAME_DIRECTION:
+                _reason = "max_short"
+            elif _strat in MACRO_STRATEGIES and n_macro >= MAX_MACRO_SLOTS:
+                _reason = "max_macro"
+            elif _strat not in MACRO_STRATEGIES and n_token_sig >= MAX_TOKEN_SLOTS:
+                _reason = "max_token"
+            else:
+                _sect = TOKEN_SECTOR.get(_sym)
+                if _sect and sector_counts.get(_sect, 0) >= MAX_PER_SECTOR:
+                    _reason = "max_sector"
+                elif _dir == 1:
+                    _oi = oi_delta_24h_bps(_st.oi_history)
+                    if _oi is not None and _oi < -OI_LONG_GATE_BPS:
+                        _reason = "oi_gate"
+        # Record all fires regardless of status
+            preview.append({"symbol": _sym, "strategy": _strat,
+                            "direction": "LONG" if _dir == 1 else "SHORT",
+                            "status": _reason})
+    # Sort so "would enter" at top, then by strategy priority
+    _prio = {"would enter": 0, "already in position": 1}
+    preview.sort(key=lambda x: (_prio.get(x["status"], 2), x["strategy"]))
+
+    # Sector stats (batch 2): positions + unrealized + avg 24h return per sector
+    sector_stats: dict[str, dict] = {}
+    for _sym, _sect in TOKEN_SECTOR.items():
+        s = sector_stats.setdefault(_sect, {"n_tokens": 0, "n_positions": 0,
+                                            "unrealized_pnl": 0.0, "ret_24h_sum": 0.0,
+                                            "ret_24h_n": 0})
+        s["n_tokens"] += 1
+        _f = bot._get_cached_features(_sym) if hasattr(bot, "_get_cached_features") else None
+        if _f and _f.get("ret_24h") is not None:
+            s["ret_24h_sum"] += _f["ret_24h"]
+            s["ret_24h_n"] += 1
+    for _p in positions:
+        _sect = TOKEN_SECTOR.get(_p["symbol"])
+        if _sect and _sect in sector_stats:
+            sector_stats[_sect]["n_positions"] += 1
+            sector_stats[_sect]["unrealized_pnl"] += _p["pnl_usdt"]
+    # Finalize: avg return, round
+    for _sect, s in sector_stats.items():
+        s["avg_ret_24h_bps"] = round(s["ret_24h_sum"] / s["ret_24h_n"], 0) if s["ret_24h_n"] else 0
+        s["unrealized_pnl"] = round(s["unrealized_pnl"], 2)
+        del s["ret_24h_sum"], s["ret_24h_n"]
     return {
         "version": VERSION, "strategy": "Multi-Signal (S1+S5+S8+S9+S10)",
         "execution_mode": EXECUTION_MODE,
@@ -128,6 +264,11 @@ def build_state_response(bot) -> dict:
         "win_rate": round(wins / n_bot, 3) if n_bot > 0 else 0,
         "n_positions": len(pos_snapshot), "max_positions": MAX_POSITIONS,
         "positions": positions, "active_signals": _collect_active_signals(bot, btc_f),
+        "oi_deltas_24h": oi_deltas, "oi_gate_bps": OI_LONG_GATE_BPS,
+        "blacklist": sorted(TRADE_BLACKLIST),
+        "regime": regime, "regime_stress": n_stress,
+        "sector_stats": sector_stats,
+        "preview": preview,
         "market": {
             "btc_30d": round(btc_f.get("btc_30d", 0), 0),
             "btc_7d": round(btc_f.get("btc_7d", 0), 0),
@@ -152,6 +293,43 @@ def build_state_response(bot) -> dict:
         "pnl_pct": round((balance - bot._capital) / bot._capital * 100, 2) if bot._capital > 0 else 0,
         "capital_utilization_pct": round(sum(p.size_usdt / LEVERAGE for p in pos_snapshot.values()) / max(balance, 1) * 100, 1),
     }
+
+def _signal_proximity(btc_f, f, sd) -> dict:
+    """Per-strategy activation score 0..1 (1 = firing right now).
+
+    Distance from firing threshold normalized to [0, 1]. For multi-condition
+    signals (S8), the score is min across conditions (all must be met).
+    """
+    btc30 = btc_f.get("btc_30d", 0)
+    btc7 = btc_f.get("btc_7d", 0)
+    ret_24h = f.get("ret_24h", 0)
+    vol_z = f.get("vol_z", 0)
+    drawdown = f.get("drawdown", 0)
+    vol_ratio = f.get("vol_ratio", 2.0)
+
+    # S1: BTC 30d > 2000 bps (global, not per-token)
+    s1 = min(1.0, max(0.0, btc30 / 2000.0))
+    # S5: need divergence + vol_z both above threshold
+    if sd:
+        div_prox = min(1.0, abs(sd["divergence"]) / S5_DIV_THRESHOLD)
+        volz_prox = min(1.0, max(0.0, sd["vol_z"] / S5_VOL_Z_MIN))
+        s5 = min(div_prox, volz_prox)
+    else:
+        s5 = 0.0
+    # S8: 4 conditions — drawdown, vol_z, ret_24h, btc_7d
+    s8 = min(
+        min(1.0, drawdown / S8_DRAWDOWN_THRESH) if S8_DRAWDOWN_THRESH != 0 else 0.0,
+        min(1.0, max(0.0, vol_z / S8_VOL_Z_MIN)),
+        min(1.0, ret_24h / S8_RET_24H_THRESH) if S8_RET_24H_THRESH != 0 else 0.0,
+        min(1.0, btc7 / S8_BTC_7D_THRESH) if S8_BTC_7D_THRESH != 0 else 0.0,
+    )
+    # S9: |ret_24h| / threshold
+    s9 = min(1.0, abs(ret_24h) / S9_RET_THRESH)
+    # S10: vol_ratio < 0.9 → vol_ratio low = close to squeeze
+    s10 = min(1.0, max(0.0, (0.9 - vol_ratio) / 0.4 + 0.5)) if vol_ratio > 0 else 0.0
+    return {"S1": round(s1, 2), "S5": round(s5, 2), "S8": round(s8, 2),
+            "S9": round(s9, 2), "S10": round(s10, 2)}
+
 
 def build_signals_response(bot) -> dict:
     """All symbols with their current features and signal status."""
@@ -185,6 +363,7 @@ def build_signals_response(bot) -> dict:
             "crowding": crowd, "triggered": triggered,
             "in_position": pos is not None,
             "position_strategy": pos.strategy if pos else None,
+            "proximity": _signal_proximity(btc_f, f, sd),
         }
     return {"signals": signals, "btc_30d": round(btc_f.get("btc_30d", 0), 0),
             "alt_index": round(alt_idx, 0)}
@@ -511,6 +690,20 @@ def create_app(bot) -> FastAPI:
     async def api_trades(limit: int = 50): return JSONResponse(build_trades_list(bot.trades, limit))
     @app.get("/api/pnl")
     async def api_pnl(): return JSONResponse(build_pnl_curve(bot.trades, bot._capital))
+
+    @app.get("/api/events")
+    def api_events(limit: int = 30):
+        """Recent events (SKIP / S9F_OBS / SUPERVISOR_REPORT / etc) for timeline ticker."""
+        if not bot._db:
+            return JSONResponse([])
+        try:
+            cur = bot._db.execute(
+                "SELECT ts, event, symbol, data FROM events ORDER BY ts DESC LIMIT ?",
+                (limit,))
+            rows = [{"ts": r[0], "event": r[1], "symbol": r[2], "data": r[3]} for r in cur]
+            return JSONResponse(rows)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
 
     @app.post("/api/close/{symbol}")
     def api_close_symbol(symbol: str):  # sync -- runs in threadpool

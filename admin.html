@@ -136,25 +136,27 @@ function renderBots(bots){
       <div class="signals">${online&&b.active_signals&&b.active_signals.length?'<span>'+b.active_signals.join('</span> | <span>')+'</span>':'No active signals'}</div>
       <div class="card-footer">
         <span class="version">${online?(()=>{let v='v'+(b.version||'?');if(b.first_trade_date){const ft=new Date(b.first_trade_date);const days=Math.floor((Date.now()-ft.getTime())/86400000);v+=' | '+ft.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' ('+days+'j)';}return v;})():':'+b.port}</span>
-        <a class="btn-open" href="${b.path?b.path+'/auth?token='+(_authToken||''):'http://'+location.hostname+':'+b.port+'/auth?token='+(_authToken||'')}" target="_blank">Open</a>
+        <a class="btn-open" href="#" onclick="openBot(event,${b.port},'${b.path||''}')">Open</a>
       </div>
     `;
     grid.appendChild(card);
   });
 }
 
-let _authToken='';
-function fetchToken(){
-  fetch('api/auth-token',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{_authToken=d.token||''}).catch(()=>{});
+function openBot(ev,port,path){
+  ev.preventDefault();
+  fetch('api/auth-token?port='+port,{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
+    const t=d.token||'';
+    const url=path?path+'/auth?token='+t:'http://'+location.hostname+':'+port+'/auth?token='+t;
+    window.open(url,'_blank');
+  }).catch(e=>{alert('Error: '+e)});
 }
 function refresh(){
   fetch('api/bots',{credentials:'same-origin'}).then(r=>r.json()).then(renderBots).catch(e=>console.warn('fetch error:',e));
 }
 
-fetchToken();
 refresh();
 setInterval(refresh,10000);
-setInterval(fetchToken,300000); // refresh token every 5 min
 </script>
 </body>
 </html>
