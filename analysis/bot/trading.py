@@ -38,10 +38,11 @@ def is_bot_trade(t) -> bool:
 
 
 def compute_signal_drift(trades) -> dict:
-    """Rolling stats per signal on last 20 bot trades (excludes manual stops).
+    """Per-strategy stats — lifetime AND rolling 20 trades.
 
-    `trend` compares first 10 vs last 10 WR to detect improving/degrading signals:
-    +1 = improving (last 10 WR higher), -1 = degrading, 0 = stable / too few trades.
+    Lifetime = all bot trades ever for this strategy (structural edge).
+    Recent 20 = last 20 (short-term health). `trend` compares first 10 vs last
+    10 within the recent 20: +1 improving, -1 degrading, 0 stable/insufficient.
     """
     by_strat: dict[str, list] = defaultdict(list)
     for t in trades:
@@ -49,28 +50,44 @@ def compute_signal_drift(trades) -> dict:
             by_strat[t.strategy].append(t)
     result = {}
     for strat, strat_trades in by_strat.items():
+        if not strat_trades:
+            continue
+        # Lifetime
+        n_life = len(strat_trades)
+        wr_life = sum(1 for t in strat_trades if t.pnl_usdt > 0) / n_life
+        avg_life = sum(t.net_bps for t in strat_trades) / n_life
+        pnl_life = sum(t.pnl_usdt for t in strat_trades)
+        # Recent 20
         recent = strat_trades[-20:]
-        if recent:
-            wr = sum(1 for t in recent if t.pnl_usdt > 0) / len(recent)
-            # Trend: compare first half WR vs second half WR (requires >= 10 trades)
-            trend = 0
-            if len(recent) >= 10:
-                half = len(recent) // 2
-                first = recent[:half]
-                last = recent[half:]
-                wr_first = sum(1 for t in first if t.pnl_usdt > 0) / len(first)
-                wr_last = sum(1 for t in last if t.pnl_usdt > 0) / len(last)
-                if wr_last - wr_first >= 0.10:
-                    trend = 1
-                elif wr_last - wr_first <= -0.10:
-                    trend = -1
-            result[strat] = {
-                "n": len(recent),
-                "win_rate": round(wr, 2),
-                "avg_bps": round(sum(t.net_bps for t in recent) / len(recent), 1),
-                "total_pnl": round(sum(t.pnl_usdt for t in recent), 2),
-                "trend": trend,
-            }
+        n_rec = len(recent)
+        wr_rec = sum(1 for t in recent if t.pnl_usdt > 0) / n_rec
+        avg_rec = sum(t.net_bps for t in recent) / n_rec
+        pnl_rec = sum(t.pnl_usdt for t in recent)
+        # Trend: first half vs second half WR in the recent window
+        trend = 0
+        if n_rec >= 10:
+            half = n_rec // 2
+            wr_first = sum(1 for t in recent[:half] if t.pnl_usdt > 0) / half
+            wr_last = sum(1 for t in recent[half:] if t.pnl_usdt > 0) / (n_rec - half)
+            if wr_last - wr_first >= 0.10:
+                trend = 1
+            elif wr_last - wr_first <= -0.10:
+                trend = -1
+        result[strat] = {
+            # Legacy fields (lifetime now — was rolling 20 before v11.5.1)
+            "n": n_life,
+            "win_rate": round(wr_life, 2),
+            "avg_bps": round(avg_life, 1),
+            "total_pnl": round(pnl_life, 2),
+            "trend": trend,
+            # Explicit split
+            "lifetime": {"n": n_life, "win_rate": round(wr_life, 2),
+                         "avg_bps": round(avg_life, 1),
+                         "total_pnl": round(pnl_life, 2)},
+            "recent20": {"n": n_rec, "win_rate": round(wr_rec, 2),
+                         "avg_bps": round(avg_rec, 1),
+                         "total_pnl": round(pnl_rec, 2)},
+        }
     return result
 
 

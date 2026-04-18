@@ -143,6 +143,26 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 .event-S9F_OBS{border-color:#58a6ff}
 .event-RECONCILE{border-color:#da3633}
 .trailing-info{color:#58a6ff;font-size:10px;margin-top:1px}
+#strat-table th,#strat-table td{background-clip:padding-box}
+#strat-table thead th:nth-child(1),#strat-table tbody td:nth-child(1){background:#161b22}
+#strat-table thead tr:nth-child(1) th:nth-child(2),
+#strat-table thead tr:nth-child(2) th:nth-child(2),
+#strat-table thead tr:nth-child(2) th:nth-child(3),
+#strat-table thead tr:nth-child(2) th:nth-child(4),
+#strat-table thead tr:nth-child(2) th:nth-child(5),
+#strat-table tbody td:nth-child(2),
+#strat-table tbody td:nth-child(3),
+#strat-table tbody td:nth-child(4),
+#strat-table tbody td:nth-child(5){background:#14202b}
+#strat-table thead tr:nth-child(1) th:nth-child(3),
+#strat-table thead tr:nth-child(2) th:nth-child(6),
+#strat-table thead tr:nth-child(2) th:nth-child(7),
+#strat-table thead tr:nth-child(2) th:nth-child(8),
+#strat-table thead tr:nth-child(2) th:nth-child(9),
+#strat-table tbody td:nth-child(6),
+#strat-table tbody td:nth-child(7),
+#strat-table tbody td:nth-child(8),
+#strat-table tbody td:nth-child(9){background:#1e1a2a}
 </style>
 </head>
 <body>
@@ -208,14 +228,25 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 <div class="section">
   <h2>Open Positions</h2>
   <table><thead><tr>
-    <th>Symbol</th><th>Strat</th><th>Side</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>P&L</th><th>Hold<span class="dim" style="font-weight:400"> / rem.</span></th><th>Path</th><th></th>
+    <th>Symbol</th><th>Strat</th><th>Side</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>P&L</th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path</th><th></th>
   </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
 <div class="section">
-  <h2>Strategy Performance (last 20 trades)</h2>
-  <table><thead><tr><th>Signal</th><th>Trades</th><th>Win Rate</th><th>Avg bps</th><th>P&L</th></tr></thead><tbody id="strat-drift"></tbody></table>
+  <h2>Strategy Performance <span class="dim" style="font-size:12px;font-weight:400">— lifetime + recent 20 with trend arrow</span>
+    <button class="btn-small" style="margin-left:12px;font-size:11px" onclick="toggleDetails()" id="toggle-details-btn">Show more ▾</button>
+  </h2>
+  <table id="strat-table"><thead><tr>
+    <th rowspan="2">Signal</th>
+    <th colspan="4" style="text-align:center;border-bottom:1px solid #30363d">Lifetime</th>
+    <th colspan="4" style="text-align:center;border-bottom:1px solid #30363d">Recent 20</th>
+  </tr><tr>
+    <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
+    <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
+  </tr></thead><tbody id="strat-drift"></tbody></table>
 </div>
+
+<div id="details-wrap" style="display:none">
 
 <div class="section">
   <h2>Sector overview</h2>
@@ -275,10 +306,24 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   <div id="heatmap"></div>
 </div>
 
+</div><!-- /details-wrap -->
+
 <script>
 const r=()=>refresh();
 const cls=v=>v>=0?'green':'red';
 const fmt=(v,d=2)=>(v>=0?'+':'')+v.toFixed(d);
+function toggleDetails(){
+  const el=document.getElementById('details-wrap');
+  const btn=document.getElementById('toggle-details-btn');
+  if(!el||!btn)return;
+  const open=el.style.display!=='none';
+  el.style.display=open?'none':'';
+  btn.textContent=open?'Show more ▾':'Hide ▴';
+  try{localStorage.setItem('dash-details-open',open?'0':'1')}catch(e){}
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  try{if(localStorage.getItem('dash-details-open')==='1')toggleDetails()}catch(e){}
+});
 function closePos(sym){if(!confirm('Close '+sym+' now?'))return;fetch('api/close/'+sym,{method:'POST',credentials:'same-origin'}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else refresh()}).catch(e=>alert('Error: '+e));}
 // Visual helpers (v11.4.10 batch 1)
 function stopBar(prog){
@@ -456,7 +501,7 @@ function refresh(){
         <td>$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
         <td class="${cls(p.unrealized_bps)}">${fmt(p.unrealized_bps,1)}bps${stopViz}${stopStr}</td>
         <td class="${cls(p.pnl_usdt)}">$${fmt(p.pnl_usdt)}</td>
-        <td>${p.hold_hours.toFixed(1)}h${holdViz}<div class="dim" style="font-size:10px">rem ${p.remaining||Math.floor(p.remaining_hours)+'h'}</div></td>
+        <td><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
         <td>${pathViz}</td>
         <td><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
@@ -532,18 +577,25 @@ function refresh(){
     }
     document.getElementById('card-s10').title=s10h.message||'';
 
-    // Strategy P&L breakdown (with trend arrow — batch 2)
+    // Strategy P&L breakdown — lifetime + recent 20 with trend arrow
     const drift=s.signal_drift||{};
     const sdEl=document.getElementById('strat-drift');
     if(sdEl){
       sdEl.innerHTML='';
-      Object.entries(drift).sort((a,b)=>b[1].total_pnl-a[1].total_pnl).forEach(([sig,d])=>{
-        const tr=document.createElement('tr');
+      Object.entries(drift).sort((a,b)=>(b[1].lifetime?.total_pnl||b[1].total_pnl)-(a[1].lifetime?.total_pnl||a[1].total_pnl)).forEach(([sig,d])=>{
+        const L=d.lifetime||{n:d.n,win_rate:d.win_rate,avg_bps:d.avg_bps,total_pnl:d.total_pnl};
+        const R=d.recent20||{n:d.n,win_rate:d.win_rate,avg_bps:d.avg_bps,total_pnl:d.total_pnl};
         const trendSym={1:'<span class="trend-up">↑</span>',
                         '-1':'<span class="trend-dn">↓</span>',
                         0:'<span class="trend-eq">=</span>'}[d.trend]||'';
-        const wrCls=d.win_rate>=0.5?'green':(d.win_rate<0.4&&d.trend===-1?'red':(d.win_rate<0.4?'yellow':'red'));
-        tr.innerHTML=`<td><b>${sig}</b></td><td>${d.n}</td><td class="${wrCls}">${(d.win_rate*100).toFixed(0)}% ${trendSym}</td><td>${fmt(d.avg_bps,1)}</td><td class="${cls(d.total_pnl)}"><b>$${fmt(d.total_pnl)}</b></td>`;
+        const wrClsR=R.win_rate>=0.5?'green':(R.win_rate<0.4&&d.trend===-1?'red':(R.win_rate<0.4?'yellow':'red'));
+        const wrClsL=L.win_rate>=0.5?'green':'red';
+        const tr=document.createElement('tr');
+        tr.innerHTML=`<td><b>${sig}</b></td>
+          <td>${L.n}</td><td class="${wrClsL}">${(L.win_rate*100).toFixed(0)}%</td>
+          <td>${fmt(L.avg_bps,1)}</td><td class="${cls(L.total_pnl)}"><b>$${fmt(L.total_pnl)}</b></td>
+          <td>${R.n}</td><td class="${wrClsR}">${(R.win_rate*100).toFixed(0)}% ${trendSym}</td>
+          <td>${fmt(R.avg_bps,1)}</td><td class="${cls(R.total_pnl)}">$${fmt(R.total_pnl)}</td>`;
         sdEl.appendChild(tr);
       });
     }

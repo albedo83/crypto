@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.6.0] — 2026-04-18
+
+### Added
+- **Details toggle** in dashboard: "Show more ▾" button in the Strategy Performance header. Collapses all sections below (Sector overview, Capital flow, Next-scan preview, Event timeline, OI delta 24h, P&L Curve, Chart, Signals, Trade History, Signal proximity) by default. Preference persisted in `localStorage`.
+- **Strategy Performance — Recent 20 group**: alongside the existing stats, the table now shows lifetime AND recent 20 trades per strategy (Trades / WR / Avg bps / P&L × 2). Trend arrow (↑/↓/=) applies to the Recent 20 WR.
+
+### Changed
+- Strategy Performance now shows **lifetime stats by default** (previously: only the last 20 trades, which misrepresented a strategy's structural edge).
+- Backend `compute_signal_drift()` returns both `lifetime` and `recent20` sub-dicts per strategy; legacy top-level fields remain for backward compat.
+- Position table "Hold / Rem" column renamed "Remaining / held": remaining time is now bold (primary), elapsed hold shows dim below.
+- Strategy Performance column groups (Signal / Lifetime / Recent 20) distinguished by subtle background color gradient instead of a hard vertical separator.
+
 ## [11.5.0] — 2026-04-18
 
 ### Added — dashboard batch 1 (inline position indicators)
