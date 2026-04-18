@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.7.0] — 2026-04-18
+
+### Added — dashboard redesign
+- **Left sidebar with per-block toggles** (220px sticky on desktop). 11 sections grouped under PERFORMANCE / MARKET CONTEXT / SIGNALS / DIAGNOSTICS, each with its own checkbox. "Show all" / "Hide all" shortcuts. State persisted in `localStorage` under `dash-blocks-v2`.
+- **Mobile drawer**: hamburger button (☰) in the header at < 1024px viewport; sidebar slides in from the left with a backdrop overlay.
+- **Responsive card-mode for tables**: Open Positions and Trade History use `table.responsive` class — at < 640px each row becomes a vertical card with `data-label` cells (label left / value right).
+
+### Changed — dashboard layout
+- **Default view is now minimal**: only header, activity bar, market bar, Equity/PnL cards, and Open Positions. Every other section (Strategy Performance, P&L Curve, Price Chart, Trade History, Sector overview, Capital flow, Next-scan preview, Event timeline, OI delta grid, Signals cards, Signal proximity heatmap) is hidden by default and activated via the sidebar.
+- Old "Show advanced indicators ▾" button + `toggleDetails()` helper removed (superseded by the per-block sidebar).
+- Mobile breakpoints: tablet ≤ 1023px collapses sidebar to drawer; phone ≤ 640px switches to card-mode tables, 2-column cards, smaller charts; ≤ 420px cards become 1-column.
+- New `toggleDrawer()` + `onToggleBlock()` handlers; renderers fire on-demand when a block is toggled on (no need to wait for the next refresh cycle).
+
 ## [11.6.2] — 2026-04-18
 
 ### Fixed — code-review fixes (trading engine audit)

@@ -163,11 +163,88 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
 #strat-table tbody td:nth-child(7),
 #strat-table tbody td:nth-child(8),
 #strat-table tbody td:nth-child(9){background:#1e1a2a}
+/* v11.7.0: Dashboard layout — sidebar + content + responsive drawer */
+.app{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.sidebar{position:sticky;top:0;height:100vh;overflow-y:auto;background:#161b22;border-right:1px solid #30363d;padding:16px 12px;z-index:50}
+.sidebar h3{font-size:10px;letter-spacing:1px;color:#7d8590;text-transform:uppercase;margin:16px 0 6px;font-weight:700}
+.sidebar h3:first-child{margin-top:0}
+.sidebar label{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:4px;font-size:12px;cursor:pointer;user-select:none;color:#c9d1d9}
+.sidebar label:hover{background:#21262d}
+.sidebar label input{accent-color:#58a6ff;margin:0;width:14px;height:14px;cursor:pointer}
+.sidebar .sb-actions{display:flex;gap:6px;margin-top:12px}
+.sidebar .sb-actions button{flex:1;padding:5px 4px;font-size:10px}
+.content{min-width:0;overflow-x:hidden}
+.hamburger{display:none;background:none;border:1px solid #30363d;color:#e6edf3;font-size:18px;padding:4px 10px;border-radius:4px;cursor:pointer;line-height:1}
+.drawer-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:40}
+.drawer-overlay.open{display:block}
+[data-block][hidden]{display:none!important}
+/* Tablet + Mobile: drawer */
+@media(max-width:1023px){
+  .app{grid-template-columns:1fr}
+  .sidebar{position:fixed;top:0;left:0;width:240px;max-width:80vw;transform:translateX(-100%);transition:transform .2s ease-out;box-shadow:2px 0 12px rgba(0,0,0,0.4)}
+  .sidebar.open{transform:translateX(0)}
+  .hamburger{display:inline-block}
+}
+/* Mobile */
+@media(max-width:640px){
+  .header{padding:8px 12px;gap:8px;flex-wrap:wrap}
+  .header h1{font-size:14px}
+  .header-actions{order:10;width:100%;justify-content:flex-start;overflow-x:auto;margin-left:0!important;scrollbar-width:none}
+  .header-actions::-webkit-scrollbar{display:none}
+  .activity-bar,#market-bar{padding:6px 12px;flex-wrap:wrap;gap:8px}
+  .cards{grid-template-columns:repeat(2,1fr);display:grid!important;gap:8px;padding:10px 12px}
+  .card{min-width:0;flex:unset;padding:8px 10px}
+  .card .value{font-size:15px}
+  .section{padding:10px 12px}
+  .section h2{font-size:12px}
+  body{font-size:12px}
+  /* Responsive tables: card-mode */
+  table.responsive{display:block;background:transparent;border-radius:0}
+  table.responsive thead{display:none}
+  table.responsive tbody{display:block}
+  table.responsive tbody tr{display:block;background:#161b22;border:1px solid #30363d;border-radius:6px;margin-bottom:8px;padding:6px 10px}
+  table.responsive tbody td{display:flex;justify-content:space-between;align-items:center;border-top:0;padding:3px 0;white-space:normal}
+  table.responsive tbody td::before{content:attr(data-label);color:#7d8590;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-right:8px;flex-shrink:0}
+  table.responsive tbody td:first-child{font-size:14px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #30363d}
+  .sym-bar{gap:3px}
+  .sym-btn{padding:3px 6px;font-size:10px}
+  .heatmap{grid-template-columns:50px repeat(5,1fr);font-size:9px}
+  .pnl-chart,.price-chart{height:200px}
+  .pnl-chart canvas{width:100%!important;height:100%!important}
+}
+@media(max-width:420px){.cards{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
+<div class="app">
+
+<aside class="sidebar" id="sidebar">
+  <h3>PERFORMANCE</h3>
+  <label><input type="checkbox" data-toggle="strategy-performance"> Strategy Performance</label>
+  <label><input type="checkbox" data-toggle="pnl-curve"> P&L Curve</label>
+  <label><input type="checkbox" data-toggle="trade-history"> Trade History</label>
+  <h3>MARKET CONTEXT</h3>
+  <label><input type="checkbox" data-toggle="sector-overview"> Sector overview</label>
+  <label><input type="checkbox" data-toggle="oi-grid"> OI delta 24h</label>
+  <label><input type="checkbox" data-toggle="capital-flow"> Capital flow</label>
+  <h3>SIGNALS</h3>
+  <label><input type="checkbox" data-toggle="next-scan-preview"> Next-scan preview</label>
+  <label><input type="checkbox" data-toggle="signals-cards"> Signals (cards)</label>
+  <label><input type="checkbox" data-toggle="signal-proximity"> Signal proximity</label>
+  <h3>DIAGNOSTICS</h3>
+  <label><input type="checkbox" data-toggle="event-timeline"> Event timeline</label>
+  <label><input type="checkbox" data-toggle="price-chart"> Price chart</label>
+  <div class="sb-actions">
+    <button class="btn-small" onclick="showAllBlocks()">Show all</button>
+    <button class="btn-small" onclick="hideAllBlocks()">Hide all</button>
+  </div>
+</aside>
+<div class="drawer-overlay" id="drawer-overlay" onclick="toggleDrawer()"></div>
+
+<main class="content">
 
 <div class="header">
+  <button class="hamburger" onclick="toggleDrawer()" aria-label="Menu">☰</button>
   <h1>Multi-Signal Bot v{{VERSION}}</h1>
   <span class="tag live" id="tag"><span class="pulse" id="pulse"></span> LIVE</span>
   <span class="info" id="uptime"></span>
@@ -225,14 +302,14 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   </div>
 </div>
 
-<div class="section">
+<div class="section" data-block="open-positions">
   <h2>Open Positions</h2>
-  <table><thead><tr>
+  <table class="responsive"><thead><tr>
     <th>Symbol</th><th>Strat</th><th>Side</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>P&L</th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path</th><th></th>
   </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
-<div class="section">
+<div class="section" data-block="strategy-performance" hidden>
   <h2>Strategy Performance <span class="dim" style="font-size:12px;font-weight:400">— lifetime + recent 20 with trend arrow</span></h2>
   <table id="strat-table"><thead><tr>
     <th rowspan="2">Signal</th>
@@ -244,36 +321,30 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   </tr></thead><tbody id="strat-drift"></tbody></table>
 </div>
 
-<div class="section">
+<div class="section" data-block="pnl-curve" hidden>
   <h2>P&L Curve</h2>
   <div class="pnl-chart"><canvas id="pnl-canvas" width="800" height="180"></canvas></div>
 </div>
 
-<div class="section">
+<div class="section" data-block="price-chart" hidden>
   <h2 id="chart-title">BTC — Live</h2>
   <div class="sym-bar" id="sym-bar"></div>
   <div class="price-chart" id="price-chart-container"></div>
 </div>
 
-<div class="section">
+<div class="section" data-block="trade-history" hidden>
   <h2>Trade History</h2>
-  <table><thead><tr>
+  <table class="responsive"><thead><tr>
     <th>Time</th><th>Symbol</th><th>Strat</th><th>Side</th><th>Gross</th><th>Net</th><th>P&L</th><th>Hold</th><th>Exit</th>
   </tr></thead><tbody id="trades-body"></tbody></table>
 </div>
 
-<div style="text-align:center;margin:20px 0 10px;padding:10px 0;border-top:1px dashed #30363d">
-  <button class="btn-small" style="font-size:12px;padding:6px 16px" onclick="toggleDetails()" id="toggle-details-btn">Show advanced indicators ▾</button>
-</div>
-
-<div id="details-wrap" style="display:none">
-
-<div class="section">
+<div class="section" data-block="sector-overview" hidden>
   <h2>Sector overview</h2>
   <div class="sector-grid" id="sector-grid"></div>
 </div>
 
-<div class="section">
+<div class="section" data-block="capital-flow" hidden>
   <h2>Capital flow <span class="dim" style="font-size:12px;font-weight:400">— open notional by strategy / direction / sector</span></h2>
   <div class="flow-label"><span>By strategy</span><span class="flow-legend" id="flow-strat-legend"></span></div>
   <div class="flow-bar" id="flow-strat"></div>
@@ -283,48 +354,91 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   <div class="flow-bar" id="flow-sector"></div>
 </div>
 
-<div class="section">
+<div class="section" data-block="next-scan-preview" hidden>
   <h2>Next-scan preview <span class="dim" style="font-size:12px;font-weight:400">— signals firing now & what the bot would do</span></h2>
   <div id="preview-list"></div>
 </div>
 
-<div class="section">
+<div class="section" data-block="event-timeline" hidden>
   <h2>Event timeline <span class="dim" style="font-size:12px;font-weight:400">— 30 most recent events</span></h2>
   <div class="event-strip" id="event-strip"></div>
 </div>
 
-<div class="section">
+<div class="section" data-block="oi-grid" hidden>
   <h2>OI delta 24h <span class="dim" style="font-size:12px;font-weight:400">— tokens at or below gate (−10%) block LONG entries</span></h2>
   <div class="oi-grid" id="oi-grid"></div>
 </div>
 
-<div class="section">
+<div class="section" data-block="signals-cards" hidden>
   <h2>Signals</h2>
   <div class="signal-grid" id="signals"></div>
 </div>
 
-<div class="section">
+<div class="section" data-block="signal-proximity" hidden>
   <h2>Signal proximity <span class="dim" style="font-size:12px;font-weight:400">— green = firing now, gradient = distance to threshold</span></h2>
   <div id="heatmap"></div>
 </div>
 
-</div><!-- /details-wrap -->
+</main>
+</div><!-- /.app -->
 
 <script>
 const r=()=>refresh();
 const cls=v=>v>=0?'green':'red';
 const fmt=(v,d=2)=>(v>=0?'+':'')+v.toFixed(d);
-function toggleDetails(){
-  const el=document.getElementById('details-wrap');
-  const btn=document.getElementById('toggle-details-btn');
-  if(!el||!btn)return;
-  const open=el.style.display!=='none';
-  el.style.display=open?'none':'';
-  btn.textContent=open?'Show advanced indicators ▾':'Hide advanced indicators ▴';
-  try{localStorage.setItem('dash-details-open',open?'0':'1')}catch(e){}
+// v11.7.0: block visibility + drawer. Each block has individual show/hide,
+// persisted in localStorage. Default state = all hidden (only Open Positions
+// is always visible since it has no toggle).
+const BLOCKS=['strategy-performance','pnl-curve','trade-history',
+              'sector-overview','oi-grid','capital-flow',
+              'next-scan-preview','signals-cards','signal-proximity',
+              'event-timeline','price-chart'];
+const LS_BLOCKS='dash-blocks-v2';
+function loadBlockState(){
+  try{return JSON.parse(localStorage.getItem(LS_BLOCKS)||'{}')}catch(e){return {}}
+}
+function saveBlockState(s){
+  try{localStorage.setItem(LS_BLOCKS,JSON.stringify(s))}catch(e){}
+}
+function applyBlockState(){
+  const s=loadBlockState();
+  BLOCKS.forEach(id=>{
+    const el=document.querySelector(`[data-block="${id}"]`);
+    const cb=document.querySelector(`[data-toggle="${id}"]`);
+    const visible=!!s[id];
+    if(el){if(visible)el.removeAttribute('hidden');else el.setAttribute('hidden','')}
+    if(cb)cb.checked=visible;
+  });
+}
+function onToggleBlock(ev){
+  const id=ev.target.dataset.toggle;
+  const s=loadBlockState();
+  s[id]=ev.target.checked;
+  saveBlockState(s);
+  applyBlockState();
+  // Trigger renderers for newly-visible blocks so they populate immediately
+  if(ev.target.checked){
+    if(id==='pnl-curve'||id==='trade-history')refreshTrades();
+    if(id==='signals-cards'||id==='signal-proximity')refreshSignals();
+    if(id==='event-timeline')refreshEvents();
+    if(id==='price-chart')refreshChart();
+  }
+}
+function showAllBlocks(){
+  const s={};BLOCKS.forEach(id=>s[id]=true);
+  saveBlockState(s);applyBlockState();
+  refreshTrades();refreshSignals();refreshEvents();refreshChart();
+}
+function hideAllBlocks(){
+  saveBlockState({});applyBlockState();
+}
+function toggleDrawer(){
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('drawer-overlay').classList.toggle('open');
 }
 document.addEventListener('DOMContentLoaded',()=>{
-  try{if(localStorage.getItem('dash-details-open')==='1')toggleDetails()}catch(e){}
+  document.querySelectorAll('[data-toggle]').forEach(cb=>cb.addEventListener('change',onToggleBlock));
+  applyBlockState();
 });
 function closePos(sym){if(!confirm('Close '+sym+' now?'))return;fetch('api/close/'+sym,{method:'POST',credentials:'same-origin'}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else refresh()}).catch(e=>alert('Error: '+e));}
 // Visual helpers (v11.4.10 batch 1)
@@ -494,18 +608,18 @@ function refresh(){
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress):'';
       const pathViz=sparkline(p.trajectory);
       tr.innerHTML=`
-        <td><b>${p.symbol}</b></td>
-        <td class="dim">${p.strategy||'?'}</td>
-        <td class="${sideClass}">${p.direction}</td>
-        <td>$${p.size_usdt.toFixed(0)}</td>
-        <td class="dim">$${(p.size_usdt/2).toFixed(0)}</td>
-        <td>$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
-        <td>$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
-        <td class="${cls(p.unrealized_bps)}">${fmt(p.unrealized_bps,1)}bps${stopViz}${stopStr}</td>
-        <td class="${cls(p.pnl_usdt)}">$${fmt(p.pnl_usdt)}</td>
-        <td><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
-        <td>${pathViz}</td>
-        <td><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
+        <td data-label="Symbol"><b>${p.symbol}</b></td>
+        <td data-label="Strat" class="dim">${p.strategy||'?'}</td>
+        <td data-label="Side" class="${sideClass}">${p.direction}</td>
+        <td data-label="Position">$${p.size_usdt.toFixed(0)}</td>
+        <td data-label="Margin" class="dim">$${(p.size_usdt/2).toFixed(0)}</td>
+        <td data-label="Entry">$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
+        <td data-label="Current">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
+        <td data-label="Unrealized" class="${cls(p.unrealized_bps)}">${fmt(p.unrealized_bps,1)}bps${stopViz}${stopStr}</td>
+        <td data-label="P&L" class="${cls(p.pnl_usdt)}">$${fmt(p.pnl_usdt)}</td>
+        <td data-label="Remaining"><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
+        <td data-label="Path">${pathViz}</td>
+        <td data-label=""><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
     });
     if(!s.positions.length)
@@ -804,15 +918,15 @@ function refreshTrades(){
       const sc=t.direction==='LONG'?'green':'red';
       const _d=new Date(t.exit_time);const time=`${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')} ${String(_d.getHours()).padStart(2,'0')}:${String(_d.getMinutes()).padStart(2,'0')}`;
       tr.innerHTML=`
-        <td class="dim">${time}</td>
-        <td><b>${t.symbol}</b></td>
-        <td class="dim">${t.strategy||'?'}</td>
-        <td class="${sc}">${t.direction}</td>
-        <td>${fmt(t.gross_bps,1)}</td>
-        <td class="${cls(t.net_bps)}">${fmt(t.net_bps,1)}</td>
-        <td class="${cls(t.pnl_usdt)}"><b>$${fmt(t.pnl_usdt)}</b></td>
-        <td>${t.hold_hours.toFixed(0)}h</td>
-        <td>${t.reason}</td>`;
+        <td data-label="Time" class="dim">${time}</td>
+        <td data-label="Symbol"><b>${t.symbol}</b></td>
+        <td data-label="Strat" class="dim">${t.strategy||'?'}</td>
+        <td data-label="Side" class="${sc}">${t.direction}</td>
+        <td data-label="Gross">${fmt(t.gross_bps,1)}</td>
+        <td data-label="Net" class="${cls(t.net_bps)}">${fmt(t.net_bps,1)}</td>
+        <td data-label="P&L" class="${cls(t.pnl_usdt)}"><b>$${fmt(t.pnl_usdt)}</b></td>
+        <td data-label="Hold">${t.hold_hours.toFixed(0)}h</td>
+        <td data-label="Exit">${t.reason}</td>`;
       tb.appendChild(tr);
     });
     if(!trades.length)
