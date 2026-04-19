@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.7.0"
+VERSION = "11.7.2"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -152,6 +152,9 @@ SIGNAL_MULT = {"S1": 1.125, "S5": 2.50, "S8": 1.25, "S9": 2.00, "S10": 2.00}
 
 # ── Capital & Position Limits ───────────────────────────────────────
 CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))
+# Hard cap on Junior's capital (DCA refused above this). Applies only when
+# BOT_LABEL == "JUNIOR"; Live and Paper are unaffected. Set to 0 to disable.
+JUNIOR_CAPITAL_CAP = 300.0
 MAX_POSITIONS = 6
 MAX_SAME_DIRECTION = 4
 MAX_PER_SECTOR = 2
@@ -180,6 +183,17 @@ STOP_LOSS_S8 = -750.0      # -7.5% price move (was -1500 leveraged)
 # Early exit: only S9 benefits in compounding (S5/S8 tested, both lose value)
 S9_EARLY_EXIT_BPS = -500.0    # -5% price move after 8h (was -1000 leveraged)
 S9_EARLY_EXIT_HOURS = 8.0
+
+# Dead-timeout early exit: at T-LEAD hours before timeout, if the trade has
+# never shown meaningful upside (MFE <= MFE_CAP), is deeply underwater
+# (MAE <= MAE_FLOOR) AND is still pinned near its low (current <= MAE + SLACK),
+# crystallize the loss now rather than waiting to close at MAE at timeout.
+# Walk-forward validated 4/4 (28m +$49k, 12m +$1.4k, 6m +$46, 3m +$21) with DD
+# unchanged, via backtests/backtest_early_exit_d.py (variant D2).
+DEAD_TIMEOUT_LEAD_HOURS = 12.0
+DEAD_TIMEOUT_MFE_CAP_BPS = 150.0
+DEAD_TIMEOUT_MAE_FLOOR_BPS = -1000.0
+DEAD_TIMEOUT_SLACK_BPS = 300.0
 
 # ── Portfolio Protections ──────────────────────────────────────────
 # Kill-switch, loss streak, and quarantine DISABLED after backtest analysis:

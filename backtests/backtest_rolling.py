@@ -162,7 +162,8 @@ def strat_size(strat: str, capital: float) -> float:
 
 def run_window(features, data, sector_features, dxy_data,
                start_ts_ms: int, end_ts_ms: int, start_capital: float = 1000.0,
-               skip_fn=None, oi_data: dict | None = None) -> dict:
+               skip_fn=None, oi_data: dict | None = None,
+               early_exit_params: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
     P&L math matches the live bot (v11.3.0+): size_usdt is the notional, so
@@ -171,6 +172,12 @@ def run_window(features, data, sector_features, dxy_data,
     Mirrors current bot filters:
     - v11.4.9 OI gate LONG: skip LONG entries when Δ(OI,24h) < -OI_LONG_GATE_BPS
     - v11.4.10 TRADE_BLACKLIST: skip any entry on blacklisted tokens
+
+    early_exit_params (optional, option D sweep): dict with
+        exit_lead_candles: trigger check at held >= hold - this
+        mfe_cap_bps:       MFE must be <= this (bps) — no upside revealed
+        mae_floor_bps:     MAE must be <= this (bps) — trade is deeply under
+        slack_bps:         current_bps must be <= MAE + slack — still near low
     """
     coins = [c for c in TOKENS if c in features and c in data]
     macro_strats = set(MACRO_STRATEGIES)
@@ -224,13 +231,17 @@ def run_window(features, data, sector_features, dxy_data,
             if current <= 0:
                 continue
 
-            # Track MFE (best unrealized during the trade)
+            # Track MFE (best unrealized) and MAE (worst unrealized)
             if pos["dir"] == 1:
                 best_bps = (candle["h"] / pos["entry"] - 1) * 1e4
+                worst_bps = (candle["l"] / pos["entry"] - 1) * 1e4
             else:
                 best_bps = -(candle["l"] / pos["entry"] - 1) * 1e4
+                worst_bps = -(candle["h"] / pos["entry"] - 1) * 1e4
             if best_bps > pos.get("mfe", 0):
                 pos["mfe"] = best_bps
+            if worst_bps < pos.get("mae", 0):
+                pos["mae"] = worst_bps
 
             # Per-strategy stop in price-move bps (not leveraged)
             if pos["strat"] == "S8":
@@ -252,6 +263,20 @@ def run_window(features, data, sector_features, dxy_data,
                 if worst < stop:
                     exit_reason = "stop"
                     exit_price = pos["entry"] * (1 - stop / 1e4)
+
+            # Dead-timeout early exit (option D): if trade is close to timeout,
+            # has never shown meaningful MFE, and is still pinned near its MAE,
+            # crystallize the loss now instead of waiting for timeout at MAE.
+            if (not exit_reason and early_exit_params is not None
+                    and held >= pos["hold"] - early_exit_params["exit_lead_candles"]):
+                cur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                mfe = pos.get("mfe", 0.0)
+                mae = pos.get("mae", 0.0)
+                if (mfe <= early_exit_params["mfe_cap_bps"]
+                        and mae <= early_exit_params["mae_floor_bps"]
+                        and cur_bps <= mae + early_exit_params["slack_bps"]):
+                    exit_reason = "dead_timeout"
+                    exit_price = current
 
             if held >= pos["hold"]:
                 exit_reason = exit_reason or "timeout"
@@ -404,7 +429,7 @@ def run_window(features, data, sector_features, dxy_data,
                 "strat": cand["strat"], "hold": cand["hold"],
                 "size": size, "coin": coin,
                 "stop": cand.get("stop", 0),
-                "mfe": 0.0,
+                "mfe": 0.0, "mae": 0.0,
             }
             if cand["dir"] == 1:
                 n_long += 1
@@ -626,13 +651,26 @@ def main():
     print(f"Data ends at {end_dt.isoformat()}")
 
     windows = rolling_windows(end_dt)
+    # Default-activate D2 (v11.7.2 dead-timeout exit) to mirror live bot behavior.
+    # Convert 12h lead to candles (4h each) = 3 candles. Other params come from config.
+    from analysis.bot.config import (
+        DEAD_TIMEOUT_LEAD_HOURS, DEAD_TIMEOUT_MFE_CAP_BPS,
+        DEAD_TIMEOUT_MAE_FLOOR_BPS, DEAD_TIMEOUT_SLACK_BPS,
+    )
+    early_exit_params = dict(
+        exit_lead_candles=int(DEAD_TIMEOUT_LEAD_HOURS // 4),
+        mfe_cap_bps=DEAD_TIMEOUT_MFE_CAP_BPS,
+        mae_floor_bps=DEAD_TIMEOUT_MAE_FLOOR_BPS,
+        slack_bps=DEAD_TIMEOUT_SLACK_BPS,
+    )
+    print(f"D2 dead-timeout exit active: {early_exit_params}")
     results = []
     for label, start_dt in windows:
         start_ts = int(start_dt.timestamp() * 1000)
         end_ts = latest_ts
         print(f"  Running {label} ({start_dt.strftime('%Y-%m-%d')} → {end_dt.strftime('%Y-%m-%d')})...")
         r = run_window(features, data, sector_features, dxy_data, start_ts, end_ts,
-                       oi_data=oi_data)
+                       oi_data=oi_data, early_exit_params=early_exit_params)
         r["label"] = label
         r["start_date"] = start_dt.strftime("%Y-%m-%d")
         results.append(r)

@@ -1,7 +1,7 @@
 # Rolling backtests
 
-**Générée le** : 2026-04-17 13:07 UTC
-**Bot version** : v11.4.10
+**Générée le** : 2026-04-19 12:25 UTC
+**Bot version** : v11.7.2
 **Données jusqu'à** : 2026-04-17
 
 Chaque ligne répond à la question : *si j'avais lancé le bot avec $1 000 au début de cette fenêtre jusqu'à la date des données, avec les paramètres actuels du bot, combien aurais-je fini ?*
@@ -12,7 +12,7 @@ P&L calculé avec la formule corrigée v11.3.0+ (`size_usdt` est le notionnel, p
 
 Ce fichier est **régénéré automatiquement** par `python3 -m backtests.backtest_rolling`. Relancer après tout changement de règles ou de paramètres du bot.
 
-## Filtres actifs (v11.4.10)
+## Filtres actifs (v11.7.2)
 
 **S10 filters** (v11.3.4)
 - `S10_ALLOW_LONGS = False` → SHORT fades seulement (LONG fades perdaient $4.8k sur 28m, 45% WR — *fade panic = fail*)
@@ -36,14 +36,14 @@ Dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, test 2025-0
 
 | Fenêtre | Start | Balance finale | P&L | P&L % | DD max | Trades | WR | Best strat |
 |---|---|---|---|---|---|---|---|---|
-| 28 mois | 2023-12-17 | $115 079 | +$114 079 | +11407.9% | -58.8% | 1083 | 53% | S9 |
-| 12 mois | 2025-04-17 | $15 846 | +$14 846 | +1484.6% | -29.9% | 455 | 55% | S9 |
-| 6 mois | 2025-10-17 | $5 313 | +$4 313 | +431.3% | -22.2% | 232 | 57% | S9 |
-| depuis 2025-11-01 | 2025-11-01 | $4 104 | +$3 104 | +310.4% | -22.2% | 212 | 55% | S9 |
-| depuis 2025-12-01 | 2025-12-01 | $2 834 | +$1 834 | +183.4% | -22.2% | 172 | 53% | S9 |
-| depuis 2026-01-01 | 2026-01-01 | $2 427 | +$1 427 | +142.7% | -22.2% | 144 | 50% | S9 |
-| 3 mois | 2026-01-17 | $2 448 | +$1 448 | +144.8% | -22.2% | 126 | 52% | S9 |
-| depuis 2026-02-01 | 2026-02-01 | $1 584 | +$584 | +58.4% | -27.5% | 113 | 49% | S9 |
+| 28 mois | 2023-12-17 | $164 401 | +$163 401 | +16340.1% | -54.1% | 1086 | 53% | S9 |
+| 12 mois | 2025-04-17 | $17 250 | +$16 250 | +1625.0% | -28.9% | 457 | 55% | S9 |
+| 6 mois | 2025-10-17 | $5 360 | +$4 360 | +436.0% | -22.2% | 232 | 57% | S9 |
+| depuis 2025-11-01 | 2025-11-01 | $4 140 | +$3 140 | +314.0% | -22.2% | 212 | 55% | S9 |
+| depuis 2025-12-01 | 2025-12-01 | $2 859 | +$1 859 | +185.9% | -22.2% | 172 | 53% | S9 |
+| depuis 2026-01-01 | 2026-01-01 | $2 448 | +$1 448 | +144.8% | -22.2% | 144 | 50% | S9 |
+| 3 mois | 2026-01-17 | $2 470 | +$1 470 | +147.0% | -22.2% | 126 | 52% | S9 |
+| depuis 2026-02-01 | 2026-02-01 | $1 598 | +$598 | +59.8% | -27.5% | 113 | 49% | S9 |
 | depuis 2026-03-01 | 2026-03-01 | $955 | $-45 | -4.5% | -21.0% | 65 | 45% | S10 |
 | 1 mois | 2026-03-17 | $944 | $-56 | -5.6% | -21.0% | 50 | 44% | S10 |
 | depuis 2026-04-01 | 2026-04-01 | $928 | $-72 | -7.2% | -15.7% | 29 | 41% | S10 |
@@ -52,11 +52,11 @@ Dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, test 2025-0
 
 | Stratégie | Trades | Win Rate | P&L |
 |---|---|---|---|
-| S1 | 73 | 51% | +$471 |
-| S10 | 331 | 56% | +$14 689 |
-| S5 | 441 | 49% | +$22 404 |
-| S8 | 116 | 61% | +$31 532 |
-| S9 | 122 | 50% | +$44 983 |
+| S1 | 74 | 51% | +$96 |
+| S10 | 330 | 56% | +$20 856 |
+| S5 | 442 | 49% | +$34 307 |
+| S8 | 116 | 61% | +$44 228 |
+| S9 | 124 | 52% | +$63 915 |
 
 ## Méthodologie
 

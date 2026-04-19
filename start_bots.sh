@@ -27,16 +27,15 @@ HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_
 echo "Live bot started (PID: $!)"
 
 # Junior bot (:8099) — paper mode until private key is set.
-# Separate credentials + own Telegram bot + DCA capped by Live's capital.
-# Starts at $0 capital and PAUSED. User must DCA via /api/capital then
-# /api/resume to activate. Empty JUNIOR_TG_* = muted (current state).
+# Separate credentials + own Telegram bot. Capital capped at JUNIOR_CAPITAL_CAP
+# (see analysis/bot/config.py). Starts at $0 capital and PAUSED. User must
+# DCA via /api/capital then /api/resume to activate. Empty JUNIOR_TG_* = muted.
 # No HL_ROOT_PATH: no nginx /bot2/ location configured, direct-port access only.
 TG_BOT_TOKEN="$JUNIOR_TG_BOT_TOKEN" TG_CHAT_ID="$JUNIOR_TG_CHAT_ID" \
     TG_CATEGORIES="trade,daily,system" \
     DASHBOARD_USER="$JUNIOR_USER" DASHBOARD_PASS="$JUNIOR_PASS" \
     HL_PRIVATE_KEY="$JUNIOR_HL_PRIVATE_KEY" \
     BOT_LABEL="JUNIOR" BOT_LABEL_COLOR="#3fb950" \
-    DCA_CAP_STATE_FILE=/home/crypto/analysis/output_live/reversal_state.json \
     HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
 echo "Junior bot started (PID: $!)"

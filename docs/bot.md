@@ -121,6 +121,7 @@ P&L : `size_usdt` est le **notionnel** (deja leveraged). `pnl = notionnel × mou
 | **S10 trailing stop** | MFE > +600 bps → plancher MFE − 150 | Verrouille les gains S10 (rendait 70% du MFE) |
 | **OI gate LONG** (v11.4.9) | Skip LONG si `Δ(OI,24h) < -10%` | Entrer LONG pendant que les longs se débouclent |
 | **Trade blacklist** (v11.4.10) | Skip tout trade sur `{SUI, IMX, LINK}` | Tokens structurellement net-négatifs |
+| **Dead-timeout early exit** (v11.7.2) | Sortie anticipée à T−12h si `MFE ≤ +150 bps` ET `MAE ≤ −1000 bps` ET `current ≤ MAE + 300 bps` | Cristalliser la perte d'un trade sans pouls au lieu d'attendre le timeout à la MAE |
 | **Cooldown** | 24h par token apres exit | Re-entree impulsive |
 | **Reconciliation** | Chaque scan horaire, bot vs exchange | Position orpheline ou fantome |
 | **Telegram** | Entry, exit, erreur, reboot, resume quotidien | On sait toujours ce qui se passe |
@@ -271,6 +272,42 @@ Interprétation causale :
 - **LINK** : blue-chip mais dynamique OI très différente. Les signaux calibrés sur des alts plus volatiles ne matchent pas.
 
 Implémentation : `TRADE_BLACKLIST = {"SUI", "IMX", "LINK"}` dans `analysis/bot/config.py`, enforced dans `trading.rank_and_enter()`. Les tokens restent dans `TRADE_SYMBOLS` pour continuer la collecte de données (dispersion, ré-activation future). Kill-switch : vider le set.
+
+### Dead-timeout early exit (v11.7.2)
+
+Quand un trade entre dans les 12 dernières heures de son hold, **s'il n'a jamais rien donné** (MFE ≤ +150 bps) **ET s'il est déjà loin sous l'eau** (MAE ≤ −1000 bps) **ET s'il est toujours scotché près de son plus bas** (current ≤ MAE + 300 bps), on le ferme immédiatement plutôt que d'attendre le timeout qui ferme en général à la MAE.
+
+**Logique causale** : ces conditions isolent un trade "mort" — il n'a jamais révélé d'upside (MFE plafonnée), il est déjà loin dans le rouge (MAE profonde), et il n'a montré aucun signe de reprise dans les derniers ticks (current ≈ MAE). Statistiquement, il ne rebondira pas d'ici 12h. On cristallise la perte à la valeur courante (souvent meilleure que le timeout).
+
+**Aucun gagnant n'est touché par construction** : un trade qui finira positif aura, par définition, montré un MFE > 0 à un moment — si à T−12h son MFE est ≤ +150 bps, ce n'est pas un gagnant déguisé.
+
+**Walk-forward** (`backtest_early_exit_d.py`, 7 variantes D1–D7, data 2026-04-17) :
+
+| Variante | 28m Δ | 12m Δ | 6m Δ | 3m Δ | 4/4 positif | DD stable |
+|---|---|---|---|---|---|---|
+| D1 (mfe≤100, mae≤−800, slack=200) | +$116 513 | +$1 952 | −$39 | −$27 | ✗ (bruit) | ✓ (DD +14pp) |
+| **D2 (mfe≤150, mae≤−1000, slack=300)** | **+$49 322** | **+$1 405** | **+$46** | **+$21** | **✓** | **✓ (inchangé)** |
+| D3 (mfe≤200, mae≤−600, slack=300) | +$51 577 | +$1 792 | +$170 | +$41 | ✓ | DD 6m/3m +2pp |
+| D4 lead=6h | −$4 682 | −$2 869 | −$514 | −$31 | ✗ | ✗ |
+| D5 lead=2h | +$90 350 | −$114 | −$71 | −$37 | ✗ | ✓ |
+| D6 mfe≤0 | +$53 353 | +$767 | −$84 | −$47 | ✗ | ✓ |
+| D7 mae≤−500 | +$29 058 | −$465 | −$732 | −$373 | ✗ | ✗ |
+
+**D2 retenue** : seule variante strictement 4/4 positive avec DD inchangé. Le gain est linéaire avec la fenêtre (+$21 sur 3m → +$49 322 sur 28m), signature d'un vrai filtre et non d'un fit.
+
+**Constantes** : `DEAD_TIMEOUT_LEAD_HOURS=12`, `DEAD_TIMEOUT_MFE_CAP_BPS=150`, `DEAD_TIMEOUT_MAE_FLOOR_BPS=-1000`, `DEAD_TIMEOUT_SLACK_BPS=300` dans `analysis/bot/config.py`. Check placé dans `trading.check_exits()` après stops/trailing, avant `close_position`. Kill-switch : `DEAD_TIMEOUT_MFE_CAP_BPS = -99999`.
+
+### Brainstorm complémentaire — pistes testées et rejetées (session 2026-04-19)
+
+Rien de la même session n'a passé le walk-forward hormis D2. Archivé pour éviter de réessayer :
+
+- **Blacklist étendue** (`backtest_blacklist_candidates.py`) : WLD, DOGE-SHORT, BLUR, OP LONG, COMP SHORT, MINA LONG, APT LONG, SNX SHORT, CRV SHORT, DOGE LONG — tous 4/4-négatifs individuellement **mais tous** perdent gravement au retrait (effet de substitution : slot remplacé par un candidat encore pire). Ex : retirer COMP SHORT coûte −$61 264 sur 28m.
+- **Filtre entrée BTC30 sur S5 LONG** (`backtest_entry_filters.py`) : variants 200/500/1000/1500 bps, tous négatifs sur ≥2 fenêtres.
+- **Filtre entrée OI delta sur S5** (même script) : variants 400/600/800/1000 bps, tous très négatifs 4/4.
+- **Combos filtre BTC + OI** : échecs cumulatifs.
+- **Exit dynamique sur érosion divergence** (`backtest_div_erosion_exit.py`) : 10 variantes (drop absolu, ratio, flip), toutes rejetées. Le signal de divergence est momentum et non reversal — l'exiter coupe les vrais gagnants qui passent par une pause temporaire. Seule E3a (flip div<0) presque break-even mais pas 4/4 strict.
+
+Conclusion : après D2, le bot est sur un plateau d'optimisation — les gisements visibles à l'EDA ne survivent pas au walk-forward pour cause d'effet de substitution ou d'overlap statistique trop large.
 
 ### OI gate LONG (v11.4.9)
 

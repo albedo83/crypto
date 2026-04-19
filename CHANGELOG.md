@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.7.2] — 2026-04-19
+
+### Added
+- **Dead-timeout early exit** — at T−12h from hold expiry, if a trade has never shown meaningful upside (MFE ≤ +150 bps), is deeply underwater (MAE ≤ −1000 bps) AND is still pinned near its low (current ≤ MAE + 300 bps), exit now rather than wait for timeout at MAE. New exit reason: `dead_timeout`. Walk-forward validated 4/4 (28m +$49 322, 12m +$1 405, 6m +$46, 3m +$21) with DD unchanged. Configurable via `DEAD_TIMEOUT_LEAD_HOURS`, `DEAD_TIMEOUT_MFE_CAP_BPS`, `DEAD_TIMEOUT_MAE_FLOOR_BPS`, `DEAD_TIMEOUT_SLACK_BPS` in `config.py`. Source backtest: `backtests/backtest_early_exit_d.py` variant D2.
+- `backtests/backtest_early_exit_d.py` — walk-forward sweep for dead-timeout variants (7 parameter sets D1–D7).
+- `backtests/backtest_blacklist_candidates.py` — autopsy of token×direction 4/4-negative candidates (WLD, DOGE-SHORT, BLUR, OP LONG, COMP SHORT, …). All rejected by walk-forward: removing them triggers slot substitution with worse candidates. No blacklist change.
+- `backtests/backtest_mfe_rollback_audit.py` — feature comparison (divergence, OI, BTC30) between S5 winners that kept vs rolled back. Informational.
+- `backtests/backtest_entry_filters.py` — walk-forward sweep for BTC30 / OI-delta entry filters derived from rollback audit. All variants rejected.
+- `backtests/backtest_div_erosion_exit.py` — walk-forward sweep for dynamic exit on divergence erosion. All variants rejected (divergence is a momentum signal, not reversal).
+
+### Changed
+- `backtests/backtest_rolling.py`: `run_window` now accepts an optional `early_exit_params` dict and tracks MAE per position to support D2 sweeps. No behavior change when the parameter is omitted — baseline backtest results identical.
+
 ## [11.7.0] — 2026-04-18
 
 ### Added — dashboard redesign

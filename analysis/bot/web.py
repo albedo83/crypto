@@ -10,7 +10,7 @@ from fastapi import Cookie, FastAPI, HTTPException, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from .config import (
     VERSION, EXECUTION_MODE, BOT_LABEL, BOT_LABEL_COLOR,
-    CAPITAL_USDT, LEVERAGE, DASHBOARD_USER,
+    CAPITAL_USDT, JUNIOR_CAPITAL_CAP, LEVERAGE, DASHBOARD_USER,
     DASHBOARD_PASS, AUTH_SALT, HTML_PATH, CHANGELOG_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
     MAX_POSITIONS, TOTAL_LOSS_CAP, SCAN_INTERVAL,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS, STOP_LOSS_S8,
@@ -746,10 +746,8 @@ def create_app(bot) -> FastAPI:
     async def api_capital(request: Request):
         """Adjust capital (DCA injection or withdrawal). Body: {"amount": 100}
 
-        If DCA_CAP_STATE_FILE is set in the environment, refuses deposits that
-        would bring this bot's _capital above the capital of the reference bot
-        (read from its persisted state.json). Withdrawals (amount < 0) are
-        always allowed.
+        Junior bot (BOT_LABEL=="JUNIOR") caps capital at JUNIOR_CAPITAL_CAP.
+        Live/Paper have no cap. Withdrawals (amount < 0) are always allowed.
         """
         body = await request.json()
         amount = body.get("amount")
@@ -759,22 +757,18 @@ def create_app(bot) -> FastAPI:
         if amount == 0:
             return JSONResponse({"error": "amount cannot be zero"}, status_code=400)
 
-        # Cap DCA on the reference bot's capital (Junior must stay ≤ Live).
-        cap_file = os.environ.get("DCA_CAP_STATE_FILE")
-        if cap_file and amount > 0:
-            try:
-                with open(cap_file) as f:
-                    ref_state = json.load(f)
-                ref_capital = float(ref_state.get("capital", 0))
-                new_capital = bot._capital + amount
-                if new_capital > ref_capital:
-                    return JSONResponse({
-                        "error": f"DCA refused: would bring capital to ${new_capital:.0f}, "
-                                 f"exceeds reference capital ${ref_capital:.0f}",
-                        "max_dca": round(ref_capital - bot._capital, 2),
-                    }, status_code=400)
-            except Exception as e:
-                log.warning("DCA cap check failed (%s) — allowing", e)
+        if BOT_LABEL == "JUNIOR" and JUNIOR_CAPITAL_CAP > 0 and amount > 0:
+            new_capital = bot._capital + amount
+            if new_capital > JUNIOR_CAPITAL_CAP:
+                room = round(JUNIOR_CAPITAL_CAP - bot._capital, 2)
+                if room <= 0:
+                    msg = (f"Deposit refused. Junior's capital is fully allocated "
+                           f"(${bot._capital:.0f}). No further deposit possible.")
+                else:
+                    msg = (f"Deposit refused. ${amount:.0f} would exceed Junior's "
+                           f"allowed capital. Maximum deposit right now: ${room:.0f}.")
+                return JSONResponse({"error": msg, "max_dca": max(room, 0.0)},
+                                    status_code=400)
 
         old_capital = bot._capital
         with bot._pos_lock:

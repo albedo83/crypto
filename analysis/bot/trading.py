@@ -19,6 +19,8 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, MAX_POSITIONS, MAX_SAME_D
                      LOSS_STREAK_COOLDOWN, HOLD_HOURS_DEFAULT,
                      S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS,
                      S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
+                     DEAD_TIMEOUT_LEAD_HOURS, DEAD_TIMEOUT_MFE_CAP_BPS,
+                     DEAD_TIMEOUT_MAE_FLOOR_BPS, DEAD_TIMEOUT_SLACK_BPS,
                      OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size)
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
@@ -231,6 +233,15 @@ def check_exits(bot) -> int:
             if unrealized <= trailing_bps:
                 exit_reason = "s10_trailing"
                 exit_price = entry_price * (1 + direction * trailing_bps / 1e4)
+        # Dead-timeout early exit (v11.7.2, walk-forward 4/4 validated).
+        # Checked last so stops/trailing take precedence.
+        if (not exit_reason
+                and (target_exit - now).total_seconds() <= DEAD_TIMEOUT_LEAD_HOURS * 3600
+                and pos.mfe_bps <= DEAD_TIMEOUT_MFE_CAP_BPS
+                and pos.mae_bps <= DEAD_TIMEOUT_MAE_FLOOR_BPS
+                and unrealized <= pos.mae_bps + DEAD_TIMEOUT_SLACK_BPS):
+            exit_reason = "dead_timeout"
+            # exit_price stays at st.price (live mark)
         if exit_reason:
             close_position(sym, exit_price, now, exit_reason, bot)
             exits += 1
