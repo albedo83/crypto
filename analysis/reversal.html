@@ -698,9 +698,12 @@ function refresh(){
     const sdEl=document.getElementById('strat-drift');
     if(sdEl){
       sdEl.innerHTML='';
+      let lifeN=0, lifePnL=0, recN=0, recPnL=0;
       Object.entries(drift).sort((a,b)=>(b[1].lifetime?.total_pnl||b[1].total_pnl)-(a[1].lifetime?.total_pnl||a[1].total_pnl)).forEach(([sig,d])=>{
         const L=d.lifetime||{n:d.n,win_rate:d.win_rate,avg_bps:d.avg_bps,total_pnl:d.total_pnl};
         const R=d.recent20||{n:d.n,win_rate:d.win_rate,avg_bps:d.avg_bps,total_pnl:d.total_pnl};
+        lifeN+=L.n||0; lifePnL+=L.total_pnl||0;
+        recN+=R.n||0; recPnL+=R.total_pnl||0;
         const trendSym={1:'<span class="trend-up">↑</span>',
                         '-1':'<span class="trend-dn">↓</span>',
                         0:'<span class="trend-eq">=</span>'}[d.trend]||'';
@@ -714,6 +717,21 @@ function refresh(){
           <td>${fmt(R.avg_bps,1)}</td><td class="${cls(R.total_pnl)}">$${fmt(R.total_pnl)}</td>`;
         sdEl.appendChild(tr);
       });
+      // Total row: reconciles with bot._total_pnl (which also includes manual_stop/reset exits)
+      const botTotal=s.total_pnl||0;
+      const manualDelta=botTotal-lifePnL;
+      const tot=document.createElement('tr');
+      tot.style.borderTop='1px solid #30363d';
+      tot.style.fontWeight='600';
+      const manualNote=Math.abs(manualDelta)>=0.01
+        ? `<span class="dim" style="font-weight:400;font-size:11px"> (incl. ${fmt(manualDelta)} manual)</span>`
+        : '';
+      tot.innerHTML=`<td><b>Total</b></td>
+        <td>${lifeN}</td><td class="dim">—</td>
+        <td class="dim">—</td><td class="${cls(botTotal)}"><b>$${fmt(botTotal)}</b>${manualNote}</td>
+        <td>${recN}</td><td class="dim">—</td>
+        <td class="dim">—</td><td class="${cls(recPnL)}">$${fmt(recPnL)}</td>`;
+      sdEl.appendChild(tot);
     }
 
     // Sector heatmap (batch 2)
