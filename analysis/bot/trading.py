@@ -365,7 +365,7 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
     log.info("%s %s %s %s | %.0fh | %s | gross %+.1f | net %+.1f | $%+.2f | mae %+.0f | mfe %+.0f | bal $%.0f (#%d %.0f%%)",
              arrow, pos.strategy, trade.direction, sym, hold_h, reason,
              gross_bps, net_bps, pnl, pos.mae_bps, pos.mfe_bps, balance, n, wr)
-    emoji = "\u2705" if pnl > 0 else "\U0001f534"
+    emoji = "\U0001f7e9" if pnl > 0 else "\U0001f7e5"
     send_telegram(
         f"{emoji} CLOSE {pos.strategy} {trade.direction} {sym} | {net_bps:+.0f} bps | ${pnl:+.2f} | bal ${balance:.0f}",
         category="trade")

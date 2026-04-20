@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.8). Paper dashboard on `:8097`, live on `:8098`, Bot 2 on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.9). Paper dashboard on `:8097`, live on `:8098`, Bot 2 on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
@@ -34,6 +34,8 @@ HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_
 #        tail -f analysis/output_live/reversal_v10.log (live)
 # Dashboard: http://0.0.0.0:8097 (paper) / http://0.0.0.0:8098 (live) — auth required
 ```
+
+**NEVER restart the bots (`fuser -k …` + `start_bots.sh`) without explicit user confirmation.** Edit files and bump VERSION freely — but the user controls when the running process picks up the change.
 
 No test framework, linter, or CI pipeline is configured.
 

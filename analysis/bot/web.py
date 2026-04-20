@@ -71,28 +71,50 @@ def _collect_active_signals(bot, btc_f) -> list:
 # ── Response Builders ─────────────────────────────────────────────────
 
 def build_daily_summary(bot) -> str:
-    """Build the daily summary message string. Caller sends via Telegram."""
-    yesterday = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()[:10]
-    dt = [t for t in bot.trades if t.exit_time[:10] == yesterday and is_bot_trade(t)]
-    dp = sum(t.pnl_usdt for t in dt)
-    dw = sum(1 for t in dt if t.pnl_usdt > 0) / len(dt) * 100 if dt else 0
-    by_s: dict[str, float] = defaultdict(float)
-    for t in dt: by_s[t.strategy] += t.pnl_usdt
-    sl = " | ".join(f"{s}: ${p:+.1f}" for s, p in sorted(by_s.items())) if by_s else "no trades"
-    bal = bot._capital + bot._total_pnl
-    dd = (bal - bot._peak_balance) / bot._peak_balance * 100 if bot._peak_balance > 0 else 0
+    """Build the daily summary message string. Caller sends via Telegram.
+
+    Mirrors the dashboard's first two cards (Equity + P&L) and lists a brief
+    detail of each open position.
+    """
+    today = datetime.now(timezone.utc).isoformat()[:10]
+    cap = bot._capital
+    realized = bot._total_pnl
+    # Card 1 — Equity: real HL equity on live, else internal balance
+    acct = bot._exchange_account
+    if acct and "equity" in acct:
+        equity = float(acct["equity"])
+        equity_label = "Equity (HL)"
+    else:
+        equity = cap + realized
+        equity_label = "Balance"
+    equity_delta = equity - cap
+    equity_pct = (equity_delta / cap * 100) if cap > 0 else 0
+    # Card 2 — Total P&L: realized + percentage
     ab = [t for t in bot.trades if is_bot_trade(t)]
-    n, wr = len(ab), (sum(1 for t in ab if t.pnl_usdt > 0) / len(ab) * 100 if ab else 0)
-    drift = compute_signal_drift(bot.trades)
-    # v11.6.0: top-level fields are now lifetime; DEGRADED flag reads recent20.
-    q = [s for s, d in drift.items()
-         if d.get("recent20", {}).get("n", 0) >= 10
-         and d.get("recent20", {}).get("win_rate", 1) < 0.20]
-    dg = f" | DEGRADED: {', '.join(q)}" if q else ""
-    return (f"\U0001f4ca Daily {yesterday}\n"
-            f"{len(dt)} trades | ${dp:+.2f} | {dw:.0f}% win\n{sl}\n"
-            f"Balance: ${bal:.0f} | P&L: ${bot._total_pnl:+.2f} ({wr:.0f}% on {n})\n"
-            f"DD: {dd:+.1f}% from peak | {len(bot.positions)} pos open{dg}")
+    n = len(ab)
+    wr = (sum(1 for t in ab if t.pnl_usdt > 0) / n * 100) if n else 0
+    pnl_pct = (realized / cap * 100) if cap > 0 else 0
+    # Open positions brief detail
+    now = datetime.now(timezone.utc)
+    with bot._pos_lock:
+        pos_snapshot = dict(bot.positions)
+    lines = []
+    for sym, pos in sorted(pos_snapshot.items(), key=lambda kv: kv[0]):
+        st = bot.states.get(sym)
+        px = st.price if st and st.price > 0 else pos.entry_price
+        ur = pos.direction * (px / pos.entry_price - 1) * 1e4 if pos.entry_price > 0 else 0
+        pnl_pos = pos.size_usdt * ur / 1e4
+        rem_h = max(0, (pos.target_exit - now).total_seconds() / 3600)
+        direction = "LONG" if pos.direction == 1 else "SHORT"
+        lines.append(f"  \u2022 {sym} {direction} {pos.strategy} | "
+                     f"{ur:+.0f} bps (${pnl_pos:+.2f}) | {rem_h:.0f}h left")
+    pos_block = ("\n".join(lines)) if lines else "  (none)"
+    return (f"\U0001f4ca Daily {today}\n"
+            f"\U0001f4b0 {equity_label}: ${equity:.2f} "
+            f"({equity_delta:+.2f} / {equity_pct:+.1f}% on ${cap:.0f})\n"
+            f"\U0001f4c8 P&L: ${realized:+.2f} ({pnl_pct:+.1f}%) | "
+            f"{wr:.0f}% win on {n}\n"
+            f"\U0001f4cc Open ({len(pos_snapshot)}):\n{pos_block}")
 
 def build_state_response(bot) -> dict:
     """Full dashboard state dict."""
