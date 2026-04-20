@@ -19,6 +19,9 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 .badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase}
 .badge.live{background:#da363322;color:#f85149;border:1px solid #da363388}
 .badge.paper{background:#1f6feb22;color:#58a6ff;border:1px solid #1f6feb88}
+.badge.running{background:#23863622;color:#3fb950;border:1px solid #2ea04388}
+.badge.paused{background:#d2992222;color:#d29922;border:1px solid #d2992288}
+.badges{display:flex;gap:6px;align-items:center}
 .status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
 .status-dot.ok{background:#3fb950}
 .status-dot.degraded{background:#d29922}
@@ -35,17 +38,20 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 .stat-value.blue{color:#58a6ff}
 .signals{font-size:12px;color:#7d8590;margin-bottom:16px;min-height:18px}
 .signals span{color:#e6edf3}
-.card-footer{display:flex;justify-content:space-between;align-items:center}
-.version{font-size:11px;color:#484f58}
-.btn-open{background:#238636;color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
+.card-footer{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid #21262d;margin-top:4px}
+.version{font-size:11px;color:#7d8590}
+.btn-open{background:#238636;color:#fff;border:none;padding:7px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
 .btn-open:hover{background:#2ea043}
-.btn-ctrl{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s}
-.btn-ctrl:hover{background:#30363d}
+.btn-ctrl{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.3px}
+.btn-ctrl:hover{background:#30363d;border-color:#58a6ff}
 .btn-ctrl.stop{background:#da3633;color:#fff;border-color:#f85149}
-.btn-ctrl.stop:hover{background:#b62324}
+.btn-ctrl.stop:hover{background:#b62324;border-color:#f85149}
 .btn-ctrl.resume{background:#238636;color:#fff;border-color:#2ea043}
-.btn-ctrl.resume:hover{background:#1a6b2a}
-.controls{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.btn-ctrl.resume:hover{background:#1a6b2a;border-color:#2ea043}
+.btn-ctrl.raz{color:#f85149}
+.btn-ctrl.raz:hover{background:#da363322;border-color:#f85149}
+.controls{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #21262d;gap:8px}
+.controls-left{display:flex;gap:6px}
 .offline-card{opacity:.5}
 .offline-msg{text-align:center;padding:40px 0;color:#484f58;font-size:14px}
 @media(max-width:768px){
@@ -98,13 +104,17 @@ function renderBots(bots){
 
     card.className='card'+(online?'':' offline-card');
     if(online&&b.bot_label_color){card.style.borderTopColor=b.bot_label_color;}
+    const stateBadge=online?(b.paused?'<span class="badge paused">paused</span>':'<span class="badge running">running</span>'):'';
     card.innerHTML=`
       <div class="card-header">
         <span class="card-title">
           <span class="status-dot ${online?status:'offline'}"></span>
           ${b.label}
         </span>
-        <span class="badge ${b.mode}">${b.mode}</span>
+        <span class="badges">
+          <span class="badge ${b.mode}">${b.mode}</span>
+          ${stateBadge}
+        </span>
       </div>
       <div class="stats">
         <div class="stat">
@@ -146,9 +156,12 @@ function renderBots(bots){
         <a class="btn-open" href="#" onclick="openBot(event,${b.port},'${b.path||''}')">Open</a>
       </div>
       ${online?`<div class="controls">
-        <button class="btn-ctrl stop" onclick="if(confirm('STOP ${b.label} — block new entries?'))ctrlBot(${b.port},'pause','${b.label}')">STOP</button>
-        <button class="btn-ctrl resume" onclick="ctrlBot(${b.port},'resume','${b.label}')">RESUME</button>
-        <button class="btn-ctrl" onclick="if(confirm('RAZ ${b.label} — reset state & positions?'))ctrlBot(${b.port},'reset','${b.label}')">RAZ</button>
+        <div class="controls-left">
+          ${b.paused
+            ?`<button class="btn-ctrl resume" onclick="ctrlBot(${b.port},'resume','${b.label}')">RESUME</button>`
+            :`<button class="btn-ctrl stop" onclick="if(confirm('STOP ${b.label} — block new entries?'))ctrlBot(${b.port},'pause','${b.label}')">STOP</button>`}
+        </div>
+        <button class="btn-ctrl raz" onclick="if(confirm('RAZ ${b.label} — reset state & positions?'))ctrlBot(${b.port},'reset','${b.label}')">RAZ</button>
       </div>`:''}
     `;
     grid.appendChild(card);
