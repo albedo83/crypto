@@ -252,9 +252,6 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   <div class="header-actions" style="margin-left:auto;display:flex;gap:6px;align-items:center">
     <button class="btn-small" onclick="showChangelog()">Release notes</button>
     <button class="btn-small" onclick="addCapital()" style="background:#238636;color:#fff;border-color:#2ea043">+ DCA</button>
-    <button class="btn-small" onclick="fetch('api/pause',{method:'POST',credentials:'same-origin'}).then(r)" style="background:#da3633;color:#fff;border-color:#f85149">STOP</button>
-    <button class="btn-small" onclick="fetch('api/resume',{method:'POST',credentials:'same-origin'}).then(r)" style="background:#238636;color:#fff;border-color:#2ea043">RESUME</button>
-    <button class="btn-small" onclick="if(confirm('Reset?'))fetch('api/reset',{method:'POST',credentials:'same-origin'}).then(r)" style="background:#30363d;color:#e6edf3;border-color:#30363d">RAZ</button>
   </div>
 </div>
 

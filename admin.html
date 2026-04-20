@@ -39,6 +39,13 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 .version{font-size:11px;color:#484f58}
 .btn-open{background:#238636;color:#fff;border:none;padding:6px 16px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
 .btn-open:hover{background:#2ea043}
+.btn-ctrl{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s}
+.btn-ctrl:hover{background:#30363d}
+.btn-ctrl.stop{background:#da3633;color:#fff;border-color:#f85149}
+.btn-ctrl.stop:hover{background:#b62324}
+.btn-ctrl.resume{background:#238636;color:#fff;border-color:#2ea043}
+.btn-ctrl.resume:hover{background:#1a6b2a}
+.controls{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
 .offline-card{opacity:.5}
 .offline-msg{text-align:center;padding:40px 0;color:#484f58;font-size:14px}
 @media(max-width:768px){
@@ -138,6 +145,11 @@ function renderBots(bots){
         <span class="version">${online?(()=>{let v='v'+(b.version||'?');if(b.first_trade_date){const ft=new Date(b.first_trade_date);const days=Math.floor((Date.now()-ft.getTime())/86400000);v+=' | '+ft.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' ('+days+'j)';}return v;})():':'+b.port}</span>
         <a class="btn-open" href="#" onclick="openBot(event,${b.port},'${b.path||''}')">Open</a>
       </div>
+      ${online?`<div class="controls">
+        <button class="btn-ctrl stop" onclick="ctrlBot(${b.port},'pause','${b.label}')">STOP</button>
+        <button class="btn-ctrl resume" onclick="ctrlBot(${b.port},'resume','${b.label}')">RESUME</button>
+        <button class="btn-ctrl" onclick="if(confirm('RAZ ${b.label} — reset state & positions?'))ctrlBot(${b.port},'reset','${b.label}')">RAZ</button>
+      </div>`:''}
     `;
     grid.appendChild(card);
   });
@@ -150,6 +162,12 @@ function openBot(ev,port,path){
     const url=path?path+'/auth?token='+t:'http://'+location.hostname+':'+port+'/auth?token='+t;
     window.open(url,'_blank');
   }).catch(e=>{alert('Error: '+e)});
+}
+function ctrlBot(port,action,label){
+  fetch('proxy/'+port+'/api/'+action,{method:'POST',credentials:'same-origin'})
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(()=>refresh())
+    .catch(e=>alert(label+' '+action+' failed: '+e));
 }
 function refresh(){
   fetch('api/bots',{credentials:'same-origin'}).then(r=>r.json()).then(renderBots).catch(e=>console.warn('fetch error:',e));

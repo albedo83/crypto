@@ -288,6 +288,38 @@ async def proxy_get(port: int, path: str):
     return JSONResponse(data)
 
 
+_ADMIN_POST_WHITELIST = {"pause", "resume", "reset"}
+
+@app.post("/proxy/{port}/api/{path:path}")
+async def proxy_post(port: int, path: str):
+    """Admin-only control plane: forward STOP/RESUME/RAZ to a specific bot."""
+    if port not in _allowed_ports:
+        raise HTTPException(403, "Port not allowed")
+    if path not in _ADMIN_POST_WHITELIST:
+        raise HTTPException(403, f"Path not allowed: {path}")
+    # Ensure we have a session cookie for the bot
+    if port not in _bot_cookies:
+        await _bot_auth(port)
+    try:
+        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as session:
+            resp = await session.post(
+                f"http://localhost:{port}/api/{path}",
+                cookies={"session": _bot_cookies[port]},
+            )
+            if resp.status == 401:  # cookie expired — reauth once
+                await _bot_auth(port)
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=5)) as s2:
+                    resp = await s2.post(
+                        f"http://localhost:{port}/api/{path}",
+                        cookies={"session": _bot_cookies[port]},
+                    )
+                    return JSONResponse(await resp.json(), status_code=resp.status)
+            data = await resp.json()
+            return JSONResponse(data, status_code=resp.status)
+    except Exception as e:
+        raise HTTPException(502, f"Bot on :{port} unreachable: {e}")
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=ADMIN_PORT, log_level="warning")

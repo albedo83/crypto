@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.7.11] — 2026-04-20
+- **Admin + Dashboard**: STOP / RESUME / RAZ moved out of the bot dashboard into the admin panel (one per bot card).
+
 ## [11.7.10] — 2026-04-20
 - **Security**: suppress Telegram login alerts from internal localhost calls (admin panel auto-auth noise).
 
