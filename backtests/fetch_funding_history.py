@@ -121,9 +121,8 @@ def main() -> int:
     total = 0
     t0 = time.time()
     for i, sym in enumerate(symbols, 1):
-        before = last_ts(db, sym)
         added = fetch_symbol(info, db, sym, start_ms, end_ms)
-        after = last_ts(db, sym)
+        _, after = ts_bounds(db, sym)
         n = db.execute("SELECT COUNT(*) FROM funding WHERE symbol = ?", (sym,)).fetchone()[0]
         last_str = datetime.fromtimestamp(after/1000, tz=timezone.utc).strftime("%Y-%m-%d %H:%M") if after else "—"
         print(f"  [{i:2d}/{len(symbols)}] {sym:6s} +{added:5d} rows → {n:6d} total, last={last_str}")

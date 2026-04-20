@@ -78,6 +78,61 @@ def oi_delta_24h_pct(oi_data, coin, ts_ms):
         return None
     return (oi_now / oi_then - 1) * 1e4
 
+
+def load_funding():
+    """Load hourly funding rate per coin from backtests/output/funding_history.db.
+
+    Returns dict[coin] → (ts_array, rate_array) sorted by ts_ms. Rate is the
+    hourly funding rate (fraction, e.g. 0.0001 = 0.01% per hour).
+
+    Falls back to empty dict if DB missing — backtest keeps working with 0 funding.
+    """
+    db_path = os.path.join(os.path.dirname(__file__), "output", "funding_history.db")
+    if not os.path.exists(db_path):
+        return {}
+    import sqlite3
+    con = sqlite3.connect(db_path)
+    result = {}
+    for coin in TOKENS:
+        rows = con.execute(
+            "SELECT ts, funding_rate FROM funding WHERE symbol = ? ORDER BY ts",
+            (coin,)
+        ).fetchall()
+        if rows:
+            ts_arr = np.array([r[0] for r in rows], dtype=np.int64)
+            rate_arr = np.array([r[1] for r in rows], dtype=np.float64)
+            result[coin] = (ts_arr, rate_arr)
+    con.close()
+    return result
+
+
+def compute_funding_cost(funding_data, coin, direction, entry_ts_ms, exit_ts_ms, notional):
+    """Sum hourly funding payments on `notional` between entry and exit.
+
+    Hyperliquid charges funding every hour at the `fundingRate` of that hour.
+    The `fundingHistory` API returns rate samples at 8h intervals for historical
+    data — we interpret each sample as the hourly rate constant for the
+    surrounding 8h block, then integrate over the trade's hours of exposure.
+
+    Convention: HL charges LONGs when rate > 0, pays them when rate < 0 (SHORTs
+    are inverse). Per hour: cost = direction × rate × notional, where direction
+    is +1 for LONG (+ means money out of account) and -1 for SHORT.
+
+    Returns USDC cost (positive = we paid). 0 if no data or zero-length hold.
+    """
+    if coin not in funding_data:
+        return 0.0
+    ts_arr, rate_arr = funding_data[coin]
+    lo = np.searchsorted(ts_arr, entry_ts_ms, side="left")
+    hi = np.searchsorted(ts_arr, exit_ts_ms, side="right")
+    if lo >= hi:
+        return 0.0
+    hold_hours = max((exit_ts_ms - entry_ts_ms) / 3_600_000, 0.0)
+    if hold_hours <= 0:
+        return 0.0
+    avg_rate = rate_arr[lo:hi].mean()
+    return direction * avg_rate * hold_hours * notional
+
 # Hold periods converted to 4h candle counts
 HOLD_CANDLES = {
     "S1": HOLD_HOURS_DEFAULT // 4,
@@ -99,7 +154,9 @@ S9_EARLY_EXIT_CANDLES = int(S9_EARLY_EXIT_HOURS // 4)
 # as a blended average — re-calibrate if position sizes exceed $5k on thin
 # tokens (see docs/backtests.md).
 BACKTEST_SLIPPAGE_BPS = 4.0
-COST = COST_BPS + BACKTEST_SLIPPAGE_BPS  # applied once at close
+# Per-trade: drop the flat FUNDING_DRAG_BPS baked into COST_BPS — the backtest
+# now computes real funding cost per trade from historical funding rates (v11.7.6).
+COST = TAKER_FEE_BPS + BACKTEST_SLIPPAGE_BPS  # applied once at close
 
 
 # ── Data loading ───────────────────────────────────────────────────────
@@ -163,7 +220,8 @@ def strat_size(strat: str, capital: float) -> float:
 def run_window(features, data, sector_features, dxy_data,
                start_ts_ms: int, end_ts_ms: int, start_capital: float = 1000.0,
                skip_fn=None, oi_data: dict | None = None,
-               early_exit_params: dict | None = None) -> dict:
+               early_exit_params: dict | None = None,
+               funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
     P&L math matches the live bot (v11.3.0+): size_usdt is the notional, so
@@ -300,6 +358,12 @@ def run_window(features, data, sector_features, dxy_data,
                 gross = pos["dir"] * (exit_price / pos["entry"] - 1) * 1e4
                 net = gross - COST
                 pnl = pos["size"] * net / 1e4
+                # Real funding (v11.7.6): subtract sum of hourly funding payments
+                if funding_data is not None:
+                    funding_cost = compute_funding_cost(
+                        funding_data, coin, pos["dir"],
+                        pos["entry_t"], ts, pos["size"])
+                    pnl -= funding_cost
                 capital += pnl
                 peak_capital = max(peak_capital, capital)
                 dd = (capital - peak_capital) / peak_capital * 100 if peak_capital > 0 else 0
@@ -450,6 +514,11 @@ def run_window(features, data, sector_features, dxy_data,
             gross = pos["dir"] * (exit_p / pos["entry"] - 1) * 1e4
             net = gross - COST
             pnl = pos["size"] * net / 1e4
+            if funding_data is not None:
+                funding_cost = compute_funding_cost(
+                    funding_data, coin, pos["dir"],
+                    pos["entry_t"], last_ts, pos["size"])
+                pnl -= funding_cost
             capital += pnl
             trades.append({
                 "pnl": pnl, "net": net, "dir": pos["dir"],
@@ -644,6 +713,8 @@ def main():
     dxy_data = load_dxy()
     oi_data = load_oi()
     print(f"Loaded OI for {len(oi_data)} coins (for v11.4.9 OI gate)")
+    funding_data = load_funding()
+    print(f"Loaded funding history for {len(funding_data)} coins (v11.7.6 real funding cost)")
 
     # Determine end_ts as the latest available candle
     latest_ts = max(c["t"] for c in data["BTC"])
@@ -670,7 +741,8 @@ def main():
         end_ts = latest_ts
         print(f"  Running {label} ({start_dt.strftime('%Y-%m-%d')} → {end_dt.strftime('%Y-%m-%d')})...")
         r = run_window(features, data, sector_features, dxy_data, start_ts, end_ts,
-                       oi_data=oi_data, early_exit_params=early_exit_params)
+                       oi_data=oi_data, early_exit_params=early_exit_params,
+                       funding_data=funding_data)
         r["label"] = label
         r["start_date"] = start_dt.strftime("%Y-%m-%d")
         results.append(r)

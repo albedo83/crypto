@@ -1,18 +1,18 @@
 # Rolling backtests
 
-**Générée le** : 2026-04-19 12:25 UTC
-**Bot version** : v11.7.2
+**Générée le** : 2026-04-20 08:00 UTC
+**Bot version** : v11.7.5
 **Données jusqu'à** : 2026-04-17
 
 Chaque ligne répond à la question : *si j'avais lancé le bot avec $1 000 au début de cette fenêtre jusqu'à la date des données, avec les paramètres actuels du bot, combien aurais-je fini ?*
 
 P&L calculé avec la formule corrigée v11.3.0+ (`size_usdt` est le notionnel, pas de multiplication par le levier). Capital de départ : $1 000.
 
-**Coûts backtest** : 14 bps round-trip = 10 bps (taker 9 + funding 1, calibrés depuis les fills live) + 4 bps de slippage moyen que le backtest doit modéliser puisqu'il utilise les closes 4h au lieu de l'avgPx réel. Le live bot lui n'applique que 10 bps car le slippage est déjà dans l'avgPx.
+**Coûts backtest** : 13 bps round-trip = 10 bps (taker 9 + funding 1, calibrés depuis les fills live) + 4 bps de slippage moyen que le backtest doit modéliser puisqu'il utilise les closes 4h au lieu de l'avgPx réel. Le live bot lui n'applique que 10 bps car le slippage est déjà dans l'avgPx.
 
 Ce fichier est **régénéré automatiquement** par `python3 -m backtests.backtest_rolling`. Relancer après tout changement de règles ou de paramètres du bot.
 
-## Filtres actifs (v11.7.2)
+## Filtres actifs (v11.7.5)
 
 **S10 filters** (v11.3.4)
 - `S10_ALLOW_LONGS = False` → SHORT fades seulement (LONG fades perdaient $4.8k sur 28m, 45% WR — *fade panic = fail*)
@@ -36,27 +36,27 @@ Dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, test 2025-0
 
 | Fenêtre | Start | Balance finale | P&L | P&L % | DD max | Trades | WR | Best strat |
 |---|---|---|---|---|---|---|---|---|
-| 28 mois | 2023-12-17 | $164 401 | +$163 401 | +16340.1% | -54.1% | 1086 | 53% | S9 |
-| 12 mois | 2025-04-17 | $17 250 | +$16 250 | +1625.0% | -28.9% | 457 | 55% | S9 |
-| 6 mois | 2025-10-17 | $5 360 | +$4 360 | +436.0% | -22.2% | 232 | 57% | S9 |
-| depuis 2025-11-01 | 2025-11-01 | $4 140 | +$3 140 | +314.0% | -22.2% | 212 | 55% | S9 |
-| depuis 2025-12-01 | 2025-12-01 | $2 859 | +$1 859 | +185.9% | -22.2% | 172 | 53% | S9 |
-| depuis 2026-01-01 | 2026-01-01 | $2 448 | +$1 448 | +144.8% | -22.2% | 144 | 50% | S9 |
-| 3 mois | 2026-01-17 | $2 470 | +$1 470 | +147.0% | -22.2% | 126 | 52% | S9 |
-| depuis 2026-02-01 | 2026-02-01 | $1 598 | +$598 | +59.8% | -27.5% | 113 | 49% | S9 |
-| depuis 2026-03-01 | 2026-03-01 | $955 | $-45 | -4.5% | -21.0% | 65 | 45% | S10 |
-| 1 mois | 2026-03-17 | $944 | $-56 | -5.6% | -21.0% | 50 | 44% | S10 |
-| depuis 2026-04-01 | 2026-04-01 | $928 | $-72 | -7.2% | -15.7% | 29 | 41% | S10 |
+| 28 mois | 2023-12-17 | $161 623 | +$160 623 | +16062.3% | -53.8% | 1086 | 53% | S9 |
+| 12 mois | 2025-04-17 | $17 287 | +$16 287 | +1628.7% | -28.8% | 457 | 55% | S9 |
+| 6 mois | 2025-10-17 | $5 276 | +$4 276 | +427.6% | -24.0% | 232 | 57% | S8 |
+| depuis 2025-11-01 | 2025-11-01 | $4 060 | +$3 060 | +306.0% | -24.0% | 212 | 55% | S9 |
+| depuis 2025-12-01 | 2025-12-01 | $2 794 | +$1 794 | +179.4% | -24.0% | 172 | 53% | S9 |
+| depuis 2026-01-01 | 2026-01-01 | $2 379 | +$1 379 | +137.9% | -24.0% | 144 | 50% | S9 |
+| 3 mois | 2026-01-17 | $2 402 | +$1 402 | +140.2% | -24.0% | 126 | 52% | S9 |
+| depuis 2026-02-01 | 2026-02-01 | $1 550 | +$550 | +55.0% | -28.1% | 113 | 49% | S9 |
+| depuis 2026-03-01 | 2026-03-01 | $923 | $-77 | -7.7% | -22.7% | 65 | 45% | S10 |
+| 1 mois | 2026-03-17 | $914 | $-86 | -8.6% | -22.7% | 50 | 44% | S10 |
+| depuis 2026-04-01 | 2026-04-01 | $899 | $-101 | -10.1% | -17.5% | 29 | 41% | S10 |
 
 ## Breakdown par stratégie sur la fenêtre la plus longue (28 mois)
 
 | Stratégie | Trades | Win Rate | P&L |
 |---|---|---|---|
-| S1 | 74 | 51% | +$96 |
-| S10 | 330 | 56% | +$20 856 |
-| S5 | 442 | 49% | +$34 307 |
-| S8 | 116 | 61% | +$44 228 |
-| S9 | 124 | 52% | +$63 915 |
+| S1 | 74 | 50% | $-184 |
+| S10 | 330 | 56% | +$21 220 |
+| S5 | 442 | 49% | +$36 245 |
+| S8 | 116 | 61% | +$45 220 |
+| S9 | 124 | 52% | +$58 122 |
 
 ## Méthodologie
 
@@ -66,7 +66,7 @@ Dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, test 2025-0
 - **Entry timing** : open de la bougie suivante (no look-ahead).
 - **Exit** : stop détecté sur low/high de la bougie, sinon timeout au hold configuré. S9 early exit si unrealized < -500 bps après 8h.
 - **Positions restantes** en fin de fenêtre : mark-to-market au dernier close.
-- **Costs** : 14 bps par trade round-trip (9 taker + 1 funding + 4 slippage backtest). Pas de multiplication par le levier.
+- **Costs** : 13 bps par trade round-trip (9 taker + 1 funding + 4 slippage backtest). Pas de multiplication par le levier.
 
 ## Limites
 
