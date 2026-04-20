@@ -603,6 +603,10 @@ def create_app(bot) -> FastAPI:
                     .replace("{{ERROR}}", f"Too many failed attempts — retry in {int(delay)}s"))
             return HTMLResponse(html, status_code=429)
 
+        # Suppress Telegram noise for internal service calls (admin panel
+        # authenticating with each bot via localhost). Log is still written.
+        internal = client_ip == "127.0.0.1"
+
         if (_secrets.compare_digest(username, DASHBOARD_USER)
                 and _secrets.compare_digest(password, DASHBOARD_PASS)):
             _record_success(client_ip)
@@ -610,19 +614,20 @@ def create_app(bot) -> FastAPI:
             resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
             resp.set_cookie("session", token, httponly=True, samesite="strict", max_age=30 * 86400)
             log.info("LOGIN OK: user=%s ip=%s label=%s", username, client_ip, ml)
-            send_telegram(f"\U0001f511 Login OK {ml} — user={username} ip={client_ip}",
-                          category="security")
+            if not internal:
+                send_telegram(f"\U0001f511 Login OK {ml} — user={username} ip={client_ip}",
+                              category="security")
             return resp
 
         _record_failure(client_ip)
         n_fails = _login_failures.get(client_ip, (0, 0))[0]
         log.warning("LOGIN FAIL: user=%s ip=%s attempts=%d label=%s",
                     username, client_ip, n_fails, ml)
-        # Alert Telegram on every failure — noisy but explicit (you can filter
-        # later if spammy). Includes attempt count so repeated attempts are
-        # visible as a pattern in the Telegram history.
-        send_telegram(f"\u26a0\ufe0f Login FAIL {ml} — user={username} ip={client_ip} (attempt #{n_fails})",
-                      category="security")
+        # Alert on every external failure. Internal localhost failures are
+        # admin-panel credential drift — log only.
+        if not internal:
+            send_telegram(f"\u26a0\ufe0f Login FAIL {ml} — user={username} ip={client_ip} (attempt #{n_fails})",
+                          category="security")
         html = (_LOGIN_HTML.replace("{{VERSION}}", VERSION)
                 .replace("{{MODE}}", ml).replace("{{ERROR}}", "Invalid username or password"))
         return HTMLResponse(html, status_code=401)
