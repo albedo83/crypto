@@ -1,11 +1,11 @@
 {
-  "_comment": "'path' is the nginx subpath for each bot. Bot 2 has no path because no nginx location is configured for it — Open button falls back to host:port (direct-access only). 'auth_env' maps each bot to the env vars admin.py uses to authenticate against it.",
+  "_comment": "'path' is the nginx subpath for each bot. 'auth_env' maps each bot to the env vars admin.py uses to authenticate against it.",
   "bots": [
     {"port": 8097, "label": "Paper",  "mode": "paper", "path": "/paper",
      "auth_env": {"user": "DASHBOARD_USER", "pass": "DASHBOARD_PASS"}},
     {"port": 8098, "label": "Live",   "mode": "live",  "path": "/bot",
      "auth_env": {"user": "DASHBOARD_USER", "pass": "DASHBOARD_PASS"}},
-    {"port": 8099, "label": "Junior", "mode": "paper",
+    {"port": 8099, "label": "Junior", "mode": "paper", "path": "/junior",
      "auth_env": {"user": "JUNIOR_USER", "pass": "JUNIOR_PASS"}}
   ]
 }

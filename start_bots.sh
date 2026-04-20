@@ -30,13 +30,13 @@ echo "Live bot started (PID: $!)"
 # Separate credentials + own Telegram bot. Capital capped at JUNIOR_CAPITAL_CAP
 # (see analysis/bot/config.py). Starts at $0 capital and PAUSED. User must
 # DCA via /api/capital then /api/resume to activate. Empty JUNIOR_TG_* = muted.
-# No HL_ROOT_PATH: no nginx /bot2/ location configured, direct-port access only.
+# Served behind nginx at /junior/.
 TG_BOT_TOKEN="$JUNIOR_TG_BOT_TOKEN" TG_CHAT_ID="$JUNIOR_TG_CHAT_ID" \
     TG_CATEGORIES="trade,daily,system" \
     DASHBOARD_USER="$JUNIOR_USER" DASHBOARD_PASS="$JUNIOR_PASS" \
     HL_PRIVATE_KEY="$JUNIOR_HL_PRIVATE_KEY" \
     BOT_LABEL="JUNIOR" BOT_LABEL_COLOR="#3fb950" \
-    HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 \
+    HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 HL_ROOT_PATH=/junior \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
 echo "Junior bot started (PID: $!)"
 
