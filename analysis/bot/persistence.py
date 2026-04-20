@@ -33,15 +33,15 @@ def write_trade(trade: Trade, db: sqlite3.Connection | None) -> None:
                 (symbol, direction, strategy, entry_time, exit_time, entry_price,
                  exit_price, hold_hours, size_usdt, signal_info, gross_bps, net_bps,
                  pnl_usdt, mae_bps, mfe_bps, reason, entry_oi_delta, entry_crowding,
-                 entry_confluence, entry_session)
-                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                 entry_confluence, entry_session, funding_usdt)
+                VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                 (trade.symbol, trade.direction, trade.strategy,
                  trade.entry_time, trade.exit_time,
                  trade.entry_price, trade.exit_price, trade.hold_hours, trade.size_usdt,
                  trade.signal_info, trade.gross_bps, trade.net_bps, trade.pnl_usdt,
                  trade.mae_bps, trade.mfe_bps, trade.reason,
                  trade.entry_oi_delta, trade.entry_crowding, trade.entry_confluence,
-                 trade.entry_session))
+                 trade.entry_session, trade.funding_usdt))
             db.commit()
     except Exception as e:
         log.warning("Trade DB write failed: %s", e)
@@ -235,7 +235,8 @@ def load_trades(db: sqlite3.Connection | None) -> list[Trade]:
         rows = db.execute("""SELECT symbol, direction, strategy, entry_time, exit_time,
             entry_price, exit_price, hold_hours, size_usdt, signal_info,
             gross_bps, net_bps, pnl_usdt, mae_bps, mfe_bps, reason,
-            entry_oi_delta, entry_crowding, entry_confluence, entry_session
+            entry_oi_delta, entry_crowding, entry_confluence, entry_session,
+            COALESCE(funding_usdt, 0)
             FROM trades ORDER BY exit_time""").fetchall()
         for r in rows:
             result.append(Trade(
@@ -252,6 +253,7 @@ def load_trades(db: sqlite3.Connection | None) -> list[Trade]:
                 entry_crowding=int(r[17] or 0) if isinstance(r[17], (int, float)) else 0,
                 entry_confluence=int(r[18] or 0) if isinstance(r[18], (int, float)) else 0,
                 entry_session=r[19] if isinstance(r[19], str) else "",
+                funding_usdt=float(r[20] or 0),
             ))
         if result:
             log.info("Loaded %d historical trades from DB", len(result))

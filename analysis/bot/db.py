@@ -79,8 +79,13 @@ def init_db(db_path: str) -> sqlite3.Connection | None:
             entry_oi_delta REAL,
             entry_crowding INTEGER,
             entry_confluence INTEGER,
-            entry_session TEXT
+            entry_session TEXT,
+            funding_usdt REAL DEFAULT 0
         )""")
+        # Migration for pre-v11.7.5 DBs
+        cols = {r[1] for r in db.execute("PRAGMA table_info(trades)")}
+        if "funding_usdt" not in cols:
+            db.execute("ALTER TABLE trades ADD COLUMN funding_usdt REAL DEFAULT 0")
         db.execute("CREATE INDEX IF NOT EXISTS idx_trades_strategy ON trades(strategy)")
         db.execute("CREATE INDEX IF NOT EXISTS idx_trades_symbol ON trades(symbol)")
         # Trajectories (hourly unrealized P&L per trade)

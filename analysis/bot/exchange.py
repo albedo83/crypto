@@ -135,6 +135,33 @@ def execute_close(exchange, hl_info, address: str, sym: str) -> float | None:
     return None  # caller uses st.price as fallback
 
 
+def fetch_position_funding(hl_info, address: str, coin: str,
+                           start_ms: int, end_ms: int) -> float:
+    """Sum funding deltas paid on `coin` between start_ms and end_ms.
+
+    Returns USDC amount (negative = we paid, positive = we received).
+    Returns 0.0 on any failure — fail-open, caller keeps the trade's pnl
+    unchanged rather than breaking the close path.
+    """
+    if not hl_info:
+        return 0.0
+    try:
+        # HL API requires a time window; grab slightly wider and filter
+        hist = hl_info.user_funding_history(address, start_ms, end_ms)
+        total = 0.0
+        for ev in hist:
+            if ev.get("delta", {}).get("coin") != coin:
+                continue
+            t = int(ev.get("time", 0))
+            if t < start_ms or t > end_ms:
+                continue
+            total += float(ev["delta"].get("usdc", 0))
+        return total
+    except Exception as e:
+        log.warning("Funding lookup failed for %s: %s", coin, e)
+        return 0.0
+
+
 def fetch_account_state(hl_info, address: str) -> dict | None:
     """Fetch real account state from Hyperliquid. Returns equity, unrealized, available, fees."""
     if not hl_info:

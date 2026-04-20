@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.4). Paper dashboard on `:8097`, live on `:8098`, Bot 2 on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.5). Paper dashboard on `:8097`, live on `:8098`, Bot 2 on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
@@ -76,6 +76,8 @@ Hyperliquid SDK (write)
 **v11.4.10 Trade blacklist**: `TRADE_BLACKLIST = {"SUI", "IMX", "LINK"}` in `config.py`. These tokens were net-negative on every walk-forward window (28m/12m/6m/3m). Enforced at entry in `trading.rank_and_enter` — SKIP logged with `reason=blacklist`. Tokens stay in `TRADE_SYMBOLS` to preserve data collection. Kill-switch: empty the set. Walk-forward impact (on backtest_rolling baseline): +91% on 28m, +63% on 12m, +34% on 6m, +18% on 3m.
 
 **v11.7.2 Dead-timeout early exit**: at T−12h from hold expiry, if a position has never shown meaningful upside (`pos.mfe_bps ≤ DEAD_TIMEOUT_MFE_CAP_BPS=150`), is deeply underwater (`pos.mae_bps ≤ DEAD_TIMEOUT_MAE_FLOOR_BPS=-1000`) AND is still pinned near its low (`unrealized ≤ mae_bps + DEAD_TIMEOUT_SLACK_BPS=300`), exit immediately instead of waiting for timeout. New exit reason: `dead_timeout`. Rationale: a trade that's still at its worst within 12h of timeout has no pulse — crystallizing the loss now vs at MAE later is structurally safe (no kept winner has MFE ≤ +150 bps by definition). Walk-forward validated 4/4 on `backtest_rolling` via `backtests/backtest_early_exit_d.py` variant D2: +$49 322 on 28m, +$1 405 on 12m, +$46 on 6m, +$21 on 3m with DD unchanged. Check runs in `trading.check_exits` after stops/trailing, before `close_position`. Kill-switch: set `DEAD_TIMEOUT_MFE_CAP_BPS=-99999` (no trade will ever match).
+
+**v11.7.5 Per-trade funding (live)**: at close, `trading.close_position` calls `exchange.fetch_position_funding()` to sum the exact `user_funding_history` deltas on that coin between `entry_time` and `exit_time`. The flat `FUNDING_DRAG_BPS=1` already baked into `net_bps` is swapped out for the real number: `pnl = size*(net_bps)/1e4 + funding_usdt - flat_funding_usdt`. New column `trades.funding_usdt` (SQLite auto-migrated). Paper mode unchanged (flat model). Rationale: funding is time-dependent (hourly accrual at floating rate) so entry-time estimation is imprecise; the flat 1 bps estimate was ~10× below real drag observed in live (~14 bps avg). Fail-open: HL API failure returns 0 and trade closes with the flat model. Backtests keep the flat model (no candle-level funding data).
 
 For detailed conditions, parameters, and research behind each signal see **`docs/bot.md`** (French). For the history of changes see **`CHANGELOG.md`**.
 

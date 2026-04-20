@@ -12,7 +12,7 @@ import time
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 
-from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, MAX_POSITIONS, MAX_SAME_DIRECTION,
+from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTION,
                      MAX_PER_SECTOR, MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS, MACRO_STRATEGIES,
                      TOKEN_SECTOR, STOP_LOSS_BPS, STOP_LOSS_S8, COOLDOWN_HOURS,
                      TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER,
@@ -24,7 +24,7 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, MAX_POSITIONS, MAX_SAME_D
                      OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size)
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
-from .exchange import execute_open, execute_close
+from .exchange import execute_open, execute_close, fetch_position_funding
 from .persistence import write_trade, write_trajectory
 from .db import log_event
 from .net import send_telegram
@@ -269,6 +269,17 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
             send_telegram(f"\u274c Close failed {sym}: {e} \u2014 will retry", category="trade")
             return  # don't pop — position stays tracked, retried next scan
 
+    # Live only: fetch actual funding paid on this token during the trade.
+    # Flat FUNDING_DRAG_BPS in COST_BPS is a rough estimate; this is precise.
+    funding_usdt = 0.0
+    if bot._exchange:
+        pos_peek = bot.positions.get(sym)
+        if pos_peek:
+            start_ms = int(pos_peek.entry_time.timestamp() * 1000)
+            end_ms = int(now.timestamp() * 1000)
+            funding_usdt = fetch_position_funding(
+                bot._hl_info, bot._hl_address, sym, start_ms, end_ms)
+
     with bot._pos_lock:
         if sym not in bot.positions:
             return  # closed by concurrent api_pause/check_exits
@@ -284,7 +295,17 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
         gross_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
         effective_cost = COST_BPS
         net_bps = gross_bps - effective_cost
-        pnl = pos.size_usdt * net_bps / 1e4
+        # Live: swap the flat FUNDING_DRAG_BPS estimate for the real number.
+        # Funding delta is in USDC (negative = paid). Reapply as bps on notional
+        # so the net_bps displayed is also precise. Paper keeps flat model.
+        if bot._exchange:
+            flat_funding_usdt = -pos.size_usdt * FUNDING_DRAG_BPS / 1e4
+            pnl = pos.size_usdt * net_bps / 1e4 + funding_usdt - flat_funding_usdt
+            if pos.size_usdt > 0:
+                real_funding_bps = (funding_usdt - flat_funding_usdt) / pos.size_usdt * 1e4
+                net_bps = net_bps + real_funding_bps
+        else:
+            pnl = pos.size_usdt * net_bps / 1e4
 
         bot._total_pnl += pnl
         balance = bot._capital + bot._total_pnl
@@ -331,6 +352,7 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
         reason=reason,
         entry_oi_delta=pos.entry_oi_delta, entry_crowding=pos.entry_crowding,
         entry_confluence=pos.entry_confluence, entry_session=pos.entry_session,
+        funding_usdt=round(funding_usdt, 4),
     )
     bot.trades.append(trade)
     write_trade(trade, bot._db)

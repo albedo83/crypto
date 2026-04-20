@@ -65,3 +65,4 @@ class Trade:
     entry_crowding: int = 0
     entry_confluence: int = 0
     entry_session: str = ""
+    funding_usdt: float = 0.0  # Real funding paid during trade (live only; 0 for paper)
