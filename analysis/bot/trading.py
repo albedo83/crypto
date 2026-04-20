@@ -367,7 +367,7 @@ def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot)
              gross_bps, net_bps, pnl, pos.mae_bps, pos.mfe_bps, balance, n, wr)
     emoji = "\u2705" if pnl > 0 else "\U0001f534"
     send_telegram(
-        f"{emoji} {pos.strategy} {trade.direction} {sym} | {net_bps:+.0f} bps | ${pnl:+.2f} | bal ${balance:.0f}",
+        f"{emoji} CLOSE {pos.strategy} {trade.direction} {sym} | {net_bps:+.0f} bps | ${pnl:+.2f} | bal ${balance:.0f}",
         category="trade")
 
 
@@ -491,7 +491,7 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                 entry_price = fill["avgPx"]
                 filled_size = fill["sz"] * entry_price
                 send_telegram(
-                    f"\U0001f7e2 {sig['strategy']} {side} {sym} @ ${entry_price:.4f} | ${filled_size:.0f}",
+                    f"\U0001f7e2 OPEN {sig['strategy']} {side} {sym} @ ${entry_price:.4f} | ${filled_size:.0f}",
                     category="trade")
             except Exception as e:
                 log.error("EXEC OPEN FAILED %s %s: %s", sym, sig["strategy"], e)

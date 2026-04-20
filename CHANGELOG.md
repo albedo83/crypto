@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.7.8] — 2026-04-20
+- **Telegram**: `OPEN` / `CLOSE` labels in trade notifications for unambiguous entry vs exit.
+
 ## [11.7.7] — 2026-04-20
 - **Infra**: supervisor prompt tightened (anti-reprise registry, no hallucinated figures); DB backfill scripts for funding + net_bps reconciliation.
 
