@@ -319,6 +319,7 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
     <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
     <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
   </tr></thead><tbody id="strat-drift"></tbody></table>
+  <div id="strat-reconcile" class="dim" style="margin-top:10px;font-size:12px;line-height:1.7;display:none"></div>
 </div>
 
 <div class="section" data-block="pnl-curve" hidden>
@@ -732,6 +733,30 @@ function refresh(){
         <td>${recN}</td><td class="dim">—</td>
         <td class="dim">—</td><td class="${cls(recPnL)}">$${fmt(recPnL)}</td>`;
       sdEl.appendChild(tot);
+
+      // Reconciliation footer — only on live (exchange_account present).
+      // Explains the gap between bot internal accounting and real HL equity.
+      const rec=document.getElementById('strat-reconcile');
+      if(rec){
+        const acct=s.exchange_account;
+        if(acct){
+          const cap=s.capital||0, bal=s.balance||0;
+          const openU=(s.positions||[]).reduce((a,p)=>a+(p.pnl_usdt||0),0);
+          const botEq=bal+openU;
+          const gap=acct.equity-botEq;
+          rec.style.display='block';
+          rec.innerHTML=
+            `<b>Reconciliation (live)</b><br>`+
+            `&nbsp;&nbsp;Capital &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="color:#c9d1d9">$${cap.toFixed(2)}</span><br>`+
+            `&nbsp;&nbsp;+ Bot realized P&L &nbsp;&nbsp; <span class="${cls(botTotal)}">$${fmt(botTotal)}</span> <span class="dim">(Total row above)</span><br>`+
+            `&nbsp;&nbsp;+ Open unrealized &nbsp;&nbsp;&nbsp; <span class="${cls(openU)}">$${fmt(openU)}</span><br>`+
+            `&nbsp;&nbsp;= Bot-implied equity &nbsp;<span class="${cls(botEq-cap)}">$${botEq.toFixed(2)}</span><br>`+
+            `&nbsp;&nbsp;+ Exchange drag &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="${cls(gap)}">$${fmt(gap)}</span> <span class="dim">(real fees + funding + slippage not modeled per trade)</span><br>`+
+            `&nbsp;&nbsp;= <b>Real equity (HL)</b> &nbsp;&nbsp;&nbsp;<b>$${acct.equity.toFixed(2)}</b> <span class="dim">(the big Equity card above)</span>`;
+        } else {
+          rec.style.display='none';
+        }
+      }
     }
 
     // Sector heatmap (batch 2)
