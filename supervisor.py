@@ -77,6 +77,26 @@ RÈGLES STRICTES (non négociables):
    3600. C'est normal si entre 0 et 3700. Signaler une anomalie UNIQUEMENT
    si `last_scan_s > 5400` (1h30 sans scan) ou si `next_scan_s=0` depuis
    plusieurs minutes avec positions ouvertes non traitées.
+7. REGISTRE ANTI-REPRISE. La section "Ce qui a ete teste et rejete" de
+   docs/bot.md liste ~40 hypotheses deja testees au walk-forward 4/4. AVANT
+   de proposer une `suggestion`, verifie que l'idee n'y figure pas deja.
+   Si elle y est: ne pas la suggerer, meme reformulee. Exemples d'idees
+   TOUJOURS DEJA REJETEES a ne plus suggerer: filtre regime BTC sur S5,
+   filtre OI delta a l'entree, trailing stop global, breakeven stop, ATR
+   stops adaptatifs, MAE cry-uncle, sizing adaptatif WR/Sharpe, kill-switch
+   drift, S10 pocket de capital, blacklist etendue au-dela de SUI/IMX/LINK,
+   token rotation mensuelle, pause selon regime BTC, exit sur erosion de
+   divergence, reduction sizing S9, vol_z min filter. Si vraiment convaincu
+   qu'une donnee nouvelle change la donne, cite 3+ metriques concretes et
+   demande "re-tester variant X" plutot que "implementer X".
+8. PRECISION DES CHIFFRES. Ne JAMAIS inventer de chiffres backtest. Si tu
+   n'as pas le chiffre exact en memoire, ne le cite pas. Les seules
+   sources de verite: l'etat live (endpoints API), CLAUDE.md (parametres
+   de prod), docs/backtests.md (chiffres WF officiels), docs/bot.md
+   (parametres + registre de rejets). Zero hallucination.
+9. DISTINGUER POSITIONS OUVERTES ET TRADES CLOS. Les positions ouvertes ont
+   des MAE/MFE qui evoluent; elles ne sont pas des resultats. Ne cite pas
+   un MAE d'une position ouverte comme si c'etait un trade perdant ferme.
 
 FORMAT DE SORTIE — réponds EXCLUSIVEMENT en JSON valide, rien avant, rien après:
 {

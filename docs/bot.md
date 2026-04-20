@@ -249,7 +249,62 @@ Chaque signal doit passer : (1) train/test split, (2) Monte Carlo z > 2.0, (3) p
 
 ### Ce qui a ete teste et rejete
 
-1500+ regles testees. Rejetes : regime gating, trailing stop global (toutes les configs degradent le P&L — signaux mean-reversion oscillent), flat exit, token rotation (performance tourne trop vite), signal exit, 378 variantes SHORT, pairs trading, funding carry, premium mean reversion, sessions, correlation breakdown, genetic programming, ML, weekend effects, dispersion, volume exhaustion, cross-momentum, OI gates (7 singles + 3 combos, tous echouent sur 4/4 fenetres), OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h, meme pattern que les gates), OI divergence S11 (6 variantes A-F), inverse-exit sur signal oppose (+$20k sur 28m mais perd sur 12m/6m/3m — overfit), filtre regime BTC 30d sur S5 (perd sur 28m/12m, gagne sur 3m/6m — curve-fit du regime recent), kill-switch drift par strategie (aucune config N/seuil ne bat la baseline sur 4/4), sizing adaptatif WR/Sharpe (degrade partout), ATR stops adaptatifs / breakeven / OI exit miroir / MAE cry-uncle (aucun passe 4/4), vol_z min filter (0/4), reduction sizing S9 (0/4). Passent le walk-forward : trailing stop S10-specifique (v11.4.0), **OI gate LONG** (v11.4.9), **trade blacklist SUI/IMX/LINK** (v11.4.10).
+1500+ regles testees. Cette section sert de **registre anti-reprise** : toute hypothese listee ici a ete testee, a echoue au walk-forward (au moins une fenetre 28m/12m/6m/3m ne passe pas, ou DD degrade substantiellement), et ne doit pas etre resuggeree sans nouvelle donnee. **Avant de proposer un filtre / gate / exit / sizing, verifier ci-dessous qu'il n'est pas deja dans ce registre.**
+
+Format : `Hypothese — Backtest source → Verdict court`.
+
+**Exits (stops, trailing, flats)**
+- Trailing stop global (toutes strategies) — `backtest_exits.py` → rejete : signaux mean-reversion oscillent, le trailing coupe les gagnants qui passent par une pause temporaire.
+- Breakeven stop apres MFE > X — `backtest_exits.py` → rejete : coupe des gagnants qui repartent.
+- Flat exit (apres N bougies) — `backtest_exits.py` → rejete : aucune config ne bat la baseline 4/4.
+- ATR stops adaptatifs — `backtest_exit_battery.py` → rejete 0/4.
+- OI exit miroir (sortie si OI se retourne) — `backtest_exit_battery.py` → rejete 0/4.
+- MAE cry-uncle (sortie si MAE atteint X) — `backtest_exit_battery.py` → rejete 0/4.
+- Inverse-exit sur signal oppose — `backtest_exit_battery.py` → +$20k sur 28m mais perd sur 12m/6m/3m (overfit).
+- Exit dynamique sur erosion divergence — `backtest_div_erosion_exit.py` → rejete : 10 variantes (drop absolu, ratio, flip), toutes negatives ≥2 fenetres. Divergence est momentum, pas reversal.
+
+**Entrees (filtres, gates)**
+- Filtre regime BTC 30d sur S5 LONG (seuils 200/500/1000/1500 bps) — `backtest_entry_filters.py` → rejete 0/4, curve-fit du regime recent.
+- Filtre OI delta a l'entree sur S5 (seuils 400/600/800/1000 bps) — `backtest_entry_filters.py` → rejete 4/4 tres negatif.
+- Combo filtre BTC + OI sur S5 — `backtest_entry_filters.py` → rejete : echecs cumulatifs.
+- OI gates externes (7 singles + 3 combos : funding abs/dir, OI delta abs/align long/short, premium abs, BTC vol high/low, n_signals, sessions) — `backtest_external_gates.py`, `backtest_oi_gates.py` → rejetes, seul **OI gate LONG** (`oi_delta_24h < -10%`) passe → retenu en v11.4.9.
+- vol_z min filter — rejete 0/4.
+
+**Sizing**
+- Sizing adaptatif WR / Sharpe / rolling P&L — `backtest_adaptive_sizing.py` → degrade partout.
+- Reduction sizing S9 — rejete 0/4.
+- Kill-switch drift par strategie (pause si WR < X sur N trades) — `backtest_drift_killswitch.py` → aucune config N/seuil ne bat la baseline 4/4.
+- OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h) — `backtest_oi_sizing.py` → meme pattern que les gates, rejete.
+- S10 pocket (capital dedie S10) — commentaire `S10_CAPITAL_SHARE = 0` dans `config.py` : "no pocket — backtest: +48% P&L vs 15%". Tester un pocket = deja teste, perd 48%.
+
+**Signaux / familles rejetees**
+- OI divergence S11 (6 variantes A-F) — rejete.
+- 378 variantes SHORT explorees (momentum, mean-reversion, volume, squeeze adverse, pairs) — aucune ne passe, seul S10 SHORT (squeeze fade) retenu apres walk-forward.
+- Pairs trading — rejete.
+- Funding carry — rejete.
+- Premium mean reversion — rejete.
+- Correlation breakdown — rejete.
+- Weekend effects — rejete.
+- Cross-momentum — rejete.
+- Volume exhaustion — rejete.
+- Sessions Asia/EU/US — rejete.
+- Token rotation (retirer les tokens less-performant mensuellement) — rejete : la performance tourne trop vite, le retrait des pires casse le compounding.
+- Regime gating general (pause selon BTC regime) — rejete.
+
+**Meta (ML, GP)**
+- Genetic programming — rejete.
+- Machine learning classification / regression — rejete.
+
+**Blacklist etendue (session 2026-04-19)**
+- Blacklist de WLD, DOGE-SHORT, BLUR, OP LONG, COMP SHORT, MINA LONG, APT LONG, SNX SHORT, CRV SHORT, DOGE LONG — `backtest_blacklist_candidates.py` → **effet de substitution** : chaque token est 4/4-negatif individuellement MAIS son retrait libere un slot qui va vers un candidat encore pire. Ex retirer COMP SHORT coute −$61 264 sur 28m. La blacklist actuelle `{SUI, IMX, LINK}` est un optimum local pour la structure de ranking actuelle.
+
+---
+
+**Passent le walk-forward** (retenu en production) :
+- **Trailing stop S10-specifique** (v11.4.0)
+- **OI gate LONG** (v11.4.9) — seul gate externe parmi 12 testes
+- **Trade blacklist SUI/IMX/LINK** (v11.4.10)
+- **Dead-timeout early exit D2** (v11.7.2)
 
 ### Trade blacklist (v11.4.10)
 
@@ -297,17 +352,9 @@ Quand un trade entre dans les 12 dernières heures de son hold, **s'il n'a jamai
 
 **Constantes** : `DEAD_TIMEOUT_LEAD_HOURS=12`, `DEAD_TIMEOUT_MFE_CAP_BPS=150`, `DEAD_TIMEOUT_MAE_FLOOR_BPS=-1000`, `DEAD_TIMEOUT_SLACK_BPS=300` dans `analysis/bot/config.py`. Check placé dans `trading.check_exits()` après stops/trailing, avant `close_position`. Kill-switch : `DEAD_TIMEOUT_MFE_CAP_BPS = -99999`.
 
-### Brainstorm complémentaire — pistes testées et rejetées (session 2026-04-19)
+### Plateau d'optimisation (post session 2026-04-19)
 
-Rien de la même session n'a passé le walk-forward hormis D2. Archivé pour éviter de réessayer :
-
-- **Blacklist étendue** (`backtest_blacklist_candidates.py`) : WLD, DOGE-SHORT, BLUR, OP LONG, COMP SHORT, MINA LONG, APT LONG, SNX SHORT, CRV SHORT, DOGE LONG — tous 4/4-négatifs individuellement **mais tous** perdent gravement au retrait (effet de substitution : slot remplacé par un candidat encore pire). Ex : retirer COMP SHORT coûte −$61 264 sur 28m.
-- **Filtre entrée BTC30 sur S5 LONG** (`backtest_entry_filters.py`) : variants 200/500/1000/1500 bps, tous négatifs sur ≥2 fenêtres.
-- **Filtre entrée OI delta sur S5** (même script) : variants 400/600/800/1000 bps, tous très négatifs 4/4.
-- **Combos filtre BTC + OI** : échecs cumulatifs.
-- **Exit dynamique sur érosion divergence** (`backtest_div_erosion_exit.py`) : 10 variantes (drop absolu, ratio, flip), toutes rejetées. Le signal de divergence est momentum et non reversal — l'exiter coupe les vrais gagnants qui passent par une pause temporaire. Seule E3a (flip div<0) presque break-even mais pas 4/4 strict.
-
-Conclusion : après D2, le bot est sur un plateau d'optimisation — les gisements visibles à l'EDA ne survivent pas au walk-forward pour cause d'effet de substitution ou d'overlap statistique trop large.
+Après D2 (v11.7.2), le bot est sur un plateau : les gisements visibles à l'EDA (erosion divergence, filtres entree BTC/OI, blacklist etendue) ne survivent pas au walk-forward pour cause d'**effet de substitution** (un slot libere va vers un candidat plus mauvais) ou d'**overlap statistique** trop large entre les groupes gagnant/perdant. Chaque tentative de cette session est listee dans le registre de rejets ci-dessus avec son backtest source.
 
 ### OI gate LONG (v11.4.9)
 
