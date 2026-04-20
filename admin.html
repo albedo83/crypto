@@ -146,7 +146,7 @@ function renderBots(bots){
         <a class="btn-open" href="#" onclick="openBot(event,${b.port},'${b.path||''}')">Open</a>
       </div>
       ${online?`<div class="controls">
-        <button class="btn-ctrl stop" onclick="ctrlBot(${b.port},'pause','${b.label}')">STOP</button>
+        <button class="btn-ctrl stop" onclick="if(confirm('STOP ${b.label} — block new entries?'))ctrlBot(${b.port},'pause','${b.label}')">STOP</button>
         <button class="btn-ctrl resume" onclick="ctrlBot(${b.port},'resume','${b.label}')">RESUME</button>
         <button class="btn-ctrl" onclick="if(confirm('RAZ ${b.label} — reset state & positions?'))ctrlBot(${b.port},'reset','${b.label}')">RAZ</button>
       </div>`:''}
