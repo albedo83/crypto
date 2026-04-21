@@ -32,6 +32,8 @@ body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;fon
 table{width:100%;border-collapse:collapse;background:#161b22;border-radius:8px;overflow:hidden}
 th{text-align:left;padding:6px 10px;background:#1c2128;color:#7d8590;font-size:11px;text-transform:uppercase}
 td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
+tr.pos-profit td{background:rgba(63,185,80,0.07)}
+tr.pos-loss td{background:rgba(248,81,73,0.08)}
 .signal-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
 .sig-card{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:10px;position:relative;transition:border-color 0.3s}
 .sig-card.triggered{border-color:#d29922}
@@ -203,6 +205,9 @@ td{padding:6px 10px;border-top:1px solid #21262d;white-space:nowrap}
   table.responsive thead{display:none}
   table.responsive tbody{display:block}
   table.responsive tbody tr{display:block;background:#161b22;border:1px solid #30363d;border-radius:6px;margin-bottom:8px;padding:6px 10px}
+  table.responsive tbody tr.pos-profit{background:rgba(63,185,80,0.07);border-color:rgba(63,185,80,0.3)}
+  table.responsive tbody tr.pos-loss{background:rgba(248,81,73,0.08);border-color:rgba(248,81,73,0.3)}
+  table.responsive tbody tr.pos-profit td,table.responsive tbody tr.pos-loss td{background:transparent}
   table.responsive tbody td{display:flex;justify-content:space-between;align-items:center;border-top:0;padding:3px 0;white-space:normal}
   table.responsive tbody td::before{content:attr(data-label);color:#7d8590;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-right:8px;flex-shrink:0}
   table.responsive tbody td:first-child{font-size:14px;margin-bottom:4px;padding-bottom:4px;border-bottom:1px solid #30363d}
@@ -615,6 +620,8 @@ function refresh(){
     pb.innerHTML='';
     s.positions.forEach(p=>{
       const tr=document.createElement('tr');
+      if(p.pnl_usdt>0.1)tr.className='pos-profit';
+      else if(p.pnl_usdt<-0.1)tr.className='pos-loss';
       const sideClass=p.direction==='LONG'?'green':'red';
       const trailExtra=p.trailing_active?`<div class="trailing-info">▼ trail @ ${p.trailing_floor_bps>=0?'+':''}${p.trailing_floor_bps}</div>`:'';
       const stopStr=p.stop_bps!==undefined?`<div class="dim" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}`:'';
