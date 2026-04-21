@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.7.13] — 2026-04-21
+- **Dashboard**: open-positions table now shows a second sparkline per row — raw alt price path alongside the existing P&L path (direction-agnostic, useful for SHORT positions whose P&L path is inverse to the alt chart).
+
 ## [11.7.12] — 2026-04-20
 - **Infra**: Junior bot served via HTTPS subpath (nginx `/junior/`), aligned with Paper and Live.
 
