@@ -307,7 +307,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 <div class="section" data-block="open-positions">
   <h2>Open Positions</h2>
   <table class="responsive"><thead><tr>
-    <th>Symbol</th><th>Strat</th><th>Side</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>P&L</th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path<span class="dim" style="font-weight:400"> (P&L)</span></th><th>Alt<span class="dim" style="font-weight:400"> (price)</span></th><th></th>
+    <th>Symbol</th><th>Strat</th><th>Side</th><th>P&L</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path<span class="dim" style="font-weight:400"> (P&L)</span></th><th>Alt<span class="dim" style="font-weight:400"> (price)</span></th><th></th>
   </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
@@ -633,12 +633,12 @@ function refresh(){
         <td data-label="Symbol"><b>${p.symbol}</b></td>
         <td data-label="Strat" class="dim">${p.strategy||'?'}</td>
         <td data-label="Side" class="${sideClass}">${p.direction}</td>
+        <td data-label="P&L" class="${cls(p.pnl_usdt)}">$${fmt(p.pnl_usdt)}</td>
         <td data-label="Position">$${p.size_usdt.toFixed(0)}</td>
         <td data-label="Margin" class="dim">$${(p.size_usdt/2).toFixed(0)}</td>
         <td data-label="Entry">$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
         <td data-label="Current">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
         <td data-label="Unrealized" class="${cls(p.unrealized_bps)}">${fmt(p.unrealized_bps,1)}bps${stopViz}${stopStr}</td>
-        <td data-label="P&L" class="${cls(p.pnl_usdt)}">$${fmt(p.pnl_usdt)}</td>
         <td data-label="Remaining"><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
         <td data-label="Path (P&L)">${pathViz}</td>
         <td data-label="Alt (price)">${altViz}</td>
