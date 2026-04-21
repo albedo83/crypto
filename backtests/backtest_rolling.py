@@ -221,6 +221,8 @@ def run_window(features, data, sector_features, dxy_data,
                start_ts_ms: int, end_ts_ms: int, start_capital: float = 1000.0,
                skip_fn=None, oi_data: dict | None = None,
                early_exit_params: dict | None = None,
+               trailing_extra: dict | None = None,
+               reversal_exit: dict | None = None,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -236,6 +238,10 @@ def run_window(features, data, sector_features, dxy_data,
         mfe_cap_bps:       MFE must be <= this (bps) — no upside revealed
         mae_floor_bps:     MAE must be <= this (bps) — trade is deeply under
         slack_bps:         current_bps must be <= MAE + slack — still near low
+
+    trailing_extra (optional): adds a trailing-stop rule to a non-S10 strategy
+        dict with keys: strategy (e.g. "S5"), trigger_bps, offset_bps.
+        When MFE >= trigger_bps and current drops to MFE - offset_bps, exit.
     """
     coins = [c for c in TOKENS if c in features and c in data]
     macro_strats = set(MACRO_STRATEGIES)
@@ -352,6 +358,33 @@ def run_window(features, data, sector_features, dxy_data,
                     ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
                     if ur_bps <= mfe - S10_TRAILING_OFFSET:
                         exit_reason = "s10_trailing"
+
+            # Optional extra-strategy trailing stop (sweep parameter)
+            if (not exit_reason and trailing_extra is not None
+                    and pos["strat"] == trailing_extra["strategy"]):
+                mfe = pos.get("mfe", 0)
+                if mfe >= trailing_extra["trigger_bps"]:
+                    ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                    if ur_bps <= mfe - trailing_extra["offset_bps"]:
+                        exit_reason = f"{trailing_extra['strategy'].lower()}_trailing"
+
+            # Optional reversal-momentum exit (sweep parameter): exit if the
+            # price has moved hard against us in the last N candles AND we're
+            # currently in profit. Doesn't rely on entry signal erosion — uses
+            # the price tape itself as a reversal detector.
+            if (not exit_reason and reversal_exit is not None
+                    and held >= reversal_exit["lookback_candles"]):
+                strat_ok = (reversal_exit.get("strategies") is None
+                            or pos["strat"] in reversal_exit["strategies"])
+                if strat_ok:
+                    ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                    if ur_bps >= reversal_exit["min_gain_bps"]:
+                        n = reversal_exit["lookback_candles"]
+                        prev_close = data[coin][ci - n]["c"]
+                        if prev_close > 0:
+                            adverse_bps = pos["dir"] * (current / prev_close - 1) * 1e4
+                            if adverse_bps <= -reversal_exit["adverse_bps"]:
+                                exit_reason = "reversal_momentum"
 
             if exit_reason:
                 # P&L math matches trading.py close_position (v11.3.0+)

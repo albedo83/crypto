@@ -262,6 +262,9 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - MAE cry-uncle (sortie si MAE atteint X) — `backtest_exit_battery.py` → rejete 0/4.
 - Inverse-exit sur signal oppose — `backtest_exit_battery.py` → +$20k sur 28m mais perd sur 12m/6m/3m (overfit).
 - Exit dynamique sur erosion divergence — `backtest_div_erosion_exit.py` → rejete : 10 variantes (drop absolu, ratio, flip), toutes negatives ≥2 fenetres. Divergence est momentum, pas reversal.
+- Trailing stop S5 (symetrique au S10 trailing) — `backtest_s5_trailing.py` → rejete : 11 variantes (trigger 600/800/1000/1200/1500/2000, offset 150-800), toutes 4/4 negatives. Les S5 qui atteignent MFE +2000 bps continuent generalement → lock = amputer les runners.
+- Momentum reversal exit (adverse price move sur 1/2/3 bougies pendant en profit) — `backtest_reversal_exit.py` → rejete : 11 variantes (lookback 1-3c × adverse 300-1500 × gain 300-1500), toutes 4/4 negatives. Un move adverse intra-trade est du bruit, pas un top signal.
+- ML entry filter multi-feature sur S5 (logistic regression, 7 features entree) — `backtest_ml_entry_filter.py` → rejete : au seuil optimal (0.65) ne filtre que 2-6 trades/window avec precision 100%, mais gains relatifs (<$2k) sont dans la variance d'echantillonnage ; 28m window n/a (donnees de training insuffisantes). Audit rollbacks vs kept (`backtest_mfe_rollback_audit.py`) : btc30 entree +168 vs -68 median, Δ divergence peak→exit -462 vs -21, mais overlap ~70% rend inexploitable.
 
 **Entrees (filtres, gates)**
 - Filtre regime BTC 30d sur S5 LONG (seuils 200/500/1000/1500 bps) — `backtest_entry_filters.py` → rejete 0/4, curve-fit du regime recent.
