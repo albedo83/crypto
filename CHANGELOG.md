@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [11.7.15] — 2026-04-21
+- **Dashboard**: open-positions column order tweaked (P&L moved next to Side).
+
 ## [11.7.14] — 2026-04-21
 - **Dashboard**: open-positions rows now tinted green/red by unrealized P&L for at-a-glance scanning.
 
