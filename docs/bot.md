@@ -353,7 +353,9 @@ Quand un trade entre dans les 12 dernières heures de son hold, **s'il n'a jamai
 
 **D2 retenue** : seule variante strictement 4/4 positive avec DD inchangé. Le gain est linéaire avec la fenêtre (+$21 sur 3m → +$49 322 sur 28m), signature d'un vrai filtre et non d'un fit.
 
-**Constantes** : `DEAD_TIMEOUT_LEAD_HOURS=12`, `DEAD_TIMEOUT_MFE_CAP_BPS=150`, `DEAD_TIMEOUT_MAE_FLOOR_BPS=-1000`, `DEAD_TIMEOUT_SLACK_BPS=300` dans `analysis/bot/config.py`. Check placé dans `trading.check_exits()` après stops/trailing, avant `close_position`. Kill-switch : `DEAD_TIMEOUT_MFE_CAP_BPS = -99999`.
+**Constantes** : `DEAD_TIMEOUT_LEAD_HOURS=12`, `DEAD_TIMEOUT_MFE_CAP_BPS=150`, `DEAD_TIMEOUT_MAE_FLOOR_BPS=-800` (resserré de −1000 en v11.7.16), `DEAD_TIMEOUT_SLACK_BPS=300` dans `analysis/bot/config.py`. Check placé dans `trading.check_exits()` après stops/trailing, avant `close_position`. Kill-switch : `DEAD_TIMEOUT_MFE_CAP_BPS = -99999`.
+
+**Resserrement MAE_FLOOR (v11.7.16)** : passage de −1000 à −800 bps. Motivation : les pertes S5 récentes (PENDLE, DYDX) atteignaient MAE −1000 à −1229 bps avant déclenchement. Walk-forward `backtest_s5_stops` variante V4 : +$9 554 sur 28m (S5 isolé +$6 278), bruit mineur sur 12m/6m/3m (−$198/−$104/−$48), DD inchangé ou amélioré. Pas strictement 4/4 mais profil risque/reward asymétrique — le long terme gagne, le court terme est au niveau du bruit. Kill-switch : remettre à −1000.
 
 ### Plateau d'optimisation (post session 2026-04-19)
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.16] — 2026-04-22
+- **Trading engine**: `DEAD_TIMEOUT_MAE_FLOOR_BPS` tightened from −1000 → −800 bps. Stuck S5 losers pinned near their low are now crystallized ~200 bps sooner. Walk-forward: +$9.5k on 28m (S5 alone +$6k), minor noise (~−$350 cumulated) on 12m/6m/3m, DD unchanged or better.
+
 ## [11.7.15] — 2026-04-21
 - **Dashboard**: open-positions column order tweaked (P&L moved next to Side).
 
