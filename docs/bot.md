@@ -285,6 +285,7 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - OI divergence S11 (6 variantes A-F) — rejete.
 - 378 variantes SHORT explorees (momentum, mean-reversion, volume, squeeze adverse, pairs) — aucune ne passe, seul S10 SHORT (squeeze fade) retenu apres walk-forward.
 - S14 dispersion collapse breakout (cross-sectional std(ret_42h) p<X + vol_ratio<Y + |ret_6h|>500) — `backtest_s14_dispersion.py` 9 variantes, toutes 4/4 negatives. Bonnes performances en isolation (`backtest_new_signals.py` : +$1538 sur 426 trades, +220 bps avg), echec en portfolio par effet de substitution : prend 280-488 slots aux S5 ($+8/trade) pour ~$0.5/trade S14. Confirme le pattern S2/S6 (isolation OK, portfolio KO).
+- Block opposite-direction entries dans le meme secteur (anti-pair-trade) — `backtest_block_opposite_sector.py` rejete 4/4 sur 3 windows recentes. Observation : 29% des trades S5 backtest sont des pair-legs (LONG+SHORT meme secteur concurrents) et contribuent +20-40% du P&L total. Bloquer les paires supprime autant de gros gagnants (e.g. COMP+CRV +$29) que de variantes perdantes (e.g. GALA+SAND −$14 en live). Le pair-trade intra-secteur est une source de P&L, pas un bug.
 - Pairs trading — rejete.
 - Funding carry — rejete.
 - Premium mean reversion — rejete.

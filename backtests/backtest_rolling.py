@@ -225,6 +225,7 @@ def run_window(features, data, sector_features, dxy_data,
                reversal_exit: dict | None = None,
                early_mfe_exit: dict | None = None,
                extra_candidate_fn=None,
+               block_opposite_sector: bool = False,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -530,6 +531,12 @@ def run_window(features, data, sector_features, dxy_data,
                 sc = sum(1 for p in positions.values() if TOKEN_SECTOR.get(p["coin"]) == sym_sector)
                 if sc >= MAX_PER_SECTOR:
                     continue
+                # Optional rule: block entries opposite to an existing same-sector position
+                if block_opposite_sector:
+                    same_sec_dirs = [p["dir"] for p in positions.values()
+                                     if TOKEN_SECTOR.get(p["coin"]) == sym_sector]
+                    if same_sec_dirs and any(d != cand["dir"] for d in same_sec_dirs):
+                        continue
 
             f = feat_by_ts.get(ts, {}).get(coin)
             idx_f = f.get("_idx") if f else None
