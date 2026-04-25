@@ -223,6 +223,7 @@ def run_window(features, data, sector_features, dxy_data,
                early_exit_params: dict | None = None,
                trailing_extra: dict | None = None,
                reversal_exit: dict | None = None,
+               early_mfe_exit: dict | None = None,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -367,6 +368,18 @@ def run_window(features, data, sector_features, dxy_data,
                     ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
                     if ur_bps <= mfe - trailing_extra["offset_bps"]:
                         exit_reason = f"{trailing_extra['strategy'].lower()}_trailing"
+
+            # Optional early-MFE-absence exit (sweep parameter): if after N
+            # candles the trade has never shown meaningful upside (MFE < min),
+            # exit. Different from D2 (which fires at T-K before timeout) and
+            # from MAE-cry-uncle (which uses MAE only). Targets the pattern
+            # where big losers never cross MFE +303 in live data.
+            if (not exit_reason and early_mfe_exit is not None
+                    and held == early_mfe_exit["check_after_candles"]):
+                strat_ok = (early_mfe_exit.get("strategies") is None
+                            or pos["strat"] in early_mfe_exit["strategies"])
+                if strat_ok and pos.get("mfe", 0) < early_mfe_exit["mfe_min_bps"]:
+                    exit_reason = "early_mfe_absence"
 
             # Optional reversal-momentum exit (sweep parameter): exit if the
             # price has moved hard against us in the last N candles AND we're
