@@ -224,6 +224,7 @@ def run_window(features, data, sector_features, dxy_data,
                trailing_extra: dict | None = None,
                reversal_exit: dict | None = None,
                early_mfe_exit: dict | None = None,
+               extra_candidate_fn=None,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -489,6 +490,12 @@ def run_window(features, data, sector_features, dxy_data,
                             "z": STRAT_Z["S10"], "hold": HOLD_CANDLES["S10"],
                             "strength": 1000,
                         })
+
+        # Optional extra candidates from a callback (used for new-signal sweeps).
+        # Callback signature: fn(ts, coins, feat_by_ts, data, coin_by_ts, positions, cooldown) -> list[cand]
+        if extra_candidate_fn is not None:
+            candidates.extend(extra_candidate_fn(ts, coins, feat_by_ts, data,
+                                                  coin_by_ts, positions, cooldown))
 
         candidates.sort(key=lambda x: (x["z"], x["strength"]), reverse=True)
         seen = set()

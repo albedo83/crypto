@@ -284,6 +284,7 @@ Format : `Hypothese — Backtest source → Verdict court`.
 **Signaux / familles rejetees**
 - OI divergence S11 (6 variantes A-F) — rejete.
 - 378 variantes SHORT explorees (momentum, mean-reversion, volume, squeeze adverse, pairs) — aucune ne passe, seul S10 SHORT (squeeze fade) retenu apres walk-forward.
+- S14 dispersion collapse breakout (cross-sectional std(ret_42h) p<X + vol_ratio<Y + |ret_6h|>500) — `backtest_s14_dispersion.py` 9 variantes, toutes 4/4 negatives. Bonnes performances en isolation (`backtest_new_signals.py` : +$1538 sur 426 trades, +220 bps avg), echec en portfolio par effet de substitution : prend 280-488 slots aux S5 ($+8/trade) pour ~$0.5/trade S14. Confirme le pattern S2/S6 (isolation OK, portfolio KO).
 - Pairs trading — rejete.
 - Funding carry — rejete.
 - Premium mean reversion — rejete.
