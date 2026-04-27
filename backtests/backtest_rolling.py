@@ -226,6 +226,7 @@ def run_window(features, data, sector_features, dxy_data,
                early_mfe_exit: dict | None = None,
                extra_candidate_fn=None,
                block_opposite_sector: bool = False,
+               size_multiplier: dict | None = None,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -547,6 +548,8 @@ def run_window(features, data, sector_features, dxy_data,
                 continue
 
             size = strat_size(cand["strat"], capital)
+            if size_multiplier is not None:
+                size *= size_multiplier.get(cand["strat"], 1.0)
             positions[coin] = {
                 "dir": cand["dir"], "entry": entry, "idx": idx_f + 1,
                 "entry_t": data[coin][idx_f + 1]["t"],
