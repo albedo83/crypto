@@ -277,6 +277,7 @@ Format : `Hypothese — Backtest source → Verdict court`.
 **Sizing**
 - Sizing adaptatif WR / Sharpe / rolling P&L — `backtest_adaptive_sizing.py` → degrade partout.
 - Reduction sizing S9 (multipliers ×0.00 a ×0.75) — `backtest_s9_sizing.py` 5 multipliers × 5 windows (28m/12m/6m/3m/YTD 2026), tous 5/5 negatifs. Reduction lineaire monotone : plus on reduit, plus on perd. Baseline backtest S9 contribue +$20 372 sur 130 trades en 28m (27% du P&L total). YTD 2026 : 14 trades S9 = +$400 avg +$29/trade. Live a vu 3 trades S9 -$33 (avg -$11/trade) = ~+3σ ecart par variance extreme sur petit sample, pas drift.
+- Extreme-condition entry filters (S9 r24h cap a 1500/2000/2500 + S5 vol_z cap a 4/5/6 + 2 combos) — `backtest_extreme_filters.py` 8 variantes × 5 windows, aucune ne passe 5/5. Patterns visibles dans live big losers (BLUR S9 r24h=2325 -$20, LDO S5 vol_z=7.2 -$21) ne se generalisent pas : les S9 a r24h>2000 et S5 a vol_z>5 contiennent autant de winners futurs que de losers actuels. Confirme l'overlap ~70% du `backtest_mfe_rollback_audit.py`.
 - Kill-switch drift par strategie (pause si WR < X sur N trades) — `backtest_drift_killswitch.py` → aucune config N/seuil ne bat la baseline 4/4.
 - OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h) — `backtest_oi_sizing.py` → meme pattern que les gates, rejete.
 - S10 pocket (capital dedie S10) — commentaire `S10_CAPITAL_SHARE = 0` dans `config.py` : "no pocket — backtest: +48% P&L vs 15%". Tester un pocket = deja teste, perd 48%.
