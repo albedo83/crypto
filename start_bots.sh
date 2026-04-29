@@ -34,7 +34,9 @@ echo "Live bot started (PID: $!)"
 TG_BOT_TOKEN="$JUNIOR_TG_BOT_TOKEN" TG_CHAT_ID="$JUNIOR_TG_CHAT_ID" \
     TG_CATEGORIES="trade,daily,system" \
     DASHBOARD_USER="$JUNIOR_USER" DASHBOARD_PASS="$JUNIOR_PASS" \
-    HL_PRIVATE_KEY="$JUNIOR_HL_PRIVATE_KEY" \
+    HL_PRIVATE_KEY="$JUNIOR_HL_PRIVATE_KEY" HL_MODE=live \
+    HL_ACCOUNT_ADDRESS=0xb65d5e52f229B1dAA6534034d7805A82dB7956Fe \
+    HL_EQUITY_MODE=perps \
     BOT_LABEL="JUNIOR" BOT_LABEL_COLOR="#3fb950" \
     HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 HL_ROOT_PATH=/junior \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &

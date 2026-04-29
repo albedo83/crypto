@@ -8,14 +8,27 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.16). Paper dashboard on `:8097`, live on `:8098`, Bot 2 on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.18). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
 - **Paper** (`HL_MODE=paper`, default): simulates positions in memory, reads prices from Hyperliquid public API
 - **Live** (`HL_MODE=live`): places real orders via `hyperliquid-python-sdk`, reconciles with exchange every scan
 
-Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_CHAT_ID`, `DASHBOARD_USER`, `DASHBOARD_PASS`.
+Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_CHAT_ID`, `DASHBOARD_USER`, `DASHBOARD_PASS`. Junior adds `JUNIOR_HL_PRIVATE_KEY`, `JUNIOR_USER`, `JUNIOR_PASS`, `JUNIOR_TG_BOT_TOKEN`, `JUNIOR_TG_CHAT_ID`. Junior also passes `HL_ACCOUNT_ADDRESS` and `HL_EQUITY_MODE=perps` directly in `start_bots.sh` (not in `.env`).
+
+### Junior wallet model (v11.7.17+)
+
+Junior uses Hyperliquid's **API agent wallet** model — different from the live bot's single-key model:
+
+- **Live** (`:8098`): `HL_PRIVATE_KEY` IS the wallet. The key signs orders AND holds funds. `init_exchange()` is called without `account_address`. Equity computed via legacy formula `spot.total + unrealized` (HL holds perps margin in spot, hence the formula).
+- **Junior** (`:8099`): `JUNIOR_HL_PRIVATE_KEY` is just a signer (API agent wallet, no funds). `HL_ACCOUNT_ADDRESS` (in `start_bots.sh`) points to the master wallet that holds the actual USDC. The agent must be authorized by the master via Hyperliquid Settings → API. `init_exchange()` is called with `account_address=master`. Funds are entirely in perps (no spot balance), so equity is computed via `HL_EQUITY_MODE=perps` → `marginSummary.accountValue + spot_usdc`.
+
+Concretely for the current Junior setup:
+- API wallet (signer, derived from `JUNIOR_HL_PRIVATE_KEY`): `0x4EAb0507…3F7e`
+- Master wallet (holds funds, hardcoded in `start_bots.sh`): `0xb65d5e52…956Fe`
+
+If you regenerate the API key (HL agent expirations are configurable, default 6 months), update `JUNIOR_HL_PRIVATE_KEY` in `.env` and the new derived address must be re-authorized as an agent of the master in Hyperliquid UI.
 
 ## Commands
 
@@ -98,7 +111,7 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - Restart bots after bumping — `VERSION` is only read at startup.
 - Dashboard HTML is cached in memory on first request. Restart bot to pick up HTML changes.
 - Paper (:8097) and Live (:8098) run in parallel from the same code, separate output dirs. Only DXY cache is shared.
-- `@reboot` crontab runs `start_bots.sh` (paper + live + Bot 2 + admin panel + Telegram alert).
+- `@reboot` crontab runs `start_bots.sh` (paper + live + Junior + admin panel + Telegram alert).
 - Nginx subpaths via env vars: `ADMIN_ROOT_PATH=/crypto`, `HL_ROOT_PATH=/paper` or `/bot`. Empty = direct port access still works.
 
 ### State & persistence
@@ -143,7 +156,7 @@ Things that will bite you when modifying the code. For signal-specific details, 
 `supervisor.py` at the repo root is a standalone Python process (~590 lines) launched once a day by crontab (08:00 UTC = 10:00 Paris summer / 09:00 winter). It reads `/api/state`, `/api/trades`, `/api/health`, `/api/pnl` from each bot via authenticated HTTP on `127.0.0.1`, assembles a static context from `CLAUDE.md`, `docs/bot.md` and `docs/backtests.md` (~30 kB / ~7.5k tokens, flagged `cache_control: ephemeral`), calls the Anthropic SDK (`claude-haiku-4-5` default), parses a strict JSON report and ships it as plain text via Telegram. **Observation + suggestions only — never writes to the bot's config or state.**
 - Config in `.env`: `ANTHROPIC_API_KEY` (required), `SUPERVISOR_MODEL=claude-haiku-4-5` (default), `SUPERVISOR_ENABLED=1` (kill-switch)
 - Zero runtime coupling: no imports from `analysis/bot/*`, only stdlib + `anthropic` SDK
-- Bot-level scoping: `BOTS` list in `supervisor.py` with a `notes` field per instance. Bot2 is marked `DISABLED` to skip false-positive anomaly reports on its low-volume paper mode. Live is the sole target of the Telegram report; Paper is kept as a comparison baseline only.
+- Bot-level scoping: `BOTS` list in `supervisor.py` with a `notes` field per instance. Junior is marked `DISABLED` (low capital, recent activation) — to enable, flip its flag in `supervisor.py`. Live is the primary target of the Telegram report; Paper is kept as a comparison baseline.
 - Report language is French, format is strict JSON parsed into a plain-text Telegram message (no `parse_mode` — LLM content routinely contains underscores and asterisks that break Markdown parsing; `send_telegram` also now checks `ok: true` in the response body instead of trusting HTTP status alone).
 - Kill-switch: `SUPERVISOR_ENABLED=0` in `.env` or `crontab -l | grep -v supervisor.py | crontab -`
 - Audit: every run writes a `SUPERVISOR_REPORT` event (full JSON payload) into the `events` table of `analysis/output/reversal_ticks.db`. Query via `SELECT datetime(ts,'unixepoch'), json_extract(data,'$.health'), json_extract(data,'$.summary') FROM events WHERE event='SUPERVISOR_REPORT' ORDER BY ts DESC LIMIT 10;`

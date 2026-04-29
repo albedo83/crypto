@@ -27,6 +27,7 @@ body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;fon
 .card .value{font-size:20px;font-weight:700;margin-top:4px}
 .card .sub{font-size:11px;color:#7d8590;margin-top:2px}
 .green{color:#3fb950}.red{color:#f85149}.blue{color:#58a6ff}.yellow{color:#d29922}.dim{color:#7d8590}
+.bps-inline{display:none}
 .section{padding:10px 20px}
 .section h2{font-size:13px;color:#7d8590;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
 table{width:100%;border-collapse:collapse;background:#161b22;border-radius:8px;overflow:hidden}
@@ -216,6 +217,29 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .heatmap{grid-template-columns:50px repeat(5,1fr);font-size:9px}
   .pnl-chart,.price-chart{height:200px}
   .pnl-chart canvas{width:100%!important;height:100%!important}
+  /* Open Positions — compact mobile list with tap-to-expand */
+  [data-block="open-positions"] table.responsive tbody tr{display:grid;grid-template-columns:auto auto auto 1fr auto;gap:2px 6px;align-items:center;padding:8px 28px 8px 10px;cursor:pointer;position:relative}
+  [data-block="open-positions"] table.responsive tbody tr::after{content:'▸';position:absolute;top:8px;right:10px;color:#7d8590;font-size:11px;transition:transform .15s;pointer-events:none}
+  [data-block="open-positions"] table.responsive tbody tr.expanded::after{transform:rotate(90deg)}
+  [data-block="open-positions"] table.responsive tbody tr td{display:flex;align-items:center;padding:0;border:0;background:transparent;white-space:nowrap;justify-content:flex-start;min-width:0}
+  [data-block="open-positions"] table.responsive tbody tr td::before{display:none}
+  [data-block="open-positions"] td.pos-symbol{grid-column:1;grid-row:1;font-size:14px;margin-bottom:0;padding-bottom:0;border-bottom:0}
+  [data-block="open-positions"] td.pos-side{grid-column:2;grid-row:1;font-size:11px;font-weight:600}
+  [data-block="open-positions"] td.pos-strat{grid-column:3;grid-row:1;font-size:11px}
+  [data-block="open-positions"] td.pos-pnl{grid-column:4/6;grid-row:1;justify-content:flex-end;font-weight:600;padding-right:18px}
+  [data-block="open-positions"] td.pos-unrealized{grid-column:1/4;grid-row:2;font-size:11px;gap:6px;overflow:hidden;flex-wrap:wrap}
+  [data-block="open-positions"] td.pos-unrealized svg{flex-shrink:0}
+  [data-block="open-positions"] td.pos-remaining{grid-column:4/5;grid-row:2;justify-content:flex-end;font-size:11px;gap:6px;flex-wrap:wrap}
+  [data-block="open-positions"] td.pos-close{grid-column:5;grid-row:2;justify-content:flex-end}
+  [data-block="open-positions"] td.pos-close button{padding:2px 6px!important;font-size:10px!important}
+  [data-block="open-positions"] td.pos-spark{display:none}
+  [data-block="open-positions"] td.pos-detail{display:none;grid-column:1/-1;justify-content:space-between;font-size:11px;padding:3px 0;border-top:1px dashed #30363d;margin-top:2px}
+  [data-block="open-positions"] td.pos-detail::before{display:inline;content:attr(data-label);color:#7d8590;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-right:8px}
+  [data-block="open-positions"] tr.expanded td.pos-detail{display:flex}
+  [data-block="open-positions"] .stop-meta{display:none}
+  [data-block="open-positions"] tr.expanded .stop-meta{display:block}
+  [data-block="open-positions"] .bps-main{display:none}
+  [data-block="open-positions"] td.pos-pnl .bps-inline{display:inline;margin-left:4px;opacity:.75;font-weight:400;font-size:11px}
 }
 @media(max-width:420px){.cards{grid-template-columns:1fr}}
 </style>
@@ -623,28 +647,38 @@ function refresh(){
       if(p.pnl_usdt>0.1)tr.className='pos-profit';
       else if(p.pnl_usdt<-0.1)tr.className='pos-loss';
       const sideClass=p.direction==='LONG'?'green':'red';
-      const trailExtra=p.trailing_active?`<div class="trailing-info">▼ trail @ ${p.trailing_floor_bps>=0?'+':''}${p.trailing_floor_bps}</div>`:'';
-      const stopStr=p.stop_bps!==undefined?`<div class="dim" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}`:'';
+      const trailExtra=p.trailing_active?`<div class="trailing-info stop-meta">▼ trail @ ${p.trailing_floor_bps>=0?'+':''}${p.trailing_floor_bps}</div>`:'';
+      const stopStr=p.stop_bps!==undefined?`<div class="dim stop-meta" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}`:'';
       const stopViz=p.stop_progress!==undefined?stopBar(p.stop_progress):'';
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress):'';
       const pathViz=sparkline(p.trajectory);
       const altViz=priceSparkline(p.trajectory,p.entry_price,p.direction);
+      const bpsSign=p.unrealized_bps>=0?'+':'';
       tr.innerHTML=`
-        <td data-label="Symbol"><b>${p.symbol}</b></td>
-        <td data-label="Strat" class="dim">${p.strategy||'?'}</td>
-        <td data-label="Side" class="${sideClass}">${p.direction}</td>
-        <td data-label="P&L" class="${cls(p.pnl_usdt)}">$${fmt(p.pnl_usdt)}</td>
-        <td data-label="Position">$${p.size_usdt.toFixed(0)}</td>
-        <td data-label="Margin" class="dim">$${(p.size_usdt/2).toFixed(0)}</td>
-        <td data-label="Entry">$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
-        <td data-label="Current">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
-        <td data-label="Unrealized" class="${cls(p.unrealized_bps)}">${fmt(p.unrealized_bps,1)}bps${stopViz}${stopStr}</td>
-        <td data-label="Remaining"><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
-        <td data-label="Path (P&L)">${pathViz}</td>
-        <td data-label="Alt (price)">${altViz}</td>
-        <td data-label=""><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
+        <td data-label="Symbol" class="pos-symbol"><b>${p.symbol}</b></td>
+        <td data-label="Strat" class="dim pos-strat">${p.strategy||'?'}</td>
+        <td data-label="Side" class="${sideClass} pos-side">${p.direction}</td>
+        <td data-label="P&L" class="${cls(p.pnl_usdt)} pos-pnl">$${fmt(p.pnl_usdt)}<span class="bps-inline"> ${bpsSign}${fmt(p.unrealized_bps,0)}bps</span></td>
+        <td data-label="Position" class="pos-detail">$${p.size_usdt.toFixed(0)}</td>
+        <td data-label="Margin" class="dim pos-detail">$${(p.size_usdt/2).toFixed(0)}</td>
+        <td data-label="Entry" class="pos-detail">$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
+        <td data-label="Current" class="pos-detail">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
+        <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
+        <td data-label="Remaining" class="pos-remaining"><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim stop-meta" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
+        <td data-label="Path (P&L)" class="pos-spark">${pathViz}</td>
+        <td data-label="Alt (price)" class="pos-spark">${altViz}</td>
+        <td data-label="" class="pos-close"><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
     });
+    if(!pb.dataset.boundExpand){
+      pb.addEventListener('click',e=>{
+        if(!window.matchMedia('(max-width:640px)').matches)return;
+        if(e.target.closest('button'))return;
+        const tr=e.target.closest('tr');
+        if(tr)tr.classList.toggle('expanded');
+      });
+      pb.dataset.boundExpand='1';
+    }
     if(!s.positions.length)
       pb.innerHTML='<tr><td colspan="13" style="text-align:center;color:#7d8590">No positions -- waiting for signals</td></tr>';
 

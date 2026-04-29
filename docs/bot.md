@@ -228,12 +228,35 @@ Hyperliquid REST API (toutes les 60s, avec retry 3x backoff)
 TG_BOT_TOKEN= TG_CHAT_ID= HL_ROOT_PATH=/paper \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 
-# Live (:8098, ~$255 reel)
+# Live (:8098, capital alloué via DCA, voir start_bots.sh pour HL_CAPITAL initial)
 HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
   nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
+
+# Junior (:8099, modèle agent wallet — voir section Junior plus bas)
+HL_PRIVATE_KEY="$JUNIOR_HL_PRIVATE_KEY" HL_MODE=live \
+HL_ACCOUNT_ADDRESS=0xb65d5e52f229B1dAA6534034d7805A82dB7956Fe \
+HL_EQUITY_MODE=perps \
+HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 HL_ROOT_PATH=/junior \
+  nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
 ```
 
-Auto-restart : `@reboot /home/crypto/start_bots.sh`. Accessible via `https://echonym.fr/bot/` (live), `https://echonym.fr/paper/` (paper), `https://echonym.fr/crypto/` (admin panel multi-bots).
+Auto-restart : `@reboot /home/crypto/start_bots.sh`. Accessible via `https://echonym.fr/bot/` (live), `https://echonym.fr/paper/` (paper), `https://echonym.fr/junior/` (Junior), `https://echonym.fr/crypto/` (admin panel multi-bots).
+
+### Junior — modèle API agent wallet (v11.7.17+)
+
+Junior tourne en LIVE mais avec une architecture de wallet **différente du live** :
+
+| | Live (`:8098`) | Junior (`:8099`) |
+|---|---|---|
+| Variable env clé | `HL_PRIVATE_KEY` | `JUNIOR_HL_PRIVATE_KEY` |
+| Adresse dérivée | `0x6E2a…2d5d` (= wallet maître) | `0x4EAb…3F7e` (= API agent, sans fonds) |
+| Adresse maître (où sont les USDC) | `0x6E2a…2d5d` (la même) | `0xb65d…956Fe` (séparée, autorisée par le master via HL Settings → API) |
+| `HL_ACCOUNT_ADDRESS` | non défini | `0xb65d5e52…956Fe` (dans `start_bots.sh`) |
+| Modèle d'équité | `HL_EQUITY_MODE` vide → `spot.total + unrealized` (le hold spot inclut la marge perps) | `HL_EQUITY_MODE=perps` → `marginSummary.accountValue + spot_usdc` (tous les fonds sont en perps, spot=$0) |
+
+**Pourquoi deux formules d'équité ?** Hyperliquid a un modèle où le spot USDC sert de collatéral aux positions perps via un champ `hold` sur le solde spot. Pour le live (USDC d'origine en spot, partiellement bloqué pour les perps), `spot.total + unrealized` donne l'équité totale correctement. Pour Junior (l'utilisateur a transféré tout le spot vers le perps via HL UI à la création), `spot=0` et la formule legacy retournerait $0 — d'où la branche `perps` qui lit `marginSummary.accountValue` directement.
+
+**Renouvellement de clé Junior** : les API agent wallets HL ont une expiration paramétrable à la création (typiquement 90-180j). À l'expiration : générer une nouvelle clé, mettre à jour `JUNIOR_HL_PRIVATE_KEY` dans `.env`, **autoriser la nouvelle adresse comme agent du master `0xb65d…956Fe`** dans HL Settings → API, restart Junior.
 
 **Supervisor LLM** (rapport quotidien Telegram) : `0 8 * * * /home/crypto/.venv/bin/python3 /home/crypto/supervisor.py >> /home/crypto/analysis/output/supervisor.log 2>&1`. Config via `.env` (`ANTHROPIC_API_KEY`, `SUPERVISOR_MODEL=claude-haiku-4-5`, `SUPERVISOR_ENABLED=1`). Coût mesuré : ~$0.017/run avec cache hit → ~$0.50/mois.
 

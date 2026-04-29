@@ -1,5 +1,12 @@
 # Changelog
 
+## [11.7.18] — 2026-04-29
+- **Junior bot live activation** with API agent wallet model. New env vars: `HL_ACCOUNT_ADDRESS` (master wallet that holds funds, when separate from the signer key) and `HL_EQUITY_MODE` (`"perps"` for the perps-only setup like Junior, default empty = legacy spot+unrealized for live). `analysis/bot/exchange.py:init_exchange()` now accepts an optional `account_address` parameter. Junior signs with API wallet `0x4EAb…3F7e` and trades on master `0xb65d…956Fe`. Live and Paper unchanged.
+- **Dashboard**: open-positions table redesigned for mobile (≤640px). Each position becomes a 2-line compact card with caret expand for Entry/Current/Margin details; sparklines hidden on mobile; bps-inline shown next to P&L. CSS-only changes scoped via `[data-block="open-positions"]`, plus a click-delegation handler on `#pos-body` that toggles `tr.expanded` when `matchMedia(max-width:640px)`. Desktop layout untouched.
+
+## [11.7.17] — 2026-04-29
+- **Internal**: `init_exchange()` accepts an optional `account_address` parameter so the bot can sign with an API agent wallet but trade on a separate master wallet. Required for Junior, opt-in for live (defaults to wallet-from-key behavior).
+
 ## [11.7.16] — 2026-04-22
 - **Trading engine**: `DEAD_TIMEOUT_MAE_FLOOR_BPS` tightened from −1000 → −800 bps. Stuck S5 losers pinned near their low are now crystallized ~200 bps sooner. Walk-forward: +$9.5k on 28m (S5 alone +$6k), minor noise (~−$350 cumulated) on 12m/6m/3m, DD unchanged or better.
 

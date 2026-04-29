@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 import numpy as np
 
 from .config import (
-    VERSION, EXECUTION_MODE, HL_PRIVATE_KEY, CAPITAL_USDT,
+    VERSION, EXECUTION_MODE, HL_PRIVATE_KEY, HL_ACCOUNT_ADDRESS, CAPITAL_USDT,
     TRADE_SYMBOLS, ALL_SYMBOLS, SCAN_INTERVAL, TICKS_DB, STATE_FILE,
 )
 from .models import SymbolState, Position, Trade
@@ -69,7 +69,7 @@ class MultiSignalBot:
         if EXECUTION_MODE == "live":
             from .exchange import init_exchange
             self._exchange, self._hl_info, self._hl_address, self._sz_decimals = \
-                init_exchange(HL_PRIVATE_KEY)
+                init_exchange(HL_PRIVATE_KEY, HL_ACCOUNT_ADDRESS)
 
     # ── Feature wrappers (called by web.py response builders) ──
 

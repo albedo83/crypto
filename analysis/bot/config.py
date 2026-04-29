@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.7.16"
+VERSION = "11.7.18"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -37,6 +37,8 @@ EXECUTION_MODE = os.environ.get("HL_MODE", "paper")
 BOT_LABEL = os.environ.get("BOT_LABEL", "")
 BOT_LABEL_COLOR = os.environ.get("BOT_LABEL_COLOR", "")
 HL_PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
+HL_ACCOUNT_ADDRESS = os.environ.get("HL_ACCOUNT_ADDRESS", "")
+HL_EQUITY_MODE = os.environ.get("HL_EQUITY_MODE", "")  # "" = legacy spot+unrealized, "perps" = accountValue+spot
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")
 TG_CHAT_ID = os.environ.get("TG_CHAT_ID", "")
 # Telegram category allowlist. "*" = all (default). Comma-separated category names

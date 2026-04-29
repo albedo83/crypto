@@ -8,16 +8,21 @@ from __future__ import annotations
 import logging
 import time
 
-from .config import TRADE_SYMBOLS, LEVERAGE
+from .config import TRADE_SYMBOLS, LEVERAGE, HL_EQUITY_MODE
 
 log = logging.getLogger("multisignal")
 
 
-def init_exchange(private_key: str) -> tuple:
+def init_exchange(private_key: str, account_address: str = "") -> tuple:
     """Initialize Hyperliquid SDK for live trading.
 
     Lazy-imports eth_account and hyperliquid SDK so paper mode has zero
     SDK dependency. Sets 2x cross leverage on all traded symbols.
+
+    If `account_address` is provided, the SDK signs orders with `private_key`
+    (an authorized API/agent wallet) but trades on `account_address`'s
+    perps account (the master wallet). Required when funds are held by a
+    master wallet that has authorized this private key as an agent.
 
     Returns (exchange, hl_info, address, sz_decimals).
     """
@@ -30,9 +35,13 @@ def init_exchange(private_key: str) -> tuple:
         raise SystemExit(1)
 
     wallet = Account.from_key(private_key)
-    exchange = Exchange(wallet)
+    if account_address:
+        exchange = Exchange(wallet, account_address=account_address)
+        address = account_address
+    else:
+        exchange = Exchange(wallet)
+        address = wallet.address
     hl_info = HLInfo(skip_ws=True)
-    address = wallet.address
 
     # Load szDecimals for proper order size rounding
     sz_decimals: dict[str, int] = {}
@@ -50,8 +59,12 @@ def init_exchange(private_key: str) -> tuple:
         except Exception as e:
             log.warning("Leverage set failed for %s: %s", sym, e)
 
-    log.info("LIVE MODE: wallet %s…, leverage %dx set on %d symbols",
-             address[:10], int(LEVERAGE), len(TRADE_SYMBOLS))
+    if account_address:
+        log.info("LIVE MODE: signer %s… → trading on %s… (agent), leverage %dx set on %d symbols",
+                 wallet.address[:10], address[:10], int(LEVERAGE), len(TRADE_SYMBOLS))
+    else:
+        log.info("LIVE MODE: wallet %s…, leverage %dx set on %d symbols",
+                 address[:10], int(LEVERAGE), len(TRADE_SYMBOLS))
 
     return exchange, hl_info, address, sz_decimals
 
@@ -177,14 +190,22 @@ def fetch_account_state(hl_info, address: str) -> dict | None:
                 spot_usdc = float(b["total"])
                 break
 
-        # Total account value = spot USDC + unrealized perps P&L
-        # (spot_usdc includes margin held for perps, so just add unrealized)
         unrealized = 0.0
         for p in state.get("assetPositions", []):
             sz = float(p["position"].get("szi", 0))
             if abs(sz) > 0:
                 unrealized += float(p["position"].get("unrealizedPnl", 0))
-        equity = spot_usdc + unrealized
+        # Equity formula:
+        #   Default ("spot+unrealized"): legacy formula assuming USDC sits in
+        #   spot and is used as collateral via cross-account access. Correct
+        #   for the live wallet which keeps idle USDC in spot.
+        #   "perps" mode: account_value (perps) + spot_usdc — correct when the
+        #   user has transferred all funds to the perps subaccount (Junior).
+        if HL_EQUITY_MODE == "perps":
+            account_value = float(state.get("marginSummary", {}).get("accountValue", 0))
+            equity = account_value + spot_usdc
+        else:
+            equity = spot_usdc + unrealized
 
         # Margin used
         margin_used = float(state.get("marginSummary", {}).get("totalMarginUsed", 0))
