@@ -1,7 +1,7 @@
 # Rolling backtests
 
-**Générée le** : 2026-04-24 07:46 UTC
-**Bot version** : v11.7.16
+**Générée le** : 2026-04-29 13:39 UTC
+**Bot version** : v11.7.18
 **Données jusqu'à** : 2026-04-24
 
 Chaque ligne répond à la question : *si j'avais lancé le bot avec $1 000 au début de cette fenêtre jusqu'à la date des données, avec les paramètres actuels du bot, combien aurais-je fini ?*
@@ -12,7 +12,7 @@ P&L calculé avec la formule corrigée v11.3.0+ (`size_usdt` est le notionnel, p
 
 Ce fichier est **régénéré automatiquement** par `python3 -m backtests.backtest_rolling`. Relancer après tout changement de règles ou de paramètres du bot.
 
-## Filtres actifs (v11.7.16)
+## Filtres actifs (v11.7.18)
 
 **S10 filters** (v11.3.4)
 - `S10_ALLOW_LONGS = False` → SHORT fades seulement (LONG fades perdaient $4.8k sur 28m, 45% WR — *fade panic = fail*)
