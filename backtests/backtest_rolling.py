@@ -644,21 +644,26 @@ def fmt_dollar(v: float) -> str:
     return f"${v:,.0f}".replace(",", " ")
 
 
-def build_report(results: list[dict], end_dt: datetime, version: str) -> str:
+def build_report(results: list[dict], end_dt: datetime, version: str,
+                 capitals: list[float] | None = None) -> str:
+    capitals = capitals or [1000.0]
+    multi = len(capitals) > 1
+    cap_phrase = (" / ".join(f"${int(c):,}".replace(",", " ") for c in capitals)
+                  if multi else f"${int(capitals[0]):,}".replace(",", " "))
     lines = [
         f"# Rolling backtests",
         "",
         f"**Générée le** : {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
         f"**Bot version** : v{version}",
         f"**Données jusqu'à** : {end_dt.strftime('%Y-%m-%d')}",
+        f"**Capitaux testés** : {cap_phrase}",
         "",
         "Chaque ligne répond à la question : *si j'avais lancé le bot avec "
-        "$1 000 au début de cette fenêtre jusqu'à la date des données, avec "
+        f"{cap_phrase} au début de cette fenêtre jusqu'à la date des données, avec "
         "les paramètres actuels du bot, combien aurais-je fini ?*",
         "",
         "P&L calculé avec la formule corrigée v11.3.0+ (`size_usdt` est le "
-        "notionnel, pas de multiplication par le levier). Capital de départ : "
-        "$1 000.",
+        "notionnel, pas de multiplication par le levier).",
         "",
         f"**Coûts backtest** : {COST:.0f} bps round-trip = {COST_BPS:.0f} bps "
         f"(taker {TAKER_FEE_BPS:.0f} + funding {FUNDING_DRAG_BPS:.0f}, "
@@ -702,28 +707,55 @@ def build_report(results: list[dict], end_dt: datetime, version: str) -> str:
         "",
         "## Résumé par fenêtre",
         "",
-        "| Fenêtre | Start | Balance finale | P&L | P&L % | DD max | Trades | WR | Best strat |",
-        "|---|---|---|---|---|---|---|---|---|",
     ]
-    for r in results:
-        pnl_sign = "+" if r["pnl"] >= 0 else ""
-        lines.append(
-            f"| {r['label']} | {r['start_date']} | "
-            f"{fmt_dollar(r['end_capital'])} | "
-            f"{pnl_sign}{fmt_dollar(r['pnl']).replace('$', '$')} | "
-            f"{pnl_sign}{r['pnl_pct']:.1f}% | "
-            f"{r['max_dd_pct']:.1f}% | "
-            f"{r['n_trades']} | "
-            f"{r['win_rate']:.0f}% | "
-            f"{r['best_strat']} |"
-        )
+    if multi:
+        lines += [
+            "| Fenêtre | Start | Capital | Balance finale | P&L | P&L % | DD max | Trades | WR | Best strat |",
+            "|---|---|---|---|---|---|---|---|---|---|",
+        ]
+        for r in results:
+            pnl_sign = "+" if r["pnl"] >= 0 else ""
+            cap = r.get("start_capital", capitals[0])
+            lines.append(
+                f"| {r['label']} | {r['start_date']} | "
+                f"{fmt_dollar(cap)} | "
+                f"{fmt_dollar(r['end_capital'])} | "
+                f"{pnl_sign}{fmt_dollar(r['pnl'])} | "
+                f"{pnl_sign}{r['pnl_pct']:.1f}% | "
+                f"{r['max_dd_pct']:.1f}% | "
+                f"{r['n_trades']} | "
+                f"{r['win_rate']:.0f}% | "
+                f"{r['best_strat']} |"
+            )
+    else:
+        lines += [
+            "| Fenêtre | Start | Balance finale | P&L | P&L % | DD max | Trades | WR | Best strat |",
+            "|---|---|---|---|---|---|---|---|---|",
+        ]
+        for r in results:
+            pnl_sign = "+" if r["pnl"] >= 0 else ""
+            lines.append(
+                f"| {r['label']} | {r['start_date']} | "
+                f"{fmt_dollar(r['end_capital'])} | "
+                f"{pnl_sign}{fmt_dollar(r['pnl'])} | "
+                f"{pnl_sign}{r['pnl_pct']:.1f}% | "
+                f"{r['max_dd_pct']:.1f}% | "
+                f"{r['n_trades']} | "
+                f"{r['win_rate']:.0f}% | "
+                f"{r['best_strat']} |"
+            )
 
-    # Per-strategy breakdown on the longest window
+    # Per-strategy breakdown on the longest window (using the largest capital
+    # if multiple, since absolute P&L is more meaningful at the higher base).
     if results:
-        longest = results[0]
+        breakdown_cap = max(capitals)
+        breakdown_candidates = [r for r in results
+                                if r.get("start_capital") == breakdown_cap]
+        longest = breakdown_candidates[0] if breakdown_candidates else results[0]
+        cap_str = fmt_dollar(longest.get("start_capital", capitals[0]))
         lines += [
             "",
-            f"## Breakdown par stratégie sur la fenêtre la plus longue ({longest['label']})",
+            f"## Breakdown par stratégie sur la fenêtre la plus longue ({longest['label']}, capital {cap_str})",
             "",
             "| Stratégie | Trades | Win Rate | P&L |",
             "|---|---|---|---|",
@@ -798,24 +830,37 @@ def main():
         slack_bps=DEAD_TIMEOUT_SLACK_BPS,
     )
     print(f"D2 dead-timeout exit active: {early_exit_params}")
+
+    # BACKTEST_CAPITALS env var: comma-separated list of starting capitals.
+    # Default "1000" (single-capital, legacy behavior). E.g. "500,1000" runs
+    # each window with both capitals and produces a side-by-side table.
+    cap_env = os.environ.get("BACKTEST_CAPITALS", "1000")
+    capitals = [float(c.strip()) for c in cap_env.split(",") if c.strip()]
+    if not capitals:
+        capitals = [1000.0]
+    print(f"Capitals: {capitals}")
+
     results = []
     for label, start_dt in windows:
         start_ts = int(start_dt.timestamp() * 1000)
         end_ts = latest_ts
-        print(f"  Running {label} ({start_dt.strftime('%Y-%m-%d')} → {end_dt.strftime('%Y-%m-%d')})...")
-        r = run_window(features, data, sector_features, dxy_data, start_ts, end_ts,
-                       oi_data=oi_data, early_exit_params=early_exit_params,
-                       funding_data=funding_data)
-        r["label"] = label
-        r["start_date"] = start_dt.strftime("%Y-%m-%d")
-        results.append(r)
-        print(f"    → {r['end_capital']:.0f} ({r['pnl_pct']:+.1f}%), "
-              f"{r['n_trades']} trades, DD {r['max_dd_pct']:.1f}%")
+        for cap in capitals:
+            tag = f"  Running {label} (${cap:.0f}, {start_dt.strftime('%Y-%m-%d')} → {end_dt.strftime('%Y-%m-%d')})..."
+            print(tag)
+            r = run_window(features, data, sector_features, dxy_data, start_ts, end_ts,
+                           start_capital=cap,
+                           oi_data=oi_data, early_exit_params=early_exit_params,
+                           funding_data=funding_data)
+            r["label"] = label
+            r["start_date"] = start_dt.strftime("%Y-%m-%d")
+            results.append(r)
+            print(f"    → {r['end_capital']:.0f} ({r['pnl_pct']:+.1f}%), "
+                  f"{r['n_trades']} trades, DD {r['max_dd_pct']:.1f}%")
 
-    # Sort so the longest window is first (for the breakdown section)
-    results.sort(key=lambda x: x["start_date"])
+    # Sort by (start_date asc, capital asc) so window groups stay consecutive
+    results.sort(key=lambda x: (x["start_date"], x["start_capital"]))
 
-    report = build_report(results, end_dt, VERSION)
+    report = build_report(results, end_dt, VERSION, capitals=capitals)
     os.makedirs(os.path.dirname(DOCS_PATH), exist_ok=True)
     with open(DOCS_PATH, "w") as f:
         f.write(report)
