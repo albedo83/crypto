@@ -314,6 +314,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 
 <div class="cards">
   <div class="card" id="card-balance"><div class="label">Equity</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
+  <div class="card" id="card-dd" title="Drawdown depuis le pic — % de baisse de la balance par rapport à son sommet historique"><div class="label">Drawdown</div><div class="value" id="dd-pct">--</div><div class="sub dim" id="dd-peak">--</div><div class="dd-bar" style="height:3px;background:#30363d;border-radius:2px;margin-top:4px;overflow:hidden"><div id="dd-bar-fill" style="height:100%;width:0%;background:#3fb950;transition:width .3s,background .3s"></div></div></div>
   <div class="card"><div class="label">Total P&L</div><div class="value" id="pnl-amt">$0</div><div class="sub" id="pnl-pct">0%</div><div class="sub dim" id="pnl-fees"></div></div>
   <div class="card" id="card-pnl"><div class="label">Unrealized</div><div class="value" id="unrealized">--</div><div class="sub dim" id="available"></div></div>
   <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
@@ -605,6 +606,23 @@ function refresh(){
       urEl.className='value '+cls(unrealTotal);
       document.getElementById('available').textContent='P&L: $'+fmt(s.total_pnl);
     }
+    // Drawdown card: % from peak, color-coded by severity
+    const dd=s.drawdown_pct||0;
+    const peak=s.peak_balance||0;
+    const ddEl=document.getElementById('dd-pct');
+    ddEl.textContent=(dd>=0?'+':'')+dd.toFixed(1)+'%';
+    let ddColor='#3fb950';
+    if(dd<=-25){ddEl.className='value red';ddColor='#f85149'}
+    else if(dd<=-10){ddEl.className='value yellow';ddColor='#d29922'}
+    else if(dd<=-1){ddEl.className='value';ddColor='#7d8590'}
+    else{ddEl.className='value green';ddColor='#3fb950'}
+    document.getElementById('dd-peak').textContent='peak $'+peak.toFixed(2);
+    // Fill the bar proportionally to abs(DD) capped at 50%
+    const ddFill=Math.min(100,Math.abs(dd)*2);
+    const ddBar=document.getElementById('dd-bar-fill');
+    ddBar.style.width=ddFill+'%';
+    ddBar.style.background=ddColor;
+
     document.getElementById('pos-count').textContent=s.n_positions+'/'+s.max_positions;
 
     const nL=s.positions.filter(p=>p.direction==='LONG').length;

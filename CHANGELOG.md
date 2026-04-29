@@ -1,5 +1,9 @@
 # Changelog
 
+## [11.7.19] — 2026-04-29
+- **Dashboard**: new "Drawdown" card next to Equity. Shows current % from peak balance, color-coded (green at peak, dim for ≤−1%, yellow ≤−10%, red ≤−25%) with a horizontal progress bar capped at 50% for visual scale. Reads `s.drawdown_pct` and `s.peak_balance` already exposed by `/api/state`.
+- **Persistence (bug fix)**: `load_state()` now returns the saved `capital` field, restoring `bot._capital` from the state file across restarts. Previously the env value (`HL_CAPITAL`) silently overrode the state, which caused DCA tracking to be lost on every restart — visible only on Junior (env=0) and on the live bot when env mismatched the state. Paper unaffected (env matched state).
+
 ## [11.7.18] — 2026-04-29
 - **Junior bot live activation** with API agent wallet model. New env vars: `HL_ACCOUNT_ADDRESS` (master wallet that holds funds, when separate from the signer key) and `HL_EQUITY_MODE` (`"perps"` for the perps-only setup like Junior, default empty = legacy spot+unrealized for live). `analysis/bot/exchange.py:init_exchange()` now accepts an optional `account_address` parameter. Junior signs with API wallet `0x4EAb…3F7e` and trades on master `0xb65d…956Fe`. Live and Paper unchanged.
 - **Dashboard**: open-positions table redesigned for mobile (≤640px). Each position becomes a 2-line compact card with caret expand for Entry/Current/Margin details; sparklines hidden on mobile; bps-inline shown next to P&L. CSS-only changes scoped via `[data-block="open-positions"]`, plus a click-delegation handler on `#pos-body` that toggles `tr.expanded` when `matchMedia(max-width:640px)`. Desktop layout untouched.

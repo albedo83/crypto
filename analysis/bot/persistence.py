@@ -164,6 +164,8 @@ def load_state(state_file: str, states: dict) -> dict:
     try:
         with open(state_file, "rb") as f:
             data = orjson.loads(f.read())
+        if "capital" in data:
+            result["capital"] = data["capital"]
         result["total_pnl"] = data.get("total_pnl", 0)
         result["wins"] = data.get("wins", 0)
         total_pnl = result["total_pnl"]
