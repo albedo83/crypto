@@ -281,6 +281,7 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
         except Exception as e:
             with bot._pos_lock:
                 bot._failed_closes.add(sym)
+            log_event(bot._db, "CLOSE_FAILED", sym, {"reason": reason, "error": str(e)[:200]})
             log.error("EXEC CLOSE FAILED %s: %s — keeping position, will retry next scan", sym, e)
             send_telegram(f"\u274c Close failed {sym}: {e} \u2014 will retry", category="trade")
             return  # don't pop — position stays tracked, retried next scan
@@ -345,6 +346,8 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
             bot._paused = True
             log.critical("KILL-SWITCH: P&L $%.2f below cap $%.0f \u2014 auto-paused",
                          bot._total_pnl, TOTAL_LOSS_CAP)
+            log_event(bot._db, "KILL_SWITCH", None,
+                      {"total_pnl": round(bot._total_pnl, 2), "cap": TOTAL_LOSS_CAP})
 
         # Cooldown
         bot._cooldowns[sym] = time.time() + COOLDOWN_HOURS * 3600

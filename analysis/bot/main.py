@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 import uvicorn
 
 from .config import (
-    VERSION, EXECUTION_MODE, CAPITAL_USDT, LEVERAGE, TRADE_SYMBOLS,
+    VERSION, EXECUTION_MODE, LEVERAGE, TRADE_SYMBOLS,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
     STOP_LOSS_BPS, STOP_LOSS_S8, MAX_POSITIONS, MAX_SAME_DIRECTION,
     MAX_PER_SECTOR, MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS,
@@ -114,6 +114,8 @@ async def run():
             if ghosts:
                 log.warning("BOOT RECONCILE: dropped %d ghost positions: %s",
                             len(ghosts), sorted(ghosts))
+                from .db import log_event as _log_ev
+                _log_ev(bot._db, "GHOST", None, {"symbols": sorted(ghosts)})
                 send_telegram(
                     f"⚠️ Boot reconcile: ghost positions dropped "
                     f"(closed on exchange while offline): {sorted(ghosts)}",
@@ -122,6 +124,8 @@ async def run():
             if orphans:
                 log.warning("BOOT RECONCILE: %d orphan positions on exchange: %s",
                             len(orphans), sorted(orphans))
+                from .db import log_event as _log_ev
+                _log_ev(bot._db, "ORPHAN", None, {"symbols": sorted(orphans)})
                 send_telegram(
                     f"⚠️ Boot reconcile: orphan positions on exchange "
                     f"(not in bot): {sorted(orphans)}",
@@ -131,14 +135,16 @@ async def run():
         except Exception:
             log.exception("Boot reconcile failed (continuing startup)")
 
+    # Use bot._capital (DCA-tracked, restored from state.json) — not the env
+    # CAPITAL_USDT, which only matters as a default when state.json is missing.
     mode_tag = "LIVE \U0001f534" if EXECUTION_MODE == "live" else "PAPER"
     log.info("Multi-Signal Bot v%s | %s | $%.0f capital | %dx leverage | %d symbols | port %d",
-             VERSION, mode_tag, CAPITAL_USDT, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
+             VERSION, mode_tag, bot._capital, LEVERAGE, len(TRADE_SYMBOLS), WEB_PORT)
     log.info("Sizing (initial, adjusts with P&L): %d%%+%d%% z-weighted | S1=$%.0f S5=$%.0f S8=$%.0f S9=$%.0f S10=$%.0f (at $%.0f)",
              SIZE_PCT * 100, SIZE_BONUS * 100,
-             strat_size("S1", CAPITAL_USDT), strat_size("S5", CAPITAL_USDT),
-             strat_size("S8", CAPITAL_USDT), strat_size("S9", CAPITAL_USDT),
-             strat_size("S10", CAPITAL_USDT), CAPITAL_USDT)
+             strat_size("S1", bot._capital), strat_size("S5", bot._capital),
+             strat_size("S8", bot._capital), strat_size("S9", bot._capital),
+             strat_size("S10", bot._capital), bot._capital)
     log.info("Hold: %dh (S5: %dh, S8: %dh) | Stop: %d bps (S8: %d) | Lev: %.0fx | Max: %d pos / %d dir / %d sect / %d macro / %d token",
              HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
              STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION,
@@ -146,7 +152,7 @@ async def run():
     log.info("Kill-switch: loss cap $%.0f | streak threshold %d \u2192 %.0f%% sizing for %dh",
              TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER * 100,
              LOSS_STREAK_COOLDOWN // 3600)
-    send_telegram(f"\U0001f916 Bot v{VERSION} started | {mode_tag} | ${CAPITAL_USDT:.0f} | {len(bot.positions)} pos",
+    send_telegram(f"\U0001f916 Bot v{VERSION} started | {mode_tag} | ${bot._capital:.0f} | {len(bot.positions)} pos",
                   category="system")
 
     config = uvicorn.Config(app, host="0.0.0.0", port=WEB_PORT, log_level="warning")

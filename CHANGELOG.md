@@ -1,5 +1,9 @@
 # Changelog
 
+## [11.7.21] — 2026-04-30
+- **Dashboard**: open-positions row gets a visual stop/MAE/current/MFE/trailing strip; compact scan-preview pill bar above the table (always visible) showing what the bot would do on the next scan.
+- **Trading engine**: equity drift, ghost/orphan boot reconcile, kill-switch and close-failed now write structured events to the events table — surfaces in the dashboard event-timeline alongside trades and SKIPs.
+
 ## [11.7.20] — 2026-04-30
 - **Trading engine**: serialize concurrent close requests on the same symbol with a mutex (prevents duplicate exchange orders when timeouts and manual closes race), and reconcile at boot in live mode to drop ghost positions left from offline manual closes.
 - **Infra (bug fixes)**: DCA now rebases the drawdown baseline so capital flows don't surface as drawdown on the Drawdown card; startup P&L sanity check now sums all trades (was filtering out manual stops and resets, producing false drift warnings).

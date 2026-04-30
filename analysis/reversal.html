@@ -145,6 +145,26 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 .event-SKIP{opacity:.7}
 .event-S9F_OBS{border-color:#58a6ff}
 .event-RECONCILE{border-color:#da3633}
+.event-EQUITY_DRIFT{border-color:#f85149;background:#f8514911}
+.event-GHOST{border-color:#d29922;background:#d2992211}
+.event-ORPHAN{border-color:#d29922;background:#d2992211}
+.event-KILL_SWITCH{border-color:#f85149;background:#f8514922;font-weight:600}
+.event-CLOSE_FAILED{border-color:#f85149;background:#f8514911}
+.event-SUPERVISOR_REPORT{border-color:#a78bfa}
+/* v11.7.21: position strip — visual stop/MAE/current/MFE/target on each row */
+.pos-strip{display:block;margin-top:3px}
+@media(max-width:640px){[data-block="open-positions"] td.pos-unrealized .pos-strip{width:100%;max-width:220px}}
+/* v11.7.21: compact scan preview strip — what the bot would do RIGHT NOW */
+.scan-strip{display:flex;gap:6px;overflow-x:auto;padding:8px 14px;background:#0d1117;border-bottom:1px solid #21262d;scrollbar-width:thin;align-items:center;font-size:11px}
+.scan-strip-label{color:#7d8590;font-size:10px;text-transform:uppercase;letter-spacing:.5px;flex-shrink:0;margin-right:4px}
+.scan-pill{flex-shrink:0;border:1px solid #30363d;border-radius:12px;padding:3px 8px;white-space:nowrap;display:inline-flex;align-items:center;gap:4px;font-size:11px}
+.scan-pill.sp-enter{border-color:#3fb950;background:#3fb95022;color:#3fb950}
+.scan-pill.sp-skip{opacity:.55;color:#7d8590}
+.scan-pill.sp-block{border-color:#f85149;background:#f8514922;color:#f85149}
+.scan-pill.sp-pos{border-color:#58a6ff;color:#58a6ff;opacity:.7}
+.scan-pill .sp-dir{font-weight:600;font-size:10px;opacity:.85}
+.scan-pill .sp-strat{font-size:10px;opacity:.7}
+.scan-pill .sp-status{font-size:10px;font-family:monospace;margin-left:4px;opacity:.85}
 .trailing-info{color:#58a6ff;font-size:10px;margin-top:1px}
 #strat-table th,#strat-table td{background-clip:padding-box}
 #strat-table thead th:nth-child(1),#strat-table tbody td:nth-child(1){background:#161b22}
@@ -329,6 +349,9 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   </div>
 </div>
 
+<!-- v11.7.21: compact scan preview — what the bot would do on the next scan, always visible -->
+<div class="scan-strip" id="scan-strip" title="Signals firing right now and what the bot would do"><span class="scan-strip-label">Scan preview</span><span class="dim" style="font-size:11px">loading…</span></div>
+
 <div class="section" data-block="open-positions">
   <h2>Open Positions</h2>
   <table class="responsive"><thead><tr>
@@ -474,6 +497,34 @@ function stopBar(prog){
   const pct=Math.round(prog*100);
   const col=prog<0.5?'#3fb950':(prog<0.8?'#d29922':'#f85149');
   return `<div class="bar-inline" title="Distance to stop: ${pct}%"><div class="fill" style="width:${pct}%;background:${col}"></div></div>`;
+}
+// v11.7.21: position strip — horizontal "thermometer" from stop (left, red zone)
+// to MFE/target (right, green zone). Markers: stop edge, MAE dot below, entry
+// tick, current colored line, MFE dot above, optional trailing floor.
+function positionStrip(p,w=180,h=20){
+  if(p.stop_bps===undefined||p.stop_bps>=0)return '';
+  const stopBps=p.stop_bps,mfe=p.mfe_bps||0,cur=p.unrealized_bps||0,mae=p.mae_bps||0;
+  const right=Math.max(mfe+100,500);            // right edge: room above entry
+  const left=stopBps;
+  const range=Math.max(right-left,100);
+  const xOf=v=>Math.max(0,Math.min(1,(v-left)/range));
+  const x=v=>(xOf(v)*w).toFixed(1);
+  const xZero=x(0),xCur=x(cur),xMae=x(mae),xMfe=x(mfe);
+  const xTrail=p.trailing_active&&p.trailing_floor_bps!=null?x(p.trailing_floor_bps):null;
+  const curCol=cur>=0?'#3fb950':(cur>=stopBps*0.5?'#d29922':'#f85149');
+  const tooltip=`stop ${stopBps} | mae ${mae>=0?'+':''}${mae.toFixed(0)} | cur ${cur>=0?'+':''}${cur.toFixed(0)} | mfe ${mfe>=0?'+':''}${mfe.toFixed(0)}${xTrail!==null?' | trail '+(p.trailing_floor_bps>=0?'+':'')+p.trailing_floor_bps:''} bps`;
+  const id='strip-'+p.symbol+'-'+Math.floor(Math.random()*9999);
+  let svg=`<svg class="pos-strip" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><title>${tooltip}</title>`;
+  svg+=`<defs><linearGradient id="${id}" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#f85149" stop-opacity="0.22"/><stop offset="${(xOf(0)*100).toFixed(0)}%" stop-color="#30363d" stop-opacity="0.4"/><stop offset="100%" stop-color="#3fb950" stop-opacity="0.22"/></linearGradient></defs>`;
+  svg+=`<rect x="0" y="${h/2-2}" width="${w}" height="4" rx="2" fill="url(#${id})"/>`;
+  svg+=`<line x1="0.5" y1="2" x2="0.5" y2="${h-2}" stroke="#f85149" stroke-width="1.5"/>`;
+  svg+=`<line x1="${xZero}" y1="3" x2="${xZero}" y2="${h-3}" stroke="#7d8590" stroke-width="1"/>`;
+  if(mae<-20)svg+=`<circle cx="${xMae}" cy="${h-2}" r="2.5" fill="#f85149" opacity="0.85"/>`;
+  if(mfe>20)svg+=`<circle cx="${xMfe}" cy="2" r="2.5" fill="#3fb950" opacity="0.85"/>`;
+  if(xTrail!==null)svg+=`<line x1="${xTrail}" y1="3" x2="${xTrail}" y2="${h-3}" stroke="#d29922" stroke-width="1.5" stroke-dasharray="2,2"/>`;
+  svg+=`<line x1="${xCur}" y1="0.5" x2="${xCur}" y2="${h-0.5}" stroke="${curCol}" stroke-width="2"/>`;
+  svg+=`</svg>`;
+  return svg;
 }
 function holdBar(prog){
   const pct=Math.round(prog*100);
@@ -667,7 +718,8 @@ function refresh(){
       const sideClass=p.direction==='LONG'?'green':'red';
       const trailExtra=p.trailing_active?`<div class="trailing-info stop-meta">▼ trail @ ${p.trailing_floor_bps>=0?'+':''}${p.trailing_floor_bps}</div>`:'';
       const stopStr=p.stop_bps!==undefined?`<div class="dim stop-meta" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}`:'';
-      const stopViz=p.stop_progress!==undefined?stopBar(p.stop_progress):'';
+      // v11.7.21: position strip subsumes stopBar (shows stop + MAE + current + MFE + trailing)
+      const stopViz=positionStrip(p)||(p.stop_progress!==undefined?stopBar(p.stop_progress):'');
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress):'';
       const pathViz=sparkline(p.trajectory);
       const altViz=priceSparkline(p.trajectory,p.entry_price,p.direction);
@@ -905,8 +957,8 @@ function refresh(){
 
     // Preview (batch 3 #9) — what the bot would do on the next scan
     const pv=document.getElementById('preview-list');
+    const items=s.preview||[];
     if(pv){
-      const items=s.preview||[];
       if(!items.length){pv.innerHTML='<div class="preview-row"><span class="dim">No signals firing right now</span></div>';}
       else {
         pv.innerHTML=items.slice(0,20).map(i=>{
@@ -920,6 +972,30 @@ function refresh(){
             <span class="preview-status ${statClass}">${i.status}</span>
           </div>`;
         }).join('');
+      }
+    }
+    // v11.7.21: compact scan strip — pills above Open Positions, always visible
+    const ss=document.getElementById('scan-strip');
+    if(ss){
+      if(!items.length){
+        ss.innerHTML='<span class="scan-strip-label">Scan preview</span><span class="dim" style="font-size:11px">no signal firing now</span>';
+      } else {
+        // Group by status for headline counts
+        const counts={};items.forEach(i=>{counts[i.status]=(counts[i.status]||0)+1});
+        const summary=Object.entries(counts).sort((a,b)=>b[1]-a[1])
+          .map(([k,n])=>`<span class="dim" style="font-size:10px">${n} ${k}</span>`).join(' · ');
+        // Show "would enter" first, then top 8 of the rest
+        const ranked=[...items].sort((a,b)=>(a.status==='would enter'?0:1)-(b.status==='would enter'?0:1));
+        const pills=ranked.slice(0,12).map(i=>{
+          const cls = i.status==='would enter' ? 'sp-enter'
+                    : i.status==='already in position' ? 'sp-pos'
+                    : (i.status==='blacklist'||i.status==='oi_gate') ? 'sp-block'
+                    : 'sp-skip';
+          const dirCol = i.direction==='LONG' ? '#3fb950' : '#f85149';
+          const arrow = i.direction==='LONG' ? '▲' : '▼';
+          return `<span class="scan-pill ${cls}" title="${i.strategy} ${i.direction} ${i.symbol} — ${i.status}"><b>${i.symbol}</b><span class="sp-strat">${i.strategy}</span><span class="sp-dir" style="color:${dirCol}">${arrow}</span><span class="sp-status">${i.status==='would enter'?'enter':i.status}</span></span>`;
+        }).join('');
+        ss.innerHTML=`<span class="scan-strip-label">Scan preview</span>${pills}<span style="margin-left:auto;flex-shrink:0">${summary}</span>`;
       }
     }
 
@@ -1205,17 +1281,24 @@ function refreshEvents(){
     if(!el||!Array.isArray(rows))return;
     if(!rows.length){el.innerHTML='<span class="dim">No recent events</span>';return}
     const now=Math.floor(Date.now()/1000);
-    const icons={TRADE_OPEN:'▲',TRADE_CLOSE:'■',SKIP:'⊘',S9F_OBS:'👁',RECONCILE:'⚠',SUPERVISOR_REPORT:'🧾',PAUSE:'⏸',RESUME:'▶'};
+    const icons={TRADE_OPEN:'▲',TRADE_CLOSE:'■',SKIP:'⊘',S9F_OBS:'👁',RECONCILE:'⚠',SUPERVISOR_REPORT:'🧾',PAUSE:'⏸',RESUME:'▶',
+                 EQUITY_DRIFT:'⚖',GHOST:'👻',ORPHAN:'🔍',KILL_SWITCH:'🛑',CLOSE_FAILED:'❌',ETH_OBS:'👁'};
     el.innerHTML=rows.map(r=>{
       const ago=now-r.ts;
       const agoStr=ago<60?ago+'s':ago<3600?Math.floor(ago/60)+'m':Math.floor(ago/3600)+'h';
-      let detail='';
+      let detail='',inline='';
       try{const d=r.data?JSON.parse(r.data):null;
-        if(d&&d.reason)detail=' '+d.reason;
-        else if(d&&d.strategy)detail=' '+d.strategy;
+        if(d){
+          if(r.event==='EQUITY_DRIFT'){inline=' Δ$'+(d.drift>=0?'+':'')+d.drift;detail=` bot $${d.bot_realized} vs exch $${d.exch_realized}`;}
+          else if(r.event==='GHOST'||r.event==='ORPHAN'){inline=' '+(d.symbols||[]).slice(0,3).join(',');detail=' '+(d.symbols||[]).join(', ');}
+          else if(r.event==='KILL_SWITCH'){inline=' P&L $'+d.total_pnl+' < $'+d.cap;}
+          else if(r.event==='CLOSE_FAILED'){inline=' '+(d.reason||'');detail=' '+(d.error||'').slice(0,80);}
+          else if(d.reason)detail=' '+d.reason;
+          else if(d.strategy)detail=' '+d.strategy;
+        }
       }catch(e){}
       const ic=icons[r.event]||'•';
-      return `<span class="event-pill event-${r.event}" title="${r.event}${detail} — ${agoStr} ago">${ic} ${r.symbol||''} <span class="dim">${agoStr}</span></span>`;
+      return `<span class="event-pill event-${r.event}" title="${r.event}${detail} — ${agoStr} ago">${ic} ${r.symbol||''}${inline} <span class="dim">${agoStr}</span></span>`;
     }).join('');
   }).catch(e=>console.warn('events fetch:',e));
 }

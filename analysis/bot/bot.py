@@ -267,6 +267,10 @@ class MultiSignalBot:
                         if abs(drift) > 5.0 and not self._drift_alerted:
                             log.warning("EQUITY DRIFT: bot realized $%.2f vs exchange $%.2f (Δ$%.2f)",
                                         bot_realized, exch_realized, drift)
+                            db_mod.log_event(self._db, "EQUITY_DRIFT", None,
+                                             {"bot_realized": round(bot_realized, 2),
+                                              "exch_realized": round(exch_realized, 2),
+                                              "drift": round(drift, 2)})
                             net.send_telegram(
                                 f"⚠️ Equity drift: bot ${bot_realized:.2f} vs exchange "
                                 f"${exch_realized:.2f} (Δ${drift:+.2f}) — check fees/funding",
