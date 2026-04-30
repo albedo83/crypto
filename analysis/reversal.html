@@ -355,7 +355,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 <div class="section" data-block="open-positions">
   <h2>Open Positions</h2>
   <table class="responsive"><thead><tr>
-    <th>Symbol</th><th>Strat</th><th>Side</th><th>P&L</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path<span class="dim" style="font-weight:400"> (P&L)</span></th><th>Alt<span class="dim" style="font-weight:400"> (price)</span></th><th></th>
+    <th>Symbol</th><th>Strat</th><th>Side</th><th>P&L</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path<span class="dim" style="font-weight:400"> (P&L)</span></th><th></th>
   </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
@@ -542,22 +542,6 @@ function sparkline(traj,w=70,h=24){
   const col=lastBps>=0?'#3fb950':'#f85149';
   return `<svg class="spark" width="${w}" height="${h}"><line x1="0" y1="${zy.toFixed(1)}" x2="${w}" y2="${zy.toFixed(1)}" stroke="#30363d" stroke-width="1" stroke-dasharray="2,2"/><polyline points="${pts}" stroke="${col}" stroke-width="1.5" fill="none"/></svg>`;
 }
-// Raw-price sparkline: no zero anchor, color reflects raw price move
-// (last vs first), independent of trade direction. For visual comparison
-// with the alt's actual price chart.
-function priceSparkline(bpsTraj,entryPrice,direction,w=70,h=24){
-  if(!bpsTraj||bpsTraj.length<2||!entryPrice)return '<span class="dim" style="font-size:10px">--</span>';
-  const dir=direction==='LONG'?1:-1;
-  const traj=bpsTraj.map(p=>[p[0],entryPrice*(1+dir*p[1]/1e4)]);
-  const xs=traj.map(p=>p[0]),ys=traj.map(p=>p[1]);
-  const xmin=Math.min(...xs),xmax=Math.max(...xs);
-  const ymin=Math.min(...ys),ymax=Math.max(...ys);
-  const xr=Math.max(xmax-xmin,0.1),yr=Math.max(ymax-ymin,ymax*0.001);
-  const pts=traj.map(p=>((p[0]-xmin)/xr*w).toFixed(1)+','+(h-(p[1]-ymin)/yr*h).toFixed(1)).join(' ');
-  const priceUp=ys[ys.length-1]>=ys[0];
-  const col=priceUp?'#58a6ff':'#a78bfa';
-  return `<svg class="spark" width="${w}" height="${h}"><polyline points="${pts}" stroke="${col}" stroke-width="1.5" fill="none"/></svg>`;
-}
 function addCapital(){const a=prompt('DCA amount ($):');if(!a)return;const v=parseFloat(a);if(isNaN(v)||v===0){alert('Invalid amount');return}if(!confirm((v>0?'Deposit':'Withdraw')+' $'+Math.abs(v)+' ?'))return;fetch('api/capital',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:v})}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else{alert('Capital: $'+j.old+' -> $'+j.new);refresh()}}).catch(e=>alert('Error: '+e));}
 
 // Minimal markdown → HTML: H2/H3 headings, list bullets, inline code, bold.
@@ -722,7 +706,6 @@ function refresh(){
       const stopViz=positionStrip(p)||(p.stop_progress!==undefined?stopBar(p.stop_progress):'');
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress):'';
       const pathViz=sparkline(p.trajectory);
-      const altViz=priceSparkline(p.trajectory,p.entry_price,p.direction);
       const bpsSign=p.unrealized_bps>=0?'+':'';
       tr.innerHTML=`
         <td data-label="Symbol" class="pos-symbol"><b>${p.symbol}</b></td>
@@ -736,7 +719,6 @@ function refresh(){
         <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
         <td data-label="Remaining" class="pos-remaining"><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim stop-meta" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
         <td data-label="Path (P&L)" class="pos-spark">${pathViz}</td>
-        <td data-label="Alt (price)" class="pos-spark">${altViz}</td>
         <td data-label="" class="pos-close"><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
     });
@@ -750,7 +732,7 @@ function refresh(){
       pb.dataset.boundExpand='1';
     }
     if(!s.positions.length)
-      pb.innerHTML='<tr><td colspan="13" style="text-align:center;color:#7d8590">No positions -- waiting for signals</td></tr>';
+      pb.innerHTML='<tr><td colspan="12" style="text-align:center;color:#7d8590">No positions -- waiting for signals</td></tr>';
 
     // OI delta 24h grid (batch 1)
     const oiGrid=document.getElementById('oi-grid');

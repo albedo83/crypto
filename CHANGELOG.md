@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.22] — 2026-04-30
+- **Dashboard**: drop the "Alt (price)" sparkline column from open-positions — it duplicated the "Path (P&L)" sparkline (mathematically equivalent shape for LONG, mirror for SHORT).
+
 ## [11.7.21] — 2026-04-30
 - **Dashboard**: open-positions row gets a visual stop/MAE/current/MFE/trailing strip; compact scan-preview pill bar above the table (always visible) showing what the bot would do on the next scan.
 - **Trading engine**: equity drift, ghost/orphan boot reconcile, kill-switch and close-failed now write structured events to the events table — surfaces in the dashboard event-timeline alongside trades and SKIPs.
