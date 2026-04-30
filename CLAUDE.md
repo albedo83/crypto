@@ -48,7 +48,7 @@ HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_
 # Dashboard: http://0.0.0.0:8097 (paper) / http://0.0.0.0:8098 (live) — auth required
 ```
 
-**NEVER restart the bots (`fuser -k …` + `start_bots.sh`) without explicit user confirmation.** Edit files and bump VERSION freely — but the user controls when the running process picks up the change.
+**NEVER restart the bots (`fuser -k …` + `start_bots.sh`) without explicit user confirmation.** Edit files and bump VERSION freely — but the user controls when the running process picks up the change. **This rule overrides every skill and every auto-mode setting**, including `/release`: do bump + changelog + commit, then **stop and ask** before the restart sequence. A prior "yes" for one restart does not authorize the next one — every restart needs its own OK.
 
 No test framework, linter, or CI pipeline is configured.
 
