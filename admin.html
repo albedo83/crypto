@@ -2,62 +2,112 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Admin — Trading Bots</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;padding:20px}
-.header{display:flex;justify-content:space-between;align-items:center;margin-bottom:24px;padding-bottom:16px;border-bottom:1px solid #21262d}
-.header h1{font-size:22px;font-weight:600}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+.header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #21262d}
+.header h1{font-size:18px;font-weight:600}
 .header a{color:#7d8590;text-decoration:none;font-size:13px}
 .header a:hover{color:#e6edf3}
-.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:16px}
-.card{background:#161b22;border:1px solid #30363d;border-top:3px solid #30363d;border-radius:12px;padding:20px;transition:border-color .2s}
-.card:hover{border-color:#58a6ff}
-.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
-.card-title{font-size:16px;font-weight:600}
-.badge{padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600;text-transform:uppercase}
-.badge.live{background:#da363322;color:#f85149;border:1px solid #da363388}
-.badge.paper{background:#1f6feb22;color:#58a6ff;border:1px solid #1f6feb88}
-.badge.running{background:#23863622;color:#3fb950;border:1px solid #2ea04388}
-.badge.paused{background:#d2992222;color:#d29922;border:1px solid #d2992288}
-.badges{display:flex;gap:6px;align-items:center}
-.status-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+
+/* Mobile tabs (carousel navigator) */
+.tabs{display:flex;gap:4px;padding:8px 12px;overflow-x:auto;border-bottom:1px solid #21262d;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:6px 12px;border-radius:6px;background:transparent;color:#7d8590;cursor:pointer;font-size:13px;border:1px solid transparent;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-weight:500}
+.tab.active{background:#161b22;color:#e6edf3;border-color:#30363d}
+.tab .dot{width:6px;height:6px;border-radius:50%;background:#484f58}
+.tab .dot.ok{background:#3fb950}
+.tab .dot.degraded{background:#d29922}
+.tab .dot.stale,.tab .dot.paused{background:#f85149}
+
+/* Mobile-first: horizontal carousel of one screen per bot */
+.screens{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding:12px;gap:12px}
+.screens::-webkit-scrollbar{display:none}
+.screen{flex:0 0 100%;scroll-snap-align:center;background:#161b22;border:1px solid #30363d;border-top:3px solid #30363d;border-radius:12px;padding:14px;transition:border-color .2s}
+
+/* Screen header */
+.screen-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+.screen-title{font-size:16px;font-weight:600;display:inline-flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0}
 .status-dot.ok{background:#3fb950}
 .status-dot.degraded{background:#d29922}
 .status-dot.stale{background:#f85149}
 .status-dot.offline{background:#484f58}
 .status-dot.paused{background:#d29922;animation:pulse 2s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px}
-.stat{background:#0d1117;border-radius:8px;padding:10px 12px}
-.stat-label{font-size:11px;color:#7d8590;margin-bottom:2px}
-.stat-value{font-size:16px;font-weight:600}
+.badges{display:flex;gap:5px;align-items:center;flex-shrink:0}
+.badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.badge.live{background:#da363322;color:#f85149;border:1px solid #da363388}
+.badge.paper{background:#1f6feb22;color:#58a6ff;border:1px solid #1f6feb88}
+.badge.running{background:#23863622;color:#3fb950;border:1px solid #2ea04388}
+.badge.paused{background:#d2992222;color:#d29922;border:1px solid #d2992288}
+
+/* Stats grid: 4-col on mobile (compact), denser on desktop */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.stat{background:#0d1117;border-radius:6px;padding:7px 8px;min-width:0}
+.stat-label{font-size:9px;color:#7d8590;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat-value{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .stat-value.green{color:#3fb950}
 .stat-value.red{color:#f85149}
 .stat-value.blue{color:#58a6ff}
-.signals{font-size:12px;color:#7d8590;margin-bottom:16px;min-height:18px}
-.signals span{color:#e6edf3}
-.card-footer{display:flex;justify-content:space-between;align-items:center;padding-top:12px;border-top:1px solid #21262d;margin-top:4px}
-.version{font-size:11px;color:#7d8590}
-.btn-open{background:#238636;color:#fff;border:none;padding:7px 18px;border-radius:6px;font-size:13px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
-.btn-open:hover{background:#2ea043}
-.btn-ctrl{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:6px 14px;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.3px}
+.stat-value.tiny{font-size:11px}
+.stat-sub{font-size:9px;color:#7d8590;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Open positions mini-list */
+.section-title{font-size:10px;color:#7d8590;text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px;display:flex;justify-content:space-between;align-items:center}
+.pos-mini-empty{font-size:11px;color:#484f58;padding:6px 0;text-align:center;font-style:italic}
+.pos-mini-row{display:grid;grid-template-columns:auto auto auto 1fr auto auto;gap:6px;font-size:12px;padding:5px 4px;border-bottom:1px dashed #21262d;align-items:center}
+.pos-mini-row:last-child{border-bottom:0}
+.pos-mini-sym{font-weight:600;min-width:36px;font-size:13px}
+.pos-mini-side{font-weight:700;font-size:10px;width:14px;text-align:center;border-radius:3px;padding:1px 0}
+.pos-mini-side.green{background:#3fb95022;color:#3fb950}
+.pos-mini-side.red{background:#f8514922;color:#f85149}
+.pos-mini-strat{color:#7d8590;font-size:10px;font-weight:500}
+.pos-mini-pnl{text-align:right;font-weight:600;font-size:12px}
+.pos-mini-pnl.green{color:#3fb950}
+.pos-mini-pnl.red{color:#f85149}
+.pos-mini-bps{color:#7d8590;font-size:10px;text-align:right;min-width:48px}
+.pos-mini-rem{color:#7d8590;font-size:10px;text-align:right;min-width:32px}
+.pos-mini-strip{grid-column:1/-1;height:10px;margin-top:3px}
+
+/* Active signals */
+.signals{font-size:11px;color:#7d8590;margin-bottom:10px;line-height:1.45;min-height:14px}
+.signals span{color:#c9d1d9}
+
+/* Footer */
+.screen-foot{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid #21262d;gap:6px;flex-wrap:wrap}
+.version{font-size:10px;color:#7d8590;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.btn-row{display:flex;gap:5px;flex-shrink:0}
+.btn-ctrl{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.3px}
 .btn-ctrl:hover{background:#30363d;border-color:#58a6ff}
 .btn-ctrl.stop{background:#da3633;color:#fff;border-color:#f85149}
-.btn-ctrl.stop:hover{background:#b62324;border-color:#f85149}
+.btn-ctrl.stop:hover{background:#b62324}
 .btn-ctrl.resume{background:#238636;color:#fff;border-color:#2ea043}
-.btn-ctrl.resume:hover{background:#1a6b2a;border-color:#2ea043}
+.btn-ctrl.resume:hover{background:#1a6b2a}
 .btn-ctrl.raz{color:#f85149}
 .btn-ctrl.raz:hover{background:#da363322;border-color:#f85149}
-.controls{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding-top:12px;border-top:1px solid #21262d;gap:8px}
-.controls-left{display:flex;gap:6px}
-.offline-card{opacity:.5}
-.offline-msg{text-align:center;padding:40px 0;color:#484f58;font-size:14px}
-@media(max-width:768px){
-  body{padding:12px}
-  .grid{grid-template-columns:1fr}
-  .stats{grid-template-columns:1fr 1fr}
+.btn-open{background:#238636;color:#fff;border:none;padding:5px 12px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
+.btn-open:hover{background:#2ea043}
+
+.offline-card{opacity:.55}
+.offline-msg{text-align:center;padding:40px 14px;color:#484f58;font-size:13px}
+
+/* Desktop: 3-col grid, no carousel, no tabs */
+@media(min-width:900px){
+  body{padding:6px 0}
+  .tabs{display:none}
+  .screens{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));overflow:visible;scroll-snap-type:none;padding:16px}
+  .screen{flex:initial;scroll-snap-align:none;padding:18px}
+  .stats{grid-template-columns:repeat(4,1fr)}
+}
+
+/* Tiny phones: tighten padding, allow 3-col stats so we don't waste vertical room */
+@media(max-width:380px){
+  .screen{padding:11px}
+  .screens{padding:10px;gap:10px}
+  .stat-value{font-size:13px}
 }
 </style>
 </head>
@@ -68,8 +118,9 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
   <a href="logout">Logout</a>
 </div>
 
-<div class="grid" id="bot-grid">
-  <div class="offline-msg">Loading...</div>
+<div class="tabs" id="bot-tabs"></div>
+<div class="screens" id="bot-screens">
+  <div class="offline-msg">Loading…</div>
 </div>
 
 <script>
@@ -81,33 +132,149 @@ function fmtTime(s){
   if(h>0)return h+'h '+m+'m';
   return m+'m';
 }
+function cls(v){return v>=0?'green':'red'}
+
+// Position strip viz — same idea as the bot dashboard, scaled down for admin.
+function positionStrip(p,w=240,h=12){
+  if(p.stop_bps===undefined||p.stop_bps==null||p.stop_bps>=0)return '';
+  const stopBps=p.stop_bps,mfe=p.mfe_bps||0,cur=p.unrealized_bps||0,mae=p.mae_bps||0;
+  const right=Math.max(mfe+100,500);
+  const left=stopBps;
+  const range=Math.max(right-left,100);
+  const xOf=v=>Math.max(0,Math.min(1,(v-left)/range));
+  const x=v=>(xOf(v)*w).toFixed(1);
+  const xZero=x(0),xCur=x(cur),xMae=x(mae),xMfe=x(mfe);
+  const xTrail=p.trailing_active&&p.trailing_floor_bps!=null?x(p.trailing_floor_bps):null;
+  const curCol=cur>=0?'#3fb950':(cur>=stopBps*0.5?'#d29922':'#f85149');
+  const id='ms-'+p.symbol+'-'+Math.floor(Math.random()*9999);
+  let svg=`<svg class="pos-mini-strip" width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
+  svg+=`<defs><linearGradient id="${id}" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#f85149" stop-opacity="0.22"/><stop offset="${(xOf(0)*100).toFixed(0)}%" stop-color="#30363d" stop-opacity="0.4"/><stop offset="100%" stop-color="#3fb950" stop-opacity="0.22"/></linearGradient></defs>`;
+  svg+=`<rect x="0" y="${h/2-1.5}" width="${w}" height="3" rx="1.5" fill="url(#${id})"/>`;
+  svg+=`<line x1="0.5" y1="1" x2="0.5" y2="${h-1}" stroke="#f85149" stroke-width="1.2"/>`;
+  svg+=`<line x1="${xZero}" y1="2" x2="${xZero}" y2="${h-2}" stroke="#7d8590" stroke-width="0.8"/>`;
+  if(mae<-20)svg+=`<circle cx="${xMae}" cy="${h-1.5}" r="1.8" fill="#f85149" opacity="0.85"/>`;
+  if(mfe>20)svg+=`<circle cx="${xMfe}" cy="1.5" r="1.8" fill="#3fb950" opacity="0.85"/>`;
+  if(xTrail!==null)svg+=`<line x1="${xTrail}" y1="2" x2="${xTrail}" y2="${h-2}" stroke="#d29922" stroke-width="1.2" stroke-dasharray="2,2"/>`;
+  svg+=`<line x1="${xCur}" y1="0.5" x2="${xCur}" y2="${h-0.5}" stroke="${curCol}" stroke-width="1.6"/>`;
+  svg+=`</svg>`;
+  return svg;
+}
+
+function renderPositions(positions){
+  if(!positions||!positions.length)return '<div class="pos-mini-empty">No open positions</div>';
+  return positions.map(p=>{
+    const sideClass=p.direction==='LONG'?'green':'red';
+    const sideTxt=p.direction==='LONG'?'L':'S';
+    const pnlClass=cls(p.pnl_usdt);
+    const bpsSign=p.unrealized_bps>=0?'+':'';
+    const rem=p.remaining||(Math.floor(p.remaining_hours||0)+'h');
+    const tooltipParts=[`stop ${p.stop_bps}`,`mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}`,`cur ${p.unrealized_bps>=0?'+':''}${p.unrealized_bps.toFixed(0)}`,`mfe ${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}`];
+    if(p.trailing_active)tooltipParts.push('trail '+(p.trailing_floor_bps>=0?'+':'')+p.trailing_floor_bps);
+    const tooltip=tooltipParts.join(' | ')+' bps';
+    return `<div class="pos-mini-row" title="${tooltip}">
+      <span class="pos-mini-sym">${p.symbol}</span>
+      <span class="pos-mini-side ${sideClass}">${sideTxt}</span>
+      <span class="pos-mini-strat">${p.strategy||'?'}</span>
+      <span class="pos-mini-pnl ${pnlClass}">${fmt(p.pnl_usdt,2)}</span>
+      <span class="pos-mini-bps">${bpsSign}${(p.unrealized_bps||0).toFixed(0)}bp</span>
+      <span class="pos-mini-rem">${rem}</span>
+      ${positionStrip(p)}
+    </div>`;
+  }).join('');
+}
+
+let _activeIdx=0;
+function setActiveTab(idx){
+  _activeIdx=idx;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+}
+function jumpTo(idx){
+  const screens=document.getElementById('bot-screens');
+  const target=screens.children[idx];
+  if(target)screens.scrollTo({left:target.offsetLeft-screens.offsetLeft,behavior:'smooth'});
+  setActiveTab(idx);
+}
 
 function renderBots(bots){
-  const grid=document.getElementById('bot-grid');
-  grid.innerHTML='';
-  if(!bots.length){grid.innerHTML='<div class="offline-msg">No bots configured</div>';return}
+  const tabs=document.getElementById('bot-tabs');
+  const grid=document.getElementById('bot-screens');
+  if(!bots.length){grid.innerHTML='<div class="offline-msg">No bots configured</div>';tabs.innerHTML='';return}
 
-  bots.forEach(b=>{
-    const card=document.createElement('div');
+  // Tabs (mobile only via CSS)
+  tabs.innerHTML=bots.map((b,i)=>{
+    const dotClass=b.online?(b.paused?'paused':(b.status||'offline')):'offline';
+    return `<button class="tab${i===_activeIdx?' active':''}" onclick="jumpTo(${i})"><span class="dot ${dotClass}"></span>${b.label}</button>`;
+  }).join('');
+
+  // Screens
+  grid.innerHTML=bots.map(b=>{
     const online=b.online;
     const status=b.paused?'paused':(b.status||'offline');
     const pnl=b.total_pnl||0;
     const balance=b.balance||0;
     const capital=b.capital||0;
     const pnlPct=capital>0?(pnl/capital*100):0;
-    const pnlClass=pnl>=0?'green':'red';
     const wr=b.win_rate?Math.round(b.win_rate*100):0;
     const dd=b.drawdown_pct||0;
+    const ddClass=dd<-1?'red':(dd<0?'':'green');
     const ea=b.exchange_account;
     const equity=ea?ea.equity:balance;
-    const equityClass=ea?(ea.unrealized>=0?'green':'red'):pnlClass;
-
-    card.className='card'+(online?'':' offline-card');
-    if(online&&b.bot_label_color){card.style.borderTopColor=b.bot_label_color;}
     const stateBadge=online?(b.paused?'<span class="badge paused">paused</span>':'<span class="badge running">running</span>'):'';
-    card.innerHTML=`
-      <div class="card-header">
-        <span class="card-title">
+    const borderStyle=online&&b.bot_label_color?`style="border-top-color:${b.bot_label_color}"`:'';
+    const sigs=online&&b.active_signals&&b.active_signals.length?b.active_signals.map(s=>`<span>${s}</span>`).join(' &middot; '):'<i>No active signals</i>';
+
+    const stats=online?`
+      <div class="stat">
+        <div class="stat-label">Equity</div>
+        <div class="stat-value">$${equity.toFixed(0)}</div>
+        ${ea?`<div class="stat-sub ${ea.unrealized>=0?'green':'red'}">${fmt(ea.unrealized,0)} unr.</div>`:''}
+      </div>
+      <div class="stat">
+        <div class="stat-label">P&L</div>
+        <div class="stat-value ${cls(pnl)}">${fmt(pnl,0)}</div>
+        <div class="stat-sub ${cls(pnlPct)}">${fmt(pnlPct,1)}%</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">DD</div>
+        <div class="stat-value ${ddClass}">${fmt(dd,1)}%</div>
+        <div class="stat-sub">peak $${(b.peak_balance||0).toFixed(0)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Pos</div>
+        <div class="stat-value blue">${b.n_positions||0}/${b.max_positions||6}</div>
+        ${ea?`<div class="stat-sub">marg $${ea.margin_used.toFixed(0)}</div>`:''}
+      </div>
+      <div class="stat">
+        <div class="stat-label">WR</div>
+        <div class="stat-value">${wr}%</div>
+        <div class="stat-sub">${b.total_trades||0} trades</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Capital</div>
+        <div class="stat-value">$${capital.toFixed(0)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Uptime</div>
+        <div class="stat-value tiny">${fmtTime(b.uptime_s)}</div>
+        ${b.first_trade_date?`<div class="stat-sub">since ${new Date(b.first_trade_date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</div>`:''}
+      </div>
+      <div class="stat">
+        <div class="stat-label">${ea?'Available':'Price age'}</div>
+        <div class="stat-value tiny">${ea?'$'+ea.available.toFixed(0):(b.price_age_s!==undefined?Math.floor(b.price_age_s)+'s':'--')}</div>
+        ${ea&&ea.taker_fees!==undefined?`<div class="stat-sub red">fees $${ea.taker_fees.toFixed(0)}</div>`:''}
+      </div>
+    `:'<div class="offline-msg" style="grid-column:1/-1">Bot offline</div>';
+
+    const controls=online?`
+      ${b.paused
+        ?`<button class="btn-ctrl resume" onclick="ctrlBot(${b.port},'resume','${b.label}')">RESUME</button>`
+        :`<button class="btn-ctrl stop" onclick="if(confirm('STOP ${b.label} — block new entries?'))ctrlBot(${b.port},'pause','${b.label}')">STOP</button>`}
+      <button class="btn-ctrl raz" onclick="if(confirm('RAZ ${b.label} — reset state & positions?'))ctrlBot(${b.port},'reset','${b.label}')">RAZ</button>
+    `:'';
+
+    return `<div class="screen ${online?'':'offline-card'}" ${borderStyle}>
+      <div class="screen-head">
+        <span class="screen-title">
           <span class="status-dot ${online?status:'offline'}"></span>
           ${b.label}
         </span>
@@ -116,56 +283,31 @@ function renderBots(bots){
           ${stateBadge}
         </span>
       </div>
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-label">Equity</div>
-          <div class="stat-value">${online?'$'+equity.toFixed(0):'--'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">${ea?'Unrealized':'P&L'}</div>
-          <div class="stat-value ${ea?equityClass:pnlClass}">${online?(ea?fmt(ea.unrealized,0):fmt(pnl,0)):'--'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">${ea?'Marge':'Positions'}</div>
-          <div class="stat-value ${ea?'':'blue'}">${online?(ea?'$'+ea.margin_used.toFixed(0):(b.n_positions||0)+'/'+(b.max_positions||6)):'--'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">${ea?'Disponible':'Win Rate'}</div>
-          <div class="stat-value">${online?(ea?'$'+ea.available.toFixed(0):wr+'%'):'--'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Positions</div>
-          <div class="stat-value blue">${online?(b.n_positions||0)+'/'+(b.max_positions||6):'--'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">${ea?'Win Rate':'Uptime'}</div>
-          <div class="stat-value">${online?(ea?wr+'% <span style="font-size:12px;color:#7d8590">('+(b.total_trades||0)+'t)</span>':fmtTime(b.uptime_s)):'--'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">P&L %</div>
-          <div class="stat-value ${pnlClass}">${online?fmt(pnlPct,1)+'%':'--'}</div>
-        </div>
-        <div class="stat">
-          <div class="stat-label">Capital</div>
-          <div class="stat-value">${online?'$'+capital.toFixed(0):'--'}</div>
+      <div class="stats">${stats}</div>
+      ${online?`
+        <div class="section-title">Open positions <span style="font-weight:400">${(b.positions||[]).length}/${b.max_positions||6}</span></div>
+        ${renderPositions(b.positions)}
+        <div class="section-title">Active signals</div>
+        <div class="signals">${sigs}</div>
+      `:''}
+      <div class="screen-foot">
+        <span class="version">${online?'v'+(b.version||'?'):':'+b.port}</span>
+        <div class="btn-row">
+          ${controls}
+          <a class="btn-open" href="#" onclick="openBot(event,${b.port},'${b.path||''}')">Open</a>
         </div>
       </div>
-      <div class="signals">${online&&b.active_signals&&b.active_signals.length?'<span>'+b.active_signals.join('</span> | <span>')+'</span>':'No active signals'}</div>
-      <div class="card-footer">
-        <span class="version">${online?(()=>{let v='v'+(b.version||'?');if(b.first_trade_date){const ft=new Date(b.first_trade_date);const days=Math.floor((Date.now()-ft.getTime())/86400000);v+=' | '+ft.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' ('+days+'j)';}return v;})():':'+b.port}</span>
-        <a class="btn-open" href="#" onclick="openBot(event,${b.port},'${b.path||''}')">Open</a>
-      </div>
-      ${online?`<div class="controls">
-        <div class="controls-left">
-          ${b.paused
-            ?`<button class="btn-ctrl resume" onclick="ctrlBot(${b.port},'resume','${b.label}')">RESUME</button>`
-            :`<button class="btn-ctrl stop" onclick="if(confirm('STOP ${b.label} — block new entries?'))ctrlBot(${b.port},'pause','${b.label}')">STOP</button>`}
-        </div>
-        <button class="btn-ctrl raz" onclick="if(confirm('RAZ ${b.label} — reset state & positions?'))ctrlBot(${b.port},'reset','${b.label}')">RAZ</button>
-      </div>`:''}
-    `;
-    grid.appendChild(card);
-  });
+    </div>`;
+  }).join('');
+
+  // Re-apply active scroll position after re-render so the user doesn't lose place.
+  if(_activeIdx>0&&_activeIdx<bots.length){
+    const target=grid.children[_activeIdx];
+    if(target&&window.matchMedia('(max-width:899px)').matches){
+      grid.scrollLeft=target.offsetLeft-grid.offsetLeft;
+    }
+  }
+  setActiveTab(_activeIdx);
 }
 
 function openBot(ev,port,path){
@@ -185,6 +327,13 @@ function ctrlBot(port,action,label){
 function refresh(){
   fetch('api/bots',{credentials:'same-origin'}).then(r=>r.json()).then(renderBots).catch(e=>console.warn('fetch error:',e));
 }
+
+// Track which screen the user is currently viewing so refresh doesn't yank scroll.
+document.getElementById('bot-screens').addEventListener('scroll',()=>{
+  const screens=document.getElementById('bot-screens');
+  const idx=Math.round(screens.scrollLeft/screens.clientWidth);
+  if(idx!==_activeIdx&&idx>=0&&idx<screens.children.length)setActiveTab(idx);
+});
 
 refresh();
 setInterval(refresh,10000);

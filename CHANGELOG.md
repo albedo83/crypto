@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.25] — 2026-04-30
+- **Admin**: mobile-first redesign — horizontal swipe carousel between bots with clickable tabs at top, each card embeds a compact open-positions list (with mini stop/MAE/current/MFE strip) plus richer stats; desktop keeps the multi-column grid layout.
+
 ## [11.7.24] — 2026-04-30
 - **Dashboard**: P&L sparkline reference lines (entry baseline + current level) now actually visible against the dark background — bumped color contrast and opacity.
 

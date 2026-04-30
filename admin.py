@@ -275,6 +275,23 @@ async def api_bots():
                 info["exchange_account"] = state.get("exchange_account")
                 info["active_signals"] = state.get("active_signals", [])
                 info["bot_label_color"] = state.get("bot_label_color")
+                # Forward open positions (essentials only — admin mobile view)
+                positions = state.get("positions", [])
+                info["positions"] = [{
+                    "symbol": p.get("symbol"),
+                    "direction": p.get("direction"),
+                    "strategy": p.get("strategy"),
+                    "pnl_usdt": p.get("pnl_usdt", 0),
+                    "unrealized_bps": p.get("unrealized_bps", 0),
+                    "remaining": p.get("remaining", ""),
+                    "remaining_hours": p.get("remaining_hours", 0),
+                    "hold_hours": p.get("hold_hours", 0),
+                    "stop_bps": p.get("stop_bps"),
+                    "mae_bps": p.get("mae_bps", 0),
+                    "mfe_bps": p.get("mfe_bps", 0),
+                    "trailing_active": p.get("trailing_active", False),
+                    "trailing_floor_bps": p.get("trailing_floor_bps"),
+                } for p in positions]
         results.append(info)
     return JSONResponse(results)
 
