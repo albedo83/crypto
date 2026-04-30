@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.26] — 2026-04-30
+- **Admin**: position rows now tinted green/red on win/loss for at-a-glance scanning, and the remaining-time column is bolder + color-coded (red in the last 6h, yellow in the last 12h).
+
 ## [11.7.25] — 2026-04-30
 - **Admin**: mobile-first redesign — horizontal swipe carousel between bots with clickable tabs at top, each card embeds a compact open-positions list (with mini stop/MAE/current/MFE strip) plus richer stats; desktop keeps the multi-column grid layout.
 

@@ -58,19 +58,24 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 /* Open positions mini-list */
 .section-title{font-size:10px;color:#7d8590;text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px;display:flex;justify-content:space-between;align-items:center}
 .pos-mini-empty{font-size:11px;color:#484f58;padding:6px 0;text-align:center;font-style:italic}
-.pos-mini-row{display:grid;grid-template-columns:auto auto auto 1fr auto auto;gap:6px;font-size:12px;padding:5px 4px;border-bottom:1px dashed #21262d;align-items:center}
-.pos-mini-row:last-child{border-bottom:0}
+.pos-mini-row{display:grid;grid-template-columns:auto auto auto 1fr auto auto;gap:8px;font-size:12px;padding:7px 8px 7px 6px;border-radius:5px;align-items:center;margin-bottom:3px;border-left:3px solid transparent;background:#0d1117}
+.pos-mini-row:last-child{margin-bottom:0}
+.pos-mini-row.pos-win{background:#3fb9501a;border-left-color:#3fb950}
+.pos-mini-row.pos-loss{background:#f851491a;border-left-color:#f85149}
+.pos-mini-row.pos-flat{background:#0d1117;border-left-color:#30363d}
 .pos-mini-sym{font-weight:600;min-width:36px;font-size:13px}
 .pos-mini-side{font-weight:700;font-size:10px;width:14px;text-align:center;border-radius:3px;padding:1px 0}
-.pos-mini-side.green{background:#3fb95022;color:#3fb950}
-.pos-mini-side.red{background:#f8514922;color:#f85149}
+.pos-mini-side.green{background:#3fb95044;color:#3fb950}
+.pos-mini-side.red{background:#f8514944;color:#f85149}
 .pos-mini-strat{color:#7d8590;font-size:10px;font-weight:500}
-.pos-mini-pnl{text-align:right;font-weight:600;font-size:12px}
+.pos-mini-pnl{text-align:right;font-weight:700;font-size:13px}
 .pos-mini-pnl.green{color:#3fb950}
 .pos-mini-pnl.red{color:#f85149}
 .pos-mini-bps{color:#7d8590;font-size:10px;text-align:right;min-width:48px}
-.pos-mini-rem{color:#7d8590;font-size:10px;text-align:right;min-width:32px}
-.pos-mini-strip{grid-column:1/-1;height:10px;margin-top:3px}
+.pos-mini-rem{font-size:13px;font-weight:700;text-align:right;min-width:42px;color:#c9d1d9;letter-spacing:.2px}
+.pos-mini-rem.urgent{color:#f85149}
+.pos-mini-rem.soon{color:#d29922}
+.pos-mini-strip{grid-column:1/-1;height:10px;margin-top:4px}
 
 /* Active signals */
 .signals{font-size:11px;color:#7d8590;margin-bottom:10px;line-height:1.45;min-height:14px}
@@ -166,18 +171,23 @@ function renderPositions(positions){
     const sideClass=p.direction==='LONG'?'green':'red';
     const sideTxt=p.direction==='LONG'?'L':'S';
     const pnlClass=cls(p.pnl_usdt);
+    // Row-level win/loss tint: $0.10 threshold to ignore micro-noise
+    const rowClass=p.pnl_usdt>0.1?'pos-win':(p.pnl_usdt<-0.1?'pos-loss':'pos-flat');
     const bpsSign=p.unrealized_bps>=0?'+':'';
-    const rem=p.remaining||(Math.floor(p.remaining_hours||0)+'h');
+    const rh=p.remaining_hours||0;
+    // Urgency on remaining time: red ≤ 6h, yellow ≤ 12h, default otherwise
+    const remClass=rh<=6?'urgent':(rh<=12?'soon':'');
+    const rem=p.remaining||(Math.floor(rh)+'h');
     const tooltipParts=[`stop ${p.stop_bps}`,`mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}`,`cur ${p.unrealized_bps>=0?'+':''}${p.unrealized_bps.toFixed(0)}`,`mfe ${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}`];
     if(p.trailing_active)tooltipParts.push('trail '+(p.trailing_floor_bps>=0?'+':'')+p.trailing_floor_bps);
-    const tooltip=tooltipParts.join(' | ')+' bps';
-    return `<div class="pos-mini-row" title="${tooltip}">
+    const tooltip=tooltipParts.join(' | ')+' bps · '+rem+' left';
+    return `<div class="pos-mini-row ${rowClass}" title="${tooltip}">
       <span class="pos-mini-sym">${p.symbol}</span>
       <span class="pos-mini-side ${sideClass}">${sideTxt}</span>
       <span class="pos-mini-strat">${p.strategy||'?'}</span>
       <span class="pos-mini-pnl ${pnlClass}">${fmt(p.pnl_usdt,2)}</span>
       <span class="pos-mini-bps">${bpsSign}${(p.unrealized_bps||0).toFixed(0)}bp</span>
-      <span class="pos-mini-rem">${rem}</span>
+      <span class="pos-mini-rem ${remClass}">${rem}</span>
       ${positionStrip(p)}
     </div>`;
   }).join('');
