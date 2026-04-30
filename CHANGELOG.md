@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.23] — 2026-04-30
+- **Dashboard**: open-positions P&L sparkline now draws a faint colored horizontal line at the current level alongside the existing dashed entry baseline — drift-from-entry readable at a glance.
+
 ## [11.7.22] — 2026-04-30
 - **Dashboard**: drop the "Alt (price)" sparkline column from open-positions — it duplicated the "Path (P&L)" sparkline (mathematically equivalent shape for LONG, mirror for SHORT).
 

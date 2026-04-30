@@ -537,10 +537,18 @@ function sparkline(traj,w=70,h=24){
   const ymin=Math.min(0,...ys),ymax=Math.max(0,...ys);
   const xr=Math.max(xmax-xmin,0.1),yr=Math.max(ymax-ymin,1);
   const pts=traj.map(p=>((p[0]-xmin)/xr*w).toFixed(1)+','+(h-(p[1]-ymin)/yr*h).toFixed(1)).join(' ');
-  const zy=h-(0-ymin)/yr*h;
+  const yOf=v=>(h-(v-ymin)/yr*h).toFixed(1);
+  const zy=yOf(0);                    // entry baseline (0 bps)
   const lastBps=ys[ys.length-1];
+  const cy=yOf(lastBps);              // current level
   const col=lastBps>=0?'#3fb950':'#f85149';
-  return `<svg class="spark" width="${w}" height="${h}"><line x1="0" y1="${zy.toFixed(1)}" x2="${w}" y2="${zy.toFixed(1)}" stroke="#30363d" stroke-width="1" stroke-dasharray="2,2"/><polyline points="${pts}" stroke="${col}" stroke-width="1.5" fill="none"/></svg>`;
+  // v11.7.23: dashed grey line at entry (0 bps), faint colored line at current.
+  // Together they make "how far we drifted from entry" readable in a glance.
+  return `<svg class="spark" width="${w}" height="${h}">`
+       + `<line x1="0" y1="${zy}" x2="${w}" y2="${zy}" stroke="#30363d" stroke-width="1" stroke-dasharray="2,2"/>`
+       + `<line x1="0" y1="${cy}" x2="${w}" y2="${cy}" stroke="${col}" stroke-width="0.75" stroke-dasharray="3,2" opacity="0.55"/>`
+       + `<polyline points="${pts}" stroke="${col}" stroke-width="1.5" fill="none"/>`
+       + `</svg>`;
 }
 function addCapital(){const a=prompt('DCA amount ($):');if(!a)return;const v=parseFloat(a);if(isNaN(v)||v===0){alert('Invalid amount');return}if(!confirm((v>0?'Deposit':'Withdraw')+' $'+Math.abs(v)+' ?'))return;fetch('api/capital',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:v})}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else{alert('Capital: $'+j.old+' -> $'+j.new);refresh()}}).catch(e=>alert('Error: '+e));}
 
