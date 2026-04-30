@@ -55,6 +55,7 @@ class MultiSignalBot:
         self._loss_streak_until: float = 0
         self._pos_lock = threading.Lock()
         self._failed_closes: set[str] = set()  # symbols with exchange close failures
+        self._closing: set[str] = set()  # symbols currently mid-close (mutex)
         self._exchange_account: dict | None = None  # real exchange balance (live only)
         self._drift_alerted: bool = False  # one-shot alert for bot vs exchange P&L drift
 

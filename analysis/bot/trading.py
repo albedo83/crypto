@@ -250,10 +250,26 @@ def check_exits(bot) -> int:
 
 
 def close_position(sym: str, exit_price: float, now: datetime, reason: str, bot) -> None:
-    """Exit a position, record the trade, and update portfolio state."""
-    if sym not in bot.positions:
-        return  # already closed (race with api_pause)
+    """Exit a position, record the trade, and update portfolio state.
 
+    Concurrent paths (check_exits + api_close_symbol + api_pause) can target
+    the same symbol — without a mutex they would each call execute_close,
+    sending duplicate orders. bot._closing reserves the symbol under lock;
+    the second caller returns silently and the in-flight call finishes.
+    """
+    with bot._pos_lock:
+        if sym not in bot.positions or sym in bot._closing:
+            return
+        bot._closing.add(sym)
+    try:
+        return _close_position_inner(sym, exit_price, now, reason, bot)
+    finally:
+        with bot._pos_lock:
+            bot._closing.discard(sym)
+
+
+def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: str, bot) -> None:
+    """Body of close_position, wrapped by _closing mutex in close_position."""
     # Execute close on exchange FIRST (live mode) — only pop if successful
     if bot._exchange:
         try:

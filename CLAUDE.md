@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.19). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.20). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
@@ -125,10 +125,12 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - `size_usdt` is the **notional** (already leveraged). `pnl = size_usdt × price_change`. **Do NOT multiply by LEVERAGE again.** This was the v11.3.0 double-leverage bug — all stop values halved after the fix.
 - Compounding: `current_capital = bot._capital + _total_pnl`. Big losses shrink position sizes dramatically.
 - "Balance" (dashboard) = capital + **realized** P&L only. "Equity" (exchange card, live only) = real Hyperliquid spot USDC + perps marginSummary and includes unrealized. Drawdown is computed on balance, not equity.
+- DCA (`/api/capital`) **rebases** `_peak_balance` to the post-DCA balance (`_capital + _total_pnl`) — capital injections and withdrawals are not trading P&L, so they should not surface as drawdown nor inflate the high-water mark. Pre-v11.7.20 used `max(peak, balance)` which made injections inflate the peak (creating phantom drawdown later) and withdrawals look like drawdown.
 - Position table: `Position` column = notionnel (`size_usdt`), `Marge` column = notionnel/leverage.
 
 ### Concurrency & safety
 - `bot._pos_lock` guards all `self.positions` mutations.
+- `bot._closing` (set, guarded by `_pos_lock`) is a per-symbol mutex around `close_position`. Without it, two concurrent paths (e.g. `check_exits` timeout + `api_close_symbol` click) would each call `execute_close` and send duplicate orders to Hyperliquid. The second caller observes the symbol in `_closing` and returns silently; the in-flight call finishes.
 - `db._db_lock` (in `analysis/bot/db.py`) serializes SQLite writes across scan, API, and collector threads.
 - `load_trades` is called once at startup before the scan thread — no DB lock held.
 - `api_pause`, `api_reset`, `api_close_symbol` are sync handlers (`def`, not `async def`) so FastAPI runs them in a threadpool. Prevents blocking the event loop during exchange close.
@@ -139,8 +141,9 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - SDK (`eth_account` + `hyperliquid`) is lazy-imported only when `HL_MODE=live`. Paper mode has zero SDK dependency.
 - Order size must be in coin units: `sz = size_usdt / price`, rounded to `szDecimals` from exchange metadata.
 - Fill price extracted from order response (`statuses[0]["filled"]["avgPx"]`), with fallback to `user_fills_by_time` + 500ms delay, then market price.
-- Failed exchange closes tracked in `bot._failed_closes` and retried on the next scan.
+- Failed exchange closes tracked in `bot._failed_closes` and retried on the next scan. `api_close_symbol` and `api_pause` use `_failed_closes` (not `bot.positions`) to detect failures — checking position presence is unreliable now that closes are mutex-serialized (a concurrent in-flight close briefly leaves the position in place even though the call returned successfully).
 - Reconciliation (hourly scan) compares bot positions vs `user_state()`. Mismatches trigger Telegram alert but NO auto-fix.
+- Boot reconcile (live only, in `main.py:run`): on startup the bot fetches `user_state()` once and silently drops ghost positions (in `bot.positions` but absent on the exchange — typically a manual close via the HL UI while the bot was offline). Orphans (on the exchange but absent from the bot) are flagged via Telegram but not auto-imported.
 - Every 60s the live bot refreshes `bot._exchange_account` from Hyperliquid (spot + perps). This is what the "Equity" card shows.
 
 ### Auth & UI

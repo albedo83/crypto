@@ -764,8 +764,12 @@ def create_app(bot) -> FastAPI:
         if not st or st.price <= 0:
             return JSONResponse({"error": f"no price for {sym}"}, status_code=400)
         bot._close_position(sym, st.price, datetime.now(timezone.utc), "manual_close")
-        if sym in bot.positions:
-            return JSONResponse({"error": f"close failed for {sym}"}, status_code=500)
+        # _failed_closes is the canonical "exchange close failed" signal.
+        # bot.positions presence is unreliable: a concurrent close may be in
+        # flight (mutex held), so the position will disappear shortly even
+        # though our call returned silently — that's success, not failure.
+        if sym in bot._failed_closes:
+            return JSONResponse({"error": f"close failed for {sym}, will retry"}, status_code=500)
         bot._save_state()
         return JSONResponse({"status": "closed", "symbol": sym})
 
@@ -800,7 +804,11 @@ def create_app(bot) -> FastAPI:
         old_capital = bot._capital
         with bot._pos_lock:
             bot._capital += amount
-            bot._peak_balance = max(bot._peak_balance, bot._capital + bot._total_pnl)
+            # DCA rebases the drawdown baseline. Capital flows are not trading
+            # P&L: an injection that pushes balance above the prior peak should
+            # not become the new "high water mark" against which DD is measured;
+            # a withdrawal should not surface as drawdown.
+            bot._peak_balance = bot._capital + bot._total_pnl
         bot._save_state()
         log.info("CAPITAL: $%.0f → $%.0f (%+.0f)", old_capital, bot._capital, amount)
         send_telegram(f"\U0001f4b0 Capital adjusted: ${old_capital:.0f} → ${bot._capital:.0f} ({amount:+.0f})",
@@ -815,7 +823,7 @@ def create_app(bot) -> FastAPI:
             st = bot.states.get(sym)
             if st and st.price > 0:
                 bot._close_position(sym, st.price, now, "manual_stop")
-                if sym in bot.positions:
+                if sym in bot._failed_closes:
                     failed.append(sym)
         bot._paused = True
         bot._save_state()

@@ -1,5 +1,9 @@
 # Changelog
 
+## [11.7.20] — 2026-04-30
+- **Trading engine**: serialize concurrent close requests on the same symbol with a mutex (prevents duplicate exchange orders when timeouts and manual closes race), and reconcile at boot in live mode to drop ghost positions left from offline manual closes.
+- **Infra (bug fixes)**: DCA now rebases the drawdown baseline so capital flows don't surface as drawdown on the Drawdown card; startup P&L sanity check now sums all trades (was filtering out manual stops and resets, producing false drift warnings).
+
 ## [11.7.19] — 2026-04-29
 - **Dashboard**: new "Drawdown" card next to Equity. Shows current % from peak balance, color-coded (green at peak, dim for ≤−1%, yellow ≤−10%, red ≤−25%) with a horizontal progress bar capped at 50% for visual scale. Reads `s.drawdown_pct` and `s.peak_balance` already exposed by `/api/state`.
 - **Persistence (bug fix)**: `load_state()` now returns the saved `capital` field, restoring `bot._capital` from the state file across restarts. Previously the env value (`HL_CAPITAL`) silently overrode the state, which caused DCA tracking to be lost on every restart — visible only on Junior (env=0) and on the live bot when env mismatched the state. Paper unaffected (env matched state).

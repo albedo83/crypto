@@ -72,11 +72,13 @@ async def run():
         if bot.positions or bot._total_pnl:
             log.info("Restored: %d positions, P&L $%.2f", len(bot.positions), bot._total_pnl)
 
-    # Startup sanity check: sum of bot trades should match stored _total_pnl.
+    # Startup sanity check: sum of *all* trades should match stored _total_pnl.
+    # close_position credits _total_pnl on every close (bot, manual_stop, reset)
+    # so the sum must include all of them — filtering by is_bot_trade was the
+    # earlier mistake that produced false drift warnings after any manual close.
     # Mismatch indicates a crash between close_position's DB commit and the
     # subsequent _save_state() write. Non-fatal but logged for audit.
-    from .trading import is_bot_trade
-    trades_sum = sum(t.pnl_usdt for t in bot.trades if is_bot_trade(t))
+    trades_sum = sum(t.pnl_usdt for t in bot.trades)
     drift = trades_sum - bot._total_pnl
     if abs(drift) > 1.0:
         log.warning("STARTUP P&L DRIFT: stored=$%.2f, trades_sum=$%.2f (Δ$%.2f) — "
@@ -91,6 +93,43 @@ async def run():
 
     signal.signal(signal.SIGINT, _sig)
     signal.signal(signal.SIGTERM, _sig)
+
+    # Boot reconcile (live mode): sync bot.positions with the exchange before
+    # the main loop starts. If a position was manually closed via the HL UI
+    # while the bot was offline, drop the ghost so check_exits doesn't try to
+    # close it again. Orphan positions on the exchange are flagged but not
+    # auto-imported (the bot doesn't know the original entry conditions).
+    if bot._exchange:
+        try:
+            ex_state = bot._hl_info.user_state(bot._hl_address)
+            exch_syms = set()
+            for ap in ex_state.get("assetPositions", []):
+                if abs(float(ap["position"].get("szi", 0))) > 0:
+                    exch_syms.add(ap["position"]["coin"])
+            with bot._pos_lock:
+                ghosts = set(bot.positions.keys()) - exch_syms
+                for s in ghosts:
+                    bot.positions.pop(s, None)
+                orphans = exch_syms - set(bot.positions.keys())
+            if ghosts:
+                log.warning("BOOT RECONCILE: dropped %d ghost positions: %s",
+                            len(ghosts), sorted(ghosts))
+                send_telegram(
+                    f"⚠️ Boot reconcile: ghost positions dropped "
+                    f"(closed on exchange while offline): {sorted(ghosts)}",
+                    category="reconcile")
+                bot._save_state()
+            if orphans:
+                log.warning("BOOT RECONCILE: %d orphan positions on exchange: %s",
+                            len(orphans), sorted(orphans))
+                send_telegram(
+                    f"⚠️ Boot reconcile: orphan positions on exchange "
+                    f"(not in bot): {sorted(orphans)}",
+                    category="reconcile")
+            if not ghosts and not orphans:
+                log.info("Boot reconcile: %d positions match exchange", len(bot.positions))
+        except Exception:
+            log.exception("Boot reconcile failed (continuing startup)")
 
     mode_tag = "LIVE \U0001f534" if EXECUTION_MODE == "live" else "PAPER"
     log.info("Multi-Signal Bot v%s | %s | $%.0f capital | %dx leverage | %d symbols | port %d",
