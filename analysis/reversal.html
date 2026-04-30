@@ -542,11 +542,13 @@ function sparkline(traj,w=70,h=24){
   const lastBps=ys[ys.length-1];
   const cy=yOf(lastBps);              // current level
   const col=lastBps>=0?'#3fb950':'#f85149';
-  // v11.7.23: dashed grey line at entry (0 bps), faint colored line at current.
-  // Together they make "how far we drifted from entry" readable in a glance.
+  // v11.7.24: visible reference lines — entry (0 bps) in mid-grey,
+  // current bps in the polyline color. Slightly thicker and higher opacity
+  // so they read against the dark dashboard bg without stealing focus from
+  // the polyline.
   return `<svg class="spark" width="${w}" height="${h}">`
-       + `<line x1="0" y1="${zy}" x2="${w}" y2="${zy}" stroke="#30363d" stroke-width="1" stroke-dasharray="2,2"/>`
-       + `<line x1="0" y1="${cy}" x2="${w}" y2="${cy}" stroke="${col}" stroke-width="0.75" stroke-dasharray="3,2" opacity="0.55"/>`
+       + `<line x1="0" y1="${zy}" x2="${w}" y2="${zy}" stroke="#7d8590" stroke-width="1" stroke-dasharray="2,3" opacity="0.75"/>`
+       + `<line x1="0" y1="${cy}" x2="${w}" y2="${cy}" stroke="${col}" stroke-width="1" stroke-dasharray="3,2" opacity="0.85"/>`
        + `<polyline points="${pts}" stroke="${col}" stroke-width="1.5" fill="none"/>`
        + `</svg>`;
 }
