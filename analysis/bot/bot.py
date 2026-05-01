@@ -258,11 +258,16 @@ class MultiSignalBot:
                     if acct:
                         self._exchange_account = acct
                         # Alert on significant drift between bot accounting and real equity.
-                        # Bot P&L uses flat COST_BPS; exchange includes real fees+funding.
-                        # Unrealized P&L on open positions naturally creates a delta — compare
-                        # bot realized P&L vs exchange closed_pnl which measures the same thing.
+                        # Bot P&L uses flat COST_BPS (which already accounts for round-trip
+                        # taker fees) and real funding (per-trade since v11.7.5). Exchange
+                        # truth = closed_pnl (excludes fees on HL) + funding_paid - taker_fees.
+                        # Without the -taker_fees subtraction the comparator looked too lenient
+                        # to the exchange side and produced spurious EQUITY_DRIFT warnings on
+                        # otherwise-aligned books (v11.7.27 fix).
                         bot_realized = self._total_pnl
-                        exch_realized = acct.get("closed_pnl", 0) + acct.get("funding_paid", 0)
+                        exch_realized = (acct.get("closed_pnl", 0)
+                                         + acct.get("funding_paid", 0)
+                                         - acct.get("taker_fees", 0))
                         drift = bot_realized - exch_realized
                         if abs(drift) > 5.0 and not self._drift_alerted:
                             log.warning("EQUITY DRIFT: bot realized $%.2f vs exchange $%.2f (Δ$%.2f)",

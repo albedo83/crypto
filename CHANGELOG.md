@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.27] — 2026-04-30
+- **Trading engine (bug fix)**: equity drift comparator now subtracts taker fees from the exchange-side realized total — the previous formula compared the bot's net (cost-deducted) P&L with the exchange's gross (pre-fees) P&L and fired spurious EQUITY_DRIFT alerts on otherwise-aligned books.
+
 ## [11.7.26] — 2026-04-30
 - **Admin**: position rows now tinted green/red on win/loss for at-a-glance scanning, and the remaining-time column is bolder + color-coded (red in the last 6h, yellow in the last 12h).
 
