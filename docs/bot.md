@@ -304,6 +304,7 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - Extreme-condition entry filters (S9 r24h cap a 1500/2000/2500 + S5 vol_z cap a 4/5/6 + 2 combos) — `backtest_extreme_filters.py` 8 variantes × 5 windows, aucune ne passe 5/5. Patterns visibles dans live big losers (BLUR S9 r24h=2325 -$20, LDO S5 vol_z=7.2 -$21) ne se generalisent pas : les S9 a r24h>2000 et S5 a vol_z>5 contiennent autant de winners futurs que de losers actuels. Confirme l'overlap ~70% du `backtest_mfe_rollback_audit.py`.
 - Kill-switch drift par strategie (pause si WR < X sur N trades) — `backtest_drift_killswitch.py` → aucune config N/seuil ne bat la baseline 4/4.
 - OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h) — `backtest_oi_sizing.py` → meme pattern que les gates, rejete.
+- Vol_z conditionnel sizing reduction (×0.5 / ×0.7 sur S5/S9/S5+S9 quand entry vol_z ≥ {1.5, 2.0, 2.5, 3.0}) — `backtest_volz_sizing.py` → 24 combos × 4 windows, 0/24 passe 4/4. Tous deltas negatifs partout. Confirme que les entrees high-vol_z incluent autant de big winners que de big losers : reduire le size ampute le compounding sur les memes trades qui produisent l'edge. Le sizing-reduction n'est pas une issue, comme deja vu pour `Sizing adaptatif WR/Sharpe` et `OI sizing`.
 - S10 pocket (capital dedie S10) — commentaire `S10_CAPITAL_SHARE = 0` dans `config.py` : "no pocket — backtest: +48% P&L vs 15%". Tester un pocket = deja teste, perd 48%.
 
 **Signaux / familles rejetees**

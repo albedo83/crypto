@@ -228,6 +228,7 @@ def run_window(features, data, sector_features, dxy_data,
                extra_candidate_fn=None,
                block_opposite_sector: bool = False,
                size_multiplier: dict | None = None,
+               size_fn=None,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -566,6 +567,9 @@ def run_window(features, data, sector_features, dxy_data,
             size = strat_size(cand["strat"], capital)
             if size_multiplier is not None:
                 size *= size_multiplier.get(cand["strat"], 1.0)
+            # v11.7.28+ experimental: per-candidate size adjustment hook
+            if size_fn is not None:
+                size *= size_fn(cand, f)
             positions[coin] = {
                 "dir": cand["dir"], "entry": entry, "idx": idx_f + 1,
                 "entry_t": data[coin][idx_f + 1]["t"],
