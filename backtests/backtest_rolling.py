@@ -230,6 +230,7 @@ def run_window(features, data, sector_features, dxy_data,
                size_multiplier: dict | None = None,
                size_fn=None,
                btc_corr_exit: dict | None = None,
+               runner_extension: dict | None = None,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -358,6 +359,22 @@ def run_window(features, data, sector_features, dxy_data,
                         and cur_bps <= mae + early_exit_params["slack_bps"]):
                     exit_reason = "dead_timeout"
                     exit_price = current
+
+            # Runner extension: at the natural timeout, if the position is
+            # still showing strong upside (high MFE retained), extend hold by
+            # `extra_candles`. Idea: catch winners that are still riding momentum
+            # at end of normal hold. Only fires once (uses pos["extended"] flag).
+            if (held >= pos["hold"] and not pos.get("extended", False)
+                    and runner_extension is not None):
+                strats = runner_extension.get("strategies")
+                if strats is None or pos["strat"] in strats:
+                    cur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                    mfe_bps = pos.get("mfe", 0)
+                    min_mfe = runner_extension.get("min_mfe_bps", 500)
+                    min_ratio = runner_extension.get("min_cur_to_mfe", 0.5)
+                    if mfe_bps >= min_mfe and (mfe_bps == 0 or cur_bps / mfe_bps >= min_ratio):
+                        pos["hold"] += runner_extension.get("extra_candles", 6)
+                        pos["extended"] = True
 
             if held >= pos["hold"]:
                 exit_reason = exit_reason or "timeout"

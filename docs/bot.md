@@ -307,6 +307,8 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h) — `backtest_oi_sizing.py` → meme pattern que les gates, rejete.
 - Vol_z conditionnel sizing reduction (×0.5 / ×0.7 sur S5/S9/S5+S9 quand entry vol_z ≥ {1.5, 2.0, 2.5, 3.0}) — `backtest_volz_sizing.py` → 24 combos × 4 windows, 0/24 passe 4/4. Tous deltas negatifs partout. Confirme que les entrees high-vol_z incluent autant de big winners que de big losers : reduire le size ampute le compounding sur les memes trades qui produisent l'edge. Le sizing-reduction n'est pas une issue, comme deja vu pour `Sizing adaptatif WR/Sharpe` et `OI sizing`.
 - Concurrent-exposure throttle (size ×0.5 / ×0.7 quand n_positions ≥ {3, 4, 5}, scope all/S5/S9) — `backtest_concurrent_throttle.py` → 18 combos × 4 windows, 0/18 robuste. Les triggers sur n_positions ≥ 4/5 fire trop rarement sur les windows recentes (Δ=0 sur 6m/3m). Pas d'evidence que la concurrence cree un risque additionnel exploitable au-dela des limites dures existantes (MAX_POSITIONS=6, MAX_SAME_DIRECTION=4).
+- Hold-length tuning per strategy (S5/S8/S9/S10/S1 × 5-7 hold values) — `backtest_hold_tuning.py` 30 combos. Aucun 4/4 strict avec DD intact. Best : S9 hold=60h (vs 48h actuel) → 3/4 (28m +4621, 12m +910, 6m +95, 3m -1pp). Le 3m flat (-1pp) suffit pour rejet. Indication que S9 voudrait peut-etre un hold plus long, mais l'extension conditionnelle (`backtest_runner_extension.py`) capture mieux ce signal.
+- S9F (S9 fast 2h) promotion check (post-hoc forward-looking sur 702 observations LIVE+PAPER+JUNIOR) — hold 2h: WR 26%, avg -21 bps. Hold 4-12h: WR 48%, avg -34 to -44 bps. Hold 24h: WR 56%, avg +5 bps (deja S9 actuel). Confirme que les moves extremes sur 2h **continuent** plutot que de revert. S9F doit rester en observation pure, ne pas promouvoir comme strategie tradee.
 - S10 pocket (capital dedie S10) — commentaire `S10_CAPITAL_SHARE = 0` dans `config.py` : "no pocket — backtest: +48% P&L vs 15%". Tester un pocket = deja teste, perd 48%.
 
 **Signaux / familles rejetees**
@@ -341,6 +343,9 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - **Trade blacklist SUI/IMX/LINK** (v11.4.10)
 - **Dead-timeout early exit D2** (v11.7.2)
 - **Dispersion gate S5+S9** (v11.7.28) — `DISP_GATE_BPS=700`, `DISP_GATE_STRATEGIES={S5,S9}`
+
+**Passent le walk-forward — en attente de decision deploiement** :
+- **S9 runner extension** (`backtest_runner_extension.py`, session 2026-05-01) — `extend S9 hold by +12h when MFE >= 1200 bps and current >= 30% of MFE`. Walk-forward 4/4 avec DD intact (legerement mieux): 28m +6432pp / 12m +605pp / 6m +117pp / 3m +6pp = avg +1790pp. ΔDD avg -0.9pp (DD ameliore). Logique : S9 est mean-reversion ; quand le fade marche, il tend a continuer au-dela des 48h. L'extension capture la queue du movement. Variantes plus conservatrices (cur/mfe≥0.5 ou 0.7) restent 4/4 mais avec gain reduit (+1338pp / +699pp). Elargi a S5 ou autre strats : casse le 4/4. Decision utilisateur attendue.
 
 ### Trade blacklist (v11.4.10)
 
