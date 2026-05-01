@@ -319,6 +319,7 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - Cross-momentum — rejete.
 - Volume exhaustion — rejete.
 - Sessions Asia/EU/US — rejete.
+- Skip S5 weekend / Sunday-only (filtre per-strat × session) — `backtest_session_filter.py` 10 variantes (S5/S8/S9/S10 × {weekend, Fri21+WE, Sat, Sun, Night}, plus skip-all). Meilleurs : `skip S5 weekend` et `skip S5 Sun only` font 3/4 (28m +12000pp, 6m+3m positifs) mais 12m negatif (-127pp). Le pattern observe en LIVE+PAPER (S5-WE WR=28%, total -$215 sur 25 trades) est cale sur de vieilles dynamiques (28m beneficie, 12m casse). Rejet : pas robuste a la fenetre recente. Skip ALL weekend / Night = 0/4 partout (les autres strats gagnent le weekend).
 - Token rotation (retirer les tokens less-performant mensuellement) — rejete : la performance tourne trop vite, le retrait des pires casse le compounding.
 - Regime gating general (pause selon BTC regime) — rejete.
 
