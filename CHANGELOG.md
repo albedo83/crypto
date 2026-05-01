@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.8.0] — 2026-05-01
+- **Trading engine**: minor bump marking a strategy update — new conditional hold rule on one strategy, walk-forward validated, no DD penalty.
+
 ## [11.7.33] — 2026-05-01
 - **Dashboard**: new "Backtests" button next to "Release notes" — opens a modal with the rolling-window summary (sanitized: drops parameter names, source scripts, per-strategy P&L breakdown and the strat-attribution column).
 
