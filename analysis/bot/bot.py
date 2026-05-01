@@ -19,6 +19,7 @@ import numpy as np
 from .config import (
     VERSION, EXECUTION_MODE, HL_PRIVATE_KEY, HL_ACCOUNT_ADDRESS, CAPITAL_USDT,
     TRADE_SYMBOLS, ALL_SYMBOLS, SCAN_INTERVAL, TICKS_DB, STATE_FILE,
+    DISP_GATE_BPS, DISP_GATE_STRATEGIES,
 )
 from .models import SymbolState, Position, Trade
 from . import features, signals, db as db_mod, net, persistence, trading, web
@@ -207,7 +208,6 @@ class MultiSignalBot:
             # v11.7.28 dispersion gate: skip mean-reversion strats (S5/S9) when
             # cross-sectional dispersion is at p98+ extreme. See config.py for
             # rationale. Logs SKIP event so the rule is auditable in events DB.
-            from .config import DISP_GATE_BPS, DISP_GATE_STRATEGIES
             if cross_ctx["disp_24h"] >= DISP_GATE_BPS:
                 gated = [s for s in token_sigs if s["strategy"] in DISP_GATE_STRATEGIES]
                 token_sigs = [s for s in token_sigs if s["strategy"] not in DISP_GATE_STRATEGIES]

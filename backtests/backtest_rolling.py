@@ -348,24 +348,16 @@ def run_window(features, data, sector_features, dxy_data,
                     exit_reason = "stop"
                     exit_price = pos["entry"] * (1 - stop / 1e4)
 
-            # Dead-timeout early exit (option D): if trade is close to timeout,
-            # has never shown meaningful MFE, and is still pinned near its MAE,
-            # crystallize the loss now instead of waiting for timeout at MAE.
-            if (not exit_reason and early_exit_params is not None
-                    and held >= pos["hold"] - early_exit_params["exit_lead_candles"]):
-                cur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
-                mfe = pos.get("mfe", 0.0)
-                mae = pos.get("mae", 0.0)
-                if (mfe <= early_exit_params["mfe_cap_bps"]
-                        and mae <= early_exit_params["mae_floor_bps"]
-                        and cur_bps <= mae + early_exit_params["slack_bps"]):
-                    exit_reason = "dead_timeout"
-                    exit_price = current
-
             # Runner extension: at the natural timeout, if the position is
             # still showing strong upside (high MFE retained), extend hold by
-            # `extra_candles`. Idea: catch winners that are still riding momentum
-            # at end of normal hold. Only fires once (uses pos["extended"] flag).
+            # `extra_candles`. Idea: catch winners still riding momentum at
+            # end of normal hold. Only fires once (uses pos["extended"]).
+            # NOTE: order mirrors `trading.check_exits` in the live bot —
+            # runner extension first (pre-timeout), then timeout, then stop /
+            # S9 early / S10 trailing, dead_timeout last. With the current
+            # thresholds runner_ext (mfe ≥ 1200) and dead_timeout (mfe ≤ 150)
+            # are mutually exclusive, but keeping the order aligned protects
+            # against silent divergences if thresholds change.
             if (held >= pos["hold"] and not pos.get("extended", False)
                     and runner_extension is not None):
                 strats = runner_extension.get("strategies")
@@ -374,7 +366,7 @@ def run_window(features, data, sector_features, dxy_data,
                     mfe_bps = pos.get("mfe", 0)
                     min_mfe = runner_extension.get("min_mfe_bps", 500)
                     min_ratio = runner_extension.get("min_cur_to_mfe", 0.5)
-                    if mfe_bps >= min_mfe and (mfe_bps == 0 or cur_bps / mfe_bps >= min_ratio):
+                    if mfe_bps >= min_mfe and cur_bps / mfe_bps >= min_ratio:
                         pos["hold"] += runner_extension.get("extra_candles", 6)
                         pos["extended"] = True
 
@@ -394,6 +386,23 @@ def run_window(features, data, sector_features, dxy_data,
                     ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
                     if ur_bps <= mfe - S10_TRAILING_OFFSET:
                         exit_reason = "s10_trailing"
+
+            # Dead-timeout early exit (option D): if trade is close to timeout,
+            # has never shown meaningful MFE, and is still pinned near its MAE,
+            # crystallize the loss now instead of waiting for timeout at MAE.
+            # Mirrors live bot order — checked LAST, after timeout / stop /
+            # s9_early / s10_trailing. (Was placed earlier in the chain in
+            # earlier versions; relocated here for bot-vs-backtest parity.)
+            if (not exit_reason and early_exit_params is not None
+                    and held >= pos["hold"] - early_exit_params["exit_lead_candles"]):
+                cur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                mfe = pos.get("mfe", 0.0)
+                mae = pos.get("mae", 0.0)
+                if (mfe <= early_exit_params["mfe_cap_bps"]
+                        and mae <= early_exit_params["mae_floor_bps"]
+                        and cur_bps <= mae + early_exit_params["slack_bps"]):
+                    exit_reason = "dead_timeout"
+                    exit_price = current
 
             # Optional extra-strategy trailing stop (sweep parameter)
             if (not exit_reason and trailing_extra is not None

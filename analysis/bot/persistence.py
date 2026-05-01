@@ -124,6 +124,7 @@ def save_state(state_file: str, positions: dict, pos_lock,
             "trajectory": p.trajectory,
             "entry_oi_delta": p.entry_oi_delta, "entry_crowding": p.entry_crowding,
             "entry_confluence": p.entry_confluence, "entry_session": p.entry_session,
+            "extended": p.extended,
         } for p in positions.values()]
     data = {
         "version": VERSION, "capital": capital,
@@ -205,6 +206,7 @@ def load_state(state_file: str, states: dict) -> dict:
                     entry_crowding=p.get("entry_crowding", 0),
                     entry_confluence=p.get("entry_confluence", 0),
                     entry_session=p.get("entry_session", ""),
+                    extended=p.get("extended", False),
                 )
             except (KeyError, ValueError, TypeError) as e:
                 log.error("Skipping corrupt position %s: %s", sym, e)

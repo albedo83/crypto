@@ -1,5 +1,9 @@
 # Changelog
 
+## [11.8.1] — 2026-05-01
+- **Trading engine (bug fix)**: persisted state now retains the extension marker for the conditional hold rule, preventing redundant extensions after a restart; backtest and live exit-check ordering re-aligned.
+- **Dashboard**: Backtests modal now renders markdown tables.
+
 ## [11.8.0] — 2026-05-01
 - **Trading engine**: minor bump marking a strategy update — new conditional hold rule on one strategy, walk-forward validated, no DD penalty.
 

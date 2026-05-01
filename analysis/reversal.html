@@ -71,6 +71,11 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 .modal-body code{background:#1c2128;padding:1px 5px;border-radius:3px;color:#d29922;font-size:12px}
 .modal-body strong{color:#e6edf3}
 .modal-body p{color:#c9d1d9;margin:4px 0}
+.modal-body .md-table{border-collapse:collapse;width:100%;margin:8px 0;font-size:11px}
+.modal-body .md-table th{background:#161b22;border-bottom:1px solid #30363d;padding:6px 8px;text-align:left;color:#7d8590;font-weight:600;font-size:10px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+.modal-body .md-table td{border-bottom:1px solid #21262d;padding:5px 8px;color:#c9d1d9;white-space:nowrap}
+.modal-body .md-table tbody tr:hover{background:#161b22}
+@media(max-width:640px){.modal-body .md-table{font-size:10px}.modal-body .md-table th,.modal-body .md-table td{padding:4px 5px}}
 .pnl-chart{width:100%;height:180px;background:#161b22;border:1px solid #30363d;border-radius:8px;position:relative;overflow:hidden}
 .price-chart{width:100%;height:300px;background:#161b22;border:1px solid #30363d;border-radius:8px;position:relative;overflow:hidden}
 .sym-bar{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px}
@@ -565,23 +570,38 @@ function sparkline(traj,w=70,h=24){
 }
 function addCapital(){const a=prompt('DCA amount ($):');if(!a)return;const v=parseFloat(a);if(isNaN(v)||v===0){alert('Invalid amount');return}if(!confirm((v>0?'Deposit':'Withdraw')+' $'+Math.abs(v)+' ?'))return;fetch('api/capital',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:v})}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else{alert('Capital: $'+j.old+' -> $'+j.new);refresh()}}).catch(e=>alert('Error: '+e));}
 
-// Minimal markdown → HTML: H2/H3 headings, list bullets, inline code, bold.
+// Minimal markdown → HTML: H2/H3 headings, list bullets, inline code, bold,
+// pipe-delimited tables (| col | col | with --- separator row).
 function renderMarkdown(md){
   const esc=(s)=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-  const lines=md.split('\n');let out='';let inList=false;
-  for(let line of lines){
-    if(line.startsWith('## ')){if(inList){out+='</ul>';inList=false}out+='<h2>'+esc(line.slice(3))+'</h2>';continue}
-    if(line.startsWith('# ')){if(inList){out+='</ul>';inList=false}out+='<h1>'+esc(line.slice(2))+'</h1>';continue}
-    if(line.startsWith('### ')){if(inList){out+='</ul>';inList=false}out+='<h3>'+esc(line.slice(4))+'</h3>';continue}
-    if(line.startsWith('- ')){if(!inList){out+='<ul>';inList=true}
-      let item=esc(line.slice(2)).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
-      out+='<li>'+item+'</li>';continue}
-    if(inList){out+='</ul>';inList=false}
+  const inline=(s)=>esc(s).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+  const lines=md.split('\n');let out='';let inList=false;let inTable=false;
+  const closeTable=()=>{if(inTable){out+='</tbody></table>';inTable=false}};
+  const closeList=()=>{if(inList){out+='</ul>';inList=false}};
+  for(let i=0;i<lines.length;i++){
+    let line=lines[i];
+    if(line.startsWith('## ')){closeList();closeTable();out+='<h2>'+esc(line.slice(3))+'</h2>';continue}
+    if(line.startsWith('# ')){closeList();closeTable();out+='<h1>'+esc(line.slice(2))+'</h1>';continue}
+    if(line.startsWith('### ')){closeList();closeTable();out+='<h3>'+esc(line.slice(4))+'</h3>';continue}
+    // Markdown table: header row followed by "|---|---|..." separator
+    if(line.startsWith('|')&&i+1<lines.length&&/^\|[\s\-|:]+\|$/.test(lines[i+1].trim())){
+      closeList();closeTable();
+      const cells=line.split('|').slice(1,-1).map(c=>'<th>'+inline(c.trim())+'</th>');
+      out+='<table class="md-table"><thead><tr>'+cells.join('')+'</tr></thead><tbody>';
+      inTable=true;i++;continue;  // skip the separator row
+    }
+    if(inTable&&line.startsWith('|')){
+      const cells=line.split('|').slice(1,-1).map(c=>'<td>'+inline(c.trim())+'</td>');
+      out+='<tr>'+cells.join('')+'</tr>';continue;
+    }
+    if(inTable){closeTable()}
+    if(line.startsWith('- ')){closeTable();if(!inList){out+='<ul>';inList=true}
+      out+='<li>'+inline(line.slice(2))+'</li>';continue}
+    closeList();
     if(line.trim()===''){out+='<br>';continue}
-    let p=esc(line).replace(/`([^`]+)`/g,'<code>$1</code>').replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
-    out+='<p>'+p+'</p>';
+    out+='<p>'+inline(line)+'</p>';
   }
-  if(inList)out+='</ul>';
+  closeList();closeTable();
   return out;
 }
 function showChangelog(){
