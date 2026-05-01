@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.7.31"
+VERSION = "11.7.32"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -230,6 +230,17 @@ OI_GATE_MIN_HISTORY_HOURS = 23  # require at least 23h of OI history to activate
 # the last 12 months → ~6 entries skipped per year. Kill-switch: set to 99999.
 DISP_GATE_BPS = 700.0
 DISP_GATE_STRATEGIES: frozenset[str] = frozenset({"S5", "S9"})
+
+# v11.7.32 runner extension — when an S9 position reaches its natural timeout
+# while still showing strong upside (high MFE retained), extend the hold by
+# RUNNER_EXT_HOURS to capture the continuation of the mean-reversion. Mirrors
+# the dead_timeout logic but for winners. Walk-forward 4/4 with DD intact (-0.9pp
+# avg) on `backtests/backtest_runner_extension.py`. Fires on subset of S9
+# winners (~1-2× per month). Kill-switch: empty RUNNER_EXT_STRATEGIES.
+RUNNER_EXT_STRATEGIES: frozenset[str] = frozenset({"S9"})
+RUNNER_EXT_HOURS = 12              # extra hold time when condition met
+RUNNER_EXT_MIN_MFE_BPS = 1200.0    # MFE must have reached this peak
+RUNNER_EXT_MIN_CUR_TO_MFE = 0.3    # current unrealized must be >= 30% of MFE
 
 # ── Timing ──────────────────────────────────────────────────────────
 SCAN_INTERVAL = 3600

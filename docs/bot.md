@@ -343,9 +343,7 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - **Trade blacklist SUI/IMX/LINK** (v11.4.10)
 - **Dead-timeout early exit D2** (v11.7.2)
 - **Dispersion gate S5+S9** (v11.7.28) — `DISP_GATE_BPS=700`, `DISP_GATE_STRATEGIES={S5,S9}`
-
-**Passent le walk-forward — en attente de decision deploiement** :
-- **S9 runner extension** (`backtest_runner_extension.py`, session 2026-05-01) — `extend S9 hold by +12h when MFE >= 1200 bps and current >= 30% of MFE`. Walk-forward 4/4 avec DD intact (legerement mieux): 28m +6432pp / 12m +605pp / 6m +117pp / 3m +6pp = avg +1790pp. ΔDD avg -0.9pp (DD ameliore). Logique : S9 est mean-reversion ; quand le fade marche, il tend a continuer au-dela des 48h. L'extension capture la queue du movement. Variantes plus conservatrices (cur/mfe≥0.5 ou 0.7) restent 4/4 mais avec gain reduit (+1338pp / +699pp). Elargi a S5 ou autre strats : casse le 4/4. Decision utilisateur attendue.
+- **S9 runner extension** (v11.7.32) — `RUNNER_EXT_HOURS=12`, `MIN_MFE_BPS=1200`, `MIN_CUR_TO_MFE=0.3`
 
 ### Trade blacklist (v11.4.10)
 

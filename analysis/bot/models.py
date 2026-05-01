@@ -41,6 +41,7 @@ class Position:
     entry_crowding: int = 0          # crowding score at entry (0-100)
     entry_confluence: int = 0        # count of extreme features at entry (0-5)
     entry_session: str = ""          # Asia/EU/US/Night/WE
+    extended: bool = False           # v11.7.32: target_exit was extended by runner_extension once
 
 
 @dataclass

@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.32] — 2026-05-01
+- **Trading engine**: new conditional hold extension on a single mean-reversion strategy when a position has built up a large favorable excursion at its natural timeout — captures the continuation of the move that would otherwise be cut. Walk-forward 4/4 with no DD penalty, fires on a small fraction of trades.
+
 ## [11.7.31] — 2026-05-01
 - **Admin**: Junior bot now correctly shows the LIVE badge — admin reads each bot's actual execution mode from its `/api/state` (with `admin_config.json` as offline fallback) instead of trusting the static config alone.
 

@@ -21,6 +21,8 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, FUNDING_DRAG_BPS, MAX_POS
                      S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
                      DEAD_TIMEOUT_LEAD_HOURS, DEAD_TIMEOUT_MFE_CAP_BPS,
                      DEAD_TIMEOUT_MAE_FLOOR_BPS, DEAD_TIMEOUT_SLACK_BPS,
+                     RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
+                     RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
                      OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size)
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
@@ -214,6 +216,28 @@ def check_exits(bot) -> int:
             stop = STOP_LOSS_BPS
 
         exit_reason = None
+        # v11.7.32 Runner extension: at natural timeout, if a winner is still
+        # close to its MFE peak, extend the hold once by RUNNER_EXT_HOURS to
+        # capture continuation. Mirror of dead_timeout but for winners.
+        # Walk-forward 4/4 with DD intact on `backtest_runner_extension.py`.
+        if (now >= target_exit and not pos.extended
+                and strategy in RUNNER_EXT_STRATEGIES
+                and pos.mfe_bps >= RUNNER_EXT_MIN_MFE_BPS
+                and (pos.mfe_bps == 0 or unrealized / pos.mfe_bps >= RUNNER_EXT_MIN_CUR_TO_MFE)):
+            new_target = target_exit + timedelta(hours=RUNNER_EXT_HOURS)
+            with bot._pos_lock:
+                if sym in bot.positions:
+                    bot.positions[sym].target_exit = new_target
+                    bot.positions[sym].extended = True
+            target_exit = new_target  # local update for the rest of this iteration
+            log.info("⏭ RUNNER_EXT %s %s: MFE %+.0f cur %+.0f → hold +%dh "
+                     "(new exit %s)", strategy, sym, pos.mfe_bps, unrealized,
+                     RUNNER_EXT_HOURS, new_target.strftime("%m-%d %H:%M"))
+            log_event(bot._db, "RUNNER_EXT", sym,
+                      {"strategy": strategy, "mfe_bps": round(pos.mfe_bps, 1),
+                       "current_bps": round(unrealized, 1),
+                       "extra_hours": RUNNER_EXT_HOURS,
+                       "new_exit": new_target.isoformat()})
         # Exit price defaults to live mark (used for timeout and for live-mode
         # fallback). For price-triggered exits, use the trigger price so paper
         # P&L matches the trigger and doesn't book the worse intra-scan drift.

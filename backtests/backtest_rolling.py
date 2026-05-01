@@ -38,6 +38,8 @@ from analysis.bot.config import (
     S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
     OI_LONG_GATE_BPS, TRADE_BLACKLIST,
     DISP_GATE_BPS, DISP_GATE_STRATEGIES,
+    RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
+    RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
 )
 from bisect import bisect_right
 
@@ -894,6 +896,17 @@ def main():
     )
     print(f"D2 dead-timeout exit active: {early_exit_params}")
 
+    # v11.7.32 runner extension — mirror production config so backtest reflects
+    # the live bot's behavior. Empty RUNNER_EXT_STRATEGIES disables the rule.
+    runner_ext_cfg = ({
+        "strategies": RUNNER_EXT_STRATEGIES,
+        "extra_candles": RUNNER_EXT_HOURS // 4,
+        "min_mfe_bps": RUNNER_EXT_MIN_MFE_BPS,
+        "min_cur_to_mfe": RUNNER_EXT_MIN_CUR_TO_MFE,
+    } if RUNNER_EXT_STRATEGIES else None)
+    if runner_ext_cfg:
+        print(f"Runner extension active: {runner_ext_cfg}")
+
     # BACKTEST_CAPITALS env var: comma-separated list of starting capitals.
     # Default "1000" (single-capital, legacy behavior). E.g. "500,1000" runs
     # each window with both capitals and produces a side-by-side table.
@@ -913,6 +926,7 @@ def main():
             r = run_window(features, data, sector_features, dxy_data, start_ts, end_ts,
                            start_capital=cap,
                            oi_data=oi_data, early_exit_params=early_exit_params,
+                           runner_extension=runner_ext_cfg,
                            funding_data=funding_data)
             r["label"] = label
             r["start_date"] = start_dt.strftime("%Y-%m-%d")
