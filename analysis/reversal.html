@@ -300,6 +300,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <span class="info" id="params"></span>
   <div class="header-actions" style="margin-left:auto;display:flex;gap:6px;align-items:center">
     <button class="btn-small" onclick="showChangelog()">Release notes</button>
+    <button class="btn-small" onclick="showBacktests()">Backtests</button>
     <button class="btn-small" onclick="addCapital()" style="background:#238636;color:#fff;border-color:#2ea043">+ DCA</button>
   </div>
 </div>
@@ -311,6 +312,16 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
       <button class="modal-close" onclick="closeChangelog()">×</button>
     </div>
     <div class="modal-body" id="changelog-body">Chargement…</div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="backtests-modal" onclick="if(event.target===this)closeBacktests()">
+  <div class="modal">
+    <div class="modal-header">
+      <h2>Backtests — rolling windows</h2>
+      <button class="modal-close" onclick="closeBacktests()">×</button>
+    </div>
+    <div class="modal-body" id="backtests-body">Chargement…</div>
   </div>
 </div>
 
@@ -584,7 +595,18 @@ function showChangelog(){
   }).catch(e=>{body.innerHTML='Error: '+e});
 }
 function closeChangelog(){document.getElementById('changelog-modal').classList.remove('open');}
-document.addEventListener('keydown',(e)=>{if(e.key==='Escape')closeChangelog();});
+function showBacktests(){
+  const modal=document.getElementById('backtests-modal');
+  const body=document.getElementById('backtests-body');
+  body.innerHTML='Loading…';
+  modal.classList.add('open');
+  fetch('api/backtests',{credentials:'same-origin'}).then(x=>x.json()).then(j=>{
+    if(j.content)body.innerHTML=renderMarkdown(j.content);
+    else body.innerHTML='Error: '+(j.error||'backtests unavailable');
+  }).catch(e=>{body.innerHTML='Error: '+e});
+}
+function closeBacktests(){document.getElementById('backtests-modal').classList.remove('open');}
+document.addEventListener('keydown',(e)=>{if(e.key==='Escape'){closeChangelog();closeBacktests();}});
 
 // Live counters (tick every second)
 let _lastFetch=0;

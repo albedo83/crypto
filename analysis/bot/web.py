@@ -11,7 +11,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from .config import (
     VERSION, EXECUTION_MODE, BOT_LABEL, BOT_LABEL_COLOR,
     CAPITAL_USDT, JUNIOR_CAPITAL_CAP, LEVERAGE, DASHBOARD_USER,
-    DASHBOARD_PASS, AUTH_SALT, HTML_PATH, CHANGELOG_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
+    DASHBOARD_PASS, AUTH_SALT, HTML_PATH, CHANGELOG_PATH, BACKTESTS_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
     MAX_POSITIONS, TOTAL_LOSS_CAP, SCAN_INTERVAL,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS, STOP_LOSS_S8,
     OI_LONG_GATE_BPS, TRADE_BLACKLIST, S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
@@ -432,6 +432,88 @@ def build_pnl_curve(trades, capital: float) -> list:
                     "balance": round(CAPITAL_USDT + cum, 2)})
     return pts
 
+_BACKTESTS_TAIL = """## Méthodologie
+
+- Source : 4h candles Hyperliquid, 28 tokens tradés + BTC/ETH en référence.
+- Entry timing : open de la bougie suivante (no look-ahead).
+- Exit : stop / timeout selon la configuration courante du bot.
+- Positions restantes en fin de fenêtre : mark-to-market au dernier close.
+- Coût de transaction round-trip appliqué à chaque trade ; pas de multiplication par le levier.
+
+## Limites
+
+- Le backtest n'utilise que les bougies 4h ; certaines features live-only (book depth, ticks 60s) ne sont pas modélisées.
+- Pas de modélisation du slippage variable selon la liquidité du carnet — coût fixe.
+- Pas de modélisation du funding variable — coût moyen.
+- Les fenêtres courtes (1 mois, 3 mois) sont statistiquement bruitées. Prendre les résultats avec précaution.
+"""
+
+
+def sanitize_backtests_md(content: str) -> str:
+    """Strip strategy-revealing details from docs/backtests.md for the
+    dashboard modal. Keeps:
+      - The header (date, version, data-through, capitals tested)
+      - The intro paragraph
+      - The "Résumé par fenêtre" table (with "Best strat" column dropped)
+
+    Drops everything else — Filtres actifs, Breakdown par stratégie,
+    detailed Méthodologie / Limites — and replaces the trailing material
+    with a fixed sanitized methodology + limits paragraph (`_BACKTESTS_TAIL`).
+    This guarantees no parameter name, source script, threshold, token
+    whitelist or per-strategy P&L can leak through.
+    """
+    lines = content.split("\n")
+    out: list[str] = []
+    state = "header"  # header → skip → summary → done
+
+    for line in lines:
+        if line.startswith("## "):
+            heading = line[3:].strip().lower()
+            if any(k in heading for k in ("résumé", "summary")):
+                state = "summary"
+                out.append(line)
+                continue
+            else:
+                # Any non-summary heading: if we were in summary, we're done.
+                # If we were in header, we hit a section we want to skip.
+                if state == "summary":
+                    state = "done"
+                    break
+                state = "skip"
+                continue
+
+        if state == "skip":
+            continue
+        if state == "summary":
+            # Inside summary table: drop "Best strat" column
+            if line.startswith("|"):
+                cols = line.split("|")
+                stripped = [c.strip() for c in cols]
+                if "Best strat" in line:
+                    cols = [c for c in cols if "Best strat" not in c]
+                    line = "|".join(cols)
+                elif all(c.strip() in ("", "---") for c in cols) and len(cols) > 4:
+                    cols = cols[:-2] + [cols[-1]]
+                    line = "|".join(cols)
+                elif len(cols) > 4 and stripped[-2] in ("S1", "S5", "S8", "S9", "S10", "-"):
+                    cols = cols[:-2] + [cols[-1]]
+                    line = "|".join(cols)
+            out.append(line)
+        else:  # state == "header"
+            # Drop the auto-regen instruction (mentions backtest_rolling source)
+            if "backtest_rolling" in line or "régénéré automatiquement" in line:
+                continue
+            # Drop the detailed costs breakdown line
+            if "13 bps" in line or "round-trip" in line:
+                continue
+            out.append(line)
+
+    text = "\n".join(out).rstrip() + "\n\n" + _BACKTESTS_TAIL
+    while "\n\n\n" in text:
+        text = text.replace("\n\n\n", "\n\n")
+    return text
+
+
 # ── FastAPI App Factory ───────────────────────────────────────────────
 
 _LOGIN_HTML = """<!DOCTYPE html>
@@ -730,6 +812,23 @@ def create_app(bot) -> FastAPI:
         try:
             with open(CHANGELOG_PATH) as f:
                 return JSONResponse({"content": f.read()})
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.get("/api/backtests")
+    def api_backtests():
+        """Return docs/backtests.md SANITIZED for public display.
+
+        Drops sections that reveal strategy mechanics (filter parameter
+        names, token whitelists/blacklists, per-strategy P&L breakdown,
+        source script names, threshold values, the "Best strat" column).
+        Keeps the rolling-window summary table + sanitized methodology
+        and limits notes.
+        """
+        try:
+            with open(BACKTESTS_PATH) as f:
+                raw = f.read()
+            return JSONResponse({"content": sanitize_backtests_md(raw)})
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
     @app.get("/api/signals")

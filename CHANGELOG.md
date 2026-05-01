@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.33] — 2026-05-01
+- **Dashboard**: new "Backtests" button next to "Release notes" — opens a modal with the rolling-window summary (sanitized: drops parameter names, source scripts, per-strategy P&L breakdown and the strat-attribution column).
+
 ## [11.7.32] — 2026-05-01
 - **Trading engine**: new conditional hold extension on a single mean-reversion strategy when a position has built up a large favorable excursion at its natural timeout — captures the continuation of the move that would otherwise be cut. Walk-forward 4/4 with no DD penalty, fires on a small fraction of trades.
 
