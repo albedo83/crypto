@@ -37,6 +37,7 @@ from analysis.bot.config import (
     S10_ALLOW_LONGS, S10_ALLOWED_TOKENS,
     S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
     OI_LONG_GATE_BPS, TRADE_BLACKLIST,
+    DISP_GATE_BPS, DISP_GATE_STRATEGIES,
 )
 from bisect import bisect_right
 
@@ -262,6 +263,16 @@ def run_window(features, data, sector_features, dxy_data,
     for coin in coins:
         for f in features.get(coin, []):
             feat_by_ts[f["t"]][coin] = f
+
+    # v11.7.28 dispersion gate — precompute cross-sectional std(ret_6h) per ts.
+    # Mirrors the live bot's signals.compute_cross_context "disp_24h" exactly:
+    # ret_6h on 4h candles = 24h return.
+    disp_by_ts: dict[int, float] = {}
+    if DISP_GATE_BPS < 99000:  # kill-switch: disable when set very high
+        for ts, fmap in feat_by_ts.items():
+            rets = [f.get("ret_6h", 0) for f in fmap.values() if "ret_6h" in f]
+            if len(rets) > 4:
+                disp_by_ts[ts] = float(np.std(rets))
 
     btc_candles = data.get("BTC", [])
     btc_closes = np.array([c["c"] for c in btc_candles])
@@ -513,6 +524,11 @@ def run_window(features, data, sector_features, dxy_data,
             if cand["dir"] == 1 and oi_data is not None:
                 oi_d = oi_delta_24h_pct(oi_data, coin, ts)
                 if oi_d is not None and oi_d < -OI_LONG_GATE_BPS:
+                    continue
+            # v11.7.28 dispersion gate — skip mean-reversion in regime breakdowns
+            if cand["strat"] in DISP_GATE_STRATEGIES:
+                d = disp_by_ts.get(ts)
+                if d is not None and d >= DISP_GATE_BPS:
                     continue
             if skip_fn is not None and skip_fn(coin, ts, cand["strat"], cand["dir"]):
                 continue

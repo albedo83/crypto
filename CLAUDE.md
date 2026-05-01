@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.20). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.7.28). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
@@ -95,6 +95,8 @@ Hyperliquid SDK (write)
 **v11.7.16 Dead-timeout tightened**: `DEAD_TIMEOUT_MAE_FLOOR_BPS` from −1000 → −800 (`config.py`). Catches pinned S5 losers ~200 bps sooner. Motivated by recent S5 losers (PENDLE, DYDX) reaching MAE −1000 to −1229 bps before the v11.7.2 logic fired. Walk-forward on `backtest_s5_stops` variant V4: +$9 554 on 28m (S5 alone +$6 278), minor noise on 12m/6m/3m (−$198 / −$104 / −$48), DD unchanged or slightly better on all windows. Not strict 4/4 pass, shipped for asymmetric risk/reward. Kill-switch: set back to −1000.
 
 **v11.7.5 Per-trade funding (live)**: at close, `trading.close_position` calls `exchange.fetch_position_funding()` to sum the exact `user_funding_history` deltas on that coin between `entry_time` and `exit_time`. The flat `FUNDING_DRAG_BPS=1` already baked into `net_bps` is swapped out for the real number: `pnl = size*(net_bps)/1e4 + funding_usdt - flat_funding_usdt`. New column `trades.funding_usdt` (SQLite auto-migrated). Paper mode unchanged (flat model). Rationale: funding is time-dependent (hourly accrual at floating rate) so entry-time estimation is imprecise; the flat 1 bps estimate was ~10× below real drag observed in live (~14 bps avg). Fail-open: HL API failure returns 0 and trade closes with the flat model. Backtests keep the flat model (no candle-level funding data).
+
+**v11.7.28 Dispersion gate (S5+S9)**: before adding S5 or S9 candidates to the per-scan signal list, `bot._scan_and_trade` reads `cross_ctx["disp_24h"]` (cross-sectional std of 24h returns across all 28 tracked alts) and skips the entry when `disp_24h ≥ DISP_GATE_BPS=700` (`config.py`, `DISP_GATE_STRATEGIES = {"S5", "S9"}`). Rationale: S5 (sector divergence) and S9 (extreme-move fade) are mean-reversion strategies; when the cross-sectional distribution is itself broken (alts flying in all directions, p98+ event, ~1.4% of 4h candles in last 12 months), fades catch falling knives. S8 / S10 keep firing because their setup is single-token-mechanic. Walk-forward 4/4 on `backtest_dispersion_filter.py`: +6126pp / +865pp / +8pp / +0.5pp on 28m/12m/6m/3m, ΔDD avg +0.2pp (intact). Skip ~1.2% of entries (~6/year). Logs `SKIP` event with `reason=disp_gate`. Kill-switch: set `DISP_GATE_BPS=99999` or empty `DISP_GATE_STRATEGIES`.
 
 For detailed conditions, parameters, and research behind each signal see **`docs/bot.md`** (French). For the history of changes see **`CHANGELOG.md`**.
 

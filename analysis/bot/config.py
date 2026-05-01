@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.7.27"
+VERSION = "11.7.28"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -217,6 +217,19 @@ LOSS_STREAK_COOLDOWN = 0
 # (28m/12m/6m/3m) with zero DD penalty. Sweet spot plateau 1000-1100 bps.
 OI_LONG_GATE_BPS = 1000.0   # -10% OI in 24h blocks LONG entries
 OI_GATE_MIN_HISTORY_HOURS = 23  # require at least 23h of OI history to activate
+
+# v11.7.28 dispersion gate — skip mean-reversion entries during regime breakdowns.
+# Cross-sectional std(ret_24h) across all tracked alts proxies "alts flying in
+# all directions" (regime fragmentation). Above ~p98 of historical distribution,
+# S5 (sector divergence) and S9 (extreme-move fade) catch falling knives —
+# the mean-reversion thesis fails when the cross-sectional distribution is
+# itself broken. S8 (capitulation flush) and S10 (squeeze fade) keep firing
+# because their setup is tied to single-token mechanics, not cross-sectional
+# stability. Walk-forward validated 4/4 (28m/12m/6m/3m) with zero DD penalty
+# in `backtests/backtest_dispersion_filter.py`. Fires ~1.4% of 4h candles in
+# the last 12 months → ~6 entries skipped per year. Kill-switch: set to 99999.
+DISP_GATE_BPS = 700.0
+DISP_GATE_STRATEGIES: frozenset[str] = frozenset({"S5", "S9"})
 
 # ── Timing ──────────────────────────────────────────────────────────
 SCAN_INTERVAL = 3600

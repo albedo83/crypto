@@ -337,9 +337,7 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - **OI gate LONG** (v11.4.9) — seul gate externe parmi 12 testes
 - **Trade blacklist SUI/IMX/LINK** (v11.4.10)
 - **Dead-timeout early exit D2** (v11.7.2)
-
-**Passent le walk-forward — en attente de decision deploiement** :
-- **Dispersion gate S5+S9** (`backtest_dispersion_filter.py`, session 2026-04-30) — `skip S5/S9 entries when cross-sectional std(ret_24h) >= 700 bps`. Fenetres: 28m +6126pp / 12m +865pp / 6m +8pp / 3m +0.5pp = 4/4. ΔDD avg +0.2pp (intact). Skip ~1.2% des entries (13/1106 sur 28m). Logique : S5 et S9 sont mean-reversion ; en regime de dispersion extreme (p98) les alts s'eparpillent et les fades catchent un couteau. S8/S10 (capitulation flush / squeeze) restent actifs car nature differente. Voisinage du seuil (650/670 : 4/4 mais DD +5pp ; 720+ : 3/4 car le filtre ne fire plus sur 3m). Robustesse confirmee : decision utilisateur attendue.
+- **Dispersion gate S5+S9** (v11.7.28) — `DISP_GATE_BPS=700`, `DISP_GATE_STRATEGIES={S5,S9}`
 
 ### Trade blacklist (v11.4.10)
 

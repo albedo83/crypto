@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.28] — 2026-05-01
+- **Trading engine**: new entry filter for mean-reversion strategies during regime breakdowns — walk-forward validated 4/4 with no DD penalty, fires on rare extreme events (~6× per year).
+
 ## [11.7.27] — 2026-04-30
 - **Trading engine (bug fix)**: equity drift comparator now subtracts taker fees from the exchange-side realized total — the previous formula compared the bot's net (cost-deducted) P&L with the exchange's gross (pre-fees) P&L and fired spurious EQUITY_DRIFT alerts on otherwise-aligned books.
 

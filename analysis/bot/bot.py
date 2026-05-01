@@ -204,6 +204,19 @@ class MultiSignalBot:
 
             token_sigs = signals.detect_token_signals(
                 sym, f, btc_f, sd, sq, oi_tag, entry_ctx)
+            # v11.7.28 dispersion gate: skip mean-reversion strats (S5/S9) when
+            # cross-sectional dispersion is at p98+ extreme. See config.py for
+            # rationale. Logs SKIP event so the rule is auditable in events DB.
+            from .config import DISP_GATE_BPS, DISP_GATE_STRATEGIES
+            if cross_ctx["disp_24h"] >= DISP_GATE_BPS:
+                gated = [s for s in token_sigs if s["strategy"] in DISP_GATE_STRATEGIES]
+                token_sigs = [s for s in token_sigs if s["strategy"] not in DISP_GATE_STRATEGIES]
+                for s in gated:
+                    db_mod.log_event(self._db, "SKIP", sym,
+                                     {"strategy": s["strategy"],
+                                      "dir": "LONG" if s["direction"] == 1 else "SHORT",
+                                      "reason": "disp_gate",
+                                      "disp_24h_bps": cross_ctx["disp_24h"]})
             all_signals.extend(token_sigs)
 
             # S9-fast observation
