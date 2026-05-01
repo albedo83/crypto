@@ -260,6 +260,14 @@ async def api_bots():
             state = await _bot_fetch(port, "state")
             if state:
                 info["version"] = state.get("version", "?")
+                # Source of truth for the mode is the bot itself (its
+                # EXECUTION_MODE env). admin_config.json is just a fallback
+                # when the bot is offline. This auto-corrects misconfigured
+                # static mode labels (e.g. Junior was "paper" before it
+                # went live in v11.7.18).
+                _exec = state.get("execution_mode")
+                if _exec in ("live", "paper"):
+                    info["mode"] = _exec
                 info["balance"] = state.get("balance", 0)
                 info["capital"] = state.get("capital", 0)
                 info["total_pnl"] = state.get("total_pnl", 0)

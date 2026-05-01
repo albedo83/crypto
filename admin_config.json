@@ -5,7 +5,7 @@
      "auth_env": {"user": "DASHBOARD_USER", "pass": "DASHBOARD_PASS"}},
     {"port": 8098, "label": "Live",   "mode": "live",  "path": "/bot",
      "auth_env": {"user": "DASHBOARD_USER", "pass": "DASHBOARD_PASS"}},
-    {"port": 8099, "label": "Junior", "mode": "paper", "path": "/junior",
+    {"port": 8099, "label": "Junior", "mode": "live", "path": "/junior",
      "auth_env": {"user": "JUNIOR_USER", "pass": "JUNIOR_PASS"}}
   ]
 }

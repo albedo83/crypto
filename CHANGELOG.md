@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.31] — 2026-05-01
+- **Admin**: Junior bot now correctly shows the LIVE badge — admin reads each bot's actual execution mode from its `/api/state` (with `admin_config.json` as offline fallback) instead of trusting the static config alone.
+
 ## [11.7.30] — 2026-05-01
 - **Admin**: STOP / RESUME / RAZ buttons moved off the per-bot cards into a dedicated "Controles" screen at the end of the carousel (with a warning banner), so they can't be tapped by accident while scanning bots.
 
