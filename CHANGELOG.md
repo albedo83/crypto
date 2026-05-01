@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.29] — 2026-05-01
+- **Admin**: fix the "Open" button on mobile — pre-open the tab synchronously in the click handler so mobile popup blockers don't reject the post-fetch redirect.
+
 ## [11.7.28] — 2026-05-01
 - **Trading engine**: new entry filter for mean-reversion strategies during regime breakdowns — walk-forward validated 4/4 with no DD penalty, fires on rare extreme events (~6× per year).
 

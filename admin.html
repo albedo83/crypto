@@ -322,11 +322,19 @@ function renderBots(bots){
 
 function openBot(ev,port,path){
   ev.preventDefault();
+  // Mobile popup blockers reject window.open() called inside an async callback.
+  // Pre-open with about:blank synchronously in the click handler, then
+  // redirect once the auth-token fetch resolves.
+  const w=window.open('about:blank','_blank');
   fetch('api/auth-token?port='+port,{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
     const t=d.token||'';
     const url=path?path+'/auth?token='+t:'http://'+location.hostname+':'+port+'/auth?token='+t;
-    window.open(url,'_blank');
-  }).catch(e=>{alert('Error: '+e)});
+    if(w&&!w.closed)w.location.href=url;
+    else alert('Popup bloqué — autorise les popups pour ce site');
+  }).catch(e=>{
+    if(w&&!w.closed)w.close();
+    alert('Error: '+e);
+  });
 }
 function ctrlBot(port,action,label){
   fetch('proxy/'+port+'/api/'+action,{method:'POST',credentials:'same-origin'})
