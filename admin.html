@@ -99,6 +99,18 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
 .offline-card{opacity:.55}
 .offline-msg{text-align:center;padding:40px 14px;color:#484f58;font-size:13px}
 
+/* Dedicated "controls" screen — destructive actions isolated to avoid mis-tap */
+.screen.controls-screen{border-top:3px solid #f85149;background:#1a0d0d}
+.controls-warning{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f8514922;border:1px solid #f85149;border-radius:6px;margin-bottom:14px;font-size:12px;color:#f85149;font-weight:600}
+.controls-warning::before{content:'⚠';font-size:18px}
+.controls-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;margin-bottom:6px;gap:10px}
+.controls-row .label-block{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.controls-row .label-block .name{font-size:14px;font-weight:600}
+.controls-row .label-block .meta{font-size:11px;color:#7d8590}
+.controls-row .btn-row{flex-shrink:0;display:flex;gap:6px}
+.tab.tab-ctrl{color:#f85149;border-color:#f8514944}
+.tab.tab-ctrl.active{background:#f851491a;border-color:#f85149}
+
 /* Desktop: 3-col grid, no carousel, no tabs */
 @media(min-width:900px){
   body{padding:6px 0}
@@ -210,11 +222,12 @@ function renderBots(bots){
   const grid=document.getElementById('bot-screens');
   if(!bots.length){grid.innerHTML='<div class="offline-msg">No bots configured</div>';tabs.innerHTML='';return}
 
-  // Tabs (mobile only via CSS)
+  // Tabs (mobile only via CSS) — bots + dedicated "Controles" tab at end
+  const ctrlIdx=bots.length;  // index of the controls screen
   tabs.innerHTML=bots.map((b,i)=>{
     const dotClass=b.online?(b.paused?'paused':(b.status||'offline')):'offline';
     return `<button class="tab${i===_activeIdx?' active':''}" onclick="jumpTo(${i})"><span class="dot ${dotClass}"></span>${b.label}</button>`;
-  }).join('');
+  }).join('') + `<button class="tab tab-ctrl${_activeIdx===ctrlIdx?' active':''}" onclick="jumpTo(${ctrlIdx})">⚠ Controles</button>`;
 
   // Screens
   grid.innerHTML=bots.map(b=>{
@@ -275,13 +288,6 @@ function renderBots(bots){
       </div>
     `:'<div class="offline-msg" style="grid-column:1/-1">Bot offline</div>';
 
-    const controls=online?`
-      ${b.paused
-        ?`<button class="btn-ctrl resume" onclick="ctrlBot(${b.port},'resume','${b.label}')">RESUME</button>`
-        :`<button class="btn-ctrl stop" onclick="if(confirm('STOP ${b.label} — block new entries?'))ctrlBot(${b.port},'pause','${b.label}')">STOP</button>`}
-      <button class="btn-ctrl raz" onclick="if(confirm('RAZ ${b.label} — reset state & positions?'))ctrlBot(${b.port},'reset','${b.label}')">RAZ</button>
-    `:'';
-
     return `<div class="screen ${online?'':'offline-card'}" ${borderStyle}>
       <div class="screen-head">
         <span class="screen-title">
@@ -303,12 +309,11 @@ function renderBots(bots){
       <div class="screen-foot">
         <span class="version">${online?'v'+(b.version||'?'):':'+b.port}</span>
         <div class="btn-row">
-          ${controls}
           <a class="btn-open" href="#" onclick="openBot(event,${b.port},'${b.path||''}')">Open</a>
         </div>
       </div>
     </div>`;
-  }).join('');
+  }).join('') + renderControlsScreen(bots);
 
   // Re-apply active scroll position after re-render so the user doesn't lose place.
   if(_activeIdx>0&&_activeIdx<bots.length){
@@ -318,6 +323,44 @@ function renderBots(bots){
     }
   }
   setActiveTab(_activeIdx);
+}
+
+function renderControlsScreen(bots){
+  // Dedicated screen at the end of the carousel for destructive actions
+  // (STOP / RESUME / RAZ). Isolated to avoid mis-tap on the per-bot cards.
+  const rows=bots.map(b=>{
+    if(!b.online){
+      return `<div class="controls-row" style="opacity:.5">
+        <div class="label-block"><span class="status-dot offline"></span>
+        <div><div class="name">${b.label}</div><div class="meta">offline (port ${b.port})</div></div></div>
+      </div>`;
+    }
+    const stateLabel=b.paused?'<span class="badge paused">paused</span>':'<span class="badge running">running</span>';
+    const dotClass=b.paused?'paused':(b.status||'ok');
+    const stopOrResume=b.paused
+      ? `<button class="btn-ctrl resume" onclick="if(confirm('RESUME ${b.label} — re-enable new entries?'))ctrlBot(${b.port},'resume','${b.label}')">RESUME</button>`
+      : `<button class="btn-ctrl stop" onclick="if(confirm('STOP ${b.label} — block new entries (existing positions stay open)?'))ctrlBot(${b.port},'pause','${b.label}')">STOP</button>`;
+    const raz=`<button class="btn-ctrl raz" onclick="if(confirm('⚠ RAZ ${b.label} — close ALL positions and reset state. Vraiment continuer ?'))ctrlBot(${b.port},'reset','${b.label}')">RAZ</button>`;
+    return `<div class="controls-row">
+      <div class="label-block">
+        <span class="status-dot ${dotClass}"></span>
+        <div><div class="name">${b.label} ${stateLabel}</div>
+        <div class="meta">${b.n_positions||0} pos · ${b.mode} · v${b.version||'?'}</div></div>
+      </div>
+      <div class="btn-row">${stopOrResume}${raz}</div>
+    </div>`;
+  }).join('');
+  return `<div class="screen controls-screen">
+    <div class="screen-head">
+      <span class="screen-title" style="color:#f85149">⚠ Controles</span>
+      <span class="badges"><span class="badge" style="background:#f8514922;color:#f85149;border:1px solid #f85149">DESTRUCTIVE</span></span>
+    </div>
+    <div class="controls-warning">Actions destructives — bouge-toi de cet ecran si tu n'es pas sur</div>
+    ${rows}
+    <div class="screen-foot" style="border-color:#f8514933;margin-top:10px">
+      <span class="version">STOP = bloque nouvelles entrees · RAZ = ferme tout + reset state</span>
+    </div>
+  </div>`;
 }
 
 function openBot(ev,port,path){

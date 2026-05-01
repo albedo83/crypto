@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.7.30] — 2026-05-01
+- **Admin**: STOP / RESUME / RAZ buttons moved off the per-bot cards into a dedicated "Controles" screen at the end of the carousel (with a warning banner), so they can't be tapped by accident while scanning bots.
+
 ## [11.7.29] — 2026-05-01
 - **Admin**: fix the "Open" button on mobile — pre-open the tab synchronously in the click handler so mobile popup blockers don't reject the post-fetch redirect.
 
