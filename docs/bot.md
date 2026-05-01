@@ -305,6 +305,7 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - Kill-switch drift par strategie (pause si WR < X sur N trades) — `backtest_drift_killswitch.py` → aucune config N/seuil ne bat la baseline 4/4.
 - OI sizing continu (alpha 0.01-0.20 × lookback 6h/24h) — `backtest_oi_sizing.py` → meme pattern que les gates, rejete.
 - Vol_z conditionnel sizing reduction (×0.5 / ×0.7 sur S5/S9/S5+S9 quand entry vol_z ≥ {1.5, 2.0, 2.5, 3.0}) — `backtest_volz_sizing.py` → 24 combos × 4 windows, 0/24 passe 4/4. Tous deltas negatifs partout. Confirme que les entrees high-vol_z incluent autant de big winners que de big losers : reduire le size ampute le compounding sur les memes trades qui produisent l'edge. Le sizing-reduction n'est pas une issue, comme deja vu pour `Sizing adaptatif WR/Sharpe` et `OI sizing`.
+- Concurrent-exposure throttle (size ×0.5 / ×0.7 quand n_positions ≥ {3, 4, 5}, scope all/S5/S9) — `backtest_concurrent_throttle.py` → 18 combos × 4 windows, 0/18 robuste. Les triggers sur n_positions ≥ 4/5 fire trop rarement sur les windows recentes (Δ=0 sur 6m/3m). Pas d'evidence que la concurrence cree un risque additionnel exploitable au-dela des limites dures existantes (MAX_POSITIONS=6, MAX_SAME_DIRECTION=4).
 - S10 pocket (capital dedie S10) — commentaire `S10_CAPITAL_SHARE = 0` dans `config.py` : "no pocket — backtest: +48% P&L vs 15%". Tester un pocket = deja teste, perd 48%.
 
 **Signaux / familles rejetees**
