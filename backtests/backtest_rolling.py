@@ -229,6 +229,7 @@ def run_window(features, data, sector_features, dxy_data,
                block_opposite_sector: bool = False,
                size_multiplier: dict | None = None,
                size_fn=None,
+               btc_corr_exit: dict | None = None,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -395,6 +396,30 @@ def run_window(features, data, sector_features, dxy_data,
                             or pos["strat"] in early_mfe_exit["strategies"])
                 if strat_ok and pos.get("mfe", 0) < early_mfe_exit["mfe_min_bps"]:
                     exit_reason = "early_mfe_absence"
+
+            # Optional BTC-correlation exit (sweep parameter): cut a position
+            # when BTC moves >= threshold_bps against the trade direction
+            # within `lookback_h` hours of entry. Captures the "alts follow
+            # BTC" effect: when BTC dumps mid-LONG-hold (or rallies mid-SHORT),
+            # the position is mathematically going deeper underwater.
+            #   threshold_bps: BTC adverse-move threshold (positive value)
+            #   lookback_h:    max hold-hours during which the rule fires
+            #                  (None = active for full hold)
+            #   apply_long / apply_short: direction scope
+            if (not exit_reason and btc_corr_exit is not None):
+                d_apply = ((pos["dir"] == 1 and btc_corr_exit.get("apply_long"))
+                           or (pos["dir"] == -1 and btc_corr_exit.get("apply_short")))
+                lb_h = btc_corr_exit.get("lookback_h")
+                held_h = held * 4  # candles to hours (4h candles)
+                if d_apply and (lb_h is None or held_h <= lb_h):
+                    e_idx = btc_by_ts.get(pos["entry_t"])
+                    c_idx = btc_by_ts.get(ts)
+                    if e_idx is not None and c_idx is not None:
+                        btc_r = (btc_closes[c_idx] / btc_closes[e_idx] - 1) * 1e4
+                        adverse = ((pos["dir"] == 1 and btc_r <= -btc_corr_exit["threshold_bps"])
+                                   or (pos["dir"] == -1 and btc_r >= btc_corr_exit["threshold_bps"]))
+                        if adverse:
+                            exit_reason = "btc_corr_exit"
 
             # Optional reversal-momentum exit (sweep parameter): exit if the
             # price has moved hard against us in the last N candles AND we're
@@ -568,8 +593,9 @@ def run_window(features, data, sector_features, dxy_data,
             if size_multiplier is not None:
                 size *= size_multiplier.get(cand["strat"], 1.0)
             # v11.7.28+ experimental: per-candidate size adjustment hook
+            # Signature: size_fn(cand, feature_dict, n_positions) -> multiplier
             if size_fn is not None:
-                size *= size_fn(cand, f)
+                size *= size_fn(cand, f, len(positions))
             positions[coin] = {
                 "dir": cand["dir"], "entry": entry, "idx": idx_f + 1,
                 "entry_t": data[coin][idx_f + 1]["t"],
