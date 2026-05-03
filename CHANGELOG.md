@@ -1,17 +1,21 @@
 # Changelog
 
+## [11.8.2] — 2026-05-03
+- **Trading engine**: persist state immediately when the conditional hold rule fires so a crash before the next scan-loop save can't drop the marker.
+- **Dashboard**: sanitizer for the Backtests modal now drops the strat-attribution column by header position instead of by content match — robust to future strategy names.
+
 ## [11.8.1] — 2026-05-01
-- **Trading engine (bug fix)**: persisted state now retains the extension marker for the conditional hold rule, preventing redundant extensions after a restart; backtest and live exit-check ordering re-aligned.
-- **Dashboard**: Backtests modal now renders markdown tables.
+- **Trading engine (bug fix)**: persisted state retains the new strategy marker across restarts; live and backtest exit-check ordering re-aligned.
+- **Dashboard**: Backtests modal renders markdown tables.
 
 ## [11.8.0] — 2026-05-01
-- **Trading engine**: minor bump marking a strategy update — new conditional hold rule on one strategy, walk-forward validated, no DD penalty.
+- **Trading engine**: strategy update.
 
 ## [11.7.33] — 2026-05-01
-- **Dashboard**: new "Backtests" button next to "Release notes" — opens a modal with the rolling-window summary (sanitized: drops parameter names, source scripts, per-strategy P&L breakdown and the strat-attribution column).
+- **Dashboard**: new "Backtests" button next to "Release notes" — opens a modal with the sanitized rolling-window summary.
 
 ## [11.7.32] — 2026-05-01
-- **Trading engine**: new conditional hold extension on a single mean-reversion strategy when a position has built up a large favorable excursion at its natural timeout — captures the continuation of the move that would otherwise be cut. Walk-forward 4/4 with no DD penalty, fires on a small fraction of trades.
+- **Trading engine**: strategy update.
 
 ## [11.7.31] — 2026-05-01
 - **Admin**: Junior bot now correctly shows the LIVE badge — admin reads each bot's actual execution mode from its `/api/state` (with `admin_config.json` as offline fallback) instead of trusting the static config alone.

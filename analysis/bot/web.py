@@ -465,6 +465,7 @@ def sanitize_backtests_md(content: str) -> str:
     lines = content.split("\n")
     out: list[str] = []
     state = "header"  # header → skip → summary → done
+    best_strat_col: int | None = None  # index in the |-split, set on header detection
 
     for line in lines:
         if line.startswith("## "):
@@ -485,18 +486,19 @@ def sanitize_backtests_md(content: str) -> str:
         if state == "skip":
             continue
         if state == "summary":
-            # Inside summary table: drop "Best strat" column
+            # Inside summary table: drop the "Best strat" column.
+            # The header is parsed once to locate the column, then the same
+            # index is dropped from every subsequent row (separator + data).
+            # Keeps the sanitizer robust to new strategy names (S11, S12…).
             if line.startswith("|"):
                 cols = line.split("|")
-                stripped = [c.strip() for c in cols]
-                if "Best strat" in line:
-                    cols = [c for c in cols if "Best strat" not in c]
-                    line = "|".join(cols)
-                elif all(c.strip() in ("", "---") for c in cols) and len(cols) > 4:
-                    cols = cols[:-2] + [cols[-1]]
-                    line = "|".join(cols)
-                elif len(cols) > 4 and stripped[-2] in ("S1", "S5", "S8", "S9", "S10", "-"):
-                    cols = cols[:-2] + [cols[-1]]
+                if best_strat_col is None and "Best strat" in line:
+                    for i, c in enumerate(cols):
+                        if "Best strat" in c:
+                            best_strat_col = i
+                            break
+                if best_strat_col is not None and 0 <= best_strat_col < len(cols):
+                    cols = cols[:best_strat_col] + cols[best_strat_col + 1:]
                     line = "|".join(cols)
             out.append(line)
         else:  # state == "header"

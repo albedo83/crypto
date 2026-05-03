@@ -223,7 +223,7 @@ def check_exits(bot) -> int:
         if (now >= target_exit and not pos.extended
                 and strategy in RUNNER_EXT_STRATEGIES
                 and pos.mfe_bps >= RUNNER_EXT_MIN_MFE_BPS
-                and (pos.mfe_bps == 0 or unrealized / pos.mfe_bps >= RUNNER_EXT_MIN_CUR_TO_MFE)):
+                and unrealized / pos.mfe_bps >= RUNNER_EXT_MIN_CUR_TO_MFE):
             new_target = target_exit + timedelta(hours=RUNNER_EXT_HOURS)
             with bot._pos_lock:
                 if sym in bot.positions:
@@ -238,6 +238,12 @@ def check_exits(bot) -> int:
                        "current_bps": round(unrealized, 1),
                        "extra_hours": RUNNER_EXT_HOURS,
                        "new_exit": new_target.isoformat()})
+            # Persist immediately so a crash before the scan-loop save can't
+            # lose the `extended` flag and re-fire the extension on restart.
+            try:
+                bot._save_state()
+            except Exception:
+                log.exception("save_state after RUNNER_EXT failed")
         # Exit price defaults to live mark (used for timeout and for live-mode
         # fallback). For price-triggered exits, use the trigger price so paper
         # P&L matches the trigger and doesn't book the worse intra-scan drift.
