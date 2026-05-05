@@ -557,10 +557,10 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                 target_exit=target_exit,
                 trajectory=[(0.0, 0.0)],  # t=0 anchor point
                 stop_bps=sig.get("stop_bps", 0.0),
-                entry_oi_delta=ctx.get("oi_delta", 0.0),
-                entry_crowding=ctx.get("crowding", 0),
-                entry_confluence=ctx.get("confluence", 0),
-                entry_session=ctx.get("session", ""),
+                entry_oi_delta=float(ctx.get("oi_delta", 0.0)),
+                entry_crowding=int(ctx.get("crowding", 0) or 0),
+                entry_confluence=int(ctx.get("confluence", 0) or 0),
+                entry_session=ctx.get("session", "") or "",
             )
 
         # Update local counters (avoid re-reading bot.positions mid-scan)

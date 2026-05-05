@@ -186,11 +186,15 @@ class MultiSignalBot:
             _peer_rets = [abs(pf.get("ret_42h", 0)) for pf in _peers if pf]
             _peer_avg = np.mean(_peer_rets) if _peer_rets else 0
             lead = round(abs(f.get("ret_42h", 0)) / _peer_avg, 1) if _peer_avg > 100 else 0
-            conf = sum([
+            # int(...) cast: feature dict values come from numpy/pandas, so
+            # `np.float > X` returns np.bool_ and sum(np.bool_, ...) returns
+            # np.int64 — which SQLite stores as BLOB and JSON refuses to
+            # serialize. Force native int at the source.
+            conf = int(sum([
                 abs(f.get("drawdown", 0)) > 3000, f.get("vol_z", 0) > 1.5,
                 abs(f.get("ret_24h", 0)) > 200, cross_ctx["n_stress_global"] >= 5,
                 oi_f["oi_delta_1h"] < -1.0,
-            ])
+            ]))
             _h = now.hour
             _session = "Asia" if _h < 8 else "EU" if _h < 14 else "US" if _h < 21 else "Night"
             if now.weekday() >= 5:

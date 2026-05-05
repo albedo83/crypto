@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.8.3] — 2026-05-04
+- **Dashboard (bug fix)**: trade history endpoint returned 500 after the first new trade close post-restart — numpy-typed entry context now coerced to native types at the source and at the Position boundary.
+
 ## [11.8.2] — 2026-05-03
 - **Trading engine**: persist state immediately when the conditional hold rule fires so a crash before the next scan-loop save can't drop the marker.
 - **Dashboard**: sanitizer for the Backtests modal now drops the strat-attribution column by header position instead of by content match — robust to future strategy names.
