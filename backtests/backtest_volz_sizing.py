@@ -41,7 +41,7 @@ WINDOWS = [("28m", 28), ("12m", 12), ("6m", 6), ("3m", 3)]
 def make_size_fn(vol_z_thr: float, mult: float, target_strats: set[str]):
     """Returns size_fn: applies `mult` to candidates of target_strats whose
     entry-time vol_z exceeds threshold. 1.0 (no change) otherwise."""
-    def f(cand, feat):
+    def f(cand, feat, _n_positions=0):
         if cand["strat"] not in target_strats:
             return 1.0
         if feat is None:
