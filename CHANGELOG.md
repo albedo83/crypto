@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.8.4] — 2026-05-06
+- **Trading engine (bug fix)**: live order placement now reads the actual filled quantity from the exchange response instead of the requested size — partial fills no longer inflate tracked notional and stop generating recurring size-mismatch alerts.
+
 ## [11.8.3] — 2026-05-04
 - **Dashboard (bug fix)**: trade history endpoint returned 500 after the first new trade close post-restart — numpy-typed entry context now coerced to native types at the source and at the Position boundary.
 

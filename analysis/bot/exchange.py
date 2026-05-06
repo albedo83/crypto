@@ -98,27 +98,42 @@ def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
     if "error" in str(first).lower():
         raise RuntimeError(f"Order error: {first}")
 
-    # Extract fill price from order response (immediate, no API lag)
+    # Extract fill price AND actual filled size from order response. Hyperliquid
+    # may partially fill a market order if the book lacks depth at the slippage
+    # cap — in that case `totalSz` is smaller than the requested `sz`. Returning
+    # the requested sz instead of `totalSz` would inflate Position.size_usdt and
+    # surface as a hourly RECONCILE SIZE MISMATCH alert until close.
     filled = first.get("filled") if isinstance(first, dict) else None
     if filled and "avgPx" in filled:
-        return {"avgPx": float(filled["avgPx"]), "sz": sz}
+        actual_sz = float(filled.get("totalSz", sz))
+        return {"avgPx": float(filled["avgPx"]), "sz": actual_sz}
 
-    # Fallback: query fills API (may lag a few hundred ms behind L1)
+    # Fallback: query fills API (may lag a few hundred ms behind L1).
+    # Sum sz across recent fills on this coin to handle multi-fill orders.
     try:
-        time.sleep(0.5)  # brief wait for indexer to catch up
+        time.sleep(0.5)
         fills = hl_info.user_fills_by_time(
             address, int((time.time() - 30) * 1000))
-        for f in reversed(fills):
-            if f.get("coin") == sym:
-                return {"avgPx": float(f["px"]), "sz": sz}
+        coin_fills = [f for f in fills if f.get("coin") == sym]
+        if coin_fills:
+            total_sz = sum(float(f["sz"]) for f in coin_fills)
+            avg_px = sum(float(f["px"]) * float(f["sz"]) for f in coin_fills) / total_sz
+            return {"avgPx": avg_px, "sz": total_sz}
     except Exception as e:
         log.warning("Fill lookup failed: %s — using market price", e)
 
     return {"avgPx": price, "sz": sz}  # last resort fallback
 
 
-def execute_close(exchange, hl_info, address: str, sym: str) -> float | None:
-    """Close position on Hyperliquid. Returns fill price or None."""
+def execute_close(exchange, hl_info, address: str, sym: str) -> dict | None:
+    """Close position on Hyperliquid.
+
+    Returns {"avgPx": float, "sz": float} so the caller can reconcile
+    Position.size_usdt to the actually-closed quantity (not what the bot
+    thought was open) — covers partial fills at open AND any drift from
+    external interference. Returns None on no-fill, caller falls back to
+    market price + tracked size.
+    """
     log.info("EXEC CLOSE: %s", sym)
     result = exchange.market_close(sym, slippage=0.01)
 
@@ -129,23 +144,24 @@ def execute_close(exchange, hl_info, address: str, sym: str) -> float | None:
     if "error" in str(first).lower():
         raise RuntimeError(f"Close error: {first}")
 
-    # Extract fill price from order response (immediate, no API lag)
     filled = first.get("filled") if isinstance(first, dict) else None
-    if filled and "avgPx" in filled:
-        return float(filled["avgPx"])
+    if filled and "avgPx" in filled and "totalSz" in filled:
+        return {"avgPx": float(filled["avgPx"]), "sz": float(filled["totalSz"])}
 
-    # Fallback: query fills API
+    # Fallback: query fills API and sum recent fills on this coin.
     try:
         time.sleep(0.5)
         fills = hl_info.user_fills_by_time(
             address, int((time.time() - 30) * 1000))
-        for f in reversed(fills):
-            if f.get("coin") == sym:
-                return float(f["px"])
+        coin_fills = [f for f in fills if f.get("coin") == sym]
+        if coin_fills:
+            total_sz = sum(float(f["sz"]) for f in coin_fills)
+            avg_px = sum(float(f["px"]) * float(f["sz"]) for f in coin_fills) / total_sz
+            return {"avgPx": avg_px, "sz": total_sz}
     except Exception as e:
         log.warning("Fill lookup failed: %s", e)
 
-    return None  # caller uses st.price as fallback
+    return None  # caller uses st.price + tracked pos.size_usdt as fallback
 
 
 def fetch_position_funding(hl_info, address: str, coin: str,

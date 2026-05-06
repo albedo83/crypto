@@ -303,9 +303,23 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
     # Execute close on exchange FIRST (live mode) — only pop if successful
     if bot._exchange:
         try:
-            fill_px = execute_close(bot._exchange, bot._hl_info, bot._hl_address, sym)
-            if fill_px:
-                exit_price = fill_px
+            close_result = execute_close(bot._exchange, bot._hl_info, bot._hl_address, sym)
+            if close_result:
+                exit_price = close_result["avgPx"]
+                # Reconcile pos.size_usdt to actual closed notional. Covers the
+                # partial-fill-at-open case where the bot has tracked more
+                # notional than HL actually held — pnl bookkeeping uses
+                # pos.size_usdt downstream, so updating it here keeps the
+                # close P&L aligned with the real cash impact.
+                actual_notional = close_result["sz"] * close_result["avgPx"]
+                with bot._pos_lock:
+                    if sym in bot.positions and close_result["sz"] > 0:
+                        pos_now = bot.positions[sym]
+                        if abs(pos_now.size_usdt - actual_notional) > 1.0:
+                            log.warning(
+                                "CLOSE size reconcile %s: tracked=$%.2f filled=$%.2f — adjusting",
+                                sym, pos_now.size_usdt, actual_notional)
+                            pos_now.size_usdt = actual_notional
             with bot._pos_lock:
                 bot._failed_closes.discard(sym)
         except Exception as e:
