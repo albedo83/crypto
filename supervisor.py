@@ -282,6 +282,54 @@ def load_static_context() -> str:
     return "\n\n".join(chunks)
 
 
+def parse_backtest_for(bot_label: str, capital_int: int) -> dict:
+    """Extract two reference points from docs/backtests.md for divergence checks:
+
+      - `recent_30d`: the rolling "1 mois" window for the matching capital
+        (latest 30 days under current bot params)
+      - `since_start`: the "depuis YYYY-MM-DD (<label>)" anchor for the
+        matching capital (deployment-date anchor, see BOT_DEPLOYMENTS in
+        backtests/backtest_rolling.py)
+
+    Returns a dict with pnl_pct / dd_pct / n_trades / best_strat for each,
+    or {} on parse failure (Claude falls back to the static extrapolation).
+    """
+    path = os.path.join(REPO_ROOT, "docs", "backtests.md")
+    if not os.path.exists(path):
+        return {}
+    label_lc = bot_label.lower()
+    cap_str = f"${capital_int}" if capital_int < 1000 else f"${capital_int:,}".replace(",", " ")
+    out: dict = {}
+    try:
+        with open(path) as f:
+            for raw in f:
+                line = raw.strip()
+                if not line.startswith("|"):
+                    continue
+                cols = [c.strip() for c in line.split("|")[1:-1]]
+                # Columns: Window | Start | Capital | Balance | PnL | PnL% | DD% | Trades | WR | Strat
+                if len(cols) < 10 or cols[2] != cap_str:
+                    continue
+                window = cols[0]
+                try:
+                    pnl_pct = float(cols[5].rstrip("%"))
+                    dd_pct = float(cols[6].rstrip("%"))
+                    n_trades = int(cols[7])
+                    strat = cols[9]
+                except (ValueError, IndexError):
+                    continue
+                row = {"pnl_pct": pnl_pct, "dd_pct": dd_pct,
+                       "n_trades": n_trades, "best_strat": strat}
+                if window == "1 mois":
+                    out["recent_30d"] = row
+                elif window == f"depuis 2026-03-26 ({label_lc})" or (
+                        window.startswith("depuis ") and window.endswith(f"({label_lc})")):
+                    out["since_start"] = row
+    except Exception:
+        return {}
+    return out
+
+
 def compress_bot_state(bot_data: dict) -> dict:
     """Reduce bot state payloads to what's useful for analysis.
 
@@ -323,6 +371,17 @@ def compress_bot_state(bot_data: dict) -> dict:
     compressed["uptime_s"] = state.get("uptime_s")
     compressed["last_scan_s"] = state.get("last_scan_s")
 
+    # Backtest reference points for THIS bot (parsed from docs/backtests.md).
+    # Lets Claude compute live-vs-backtest divergence on actual numbers
+    # instead of extrapolating an annualized rate. recent_30d = rolling
+    # "1 mois" at this bot's capital. since_start = bot's deployment-date
+    # anchor (added by backtests/backtest_rolling.py BOT_DEPLOYMENTS).
+    cap = state.get("capital")
+    if cap:
+        ref = parse_backtest_for(bot_data["label"], int(cap))
+        if ref:
+            compressed["backtest_ref"] = ref
+
     # Recent trades — keep last 30
     trades = bot_data.get("trades") or []
     if isinstance(trades, list):
@@ -353,26 +412,32 @@ def build_user_prompt(bot_states: list[dict]) -> str:
         "`live_wr_recent`)\n"
         "- `anomalies` / `suggestions` : ciblent le comportement du Live\n\n"
         "## Section `bilan` — comparaison live vs backtest\n\n"
+        "**PRIORITÉ : utilise `backtest_ref` du state si présent** "
+        "(injecté à partir de `docs/backtests.md` au capital exact du bot). "
+        "C'est la VRAIE référence pour cette fenêtre de marché. Sinon (fallback) "
+        "extrapole le 28m annualisé.\n\n"
         "Remplis le champ `bilan` en **calculant** les comparaisons :\n\n"
-        "1. `days_live` : jours depuis le premier trade (utilise `first_trade_date` "
-        "du state)\n"
+        "1. `days_live` : jours depuis le premier trade (utilise `first_trade_date`)\n"
         "2. `pnl_realized` et `pnl_pct` : valeurs directes du state\n"
         "3. `unrealized_bps_sum` : somme des MFE actuels des positions ouvertes "
         "(optionnel, 0 si pas de positions)\n"
-        "4. `backtest_expected_pnl` et `backtest_expected_pct` : le backtest 28m "
-        "affiche +5000% soit ~+181%/an compounded ≈ **+9.1%/mois compounded**. "
-        "Extrapole au prorata des `days_live` sur le capital initial Live "
-        "(regarde `capital` dans state). Formule : "
-        "`capital * ((1.091)^(days/30) - 1)`.\n"
+        "4. `backtest_expected_pct` et `backtest_expected_pnl` : utilise "
+        "**`backtest_ref.since_start.pnl_pct`** (anchor de la date de "
+        "déploiement). C'est ce que le backtest aurait produit avec les "
+        "params actuels sur EXACTEMENT la même fenêtre. "
+        "`backtest_expected_pnl = capital * pct / 100`. "
+        "Si `backtest_ref` absent : fallback extrapolation `capital * ((1.091)^(days/30) - 1)`.\n"
         "5. `vs_backtest_ratio` : `pnl_realized / backtest_expected_pnl`. "
         "1.0 = aligné, <0.5 = sous-performance, >1.5 = surperformance.\n"
-        "6. `regime_note` : **1 phrase** expliquant si l'écart vient du régime "
-        "(ex: 'S10 idle 3j — pas de squeezes en vol élevée'), d'un drawdown, "
-        "ou d'un bug. Context : `docs/backtests.md` montre que mars-avril 2026 "
-        "est -16.3% (régime flat/bear) vs +93.5% sur 1m antérieur.\n\n"
-        "Ne pas paniquer si `vs_backtest_ratio < 0.5` sur <30 jours : variance "
-        "normale d'un petit échantillon. Signaler une anomalie seulement si "
-        "<0.3 pendant 7+ jours consécutifs ou si drawdown > -20%.\n\n"
+        "6. `regime_note` : **1 phrase**. Mentionne aussi la dérive vs "
+        "`backtest_ref.recent_30d.pnl_pct` (qui montre ce qu'a fait le marché "
+        "des 30 derniers jours dans le backtest, à comparer avec `pnl_pct` live "
+        "des 30j).\n\n"
+        "**Divergence live↔backtest** : Si `vs_backtest_ratio` est entre 0.5 et 2.0, "
+        "c'est dans la variance normale (sampling 4h vs 1h, fees réelles, etc.). "
+        "Flag une `anomaly` severity=warn si **|pnl_pct - backtest_ref.since_start.pnl_pct| > 10pp** "
+        "ET que cet écart persiste depuis 7+ jours consécutifs. "
+        "Flag severity=alert si l'écart > 20pp OU si drawdown > -20%.\n\n"
         "Analyse l'activité des 24-48h, détecte anomalies sur le Live, "
         "propose des suggestions concrètes.\n\n"
     )

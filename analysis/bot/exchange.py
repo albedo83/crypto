@@ -311,12 +311,36 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
                 exch_coin_qty = abs(ex["szi"])
                 if bot_coin_qty > 0:
                     ratio = exch_coin_qty / bot_coin_qty
-                    if ratio < 0.95 or ratio > 1.05:
+                    # Auto-sync when bot tracks materially MORE than the exchange
+                    # holds (ratio < 0.9). Typical cause: partial fill at open
+                    # before v11.8.4, manual UI close, or external interference.
+                    # Mutating bot_pos.size_usdt is safe because pos_snapshot is
+                    # a shallow copy of bot.positions — Position objects are
+                    # shared. Subsequent reconciles see ratio ~1.0, no spam.
+                    if ratio < 0.9:
+                        adjusted_size = exch_coin_qty * bot_pos.entry_price
+                        log.warning(
+                            "RECONCILE: AUTO-SYNC %s bot=%.4f coins exch=%.4f "
+                            "(ratio %.2f) — size_usdt %.2f → %.2f",
+                            sym, bot_coin_qty, exch_coin_qty, ratio,
+                            bot_pos.size_usdt, adjusted_size)
+                        bot_pos.size_usdt = adjusted_size
+                        send_telegram_fn(
+                            f"🔧 Auto-sync {sym}: bot oversized "
+                            f"({bot_coin_qty:.4f} → {exch_coin_qty:.4f} coins, "
+                            f"size_usdt → ${adjusted_size:.0f})",
+                            category="reconcile")
+                    elif ratio < 0.95 or ratio > 1.05:
+                        # Smaller mismatches OR the rare bot-undersized case
+                        # (ratio > 1.05): keep alerting, don't auto-fix. The
+                        # latter would mean the exchange has MORE than the bot
+                        # tracks — could indicate a stale ghost or a manual
+                        # add. Auto-syncing UP is dangerous; let the user see.
                         log.warning("RECONCILE: SIZE MISMATCH %s bot=%.4f coins exch=%.4f (ratio %.2f)",
                                     sym, bot_coin_qty, exch_coin_qty, ratio)
                         send_telegram_fn(
                             f"⚠️ Size mismatch {sym}: bot={bot_coin_qty:.4f} "
-                            f"exch={exch_coin_qty:.4f} coins",
+                            f"exch={exch_coin_qty:.4f} coins (ratio {ratio:.2f})",
                             category="reconcile")
 
         if not orphans and not ghosts:

@@ -420,6 +420,13 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
     bot.trades.append(trade)
     write_trade(trade, bot._db)
     write_trajectory(sym, pos, bot._db)
+    log_event(bot._db, "CLOSE", sym, {
+        "strategy": pos.strategy, "dir": trade.direction,
+        "exit_price": round(exit_price, 6), "hold_h": round(hold_h, 1),
+        "gross_bps": round(gross_bps, 1), "net_bps": round(net_bps, 1),
+        "pnl_usdt": round(pnl, 2), "mae_bps": round(pos.mae_bps, 1),
+        "mfe_bps": round(pos.mfe_bps, 1), "reason": reason,
+    })
 
     n = len(bot.trades)
     balance = bot._capital + bot._total_pnl
@@ -576,6 +583,12 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                 entry_confluence=int(ctx.get("confluence", 0) or 0),
                 entry_session=ctx.get("session", "") or "",
             )
+        log_event(bot._db, "OPEN", sym, {
+            "strategy": sig["strategy"], "dir": side,
+            "entry_price": round(entry_price, 6), "size_usdt": round(filled_size, 2),
+            "target_exit": target_exit.isoformat(),
+            "stop_bps": round(sig.get("stop_bps", 0.0), 1),
+        })
 
         # Update local counters (avoid re-reading bot.positions mid-scan)
         n_total += 1
