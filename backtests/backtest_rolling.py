@@ -233,6 +233,7 @@ def run_window(features, data, sector_features, dxy_data,
                size_fn=None,
                btc_corr_exit: dict | None = None,
                runner_extension: dict | None = None,
+               partial_profit: dict | None = None,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -326,6 +327,38 @@ def run_window(features, data, sector_features, dxy_data,
                 pos["mfe"] = best_bps
             if worst_bps < pos.get("mae", 0):
                 pos["mae"] = worst_bps
+
+            # Optional partial profit-taking: when MFE crosses trigger and
+            # not yet taken, exit `fraction` of the size at the current price.
+            # Mirrors a live "scan & half-close" behavior. Fires once per
+            # position. The remaining half continues with normal exit rules.
+            if (partial_profit is not None
+                    and pos["strat"] in partial_profit.get("strategies", set())
+                    and not pos.get("partial_taken", False)
+                    and pos.get("mfe", 0) >= partial_profit.get("trigger_bps", 1000)):
+                fraction = partial_profit.get("fraction", 0.5)
+                cur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                partial_size = pos["size"] * fraction
+                gross = cur_bps
+                net = gross - COST
+                partial_pnl = partial_size * net / 1e4
+                if funding_data is not None:
+                    partial_funding = compute_funding_cost(
+                        funding_data, coin, pos["dir"],
+                        pos["entry_t"], ts, partial_size)
+                    partial_pnl -= partial_funding
+                capital += partial_pnl
+                peak_capital = max(peak_capital, capital)
+                dd_p = (capital - peak_capital) / peak_capital * 100 if peak_capital > 0 else 0
+                max_dd_pct = min(max_dd_pct, dd_p)
+                trades.append({
+                    "pnl": partial_pnl, "net": net, "dir": pos["dir"],
+                    "strat": pos["strat"], "coin": coin,
+                    "entry_t": pos["entry_t"], "exit_t": ts,
+                    "reason": "partial_profit", "size": partial_size,
+                })
+                pos["size"] = pos["size"] - partial_size
+                pos["partial_taken"] = True
 
             # Per-strategy stop in price-move bps (not leveraged)
             if pos["strat"] == "S8":
