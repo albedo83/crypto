@@ -697,8 +697,19 @@ def run_window(features, data, sector_features, dxy_data,
 
 # ── Rolling runner & report writer ─────────────────────────────────────
 
+# Bot deployment dates — what would the strategy have produced from the
+# day each bot started, with current parameters? Direct comparison to live
+# realized P&L. Update if a bot is reset/redeployed (date of first entry).
+BOT_DEPLOYMENTS = [
+    ("paper",  "2026-03-25"),
+    ("live",   "2026-03-26"),
+    ("junior", "2026-04-29"),
+]
+
+
 def rolling_windows(end_dt: datetime) -> list[tuple[str, datetime]]:
-    """Return (label, start_dt) pairs for standard rolling windows + monthly starts."""
+    """Return (label, start_dt) pairs for standard rolling windows + monthly
+    starts + per-bot deployment-date anchors."""
     windows = [
         ("28 mois", end_dt - relativedelta(months=28)),
         ("12 mois", end_dt - relativedelta(months=12)),
@@ -711,6 +722,12 @@ def rolling_windows(end_dt: datetime) -> list[tuple[str, datetime]]:
         month_start = (end_dt.replace(day=1) - relativedelta(months=i - 1))
         if month_start < end_dt:
             windows.append((f"depuis {month_start.strftime('%Y-%m-%d')}", month_start))
+    # Per-bot deployment anchors (label kept "depuis YYYY-MM-DD ..." so the
+    # /backtest comparator picks them up as anchored windows).
+    for bot_label, ds in BOT_DEPLOYMENTS:
+        dt = datetime.fromisoformat(ds).replace(tzinfo=timezone.utc)
+        if dt < end_dt:
+            windows.append((f"depuis {ds} ({bot_label})", dt))
     return windows
 
 
