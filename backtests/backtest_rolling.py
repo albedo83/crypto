@@ -178,15 +178,23 @@ def load_dxy():
     return result
 
 
-def detect_squeeze(candles, idx, vol_ratio):
-    if vol_ratio > S10_VOL_RATIO_MAX or idx < S10_SQUEEZE_WINDOW + S10_REINT_CANDLES + 2:
+def detect_squeeze(candles, idx, vol_ratio, candle_scale: int = 1):
+    """Detect S10 squeeze pattern.
+
+    `candle_scale` lets the caller scale the time-based windows to non-4h
+    grids. Default 1 = use config values (S10_SQUEEZE_WINDOW=3 means 12h on
+    4h grid). Pass candle_scale=4 for 1h grid (12h = 12 candles instead of 3).
+    """
+    sq_window = S10_SQUEEZE_WINDOW * candle_scale
+    reint = S10_REINT_CANDLES * candle_scale
+    if vol_ratio > S10_VOL_RATIO_MAX or idx < sq_window + reint + 2:
         return None
-    for bo_offset in range(1, S10_REINT_CANDLES + 1):
+    for bo_offset in range(1, reint + 1):
         bo_idx = idx - bo_offset
-        sq_start = bo_idx - S10_SQUEEZE_WINDOW
+        sq_start = bo_idx - sq_window
         if sq_start < 0:
             continue
-        sq = candles[sq_start:sq_start + S10_SQUEEZE_WINDOW]
+        sq = candles[sq_start:sq_start + sq_window]
         rh = max(c["h"] for c in sq)
         rl = min(c["l"] for c in sq)
         rs = rh - rl
@@ -201,7 +209,7 @@ def detect_squeeze(candles, idx, vol_ratio):
         if above and below:
             continue
         bo_dir = 1 if above else -1
-        ri_end = min(bo_idx + 1 + S10_REINT_CANDLES, idx + 1)
+        ri_end = min(bo_idx + 1 + reint, idx + 1)
         for ri in range(bo_idx + 1, ri_end):
             if rl <= candles[ri]["c"] <= rh:
                 return -bo_dir
@@ -234,8 +242,14 @@ def run_window(features, data, sector_features, dxy_data,
                btc_corr_exit: dict | None = None,
                runner_extension: dict | None = None,
                partial_profit: dict | None = None,
+               interval_hours: int = 4,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
+
+    `interval_hours` (default 4) tells the engine how many hours each candle
+    represents. Used to scale HOLD_CANDLES, S9_EARLY_EXIT_CANDLES, and the
+    DEAD_TIMEOUT lead so the same TIME-based hold/exit semantics apply
+    regardless of candle granularity. For a 1h backtest, pass interval_hours=1.
 
     P&L math matches the live bot (v11.3.0+): size_usdt is the notional, so
     pnl = notional × (exit/entry - 1). No extra leverage multiplier.
@@ -298,6 +312,13 @@ def run_window(features, data, sector_features, dxy_data,
     capital = start_capital
     peak_capital = start_capital
     max_dd_pct = 0.0
+
+    # Scale candle-count constants from the default 4h grid to whatever
+    # `interval_hours` the caller is using. For 4h: factor 1 (no change).
+    # For 1h: factor 4 (HOLD_HOURS_S5=48 → 48 candles instead of 12).
+    _scale = 4 / interval_hours
+    hold_candles = {k: int(v * _scale) for k, v in HOLD_CANDLES.items()}
+    s9_early_exit_candles = int(S9_EARLY_EXIT_CANDLES * _scale)
 
     sorted_ts = sorted(ts for ts in all_ts if start_ts_ms <= ts <= end_ts_ms)
 
@@ -407,7 +428,7 @@ def run_window(features, data, sector_features, dxy_data,
                 exit_reason = exit_reason or "timeout"
 
             # S9 early exit: cut if not reverting after S9_EARLY_EXIT_HOURS
-            if not exit_reason and pos["strat"] == "S9" and held >= S9_EARLY_EXIT_CANDLES:
+            if not exit_reason and pos["strat"] == "S9" and held >= s9_early_exit_candles:
                 ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
                 if ur_bps < S9_EARLY_EXIT_BPS:
                     exit_reason = "s9_early_exit"
@@ -546,7 +567,7 @@ def run_window(features, data, sector_features, dxy_data,
             if btc30 > 2000:
                 candidates.append({
                     "coin": coin, "dir": 1, "strat": "S1",
-                    "z": STRAT_Z["S1"], "hold": HOLD_CANDLES["S1"],
+                    "z": STRAT_Z["S1"], "hold": hold_candles["S1"],
                     "strength": max(f.get("ret_42h", 0), 0),
                 })
 
@@ -554,7 +575,7 @@ def run_window(features, data, sector_features, dxy_data,
             if sf and abs(sf["divergence"]) >= S5_DIV_THRESHOLD and sf["vol_z"] >= S5_VOL_Z_MIN:
                 candidates.append({
                     "coin": coin, "dir": 1 if sf["divergence"] > 0 else -1, "strat": "S5",
-                    "z": STRAT_Z["S5"], "hold": HOLD_CANDLES["S5"],
+                    "z": STRAT_Z["S5"], "hold": hold_candles["S5"],
                     "strength": abs(sf["divergence"]),
                 })
 
@@ -564,7 +585,7 @@ def run_window(features, data, sector_features, dxy_data,
                     and btc7 < S8_BTC_7D_THRESH):
                 candidates.append({
                     "coin": coin, "dir": 1, "strat": "S8",
-                    "z": STRAT_Z["S8"], "hold": HOLD_CANDLES["S8"],
+                    "z": STRAT_Z["S8"], "hold": hold_candles["S8"],
                     "strength": abs(f["drawdown"]),
                 })
 
@@ -574,20 +595,21 @@ def run_window(features, data, sector_features, dxy_data,
                            if S9_ADAPTIVE_STOP else 0)
                 candidates.append({
                     "coin": coin, "dir": s9_dir, "strat": "S9",
-                    "z": STRAT_Z["S9"], "hold": HOLD_CANDLES["S9"],
+                    "z": STRAT_Z["S9"], "hold": hold_candles["S9"],
                     "strength": abs(ret_24h), "stop": s9_stop,
                 })
 
             if coin in coin_by_ts and ts in coin_by_ts[coin]:
                 ci = coin_by_ts[coin][ts]
-                sq_dir = detect_squeeze(data[coin], ci, f.get("vol_ratio", 2))
+                sq_dir = detect_squeeze(data[coin], ci, f.get("vol_ratio", 2),
+                                        candle_scale=int(_scale))
                 if sq_dir:
                     s10_block = ((not S10_ALLOW_LONGS and sq_dir == 1)
                                  or coin not in S10_ALLOWED_TOKENS)
                     if not s10_block:
                         candidates.append({
                             "coin": coin, "dir": sq_dir, "strat": "S10",
-                            "z": STRAT_Z["S10"], "hold": HOLD_CANDLES["S10"],
+                            "z": STRAT_Z["S10"], "hold": hold_candles["S10"],
                             "strength": 1000,
                         })
 
