@@ -242,6 +242,8 @@ def run_window(features, data, sector_features, dxy_data,
                btc_corr_exit: dict | None = None,
                runner_extension: dict | None = None,
                partial_profit: dict | None = None,
+               giveback: dict | None = None,
+               stop_override: dict | None = None,
                interval_hours: int = 4,
                funding_data: dict | None = None) -> dict:
     """Run the portfolio backtest on a time window.
@@ -381,8 +383,13 @@ def run_window(features, data, sector_features, dxy_data,
                 pos["size"] = pos["size"] - partial_size
                 pos["partial_taken"] = True
 
-            # Per-strategy stop in price-move bps (not leveraged)
-            if pos["strat"] == "S8":
+            # Per-strategy stop in price-move bps (not leveraged).
+            # `stop_override` lets the caller test tighter/looser stops on a
+            # specific strategy without re-coding everything (e.g., test a
+            # tighter S5 stop while keeping S8/S9 unchanged).
+            if stop_override and pos["strat"] in stop_override:
+                stop = stop_override[pos["strat"]]
+            elif pos["strat"] == "S8":
                 stop = STOP_LOSS_S8
             elif pos.get("stop", 0) != 0:
                 stop = pos["stop"]
@@ -457,6 +464,16 @@ def run_window(features, data, sector_features, dxy_data,
                         and cur_bps <= mae + early_exit_params["slack_bps"]):
                     exit_reason = "dead_timeout"
                     exit_price = current
+
+            # Optional give-back exit: exit if MFE crossed `min_mfe_bps` AND
+            # current is now ≤ `max_current_bps`. Asymmetric — only fires on
+            # winners that turned negative, not on continuous trailing decay.
+            if (not exit_reason and giveback is not None
+                    and pos["strat"] in giveback.get("strategies", set())):
+                cur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                if (pos.get("mfe", 0) >= giveback.get("min_mfe_bps", 100)
+                        and cur_bps <= giveback.get("max_current_bps", 0)):
+                    exit_reason = "giveback"
 
             # Optional extra-strategy trailing stop (sweep parameter)
             if (not exit_reason and trailing_extra is not None
