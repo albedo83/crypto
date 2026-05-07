@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.9.0] — 2026-05-07
+- **Trading engine**: universe expanded with one new L1 token, walk-forward validated.
+
 ## [11.8.5] — 2026-05-07
 - **Trading engine + Dashboard**: every position open/close now writes a structured event for the dashboard timeline and audit queries; reconcile auto-corrects the tracked size when the bot diverges from the exchange instead of alerting indefinitely.
 - **Infra**: supervisor compares the live bot's run-since-deployment against the matching backtest window and flags persistent divergence in the daily report.

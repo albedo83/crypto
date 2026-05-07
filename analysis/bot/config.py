@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.8.5"
+VERSION = "11.9.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -60,6 +60,7 @@ TRADE_SYMBOLS = [
     "DOGE", "WLD", "BLUR", "LINK", "PYTH",
     "SOL", "INJ", "CRV", "LDO", "STX", "GMX",
     "IMX", "SAND", "GALA", "MINA",
+    "TON",  # v11.9.0: universe expansion (4/4 walk-forward 12m/6m/3m/1m, +944pp sum, ΔDD 0)
 ]
 REFERENCE = ["BTC", "ETH"]
 ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
@@ -78,7 +79,7 @@ TRADE_BLACKLIST: set[str] = {"SUI", "IMX", "LINK"}
 
 # ── Sectors (for S5 divergence) ─────────────────────────────────────
 SECTORS = {
-    "L1":     ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI"],
+    "L1":     ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI", "TON"],
     "DeFi":   ["AAVE", "MKR", "CRV", "SNX", "PENDLE", "COMP", "DYDX", "LDO", "GMX"],
     "Gaming": ["GALA", "IMX", "SAND"],
     "Infra":  ["LINK", "PYTH", "STX", "INJ", "ARB", "OP"],
