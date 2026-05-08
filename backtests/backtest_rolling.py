@@ -40,6 +40,8 @@ from analysis.bot.config import (
     DISP_GATE_BPS, DISP_GATE_STRATEGIES,
     RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
     RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
+    ADAPTIVE_ALPHA, MACRO_LOOKBACK_DAYS, MACRO_Z_WINDOW_DAYS,
+    MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX,
 )
 from bisect import bisect_right
 
@@ -245,7 +247,8 @@ def run_window(features, data, sector_features, dxy_data,
                giveback: dict | None = None,
                stop_override: dict | None = None,
                interval_hours: int = 4,
-               funding_data: dict | None = None) -> dict:
+               funding_data: dict | None = None,
+               apply_adaptive_modulator: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
     `interval_hours` (default 4) tells the engine how many hours each candle
@@ -299,6 +302,31 @@ def run_window(features, data, sector_features, dxy_data,
     btc_candles = data.get("BTC", [])
     btc_closes = np.array([c["c"] for c in btc_candles])
     btc_by_ts = {c["t"]: i for i, c in enumerate(btc_candles)}
+
+    # v11.10.0 adaptive macro modulator (mirrors live bot exactly).
+    # Precompute btc_z per ts so the modulator can be applied at entry time.
+    # Only built when no custom size_fn (caller wants the canonical behavior).
+    btc_z_map: dict[int, float] = {}
+    cpd = max(1, 24 // max(1, interval_hours))  # candles per day
+    n_lb = MACRO_LOOKBACK_DAYS * cpd
+    n_zw = MACRO_Z_WINDOW_DAYS * cpd
+    if apply_adaptive_modulator and size_fn is None and len(btc_closes) >= n_lb + 30:
+        # Compute ret_lb at every candle, then rolling z-score using only past
+        rets_history: list[float] = []
+        for i in range(n_lb, len(btc_closes)):
+            if btc_closes[i - n_lb] > 0:
+                rets_history.append(float(btc_closes[i] / btc_closes[i - n_lb] - 1))
+            else:
+                rets_history.append(0.0)
+        for j in range(len(rets_history)):
+            past = rets_history[max(0, j - n_zw):j + 1]
+            if len(past) < 30:
+                continue
+            past_arr = np.array(past)
+            mean = float(past_arr.mean())
+            std = float(past_arr.std()) or 1.0
+            ts_j = btc_candles[n_lb + j]["t"]
+            btc_z_map[ts_j] = (rets_history[j] - mean) / std
 
     def btc_ret(ts: int, lookback: int) -> float:
         if ts not in btc_by_ts:
@@ -696,6 +724,14 @@ def run_window(features, data, sector_features, dxy_data,
             # Signature: size_fn(cand, feature_dict, n_positions) -> multiplier
             if size_fn is not None:
                 size *= size_fn(cand, f, len(positions))
+            elif btc_z_map:
+                # v11.10.0 default adaptive modulator (mirrors live)
+                alpha = ADAPTIVE_ALPHA.get(cand["strat"], 0.0)
+                if alpha != 0:
+                    z = btc_z_map.get(ts, 0.0)
+                    z_clip = max(-MACRO_Z_CLIP, min(MACRO_Z_CLIP, z))
+                    m = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
+                    size *= m
             positions[coin] = {
                 "dir": cand["dir"], "entry": entry, "idx": idx_f + 1,
                 "entry_t": data[coin][idx_f + 1]["t"],
@@ -794,12 +830,18 @@ def rolling_windows(end_dt: datetime) -> list[tuple[str, datetime]]:
         month_start = (end_dt.replace(day=1) - relativedelta(months=i - 1))
         if month_start < end_dt:
             windows.append((f"depuis {month_start.strftime('%Y-%m-%d')}", month_start))
-    # Per-bot deployment anchors (label kept "depuis YYYY-MM-DD ..." so the
-    # /backtest comparator picks them up as anchored windows).
-    for bot_label, ds in BOT_DEPLOYMENTS:
+    # Per-bot deployment anchors (label kept "depuis YYYY-MM-DD" — the bot
+    # identity is intentionally NOT included; backtests.md is exposed via
+    # /api/changelog and stays anonymous).
+    seen_dates: set[str] = {w[0].replace("depuis ", "") for w in windows
+                             if w[0].startswith("depuis ")}
+    for _, ds in BOT_DEPLOYMENTS:
+        if ds in seen_dates:
+            continue
         dt = datetime.fromisoformat(ds).replace(tzinfo=timezone.utc)
         if dt < end_dt:
-            windows.append((f"depuis {ds} ({bot_label})", dt))
+            windows.append((f"depuis {ds}", dt))
+            seen_dates.add(ds)
     return windows
 
 
@@ -1025,7 +1067,8 @@ def main():
                            start_capital=cap,
                            oi_data=oi_data, early_exit_params=early_exit_params,
                            runner_extension=runner_ext_cfg,
-                           funding_data=funding_data)
+                           funding_data=funding_data,
+                           apply_adaptive_modulator=True)
             r["label"] = label
             r["start_date"] = start_dt.strftime("%Y-%m-%d")
             results.append(r)
