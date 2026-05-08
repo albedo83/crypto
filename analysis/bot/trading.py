@@ -539,14 +539,30 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
         # `1 + α × btc_z`, where btc_z is the rolling z-score of BTC ret_30d.
         # See config.ADAPTIVE_ALPHA + backtest_adaptive_robustness.py.
         alpha = ADAPTIVE_ALPHA.get(sig["strategy"], 0.0)
+        modulator_mult: float | None = None
+        modulator_z: float | None = None
         if alpha != 0 and bot._btc_z is not None:
             z_clip = max(-MACRO_Z_CLIP, min(MACRO_Z_CLIP, bot._btc_z))
-            mult = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
-            size = round(size * mult, 2)
+            modulator_mult = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
+            modulator_z = bot._btc_z
+            size = round(size * modulator_mult, 2)
         # Loss streak penalty: protects against correlated losses
         # (e.g. flash crash hitting multiple positions simultaneously)
         if time.time() < bot._loss_streak_until:
             size = round(size * LOSS_STREAK_MULTIPLIER, 2)
+        # v11.10.1: skip explicit if post-modulator size below the live exchange
+        # minimum ($10). Without this, execute_open raises ValueError and the
+        # try/except logs an alarming "Order too small" — clean SKIP instead.
+        if size < 10:
+            log.debug("SKIP %s %s %s: post-modulator size $%.2f < $10",
+                      sig["strategy"], side, sym, size)
+            log_event(bot._db, "SKIP", sym, {
+                "strategy": sig["strategy"], "dir": side,
+                "reason": "modulator_floor",
+                "size": size, "btc_z": round(modulator_z, 3) if modulator_z is not None else None,
+                "mult": round(modulator_mult, 3) if modulator_mult is not None else None,
+            })
+            continue
 
         # Quarantine and exposure cap DISABLED — backtest shows they destroy
         # compounding returns (-59% to -95% P&L). Per-trade stops are sufficient.
@@ -597,6 +613,8 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             "entry_price": round(entry_price, 6), "size_usdt": round(filled_size, 2),
             "target_exit": target_exit.isoformat(),
             "stop_bps": round(sig.get("stop_bps", 0.0), 1),
+            "btc_z": round(modulator_z, 3) if modulator_z is not None else None,
+            "mult": round(modulator_mult, 3) if modulator_mult is not None else None,
         })
 
         # Update local counters (avoid re-reading bot.positions mid-scan)

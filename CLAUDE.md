@@ -8,21 +8,21 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 11.10.0). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 11.10.1). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
 - **Paper** (`HL_MODE=paper`, default): simulates positions in memory, reads prices from Hyperliquid public API
 - **Live** (`HL_MODE=live`): places real orders via `hyperliquid-python-sdk`, reconciles with exchange every scan
 
-Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_CHAT_ID`, `DASHBOARD_USER`, `DASHBOARD_PASS`. Junior adds `JUNIOR_HL_PRIVATE_KEY`, `JUNIOR_USER`, `JUNIOR_PASS`, `JUNIOR_TG_BOT_TOKEN`, `JUNIOR_TG_CHAT_ID`. Junior also passes `HL_ACCOUNT_ADDRESS` and `HL_EQUITY_MODE=perps` directly in `start_bots.sh` (not in `.env`).
+Config in `.env` (gitignored): `HL_MODE`, `HL_PRIVATE_KEY`, `TG_BOT_TOKEN`, `TG_CHAT_ID`, `DASHBOARD_USER`, `DASHBOARD_PASS`. Junior adds `JUNIOR_HL_PRIVATE_KEY`, `JUNIOR_USER`, `JUNIOR_PASS`, `JUNIOR_TG_BOT_TOKEN`, `JUNIOR_TG_CHAT_ID`. Junior also passes `HL_ACCOUNT_ADDRESS` directly in `start_bots.sh` (not in `.env`).
 
 ### Junior wallet model (v11.7.17+)
 
 Junior uses Hyperliquid's **API agent wallet** model — different from the live bot's single-key model:
 
 - **Live** (`:8098`): `HL_PRIVATE_KEY` IS the wallet. The key signs orders AND holds funds. `init_exchange()` is called without `account_address`. Equity computed via legacy formula `spot.total + unrealized` (HL holds perps margin in spot, hence the formula).
-- **Junior** (`:8099`): `JUNIOR_HL_PRIVATE_KEY` is just a signer (API agent wallet, no funds). `HL_ACCOUNT_ADDRESS` (in `start_bots.sh`) points to the master wallet that holds the actual USDC. The agent must be authorized by the master via Hyperliquid Settings → API. `init_exchange()` is called with `account_address=master`. Funds are entirely in perps (no spot balance), so equity is computed via `HL_EQUITY_MODE=perps` → `marginSummary.accountValue + spot_usdc`.
+- **Junior** (`:8099`): `JUNIOR_HL_PRIVATE_KEY` is just a signer (API agent wallet, no funds). `HL_ACCOUNT_ADDRESS` (in `start_bots.sh`) points to the master wallet that holds the actual USDC. The agent must be authorized by the master via Hyperliquid Settings → API. `init_exchange()` is called with `account_address=master`. Equity is computed via the unified formula `(spot_usdc - spot_hold) + accountValue` (v11.9.1+) — for Junior `spot_usdc≈0` so equity reduces to `marginSummary.accountValue`.
 
 Concretely for the current Junior setup:
 - API wallet (signer, derived from `JUNIOR_HL_PRIVATE_KEY`): `0x4EAb0507…3F7e`

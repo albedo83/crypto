@@ -1,5 +1,9 @@
 # Changelog
 
+## [11.10.1] — 2026-05-08
+- **Trading engine**: cleaner skip event when adaptive sizing falls under the live exchange minimum, audit context now persisted on every entry.
+- **Infra**: removed unused legacy env var from launch script.
+
 ## [11.10.0] — 2026-05-08
 - **Trading engine**: per-strategy adaptive sizing now scales selected signals by a rolling macro modulator, walk-forward strict + sliding out-of-sample validated.
 
