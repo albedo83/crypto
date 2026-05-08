@@ -11,7 +11,10 @@ from datetime import datetime
 class SymbolState:
     price: float = 0.0
     updated_at: float = 0.0
-    candles_4h: deque = field(default_factory=lambda: deque(maxlen=200))
+    # 1500 candles ≈ 250 days of 4h history. v11.10.1 raised from 200 to
+    # accommodate the macro modulator's 30d+180d rolling z-score window for BTC.
+    # For non-BTC symbols the extra is unused but cheap (~$few KB each).
+    candles_4h: deque = field(default_factory=lambda: deque(maxlen=1500))
     last_candle_ts: int = 0
     price_ticks: deque = field(default_factory=lambda: deque(maxlen=300))  # ~5h @ 60s
     # OI + funding + premium: collected every 60s for observation/crowding score.

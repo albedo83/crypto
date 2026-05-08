@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.10.2] — 2026-05-08
+- **Trading engine (bug fix)**: macro modulator was inactive in live because the candle history loaded into memory was too short — fetch and retain enough history so the rolling window can compute.
+
 ## [11.10.1] — 2026-05-08
 - **Trading engine**: cleaner skip event when adaptive sizing falls under the live exchange minimum, audit context now persisted on every entry.
 - **Infra**: removed unused legacy env var from launch script.

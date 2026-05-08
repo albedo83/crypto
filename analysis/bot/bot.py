@@ -313,7 +313,10 @@ class MultiSignalBot:
                 if now - self._last_scan >= SCAN_INTERVAL:
                     log.info("Scanning signals...")
                     for sym in ALL_SYMBOLS:
-                        await asyncio.to_thread(net.fetch_candles, sym, self.states)
+                        # BTC needs 210d for the v11.10.0 macro modulator
+                        # (30d lookback + 180d rolling z-window). Others 45d.
+                        days = 250 if sym == "BTC" else 45
+                        await asyncio.to_thread(net.fetch_candles, sym, self.states, days)
                         await asyncio.sleep(0.2)
 
                     self._refresh_feature_cache()

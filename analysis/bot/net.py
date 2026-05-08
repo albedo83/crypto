@@ -78,11 +78,16 @@ def fetch_prices(states: dict) -> tuple[list | None, list | None]:
         return None, None
 
 
-def fetch_candles(symbol: str, states: dict) -> None:
-    """Fetch 4h candles for one symbol (need 180+ for features). Updates states in-place."""
+def fetch_candles(symbol: str, states: dict, days: int = 45) -> None:
+    """Fetch 4h candles for one symbol. Default 45d covers token-level features.
+
+    BTC needs more history for the v11.10.0 macro modulator: 30d lookback +
+    180d rolling z-window = 210d minimum. Caller passes days=250 for BTC.
+    Updates states in-place.
+    """
     try:
         end_ts = int(time.time() * 1000)
-        start_ts = end_ts - 45 * 86400 * 1000  # 45 days
+        start_ts = end_ts - days * 86400 * 1000
         payload = json.dumps({"type": "candleSnapshot", "req": {
             "coin": symbol, "interval": "4h", "startTime": start_ts, "endTime": end_ts
         }}).encode()
