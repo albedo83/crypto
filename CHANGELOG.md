@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.9.1] — 2026-05-08
+- **Dashboard (bug fix)**: live equity card was inflated by the unrealized P&L of open positions because the legacy formula double-counted spot collateral; replaced with a unified formula that gives the correct mark-to-market value for both wallet topologies.
+
 ## [11.9.0] — 2026-05-07
 - **Trading engine**: universe expanded with one new L1 token, walk-forward validated.
 

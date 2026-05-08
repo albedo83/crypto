@@ -8,7 +8,7 @@ from __future__ import annotations
 import logging
 import time
 
-from .config import TRADE_SYMBOLS, LEVERAGE, HL_EQUITY_MODE
+from .config import TRADE_SYMBOLS, LEVERAGE
 
 log = logging.getLogger("multisignal")
 
@@ -199,11 +199,14 @@ def fetch_account_state(hl_info, address: str) -> dict | None:
         state = hl_info.user_state(address)
         spot = hl_info.spot_user_state(address)
 
-        # Spot USDC balance (collateral)
+        # Spot USDC: total includes the cross-margin "hold" (collateral
+        # earmarked for perps); we capture both to avoid double-counting.
         spot_usdc = 0.0
+        spot_hold = 0.0
         for b in spot.get("balances", []):
             if b["coin"] == "USDC":
                 spot_usdc = float(b["total"])
+                spot_hold = float(b.get("hold", 0))
                 break
 
         unrealized = 0.0
@@ -211,17 +214,15 @@ def fetch_account_state(hl_info, address: str) -> dict | None:
             sz = float(p["position"].get("szi", 0))
             if abs(sz) > 0:
                 unrealized += float(p["position"].get("unrealizedPnl", 0))
-        # Equity formula:
-        #   Default ("spot+unrealized"): legacy formula assuming USDC sits in
-        #   spot and is used as collateral via cross-account access. Correct
-        #   for the live wallet which keeps idle USDC in spot.
-        #   "perps" mode: account_value (perps) + spot_usdc — correct when the
-        #   user has transferred all funds to the perps subaccount (Junior).
-        if HL_EQUITY_MODE == "perps":
-            account_value = float(state.get("marginSummary", {}).get("accountValue", 0))
-            equity = account_value + spot_usdc
-        else:
-            equity = spot_usdc + unrealized
+        account_value = float(state.get("marginSummary", {}).get("accountValue", 0))
+        # Equity = free spot + perps subaccount equity. Works for both:
+        #   - Live (USDC in spot, cross-margined into perps): hold≈accountValue
+        #     and free_spot dominates
+        #   - Junior (perps mode, USDC in perps subaccount): spot_usdc≈0,
+        #     spot_hold≈0, equity≈account_value
+        # Old "spot+unrealized" formula double-counted because spot.total
+        # already includes the hold AND unrealized is already inside accountValue.
+        equity = (spot_usdc - spot_hold) + account_value
 
         # Margin used
         margin_used = float(state.get("marginSummary", {}).get("totalMarginUsed", 0))
