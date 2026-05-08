@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.9.2"
+VERSION = "11.10.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -156,6 +156,29 @@ LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
 # it would over-size by 30% — but combined with the natural partial-fill
 # attrition, effective notional matches the optimal target.
 SIGNAL_MULT = {"S1": 1.125, "S5": 3.25, "S8": 1.25, "S9": 2.00, "S10": 2.00}
+
+# ── Adaptive macro modulator (v11.10.0) ─────────────────────────────
+# Each scan, the bot computes a rolling z-score of BTC 30d return and
+# scales selected strategies' sizing by `1 + α × btc_z` (clipped). This
+# reflects the empirical regime-dependence of each signal's edge:
+#   - S1 (BTC momentum LONG alts) wins more in bull → α positive
+#   - S8 (capitulation flush LONG) wins more in bear → α negative
+#   - S9 (extreme ±20% fade) wins more in bear/choppy → α negative
+#   - S5 (sector divergence) and S10 (squeeze) excluded — sliding walk-
+#     forward OOS shows their α is regime-unstable (worked on some past
+#     OOS slices, failed on others). Better to leave static.
+# Validation: backtest_adaptive_robustness.py (IS/OOS split, lookback
+# sensitivity 15-90d, null shuffle 13× signal-vs-noise, rolling z-score
+# without look-ahead, per-window α stability) + backtest_adaptive_
+# walkforward.py (sliding 18m train / 6m test × 4 splits). All passed
+# 4/4 strict + OOS confirmed for S1/S8/S9. Conservative α=±0.5 chosen
+# (vs ±1.0 optimum) to limit overfit risk.
+ADAPTIVE_ALPHA = {"S1": +0.5, "S8": -0.5, "S9": -0.5}
+MACRO_LOOKBACK_DAYS = 30        # BTC return horizon (= ret_30d)
+MACRO_Z_WINDOW_DAYS = 180       # rolling 6m for mean/std of past ret_30d
+MACRO_Z_CLIP = 2.5              # clip btc_z within ±2.5 (extreme outliers)
+MACRO_MULT_MIN = 0.3            # final multiplier floor (safety)
+MACRO_MULT_MAX = 2.5            # final multiplier ceiling
 
 # ── Capital & Position Limits ───────────────────────────────────────
 CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))

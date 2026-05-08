@@ -23,7 +23,8 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, FUNDING_DRAG_BPS, MAX_POS
                      DEAD_TIMEOUT_MAE_FLOOR_BPS, DEAD_TIMEOUT_SLACK_BPS,
                      RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
                      RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
-                     OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size)
+                     OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size,
+                     ADAPTIVE_ALPHA, MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX)
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
 from .exchange import execute_open, execute_close, fetch_position_funding
@@ -534,6 +535,14 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
         target_exit = now + timedelta(hours=hold_h)
         current_capital = bot._capital + bot._total_pnl
         size = strat_size(sig["strategy"], current_capital)
+        # Adaptive macro modulator (v11.10.0): scale S1/S8/S9 sizing by
+        # `1 + α × btc_z`, where btc_z is the rolling z-score of BTC ret_30d.
+        # See config.ADAPTIVE_ALPHA + backtest_adaptive_robustness.py.
+        alpha = ADAPTIVE_ALPHA.get(sig["strategy"], 0.0)
+        if alpha != 0 and bot._btc_z is not None:
+            z_clip = max(-MACRO_Z_CLIP, min(MACRO_Z_CLIP, bot._btc_z))
+            mult = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
+            size = round(size * mult, 2)
         # Loss streak penalty: protects against correlated losses
         # (e.g. flash crash hitting multiple positions simultaneously)
         if time.time() < bot._loss_streak_until:

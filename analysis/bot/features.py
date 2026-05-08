@@ -202,6 +202,37 @@ def compute_btc_features(btc_candles: list) -> dict:
     return f
 
 
+def compute_btc_z(btc_candles: list, lookback_days: int = 30,
+                  z_window_days: int = 180,
+                  candles_per_day: int = 6) -> float | None:
+    """Rolling z-score of BTC's `lookback_days` return.
+
+    Computes ret_30d at each candle in the past `z_window_days`, then returns
+    the z-score of the latest ret_30d against that rolling distribution.
+    No look-ahead: only past data is used. Returns None if history insufficient.
+
+    candles_per_day=6 for 4h candles (24/4). For other granularities, adjust.
+    """
+    n_lb = lookback_days * candles_per_day
+    n_z = z_window_days * candles_per_day
+    if len(btc_candles) < n_lb + 30:  # need at least lb + minimal z window
+        return None
+    closes = np.array([c["c"] for c in btc_candles])
+    # Build the trailing window of ret_lb values
+    rets = []
+    start_i = max(n_lb, len(btc_candles) - n_z)
+    for i in range(start_i, len(btc_candles)):
+        if closes[i - n_lb] > 0:
+            rets.append(closes[i] / closes[i - n_lb] - 1)
+    if len(rets) < 30:
+        return None
+    rets_arr = np.array(rets)
+    mean = float(rets_arr.mean())
+    std = float(rets_arr.std()) or 1.0
+    current_ret = rets_arr[-1]
+    return (current_ret - mean) / std
+
+
 def fetch_dxy(degraded: list, dxy_cache_path: str) -> float:
     """Fetch DXY 7-day return (bps) via Yahoo Finance with 3-tier fallback:
     1. Fresh cache (<6h) -- normal operation

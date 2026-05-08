@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.10.0] — 2026-05-08
+- **Trading engine**: per-strategy adaptive sizing now scales selected signals by a rolling macro modulator, walk-forward strict + sliding out-of-sample validated.
+
 ## [11.9.2] — 2026-05-08
 - **Trading engine**: S5 position sizing increased to compensate for partial fills observed at the live slippage cap, walk-forward validated.
 

@@ -20,6 +20,7 @@ from .config import (
     VERSION, EXECUTION_MODE, HL_PRIVATE_KEY, HL_ACCOUNT_ADDRESS, CAPITAL_USDT,
     TRADE_SYMBOLS, ALL_SYMBOLS, SCAN_INTERVAL, TICKS_DB, STATE_FILE,
     DISP_GATE_BPS, DISP_GATE_STRATEGIES,
+    MACRO_LOOKBACK_DAYS, MACRO_Z_WINDOW_DAYS,
 )
 from .models import SymbolState, Position, Trade
 from . import features, signals, db as db_mod, net, persistence, trading, web
@@ -59,6 +60,7 @@ class MultiSignalBot:
         self._closing: set[str] = set()  # symbols currently mid-close (mutex)
         self._exchange_account: dict | None = None  # real exchange balance (live only)
         self._drift_alerted: bool = False  # one-shot alert for bot vs exchange P&L drift
+        self._btc_z: float | None = None  # rolling z-score of BTC ret_30d (adaptive modulator)
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -152,6 +154,13 @@ class MultiSignalBot:
         """Detect signals across all tokens, then rank and enter positions."""
         now = datetime.now(timezone.utc)
         btc_f = self._compute_btc_features()
+        btc = self.states.get("BTC")
+        if btc and len(btc.candles_4h) >= 200:
+            self._btc_z = features.compute_btc_z(
+                list(btc.candles_4h),
+                lookback_days=MACRO_LOOKBACK_DAYS,
+                z_window_days=MACRO_Z_WINDOW_DAYS,
+            )
         alt_index = self._compute_alt_index()
         dxy_7d = features.fetch_dxy(self._degraded, features.DXY_CACHE)
         self._dxy_cache = (dxy_7d, time.time())
