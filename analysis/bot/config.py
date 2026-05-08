@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "11.9.1"
+VERSION = "11.9.2"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -148,9 +148,14 @@ SIZE_PCT = 0.18        # base sizing (was 0.12, backtest: +138% P&L, DD -81%)
 SIZE_BONUS = 0.03
 STRAT_Z = {"S1": 6.42, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
-# Per-signal multipliers (backtest_sizing.py cross-period sweep 3m/12m/24m)
-# S5 2.50 and S9 2.00 stable across all periods; S10 2.00 conservative consensus
-SIGNAL_MULT = {"S1": 1.125, "S5": 2.50, "S8": 1.25, "S9": 2.00, "S10": 2.00}
+# Per-signal multipliers (backtest_sizing.py cross-period sweep 3m/12m/24m).
+# v11.9.2: S5 2.50 → 3.25 from backtest_partial_fills.py walk-forward 4/4
+# (28m +2681pp / 12m +239pp / 6m +17pp / 3m +11pp, ΔDD avg −4.4pp). The bump
+# compensates for the partial-fill rate observed on real S5 entries (~30%
+# under-fill at the 1% slippage cap on thin-liquidity tokens). At 100% fills
+# it would over-size by 30% — but combined with the natural partial-fill
+# attrition, effective notional matches the optimal target.
+SIGNAL_MULT = {"S1": 1.125, "S5": 3.25, "S8": 1.25, "S9": 2.00, "S10": 2.00}
 
 # ── Capital & Position Limits ───────────────────────────────────────
 CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))

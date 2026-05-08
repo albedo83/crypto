@@ -1,5 +1,8 @@
 # Changelog
 
+## [11.9.2] — 2026-05-08
+- **Trading engine**: S5 position sizing increased to compensate for partial fills observed at the live slippage cap, walk-forward validated.
+
 ## [11.9.1] — 2026-05-08
 - **Dashboard (bug fix)**: live equity card was inflated by the unrealized P&L of open positions because the legacy formula double-counted spot collateral; replaced with a unified formula that gives the correct mark-to-market value for both wallet topologies.
 

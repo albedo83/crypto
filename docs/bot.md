@@ -93,7 +93,7 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 | Parametre | Valeur | Pourquoi |
 |---|---|---|
 | **Levier** | 2x | Sweep 1x-3x : 2x optimal. 3x = ruine par compounding des pertes. |
-| **Sizing** | 18% base + 3% bonus (z>4), z-weighted, mult S1×1.125 S5×2.50 S8×1.25 S9×2.00 S10×2.00 | Relevé de 12% à 18% (v11.3.0, +138% P&L backtest). Haircut S8 ×0.8. |
+| **Sizing** | 18% base + 3% bonus (z>4), z-weighted, mult S1×1.125 S5×3.25 S8×1.25 S9×2.00 S10×2.00 | Relevé de 12% à 18% (v11.3.0, +138% P&L backtest). Haircut S8 ×0.8. v11.9.2 : S5 2.50→3.25 pour compenser partial fills (~30% sous-rempli au cap slippage 1%) — backtest 4/4 sur 28m/12m/6m/3m, ΔDD −4.4pp. |
 | **Compounding** | Oui | Capital = initial + P&L cumule. Les mises suivent les gains et les pertes. |
 | **Hold** | 72h (S1), 48h (S5/S9), 60h (S8), 24h (S10) | Timeout automatique. |
 | **Stop loss** | -1250 bps de mouvement de prix (S1/S5/S10), -750 bps (S8), adaptatif S9 | Valeurs halved en v11.3.0 apres fix du bug P&L double-leverage. S9 : `max(-1250, -500 - abs(ret_24h)/8)`. |
