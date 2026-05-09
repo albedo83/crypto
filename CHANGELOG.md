@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.0.0] — 2026-05-09
+- **Infra**: monthly drift monitor analyzes trade history and flags pattern shifts via Telegram, no auto-action — informs manual parameter review.
+
 ## [11.10.2] — 2026-05-08
 - **Trading engine (bug fix)**: macro modulator was inactive in live because the candle history loaded into memory was too short — fetch and retain enough history so the rolling window can compute.
 
