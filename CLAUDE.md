@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 12.0.0). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 12.1.0). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
@@ -177,7 +177,7 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - Cost measured in practice: first run ~$0.036 (cache creation), subsequent runs ~$0.017 (cache hit, 10k cached tokens). Daily cadence ≈ **$0.50/month**.
 
 ### Strategy drift monitor (v12.0.0)
-`analysis/strategy_review.py` is a stdlib-only script (no Anthropic API call) that runs **monthly on the 1st at 8h UTC** via crontab. It reads `analysis/output_live/reversal_ticks.db`, computes per-(strategy, token, direction) statistics over rolling 30/90/365-day windows, and flags 5 categories of drift:
+`analysis/strategy_review.py` is a stdlib-only script (no Anthropic API call) that runs **weekly on Monday at 8h UTC** via crontab (cadence tightened from monthly in v12.1.0 to react faster). It reads `analysis/output_live/reversal_ticks.db`, computes per-(strategy, token, direction) statistics over rolling 30/90/365-day windows, and flags 5 categories of drift:
 1. **STRAT_DRIFT** — per-strategy WR drop ≥12pp recent vs lifetime (configurable `WR_DRIFT_PP`)
 2. **TOKEN_TOXIC** — (token, direction, strategy) with recent sum < −$8 over 90d (configurable `RECENT_PNL_TOXIC_USD`)
 3. **TOKEN_REVIVAL** — previously-bad pair showing recent positive WR ≥18pp gain
@@ -188,7 +188,7 @@ Output: a French structured Telegram message + `STRATEGY_REVIEW` event in `event
 
 Crontab line:
 ```
-0 8 1 * * /home/crypto/.venv/bin/python3 /home/crypto/analysis/strategy_review.py >> /home/crypto/analysis/output/strategy_review.log 2>&1
+0 8 * * 1 /home/crypto/.venv/bin/python3 /home/crypto/analysis/strategy_review.py >> /home/crypto/analysis/output/strategy_review.log 2>&1
 ```
 
 Testing: `python3 -m analysis.strategy_review --dry-run` (console only, no DB log, no Telegram). `--no-telegram` keeps DB log.

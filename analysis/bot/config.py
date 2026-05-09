@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.0.0"
+VERSION = "12.1.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -75,6 +75,13 @@ ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
 # (market dispersion features still use them). Blacklist is enforced at the
 # entry decision in trading.rank_and_enter(), logged as SKIP reason=blacklist.
 TRADE_BLACKLIST: set[str] = {"SUI", "IMX", "LINK"}
+
+# v12.1.0 — S5 SHORT-specific blacklist. These tokens are net losers when
+# shorted via S5 divergence over 28 months of walk-forward (4/4 PnL gain
+# when blocked: +6558pp sum, ΔDD +5pp). The strategy_review.py monitor
+# (cron weekly) will detect REVIVALs if any of these tokens flip to
+# profitable in a future regime — at which point we revise this set.
+S5_SHORT_BLACKLIST: set[str] = {"DOGE", "SNX", "LDO", "AAVE", "MINA"}
 
 # ── Sectors (for S5 divergence) ─────────────────────────────────────
 SECTORS = {

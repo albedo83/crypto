@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.1.0] — 2026-05-09
+- **Trading engine**: per-strategy directional blacklist applied to a small set of historically losing patterns, walk-forward validated.
+- **Infra**: drift monitor cadence tightened from monthly to weekly to react faster to pattern shifts.
+
 ## [12.0.0] — 2026-05-09
 - **Infra**: monthly drift monitor analyzes trade history and flags pattern shifts via Telegram, no auto-action — informs manual parameter review.
 

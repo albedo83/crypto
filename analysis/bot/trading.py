@@ -23,7 +23,7 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, FUNDING_DRAG_BPS, MAX_POS
                      DEAD_TIMEOUT_MAE_FLOOR_BPS, DEAD_TIMEOUT_SLACK_BPS,
                      RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
                      RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
-                     OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size,
+                     OI_LONG_GATE_BPS, TRADE_BLACKLIST, S5_SHORT_BLACKLIST, strat_size,
                      ADAPTIVE_ALPHA, MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX)
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
@@ -491,6 +491,16 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             log.debug("SKIP %s %s %s: blacklist", sig["strategy"], side, sym)
             log_event(bot._db, "SKIP", sym,
                       {"strategy": sig["strategy"], "dir": side, "reason": "blacklist"})
+            continue
+
+        # v12.1.0 — S5 SHORT-specific blacklist (per-strategy, per-direction).
+        # 28m walk-forward 4/4 PnL gain when these are skipped (DOGE/SNX/LDO/AAVE/MINA).
+        if (sig["strategy"] == "S5" and sig["direction"] == -1
+                and sym in S5_SHORT_BLACKLIST):
+            log.debug("SKIP S5 SHORT %s: s5_short_blacklist", sym)
+            log_event(bot._db, "SKIP", sym,
+                      {"strategy": "S5", "dir": "SHORT",
+                       "reason": "s5_short_blacklist"})
             continue
 
         if sig["direction"] == 1 and n_longs >= MAX_SAME_DIRECTION:
