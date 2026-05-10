@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.3.1] — 2026-05-10
+- **Dashboard**: open-position win probability now displayed with a smiley for at-a-glance read.
+
 ## [12.3.0] — 2026-05-10
 - **Dashboard**: each open position now shows an estimated win probability based on historical patterns and current MAE/MFE — helps distinguish noise from real concern at a glance.
 
