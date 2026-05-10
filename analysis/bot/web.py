@@ -38,7 +38,7 @@ def _mode_color() -> str:
 log = logging.getLogger("multisignal")
 
 # DRY: shared helpers live in trading.py
-from .trading import is_bot_trade, compute_signal_drift, compute_s10_health
+from .trading import is_bot_trade, compute_signal_drift, compute_s10_health, estimate_win_prob
 from .net import send_telegram
 
 def _collect_active_signals(bot, btc_f) -> list:
@@ -163,6 +163,8 @@ def build_state_response(bot) -> dict:
         stop_progress = max(0.0, min(1.0, -ur / abs(effective_stop))) if effective_stop < 0 else 0.0
         total_hold = hold_h + rem
         hold_progress = round(hold_h / total_hold, 3) if total_hold > 0 else 0.0
+        # v12.3.0 — historical-pattern win probability estimate
+        win_prob = estimate_win_prob(pos, list(bot.trades))
         positions.append({
             "symbol": sym, "direction": "LONG" if pos.direction == 1 else "SHORT",
             "strategy": pos.strategy, "entry_price": pos.entry_price,
@@ -181,6 +183,7 @@ def build_state_response(bot) -> dict:
             "trailing_active": bool(pos.strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER),
             "trailing_floor_bps": round(pos.mfe_bps - S10_TRAILING_OFFSET, 0)
                                    if pos.strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER else None,
+            "win_prob": win_prob,
         })
     # OI delta 24h per token (for dashboard gauge + gate visualization)
     oi_deltas = {}

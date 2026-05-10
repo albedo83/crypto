@@ -371,7 +371,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 <div class="section" data-block="open-positions">
   <h2>Open Positions</h2>
   <table class="responsive"><thead><tr>
-    <th>Symbol</th><th>Strat</th><th>Side</th><th>P&L</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path<span class="dim" style="font-weight:400"> (P&L)</span></th><th></th>
+    <th>Symbol</th><th>Strat</th><th>Side</th><th>WR est<span class="dim" style="font-weight:400">.</span></th><th>P&L</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path<span class="dim" style="font-weight:400"> (P&L)</span></th><th></th>
   </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
@@ -759,10 +759,19 @@ function refresh(){
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress):'';
       const pathViz=sparkline(p.trajectory);
       const bpsSign=p.unrealized_bps>=0?'+':'';
+      // v12.3.0: historical-pattern win probability (from /api/state)
+      let wpStr = '<span class="dim">—</span>';
+      if (p.win_prob && p.win_prob.wr_pct !== undefined) {
+        const w = p.win_prob.wr_pct;
+        const col = w >= 60 ? '#3fb950' : w >= 40 ? '#d29922' : '#f85149';
+        const tooltip = `${p.win_prob.note} (n=${p.win_prob.n}, base ${p.win_prob.base_wr_pct}%)`;
+        wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}">${w}%</span>`;
+      }
       tr.innerHTML=`
         <td data-label="Symbol" class="pos-symbol"><b>${p.symbol}</b></td>
         <td data-label="Strat" class="dim pos-strat">${p.strategy||'?'}</td>
         <td data-label="Side" class="${sideClass} pos-side">${p.direction}</td>
+        <td data-label="WR est" class="pos-wp" style="font-size:11px">${wpStr}</td>
         <td data-label="P&L" class="${cls(p.pnl_usdt)} pos-pnl">$${fmt(p.pnl_usdt)}<span class="bps-inline"> ${bpsSign}${fmt(p.unrealized_bps,0)}bps</span></td>
         <td data-label="Position" class="pos-detail">$${p.size_usdt.toFixed(0)}</td>
         <td data-label="Margin" class="dim pos-detail">$${(p.size_usdt/2).toFixed(0)}</td>

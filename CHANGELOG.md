@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.3.0] — 2026-05-10
+- **Dashboard**: each open position now shows an estimated win probability based on historical patterns and current MAE/MFE — helps distinguish noise from real concern at a glance.
+
 ## [12.2.0] — 2026-05-10
 - **Trading engine**: per-direction adaptive sizing replaces the static directional blacklist introduced in v12.1.0 — broader regime coverage, walk-forward validated.
 

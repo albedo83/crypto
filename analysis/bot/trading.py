@@ -152,6 +152,77 @@ def compute_s10_health(trades, days: int = 30) -> dict:
     }
 
 
+def estimate_win_prob(pos, trades) -> dict | None:
+    """Estimate win probability for an open position from historical patterns.
+
+    Strategy:
+      1. Exact match: same (strat, symbol, direction). Return WR if ≥3 samples.
+      2. Wider match: same (strat, direction). Return WR if ≥10 samples.
+      3. Apply MAE conditional adjustment: if the position's current MAE is
+         deeper than the median MAE of historical wins, reduce confidence.
+      4. Apply MFE-already-touched bonus: if MFE > 200 bps already reached,
+         the position has shown pulse — slightly boost WR.
+
+    Returns dict {wr_pct, n, scope, note} or None if insufficient data.
+    """
+    direction_str = "LONG" if pos.direction == 1 else "SHORT"
+    # Tier 1: exact (strat, symbol, direction). Min 3 trades for usable signal.
+    exact = [t for t in trades if t.strategy == pos.strategy
+             and t.symbol == pos.symbol
+             and t.direction == direction_str]
+    if len(exact) >= 3:
+        matches, scope = exact, "exact"
+    else:
+        # Tier 2: (strat, direction). Wider, needs more samples to dilute noise.
+        wider = [t for t in trades if t.strategy == pos.strategy
+                 and t.direction == direction_str]
+        if len(wider) >= 8:
+            matches, scope = wider, "strat+dir"
+        else:
+            return None
+    base_wr = sum(1 for t in matches if t.pnl_usdt > 0) / len(matches) * 100
+
+    # MAE conditional adjustment: of historical trades that ALSO reached this
+    # MAE level (or deeper), what fraction won? More accurate than naive base.
+    cur_mae = pos.mae_bps or 0
+    if cur_mae < -50:  # only meaningful when meaningfully red
+        deep = [t for t in matches if (t.mae_bps or 0) <= cur_mae]
+        if len(deep) >= 3:
+            cond_wr = sum(1 for t in deep if t.pnl_usdt > 0) / len(deep) * 100
+            adj_wr = cond_wr  # use conditional directly when sample sufficient
+        else:
+            # Tail estimation: if very few past trades hit this depth, dampen by
+            # MAE proximity to stop (-1250 bps default → 0% at stop, base at 0)
+            stop_bps = pos.stop_bps or -1250
+            proximity = max(0, min(1, cur_mae / stop_bps))  # 0=safe, 1=at stop
+            adj_wr = base_wr * (1 - 0.5 * proximity)
+    else:
+        adj_wr = base_wr
+
+    # MFE-touched bonus: position that showed pulse > 200 bps has shown the
+    # mean-reversion is plausible. Small boost (capped).
+    mfe = pos.mfe_bps or 0
+    if mfe >= 200 and pos.pnl_usdt < 0:
+        adj_wr = min(95, adj_wr * 1.1)
+    elif mfe < 50:
+        # No pulse yet, slight discount (especially late in hold)
+        adj_wr *= 0.9
+
+    note = f"{scope} match"
+    if cur_mae < -500:
+        note += f", deep MAE ({int(cur_mae)})"
+    elif mfe >= 200:
+        note += f", MFE pulse ({int(mfe)})"
+
+    return {
+        "wr_pct": round(adj_wr, 0),
+        "base_wr_pct": round(base_wr, 0),
+        "n": len(matches),
+        "scope": scope,
+        "note": note,
+    }
+
+
 # ── Exit Logic ───────────────────────────────────────────────────────
 
 def check_exits(bot) -> int:
