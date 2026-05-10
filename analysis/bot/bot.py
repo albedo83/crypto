@@ -61,6 +61,7 @@ class MultiSignalBot:
         self._exchange_account: dict | None = None  # real exchange balance (live only)
         self._drift_alerted: bool = False  # one-shot alert for bot vs exchange P&L drift
         self._btc_z: float | None = None  # rolling z-score of BTC ret_30d (adaptive modulator)
+        self._wr_alerted: set[str] = set()  # v12.4.0 — symbols already alerted on WR drop
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -94,6 +95,52 @@ class MultiSignalBot:
 
     def _compute_alt_index(self) -> float:
         return features.compute_alt_index(self._feature_cache)
+
+    def _check_wr_alerts(self) -> None:
+        """v12.4.0 — emit Telegram alert when an open position's estimated WR
+        drops into the alarm zone (< 25%) for the first time.
+
+        Maturity gate already inside estimate_win_prob; we only alert when the
+        position has had time to develop a meaningful pattern (else we'd spam
+        on early MAE noise). Cleared automatically when the position closes.
+        """
+        # Drop alerts for symbols no longer open
+        with self._pos_lock:
+            self._wr_alerted &= set(self.positions.keys())
+            positions = list(self.positions.items())
+        if not positions or not self.trades:
+            return
+        trades_list = list(self.trades)
+        now = datetime.now(timezone.utc)
+        for sym, pos in positions:
+            if sym in self._wr_alerted:
+                continue
+            hold_h = (now - pos.entry_time).total_seconds() / 3600
+            hold_target = max(1.0, (pos.target_exit - pos.entry_time).total_seconds() / 3600)
+            # Compute live pnl from current price for the alert message
+            st = self.states.get(sym)
+            cur_pnl = 0.0
+            if st and st.price > 0 and pos.entry_price > 0:
+                ur_bps = (st.price / pos.entry_price - 1) * 1e4 * pos.direction
+                cur_pnl = pos.size_usdt * ur_bps / 1e4
+            wp = trading.estimate_win_prob(pos, trades_list,
+                                            hours_held=hold_h,
+                                            hold_target_h=hold_target)
+            if not wp or not wp.get("mature") or wp.get("wr_pct", 100) >= 25:
+                continue
+            side = "LONG" if pos.direction == 1 else "SHORT"
+            msg = (f"🚨 {sym} {pos.strategy} {side}: WR drift to {wp['wr_pct']}% "
+                   f"(base {wp['base_wr_pct']}%, n={wp['n']} {wp['scope']})\n"
+                   f"  pnl=${cur_pnl:+.2f} | MAE={int(pos.mae_bps)} | held {hold_h:.1f}h\n"
+                   f"  Consider manual close.")
+            net.send_telegram(msg, category="trade")
+            db_mod.log_event(self._db, "WR_ALERT", sym, {
+                "strategy": pos.strategy, "dir": side,
+                "wr_pct": wp["wr_pct"], "base_wr_pct": wp["base_wr_pct"],
+                "n": wp["n"], "scope": wp["scope"], "note": wp["note"],
+                "hold_h": round(hold_h, 1),
+            })
+            self._wr_alerted.add(sym)
 
     def _compute_oi_features(self, sym: str) -> dict:
         st = self.states.get(sym)
@@ -266,7 +313,13 @@ class MultiSignalBot:
                     db_mod.log_event(self._db, "S9F_OBS", "ETH", s9f)
 
         signals.track_signal_age(all_signals, self._signal_first_seen, time.time())
-        return trading.rank_and_enter(all_signals, now, self)
+        n_new = trading.rank_and_enter(all_signals, now, self)
+        # v12.4.0 — check open positions for WR alarm and emit Telegram alert
+        try:
+            self._check_wr_alerts()
+        except Exception as e:
+            log.warning("WR alert check failed: %s", e)
+        return n_new
 
     async def main_loop(self):
         """Two cadences: prices every 60s (for stop checks), full scan every hour."""

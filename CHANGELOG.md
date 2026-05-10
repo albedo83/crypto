@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.4.0] — 2026-05-10
+- **Telegram**: alerts when an open position's estimated win probability drifts into the alarm zone — gives the user a chance to act before the trade goes catastrophic.
+- **Dashboard**: win probability lookback narrowed to recent history so older market regimes don't pollute the estimate.
+
 ## [12.3.2] — 2026-05-10
 - **Dashboard**: win probability estimator now mutes early-hold MAE noise — fresh positions show base WR with an hourglass marker until they have enough maturity to interpret reliably.
 

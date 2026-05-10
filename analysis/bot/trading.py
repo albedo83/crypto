@@ -153,7 +153,8 @@ def compute_s10_health(trades, days: int = 30) -> dict:
 
 
 def estimate_win_prob(pos, trades, hours_held: float = 0,
-                       hold_target_h: float = 48) -> dict | None:
+                       hold_target_h: float = 48,
+                       lookback_days: int = 180) -> dict | None:
     """Estimate win probability for an open position from historical patterns.
 
     Strategy:
@@ -167,10 +168,15 @@ def estimate_win_prob(pos, trades, hours_held: float = 0,
          10% of hold_target), drawdowns are noise — the conditional adjustment
          is skipped and base WR is shown with a "fresh" tag. Avoids the early
          WR swing of -10pp on a tiny MAE.
+      6. v12.3.3: trade lookback limited to recent `lookback_days` (default
+         180d). Older market regimes are not representative of current edge.
 
     Returns dict {wr_pct, n, scope, note} or None if insufficient data.
     """
     direction_str = "LONG" if pos.direction == 1 else "SHORT"
+    # v12.3.3: filter to recent trades only (older regimes don't represent now)
+    cutoff_iso = (datetime.now(timezone.utc) - timedelta(days=lookback_days)).isoformat()
+    trades = [t for t in trades if (t.exit_time or "") >= cutoff_iso]
     # Tier 1: exact (strat, symbol, direction). Min 3 trades for usable signal.
     exact = [t for t in trades if t.strategy == pos.strategy
              and t.symbol == pos.symbol
