@@ -41,7 +41,7 @@ from analysis.bot.config import (
     RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
     RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
     ADAPTIVE_ALPHA, MACRO_LOOKBACK_DAYS, MACRO_Z_WINDOW_DAYS,
-    MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX,
+    MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX, get_adaptive_alpha,
 )
 from bisect import bisect_right
 
@@ -725,8 +725,9 @@ def run_window(features, data, sector_features, dxy_data,
             if size_fn is not None:
                 size *= size_fn(cand, f, len(positions))
             elif btc_z_map:
-                # v11.10.0 default adaptive modulator (mirrors live)
-                alpha = ADAPTIVE_ALPHA.get(cand["strat"], 0.0)
+                # v11.10.0 + v12.2.0 default adaptive modulator (mirrors live).
+                # Uses get_adaptive_alpha() to honor direction-specific overrides.
+                alpha = get_adaptive_alpha(cand["strat"], cand["dir"])
                 if alpha != 0:
                     z = btc_z_map.get(ts, 0.0)
                     z_clip = max(-MACRO_Z_CLIP, min(MACRO_Z_CLIP, z))

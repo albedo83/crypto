@@ -23,8 +23,8 @@ from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, FUNDING_DRAG_BPS, MAX_POS
                      DEAD_TIMEOUT_MAE_FLOOR_BPS, DEAD_TIMEOUT_SLACK_BPS,
                      RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
                      RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
-                     OI_LONG_GATE_BPS, TRADE_BLACKLIST, S5_SHORT_BLACKLIST, strat_size,
-                     ADAPTIVE_ALPHA, MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX)
+                     OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size,
+                     get_adaptive_alpha, MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX)
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
 from .exchange import execute_open, execute_close, fetch_position_funding
@@ -492,16 +492,12 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             log_event(bot._db, "SKIP", sym,
                       {"strategy": sig["strategy"], "dir": side, "reason": "blacklist"})
             continue
-
-        # v12.1.0 — S5 SHORT-specific blacklist (per-strategy, per-direction).
-        # 28m walk-forward 4/4 PnL gain when these are skipped (DOGE/SNX/LDO/AAVE/MINA).
-        if (sig["strategy"] == "S5" and sig["direction"] == -1
-                and sym in S5_SHORT_BLACKLIST):
-            log.debug("SKIP S5 SHORT %s: s5_short_blacklist", sym)
-            log_event(bot._db, "SKIP", sym,
-                      {"strategy": "S5", "dir": "SHORT",
-                       "reason": "s5_short_blacklist"})
-            continue
+        # NOTE: v12.1.0 introduced a static `S5_SHORT_BLACKLIST` (DOGE, SNX,
+        # LDO, AAVE, MINA). v12.2.0 replaced it with an adaptive modulator
+        # (config.ADAPTIVE_ALPHA_DIR `(S5, -1) → -0.5`). The modulator
+        # reduces ALL S5 SHORT trades in BULL regime regardless of token,
+        # which catches SEI-type events and provides better walk-forward
+        # PnL/DD trade-off than the static list.
 
         if sig["direction"] == 1 and n_longs >= MAX_SAME_DIRECTION:
             log.debug("SKIP %s %s %s: max_direction", sig["strategy"], side, sym)
@@ -545,10 +541,12 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
         target_exit = now + timedelta(hours=hold_h)
         current_capital = bot._capital + bot._total_pnl
         size = strat_size(sig["strategy"], current_capital)
-        # Adaptive macro modulator (v11.10.0): scale S1/S8/S9 sizing by
-        # `1 + α × btc_z`, where btc_z is the rolling z-score of BTC ret_30d.
-        # See config.ADAPTIVE_ALPHA + backtest_adaptive_robustness.py.
-        alpha = ADAPTIVE_ALPHA.get(sig["strategy"], 0.0)
+        # Adaptive macro modulator (v11.10.0 + v12.2.0): scale by
+        # `1 + α × btc_z`, where btc_z is the rolling z-score of BTC ret_30d
+        # and α depends on (strategy, direction). v11.10.0: S1/S8/S9 any
+        # direction. v12.2.0: S5 SHORT specifically.
+        # See config.get_adaptive_alpha + backtest_adaptive_robustness.py.
+        alpha = get_adaptive_alpha(sig["strategy"], sig["direction"])
         modulator_mult: float | None = None
         modulator_z: float | None = None
         if alpha != 0 and bot._btc_z is not None:

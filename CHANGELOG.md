@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.2.0] — 2026-05-10
+- **Trading engine**: per-direction adaptive sizing replaces the static directional blacklist introduced in v12.1.0 — broader regime coverage, walk-forward validated.
+
 ## [12.1.0] — 2026-05-09
 - **Trading engine**: per-strategy directional blacklist applied to a small set of historically losing patterns, walk-forward validated.
 - **Infra**: drift monitor cadence tightened from monthly to weekly to react faster to pattern shifts.

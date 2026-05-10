@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.1.0"
+VERSION = "12.2.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -76,12 +76,16 @@ ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
 # entry decision in trading.rank_and_enter(), logged as SKIP reason=blacklist.
 TRADE_BLACKLIST: set[str] = {"SUI", "IMX", "LINK"}
 
-# v12.1.0 — S5 SHORT-specific blacklist. These tokens are net losers when
-# shorted via S5 divergence over 28 months of walk-forward (4/4 PnL gain
-# when blocked: +6558pp sum, ΔDD +5pp). The strategy_review.py monitor
-# (cron weekly) will detect REVIVALs if any of these tokens flip to
-# profitable in a future regime — at which point we revise this set.
-S5_SHORT_BLACKLIST: set[str] = {"DOGE", "SNX", "LDO", "AAVE", "MINA"}
+# v12.2.0 — replaces the static v12.1.0 S5 SHORT token blacklist with a
+# regime-aware modulator. The static blacklist could not catch trades like
+# SEI 2026-05-08 (catastrophe-stop −$28 in BULL regime, but SEI was a
+# historical SHORT winner). The adaptive approach scales ALL S5 SHORT
+# entries by `1 + α × btc_z` — same mechanism as v11.10.0 macro modulator
+# on S1/S8/S9, applied per-direction here. See ADAPTIVE_ALPHA_DIR below.
+# Walk-forward strict: +10100pp sum on 28m, ΔDD +1.52pp avg, 4/4 PnL —
+# better PnL AND smaller DD than the static blacklist (which gave +6558pp
+# sum but ΔDD +5.07pp). The drift monitor remains in place to flag any
+# token-level pattern that warrants further intervention.
 
 # ── Sectors (for S5 divergence) ─────────────────────────────────────
 SECTORS = {
@@ -171,9 +175,13 @@ SIGNAL_MULT = {"S1": 1.125, "S5": 3.25, "S8": 1.25, "S9": 2.00, "S10": 2.00}
 #   - S1 (BTC momentum LONG alts) wins more in bull → α positive
 #   - S8 (capitulation flush LONG) wins more in bear → α negative
 #   - S9 (extreme ±20% fade) wins more in bear/choppy → α negative
-#   - S5 (sector divergence) and S10 (squeeze) excluded — sliding walk-
-#     forward OOS shows their α is regime-unstable (worked on some past
-#     OOS slices, failed on others). Better to leave static.
+#   - S5 LONG and S10 excluded — sliding walk-forward OOS shows their α is
+#     regime-unstable (worked on some past OOS slices, failed on others).
+#   - S5 SHORT (v12.2.0): regime-stable when isolated. In bull, S5 SHORT
+#     shorts outperformers that keep pumping → losses (e.g. SEI 2026-05-08
+#     catastrophe at btc_z=+1.4). Adaptive α=-0.5 reduces S5 SHORT in bull,
+#     amplifies in bear (mean-reversion regime). Validated: walk-forward
+#     4/4 strict (28m +10100pp, 12m +298, 6m +82, 3m +38, ΔDD +1.52pp avg).
 # Validation: backtest_adaptive_robustness.py (IS/OOS split, lookback
 # sensitivity 15-90d, null shuffle 13× signal-vs-noise, rolling z-score
 # without look-ahead, per-window α stability) + backtest_adaptive_
@@ -181,6 +189,8 @@ SIGNAL_MULT = {"S1": 1.125, "S5": 3.25, "S8": 1.25, "S9": 2.00, "S10": 2.00}
 # 4/4 strict + OOS confirmed for S1/S8/S9. Conservative α=±0.5 chosen
 # (vs ±1.0 optimum) to limit overfit risk.
 ADAPTIVE_ALPHA = {"S1": +0.5, "S8": -0.5, "S9": -0.5}
+# Direction-specific overrides (precedence over ADAPTIVE_ALPHA when present):
+ADAPTIVE_ALPHA_DIR = {("S5", -1): -0.5}    # S5 SHORT only (v12.2.0)
 MACRO_LOOKBACK_DAYS = 30        # BTC return horizon (= ret_30d)
 MACRO_Z_WINDOW_DAYS = 180       # rolling 6m for mean/std of past ret_30d
 MACRO_Z_CLIP = 2.5              # clip btc_z within ±2.5 (extreme outliers)
@@ -307,3 +317,15 @@ def strat_size(strat_name: str, capital: float) -> float:
     haircut = LIQUIDITY_HAIRCUT.get(strat_name, 1.0)
     mult = SIGNAL_MULT.get(strat_name, 1.0)
     return round(max(10, base * weight * haircut * mult), 2)
+
+
+def get_adaptive_alpha(strat: str, direction: int) -> float:
+    """Lookup adaptive macro modulator α for (strategy, direction).
+
+    Direction-specific entry in ADAPTIVE_ALPHA_DIR takes precedence over
+    direction-agnostic entry in ADAPTIVE_ALPHA. Returns 0.0 if neither
+    matches (= no modulator applied).
+    """
+    if (strat, direction) in ADAPTIVE_ALPHA_DIR:
+        return ADAPTIVE_ALPHA_DIR[(strat, direction)]
+    return ADAPTIVE_ALPHA.get(strat, 0.0)
