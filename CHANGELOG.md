@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.3.2] — 2026-05-10
+- **Dashboard**: win probability estimator now mutes early-hold MAE noise — fresh positions show base WR with an hourglass marker until they have enough maturity to interpret reliably.
+
 ## [12.3.1] — 2026-05-10
 - **Dashboard**: open-position win probability now displayed with a smiley for at-a-glance read.
 

@@ -152,7 +152,8 @@ def compute_s10_health(trades, days: int = 30) -> dict:
     }
 
 
-def estimate_win_prob(pos, trades) -> dict | None:
+def estimate_win_prob(pos, trades, hours_held: float = 0,
+                       hold_target_h: float = 48) -> dict | None:
     """Estimate win probability for an open position from historical patterns.
 
     Strategy:
@@ -162,6 +163,10 @@ def estimate_win_prob(pos, trades) -> dict | None:
          deeper than the median MAE of historical wins, reduce confidence.
       4. Apply MFE-already-touched bonus: if MFE > 200 bps already reached,
          the position has shown pulse — slightly boost WR.
+      5. v12.3.2: trade maturity gate. In the first ~2h of a hold (or first
+         10% of hold_target), drawdowns are noise — the conditional adjustment
+         is skipped and base WR is shown with a "fresh" tag. Avoids the early
+         WR swing of -10pp on a tiny MAE.
 
     Returns dict {wr_pct, n, scope, note} or None if insufficient data.
     """
@@ -182,43 +187,48 @@ def estimate_win_prob(pos, trades) -> dict | None:
             return None
     base_wr = sum(1 for t in matches if t.pnl_usdt > 0) / len(matches) * 100
 
-    # MAE conditional adjustment: of historical trades that ALSO reached this
-    # MAE level (or deeper), what fraction won? More accurate than naive base.
+    # v12.3.2 maturity gate: a freshly-opened position has noisy MAE/MFE.
+    # First 2h OR first 10% of hold_target = "fresh" → no conditional adjustment.
+    mature = hours_held >= max(2.0, 0.10 * hold_target_h)
+
     cur_mae = pos.mae_bps or 0
-    if cur_mae < -50:  # only meaningful when meaningfully red
-        deep = [t for t in matches if (t.mae_bps or 0) <= cur_mae]
-        if len(deep) >= 3:
-            cond_wr = sum(1 for t in deep if t.pnl_usdt > 0) / len(deep) * 100
-            adj_wr = cond_wr  # use conditional directly when sample sufficient
-        else:
-            # Tail estimation: if very few past trades hit this depth, dampen by
-            # MAE proximity to stop (-1250 bps default → 0% at stop, base at 0)
-            stop_bps = pos.stop_bps or -1250
-            proximity = max(0, min(1, cur_mae / stop_bps))  # 0=safe, 1=at stop
-            adj_wr = base_wr * (1 - 0.5 * proximity)
-    else:
-        adj_wr = base_wr
-
-    # MFE-touched bonus: position that showed pulse > 200 bps has shown the
-    # mean-reversion is plausible. Small boost (capped).
     mfe = pos.mfe_bps or 0
-    if mfe >= 200 and pos.pnl_usdt < 0:
-        adj_wr = min(95, adj_wr * 1.1)
-    elif mfe < 50:
-        # No pulse yet, slight discount (especially late in hold)
-        adj_wr *= 0.9
-
+    adj_wr = base_wr
     note = f"{scope} match"
-    if cur_mae < -500:
-        note += f", deep MAE ({int(cur_mae)})"
-    elif mfe >= 200:
-        note += f", MFE pulse ({int(mfe)})"
+
+    if not mature:
+        note += f", fresh ({hours_held:.1f}h)"
+    else:
+        # MAE conditional adjustment: of historical trades that ALSO reached this
+        # MAE level (or deeper), what fraction won? More accurate than naive base.
+        if cur_mae < -200:  # raised from -50 to -200: ignore shallow MAE noise
+            deep = [t for t in matches if (t.mae_bps or 0) <= cur_mae]
+            if len(deep) >= 3:
+                cond_wr = sum(1 for t in deep if t.pnl_usdt > 0) / len(deep) * 100
+                adj_wr = cond_wr
+                if cur_mae < -500:
+                    note += f", deep MAE ({int(cur_mae)})"
+            else:
+                # Tail estimation: dampen by proximity to stop
+                stop_bps = pos.stop_bps or -1250
+                proximity = max(0, min(1, cur_mae / stop_bps))
+                adj_wr = base_wr * (1 - 0.5 * proximity)
+                note += f", MAE near stop ({int(cur_mae)})"
+        # MFE bonus / penalty (only when mature)
+        if mfe >= 200 and pos.pnl_usdt < 0:
+            adj_wr = min(95, adj_wr * 1.1)
+            note += f", MFE pulse ({int(mfe)})"
+        elif mfe < 50 and hours_held >= 0.5 * hold_target_h:
+            # No pulse + late in hold = bad sign
+            adj_wr *= 0.9
+            note += ", no pulse late"
 
     return {
         "wr_pct": round(adj_wr, 0),
         "base_wr_pct": round(base_wr, 0),
         "n": len(matches),
         "scope": scope,
+        "mature": mature,
         "note": note,
     }
 

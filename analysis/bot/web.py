@@ -164,7 +164,11 @@ def build_state_response(bot) -> dict:
         total_hold = hold_h + rem
         hold_progress = round(hold_h / total_hold, 3) if total_hold > 0 else 0.0
         # v12.3.0 — historical-pattern win probability estimate
-        win_prob = estimate_win_prob(pos, list(bot.trades))
+        # v12.3.2: pass hours_held + hold_target so the maturity gate can mute
+        # noisy early-hold MAE-based adjustments.
+        win_prob = estimate_win_prob(pos, list(bot.trades),
+                                      hours_held=hold_h,
+                                      hold_target_h=hold_h + max(rem, 0))
         positions.append({
             "symbol": sym, "direction": "LONG" if pos.direction == 1 else "SHORT",
             "strategy": pos.strategy, "entry_price": pos.entry_price,

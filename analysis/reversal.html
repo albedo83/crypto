@@ -760,7 +760,7 @@ function refresh(){
       const pathViz=sparkline(p.trajectory);
       const bpsSign=p.unrealized_bps>=0?'+':'';
       // v12.3.0: historical-pattern win probability (from /api/state)
-      // v12.3.1: smiley + colored % for at-a-glance read
+      // v12.3.1: smiley + colored %.  v12.3.2: dim when "fresh" (low confidence).
       let wpStr = '<span class="dim">—</span>';
       if (p.win_prob && p.win_prob.wr_pct !== undefined) {
         const w = p.win_prob.wr_pct;
@@ -772,7 +772,12 @@ function refresh(){
         else if (w >= 25) { col = '#f85149'; smiley = '😟'; }
         else              { col = '#f85149'; smiley = '😱'; }
         const tooltip = `${p.win_prob.note} (n=${p.win_prob.n}, base ${p.win_prob.base_wr_pct}%)`;
-        wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}">${smiley} ${w}%</span>`;
+        // Fresh trades: dim styling + ⌛ marker — WR shouldn't be trusted yet
+        if (p.win_prob.mature === false) {
+          wpStr = `<span class="dim" style="font-size:11px" title="${tooltip}">⌛ ${w}%</span>`;
+        } else {
+          wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}">${smiley} ${w}%</span>`;
+        }
       }
       tr.innerHTML=`
         <td data-label="Symbol" class="pos-symbol"><b>${p.symbol}</b></td>
