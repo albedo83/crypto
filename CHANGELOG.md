@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.0] — 2026-05-10
+- **Trading engine**: dead-trade exit threshold tightened so the bot crystallizes losses on pinned positions earlier, walk-forward validated.
+
 ## [12.4.0] — 2026-05-10
 - **Telegram**: alerts when an open position's estimated win probability drifts into the alarm zone — gives the user a chance to act before the trade goes catastrophic.
 - **Dashboard**: win probability lookback narrowed to recent history so older market regimes don't pollute the estimate.

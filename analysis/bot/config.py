@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.4.0"
+VERSION = "12.5.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -241,9 +241,14 @@ S9_EARLY_EXIT_HOURS = 8.0
 # pinned S5 losers ~200 bps sooner). Walk-forward: +$9.5k on 28m, -$200/$100/$50
 # on 12m/6m/3m (noise), DD unchanged. S5 PnL alone: +$6k on 28m, tiny gains on
 # shorter windows. Not strict 4/4 pass but asymmetric risk/reward.
+# v12.5.0: MAE_FLOOR tightened again from -800 → -500. Validated by
+# `backtests/backtest_wr_autoclose.py` walk-forward 4/4 strict (sum ΔPnL
+# +3244pp on 28m, +484 on 12m, +43 on 6m, +21 on 3m, ΔDD avg -0.82pp = DD
+# improved). Catches dead-trades ~300bps earlier — most impact on S5 LONG
+# trades that pin between -500 and -800 MAE while never showing pulse.
 DEAD_TIMEOUT_LEAD_HOURS = 12.0
 DEAD_TIMEOUT_MFE_CAP_BPS = 150.0
-DEAD_TIMEOUT_MAE_FLOOR_BPS = -800.0
+DEAD_TIMEOUT_MAE_FLOOR_BPS = -500.0
 DEAD_TIMEOUT_SLACK_BPS = 300.0
 
 # ── Portfolio Protections ──────────────────────────────────────────

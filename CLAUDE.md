@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 12.4.0). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 12.5.0). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
@@ -93,6 +93,8 @@ Hyperliquid SDK (write)
 **v11.7.2 Dead-timeout early exit**: at T−12h from hold expiry, if a position has never shown meaningful upside (`pos.mfe_bps ≤ DEAD_TIMEOUT_MFE_CAP_BPS=150`), is deeply underwater (`pos.mae_bps ≤ DEAD_TIMEOUT_MAE_FLOOR_BPS`) AND is still pinned near its low (`unrealized ≤ mae_bps + DEAD_TIMEOUT_SLACK_BPS=300`), exit immediately instead of waiting for timeout. New exit reason: `dead_timeout`. Rationale: a trade that's still at its worst within 12h of timeout has no pulse — crystallizing the loss now vs at MAE later is structurally safe (no kept winner has MFE ≤ +150 bps by definition). Walk-forward validated 4/4 on `backtest_rolling` via `backtests/backtest_early_exit_d.py` variant D2: +$49 322 on 28m, +$1 405 on 12m, +$46 on 6m, +$21 on 3m with DD unchanged. Check runs in `trading.check_exits` after stops/trailing, before `close_position`. Kill-switch: set `DEAD_TIMEOUT_MFE_CAP_BPS=-99999` (no trade will ever match).
 
 **v11.7.16 Dead-timeout tightened**: `DEAD_TIMEOUT_MAE_FLOOR_BPS` from −1000 → −800 (`config.py`). Catches pinned S5 losers ~200 bps sooner. Motivated by recent S5 losers (PENDLE, DYDX) reaching MAE −1000 to −1229 bps before the v11.7.2 logic fired. Walk-forward on `backtest_s5_stops` variant V4: +$9 554 on 28m (S5 alone +$6 278), minor noise on 12m/6m/3m (−$198 / −$104 / −$48), DD unchanged or slightly better on all windows. Not strict 4/4 pass, shipped for asymmetric risk/reward. Kill-switch: set back to −1000.
+
+**v12.5.0 Dead-timeout tightened (again)**: `DEAD_TIMEOUT_MAE_FLOOR_BPS` from −800 → −500 (`config.py`). Validated walk-forward 4/4 strict via `backtest_wr_autoclose.py`: +3244pp on 28m, +484 on 12m, +43 on 6m, +21 on 3m, ΔDD avg −0.82pp (DD improved). Catches the band of pinned losers between −500 and −800 MAE that the previous threshold left to die at natural timeout. Most impact on S5 LONG (deep-MAE-then-recover is rare; deep-MAE-then-die is common). Discovery as side-effect of testing whether WR-based auto-close would pass walk-forward (it didn't, but this MAE-floor tightening did). Kill-switch: set back to −800 or −1000.
 
 **v11.7.5 Per-trade funding (live)**: at close, `trading.close_position` calls `exchange.fetch_position_funding()` to sum the exact `user_funding_history` deltas on that coin between `entry_time` and `exit_time`. The flat `FUNDING_DRAG_BPS=1` already baked into `net_bps` is swapped out for the real number: `pnl = size*(net_bps)/1e4 + funding_usdt - flat_funding_usdt`. New column `trades.funding_usdt` (SQLite auto-migrated). Paper mode unchanged (flat model). Rationale: funding is time-dependent (hourly accrual at floating rate) so entry-time estimation is imprecise; the flat 1 bps estimate was ~10× below real drag observed in live (~14 bps avg). Fail-open: HL API failure returns 0 and trade closes with the flat model. Backtests keep the flat model (no candle-level funding data).
 
