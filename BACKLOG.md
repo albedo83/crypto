@@ -27,6 +27,7 @@ Ces features sont loggées depuis longtemps et le sample size dépasse le seuil 
 
 - [ ] **`basket_metrics` × drawdown** — instrumenté 2026-05-11. Revisiter ~**2026-07-11**. Question : les drawdowns observés corrèlent-ils avec `effective_n` bas ou `mean_corr_to_btc` extrême au moment d'ouverture ? Si oui → motivation pour un gate validé walk-forward. Voir mémoire `project_basket_correlation_review.md`.
 - [ ] **`entry_side_imbalance` × slippage/pnl** — instrumenté 2026-05-11. Revisiter ~**2026-08-11** (3 mois) ou ~**2026-11-11** (6 mois). Re-lancer `backtests/backtest_l2_imbalance.py` une fois qu'on a 200+ trades avec ESI loggé en OPEN events. Le signal rétrospectif sur 75 trades était fort (+17 bps slippage défavorable vs favorable) mais bruité, à confirmer.
+- [ ] **Modulator 2D** (`mult = 1 + α×btc_z + β×disp_z`) — `backtests/analyze_2d_regime.py` (2026-05-11) a montré un signal rétrospectif : sur 60 trades, la cellule `btc>×disp>` rend +$4.39 vs `btc>×disp~` à -$0.66 (spread ~$10 dans le même régime BTC). Mais 60 trades sur 1 seule saison majoritairement bull. **Next step** : étendre `backtests/backtest_rolling.py` pour tester walk-forward 4/4 strict avant de ship. À considérer après avoir au moins une saison bear dans le dataset.
 - [ ] **`S9F_OBS` hit rate** — événements ±3%/2h loggés. Besoin de 6+ mois de données pour évaluer si la fenêtre rapide a un edge.
 - [ ] **`ETH_OBS` S8 hit rate** — actuellement n=0 trades pris (observation-only sur ETH). Besoin de n≥10 triggers S8 pour valider.
 
