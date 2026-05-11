@@ -551,6 +551,34 @@ Pour chaque position ouverte affichée sur le dashboard :
 
 **Telegram alarm WR** (v12.4.0) : si une position passe en 😱 (< 25%) pour la première fois après maturité, message Telegram envoyé avec contexte. Un seul alert par position (anti-spam).
 
+### Basket correlation observability (post-12.5.1, observation-only)
+
+**La question qu'on essaie de répondre** : "j'ai 4 positions ouvertes, est-ce que ce sont 4 paris vraiment différents, ou est-ce qu'elles bougent toutes ensemble (panier concentré) ?"
+
+**3 métriques calculées à chaque scan** (si ≥ 2 positions, sur returns 30j) :
+- **`mean_corr_to_btc`** ∈ [-1, +1] : exposition signée du panier à BTC. `+0.7` = panier essentiellement long BTC. `-0.7` = essentiellement short BTC. `~0` = bien hedgé. Calculé comme `mean(direction_i × corr(alt_i, BTC))` sur les 30 jours rolling.
+- **`max_pairwise_corr`** : la pire paire "same-trade" du panier. `+0.9` = deux positions font effectivement le même pari. Négatif = la meilleure paire hedgée.
+- **`effective_n`** ∈ [1, n_positions] : nombre équivalent de positions vraiment indépendantes. Si `n_positions=4` et `effective_n=4.0` → bien diversifié. Si `effective_n=1.5` → tu fais en réalité ~1.5 pari, pas 4. Formule : `n² / sum(matrice corrélation sign-adjusted)`.
+
+**Pourquoi c'est observation-only pour le moment** : les caps actuels (`MAX_SAME_DIRECTION=4`, `MAX_PER_SECTOR=2`) ne regardent que direction et secteur — ils sont aveugles au fait que 4 LONGs de 4 secteurs différents peuvent quand même tous être corrélés à BTC. La métrique répond au "vrai" risque. Mais pour ajouter un gate (skip si effective_n trop bas), il faut d'abord vérifier que les drawdowns observés en live corrèlent avec une concentration élevée — sinon c'est un nouveau filtre qui se ferait éjecter en walk-forward, comme tous les autres essais.
+
+**Stockage** :
+- Snapshot par scan (~1/h) dans la table SQLite `basket_snapshots` (ts, n_positions, mean_corr_to_btc, max_pairwise_corr, effective_n)
+- Snapshot du panier au moment de chaque entrée logué dans l'event `OPEN` (champs `basket_mean_corr_btc, basket_max_pairwise, basket_effective_n, basket_n_positions`)
+- Exposé dans `/api/state.basket_metrics` pour le dashboard
+
+**Widget dashboard** (market-bar à côté de l'OI) :
+```
+Basket: +0.62 eff 2.4/4
+```
+- 1er nombre = `mean_corr_to_btc` (signé). Couleur : vert |x|<0.3, jaune 0.3-0.6, rouge >0.6.
+- 2e nombre = `effective_n / n_positions`. Couleur : vert ratio≥0.7, jaune 0.5-0.7, rouge <0.5.
+- Tooltip = les 3 métriques détaillées.
+
+**Prochaine étape (1-2 mois post-instrumentation)** : query d'analyse pour joindre `OPEN.basket_*` (concentration à l'entrée) avec `trades.pnl_usdt` (outcome). Si on observe que les trades ouverts dans un panier "concentré" (effective_n − 1 < 2, par exemple) sous-performent, on a une motivation chiffrée pour un gate testé walk-forward 4/4 strict. Sinon → on garde la métrique comme widget observability et on ferme le ticket.
+
+**Kill-switch (gate futur, pas actif)** : aucune action de trading n'utilise ces métriques aujourd'hui.
+
 ### Dashboard live (port 8098/bot/)
 
 ```
