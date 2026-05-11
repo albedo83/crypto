@@ -23,6 +23,10 @@ class SymbolState:
     funding: float = 0.0
     premium: float = 0.0
     oi_history: deque = field(default_factory=lambda: deque(maxlen=1500))  # 25h @ 60s (supports 24h OI gate)
+    # impactPxs: price for $1M notional fill per side (proxy of book depth).
+    # Used for observation-only entry_side_imbalance metric (logged on OPEN events).
+    impact_bid: float = 0.0
+    impact_ask: float = 0.0
 
 
 @dataclass

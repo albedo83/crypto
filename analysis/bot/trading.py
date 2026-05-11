@@ -706,6 +706,9 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                 entry_session=ctx.get("session", "") or "",
             )
         basket_at_entry = getattr(bot, "_basket_metrics", None)
+        from .features import compute_entry_side_imbalance as _esi_fn
+        esi_at_entry = _esi_fn(sig["direction"], st.price,
+                                st.impact_bid, st.impact_ask)
         log_event(bot._db, "OPEN", sym, {
             "strategy": sig["strategy"], "dir": side,
             "entry_price": round(entry_price, 6), "size_usdt": round(filled_size, 2),
@@ -717,6 +720,9 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             "basket_max_pairwise": basket_at_entry["max_pairwise_corr"] if basket_at_entry else None,
             "basket_effective_n": basket_at_entry["effective_n"] if basket_at_entry else None,
             "basket_n_positions": basket_at_entry["n_positions"] if basket_at_entry else None,
+            "entry_side_imbalance": esi_at_entry["esi"] if esi_at_entry else None,
+            "book_skew": esi_at_entry["skew"] if esi_at_entry else None,
+            "book_spread_bps": esi_at_entry["spread_bps"] if esi_at_entry else None,
         })
 
         # Update local counters (avoid re-reading bot.positions mid-scan)

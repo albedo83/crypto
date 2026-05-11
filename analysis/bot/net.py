@@ -72,6 +72,15 @@ def fetch_prices(states: dict) -> tuple[list | None, list | None]:
                     st.oi_history.append((now, oi))
                 st.funding = float(ctxs[i].get("funding") or 0)
                 st.premium = float(ctxs[i].get("premium") or 0)
+                _impacts = ctxs[i].get("impactPxs") or []
+                if len(_impacts) >= 2:
+                    try:
+                        ib = float(_impacts[0]); ia = float(_impacts[1])
+                        if ib > 0 and ia > ib:
+                            st.impact_bid = ib
+                            st.impact_ask = ia
+                    except (TypeError, ValueError):
+                        pass
         return meta["universe"], ctxs
     except Exception as e:
         log.warning("Price fetch error: %s", e)

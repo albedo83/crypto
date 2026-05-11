@@ -326,6 +326,44 @@ def compute_basket_correlation(positions: dict, states: dict,
     }
 
 
+def compute_entry_side_imbalance(direction: int, mark: float,
+                                  impact_bid: float, impact_ask: float
+                                  ) -> dict | None:
+    """Order book imbalance at the side WE will hit as taker.
+
+    Observation-only. Returns {esi, spread_bps, skew} or None if the book is
+    degenerate (zero/non-monotonic prices).
+
+    Semantics:
+      - impactPxs[0] = impact_bid = price to SELL $1M (lower than mark)
+      - impactPxs[1] = impact_ask = price to BUY $1M (higher than mark)
+      - skew = (mark - impact_bid) / (impact_ask - impact_bid) ∈ [0, 1]:
+          0 = mark stuck at impact_bid (thin ask side, more buying pressure)
+          1 = mark stuck at impact_ask (thin bid side, more selling pressure)
+      - esi = the fraction of the spread WE'd cross as taker:
+          LONG  → buy at ask → unfavorable when ask side is thin →
+                  esi = (impact_ask - mark) / (impact_ask - impact_bid) = 1 - skew
+          SHORT → sell at bid → unfavorable when bid side is thin →
+                  esi = (mark - impact_bid) / (impact_ask - impact_bid) = skew
+
+    Backtest retrospective on 75 live trades showed défavorable bucket
+    (esi > 0.6) underperforms favorable bucket (esi < 0.3) by ~17 bps in
+    slippage and ~$3.30 in avg PnL. Logging on OPEN events for forward
+    validation; no trading gate at this point.
+    """
+    if mark <= 0 or impact_bid <= 0 or impact_ask <= impact_bid:
+        return None
+    spread = impact_ask - impact_bid
+    raw_skew = (mark - impact_bid) / spread
+    skew = max(0.0, min(1.0, raw_skew))
+    esi = (1.0 - skew) if direction == 1 else skew
+    return {
+        "esi": round(esi, 3),
+        "skew": round(skew, 3),
+        "spread_bps": round(spread / mark * 1e4, 1),
+    }
+
+
 def fetch_dxy(degraded: list, dxy_cache_path: str) -> float:
     """Fetch DXY 7-day return (bps) via Yahoo Finance with 3-tier fallback:
     1. Fresh cache (<6h) -- normal operation
