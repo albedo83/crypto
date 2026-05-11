@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.5] — 2026-05-11
+- **Dashboard**: win probability estimator no longer over-pessimises positions that have already recovered from a deep adverse excursion, and ignores tier-1 token samples that are too thin to be statistically meaningful (e.g. 3 prior trades all losing).
+
 ## [12.5.4] — 2026-05-11
 - **Telegram (bug fix)**: WR drift alarm no longer fires on positions that are already profitable or have shown strong mean-reversion — was sending misleading "consider manual close" pings on winning trades whose historical pattern was thin (e.g. n=3 all losers).
 

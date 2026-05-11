@@ -120,12 +120,14 @@ class MultiSignalBot:
             # Compute live pnl from current price for the alert message
             st = self.states.get(sym)
             cur_pnl = 0.0
+            ur_bps = 0.0
             if st and st.price > 0 and pos.entry_price > 0:
                 ur_bps = (st.price / pos.entry_price - 1) * 1e4 * pos.direction
                 cur_pnl = pos.size_usdt * ur_bps / 1e4
             wp = analytics.estimate_win_prob(pos, trades_list,
                                               hours_held=hold_h,
-                                              hold_target_h=hold_target)
+                                              hold_target_h=hold_target,
+                                              current_ur_bps=ur_bps)
             if not wp or not wp.get("mature") or wp.get("wr_pct", 100) >= 25:
                 continue
             # v12.5.4 — suppress the alarm when the position is currently up

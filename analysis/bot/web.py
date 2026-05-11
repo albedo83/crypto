@@ -176,7 +176,8 @@ def build_state_response(bot) -> dict:
         win_prob = estimate_win_prob(pos, recent_trades,
                                       hours_held=hold_h,
                                       hold_target_h=hold_h + max(rem, 0),
-                                      pre_filtered=True)
+                                      pre_filtered=True,
+                                      current_ur_bps=ur)
         positions.append({
             "symbol": sym, "direction": "LONG" if pos.direction == 1 else "SHORT",
             "strategy": pos.strategy, "entry_price": pos.entry_price,

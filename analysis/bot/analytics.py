@@ -134,17 +134,25 @@ def filter_recent_trades(trades, lookback_days: int = 180) -> list:
 def estimate_win_prob(pos, trades, hours_held: float = 0,
                        hold_target_h: float = 48,
                        lookback_days: int = 180,
-                       pre_filtered: bool = False) -> dict | None:
+                       pre_filtered: bool = False,
+                       current_ur_bps: float = 0.0) -> dict | None:
     """Estimate win probability for an open position from historical patterns.
 
     If `pre_filtered=True`, `trades` is assumed already filtered to the recent
     window — skips the cutoff filter for the hot dashboard path. Otherwise
     filters in-place (back-compat).
 
+    `current_ur_bps` is the position's CURRENT unrealized pnl in bps (signed
+    by direction). When >0, the MAE conditional penalty is skipped — the
+    position has already moved past its worst point and conditioning on
+    "trades that also hit this MAE depth" over-pessimises a recovered trade.
+
     Strategy:
-      1. Exact match: same (strat, symbol, direction). Return WR if ≥3 samples.
-      2. Wider match: same (strat, direction). Return WR if ≥8 samples.
-      3. MAE conditional adjustment if mature.
+      1. Exact match: same (strat, symbol, direction). Use WR if ≥5 samples
+         (raised from 3 in v12.5.5 to avoid extreme 0%/100% artifacts from
+         tiny samples).
+      2. Wider match: same (strat, direction). Use WR if ≥8 samples.
+      3. MAE conditional adjustment if mature AND currently underwater.
       4. MFE pulse bonus / no-pulse-late penalty if mature.
       5. v12.3.2: maturity gate mutes adjustments in first 2h or 10% of hold.
 
@@ -157,7 +165,9 @@ def estimate_win_prob(pos, trades, hours_held: float = 0,
     exact = [t for t in trades if t.strategy == pos.strategy
              and t.symbol == pos.symbol
              and t.direction == direction_str]
-    if len(exact) >= 3:
+    # v12.5.5: tier 1 min raised from 3 to 5 — 3 samples can yield 0%/100%
+    # which is statistical noise; the broader strat+dir tier is more reliable.
+    if len(exact) >= 5:
         matches, scope = exact, "exact"
     else:
         wider = [t for t in trades if t.strategy == pos.strategy
@@ -178,7 +188,12 @@ def estimate_win_prob(pos, trades, hours_held: float = 0,
     if not mature:
         note += f", fresh ({hours_held:.1f}h)"
     else:
-        if cur_mae < -200:
+        # v12.5.5: only apply MAE penalty when currently underwater.
+        # A position currently in profit has already moved past its worst
+        # point; conditioning on historical trades that hit the same MAE
+        # depth (regardless of whether they recovered) double-counts the
+        # bad news.
+        if cur_mae < -200 and current_ur_bps <= 0:
             deep = [t for t in matches if (t.mae_bps or 0) <= cur_mae]
             if len(deep) >= 3:
                 cond_wr = sum(1 for t in deep if t.pnl_usdt > 0) / len(deep) * 100
@@ -190,6 +205,8 @@ def estimate_win_prob(pos, trades, hours_held: float = 0,
                 proximity = max(0, min(1, cur_mae / stop_bps))
                 adj_wr = base_wr * (1 - 0.5 * proximity)
                 note += f", MAE near stop ({int(cur_mae)})"
+        elif cur_mae < -200 and current_ur_bps > 0:
+            note += f", recovered (MAE {int(cur_mae)} → ur +{int(current_ur_bps)})"
         if mfe >= 200:
             adj_wr = min(95, adj_wr * 1.1)
             note += f", MFE pulse ({int(mfe)})"
