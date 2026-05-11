@@ -12,14 +12,14 @@ Mettre à jour au fil de l'eau. Quand un item est traité → le supprimer et lo
 
 ## 1. Analyses prêtes à lancer (données suffisantes)
 
-Ces features sont loggées depuis longtemps et le sample size dépasse le seuil "50+ trades" du protocole. Aucun bot tournant ne les utilise pour décider.
+Ces features ont été analysées le 2026-05-11 via `backtests/analyze_obs_features.py` (rétrospectif) puis les hypothèses fortes testées en walk-forward via `backtests/backtest_we_oi_gates.py`. **Aucun gate n'a passé 4/4 strict.** Résumé :
 
-- [ ] **`entry_oi_delta` × pnl** — 87 trades live. Est-ce que les entrées avec OI 24h en chute libre (-X%) sous-performent ? Si oui : on a déjà l'OI gate sur les LONG (v11.4.9), mais peut-être un gate plus fin sur les SHORT.
-- [ ] **`entry_crowding` × pnl** — 87 trades. Le score crowding 0-100 a-t-il un rapport avec le pnl (i.e. les flushes "propres" sont-elles vraiment meilleures) ?
-- [ ] **`entry_confluence` × pnl** — 87 trades. Plus de features extrêmes à l'entrée = meilleur trade ?
-- [ ] **`entry_session` × pnl** — 87 trades. Asia/EU/US/Night/WE : un breakdown WR par session pourrait justifier un sizing par horaire.
+- ❌ **`entry_session` (WE)** — rétrospectif fort (WE n=22 avg −$3.12, WR 36%). Walk-forward : `WE skip S5 LONG only` à **3/4** (ΔDD +0.39, à 0.11pp du seuil 0.5pp), le 12m casse. **Re-tester ~2026-08-11** : si la fenêtre 12m glisse vers une période moins négative, ça pourrait basculer 4/4.
+- ❌ **`entry_oi_delta` SHORT gate** (mirror v11.4.9) — rétrospectif fort sur S5 SHORT (n=5 avg −$8.25). Walk-forward : **0/4 toutes thresholds** (+5% à +25%). Pattern = bruit d'échantillonnage, sur 28 mois historique le gate détruit systématiquement le pnl. **Classer définitivement.**
+- 🟡 **`entry_crowding`** — rétrospectif WEAK (spread $3.62, pas extrême). Pas testé en walk-forward (signal trop faible pour justifier le coût).
+- 🟡 **`entry_confluence`** — rétrospectif WEAK (spread $5.69 mais buckets pas extrêmes). Pas testé en walk-forward.
 
-**Comment** : un script `backtests/analyze_obs_features.py` (~80 lignes) qui lit `trades` DB, bucketise par chaque feature, sort un tableau WR/avg pnl/n par bucket. Lancer une fois sur live + une fois sur paper pour cross-check.
+**Re-run** `backtests/analyze_obs_features.py` et `backtests/backtest_we_oi_gates.py` à 200+ trades ou ~2026-08-11.
 
 ---
 
