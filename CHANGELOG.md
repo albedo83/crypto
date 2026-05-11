@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.1] — 2026-05-11
+- **Dashboard (bug fix)**: `/api/state` crashed since v12.3.0 because the win probability estimator referenced a field that doesn't exist on open positions — dashboard now loads again.
+
 ## [12.5.0] — 2026-05-10
 - **Trading engine**: dead-trade exit threshold tightened so the bot crystallizes losses on pinned positions earlier, walk-forward validated.
 

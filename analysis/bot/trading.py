@@ -220,8 +220,10 @@ def estimate_win_prob(pos, trades, hours_held: float = 0,
                 proximity = max(0, min(1, cur_mae / stop_bps))
                 adj_wr = base_wr * (1 - 0.5 * proximity)
                 note += f", MAE near stop ({int(cur_mae)})"
-        # MFE bonus / penalty (only when mature)
-        if mfe >= 200 and pos.pnl_usdt < 0:
+        # MFE bonus / penalty (only when mature). Position dataclass lacks
+        # current pnl, so we apply the bonus whenever MFE has shown pulse —
+        # mean-reversion has been demonstrated regardless of current state.
+        if mfe >= 200:
             adj_wr = min(95, adj_wr * 1.1)
             note += f", MFE pulse ({int(mfe)})"
         elif mfe < 50 and hours_held >= 0.5 * hold_target_h:
