@@ -6,13 +6,13 @@ ROOT_PATH = os.environ.get("HL_ROOT_PATH", "")  # e.g. "/bot" when behind nginx 
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
-from fastapi import Cookie, FastAPI, HTTPException, Request, Form
+from fastapi import FastAPI, Request, Form
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from .config import (
     VERSION, EXECUTION_MODE, BOT_LABEL, BOT_LABEL_COLOR,
     CAPITAL_USDT, JUNIOR_CAPITAL_CAP, LEVERAGE, DASHBOARD_USER,
     DASHBOARD_PASS, AUTH_SALT, HTML_PATH, CHANGELOG_PATH, BACKTESTS_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
-    MAX_POSITIONS, TOTAL_LOSS_CAP, SCAN_INTERVAL,
+    MAX_POSITIONS, SCAN_INTERVAL,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS, STOP_LOSS_S8,
     OI_LONG_GATE_BPS, TRADE_BLACKLIST, S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
     MACRO_STRATEGIES, MAX_SAME_DIRECTION, MAX_PER_SECTOR, MAX_MACRO_SLOTS,
@@ -21,6 +21,7 @@ from .config import (
     S8_DRAWDOWN_THRESH, S8_VOL_Z_MIN, S8_RET_24H_THRESH, S8_BTC_7D_THRESH,
     S9_RET_THRESH,
 )
+from .concurrency import db_lock as _db_lock
 from .features import oi_delta_24h_bps
 
 def _mode_label() -> str:
@@ -307,7 +308,6 @@ def build_state_response(bot) -> dict:
         "bot_label": _mode_label(), "bot_label_color": _mode_color(),
         "paused": bot._paused, "running": bot.running,
         "degraded": list(bot._degraded), "loss_streak": bot._consecutive_losses,
-        "kill_switch_active": bot._total_pnl <= TOTAL_LOSS_CAP,
         "balance": round(balance, 2), "capital": bot._capital,
         "exchange_account": bot._exchange_account,  # real exchange balance (live only)
         "total_pnl": round(bot._total_pnl, 2), "total_trades": n_bot,
@@ -957,14 +957,13 @@ def create_app(bot) -> FastAPI:
             if st and st.price > 0: bot._close_position(sym, st.price, now, "reset")
         with bot._pos_lock:
             bot._total_pnl, bot._wins, bot._peak_balance = 0.0, 0, bot._capital
-            bot._consecutive_losses, bot._loss_streak_until = 0, 0
+            bot._consecutive_losses = 0
             bot._paused, bot._last_scan = False, 0
             for c in (bot._cooldowns, bot.trades, bot._degraded,
                       bot._feature_cache, bot._signal_first_seen): c.clear()
             bot._oi_summary = {"falling": 0, "rising": 0}
         # Clear trades from DB
         if bot._db:
-            from .db import _db_lock
             with _db_lock:
                 bot._db.execute("DELETE FROM trades")
                 bot._db.execute("DELETE FROM trajectories")

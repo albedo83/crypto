@@ -149,8 +149,6 @@ S10_ALLOWED_TOKENS = {       # tokens with positive S10 P&L on train window
 DXY_CACHE = os.path.join(
     os.path.dirname(os.path.dirname(__file__)), "output", "pairs_data", "macro_DXY.json"
 )
-DXY_BOOST_THRESHOLD = 100   # DXY 7d > +1% (unused while S4 suspended)
-
 # ── Leverage & Sizing ──────────────────────────────────────────────
 # 2x optimal (3x = ruin from compounding losses)
 LEVERAGE = 2.0
@@ -250,15 +248,6 @@ DEAD_TIMEOUT_LEAD_HOURS = 12.0
 DEAD_TIMEOUT_MFE_CAP_BPS = 150.0
 DEAD_TIMEOUT_MAE_FLOOR_BPS = -500.0
 DEAD_TIMEOUT_SLACK_BPS = 300.0
-
-# ── Portfolio Protections ──────────────────────────────────────────
-# Kill-switch, loss streak, and quarantine DISABLED after backtest analysis:
-# all three destroy compounding returns (-65% to -99% P&L impact).
-# Per-trade stops + S9 early exit + position limits are sufficient.
-TOTAL_LOSS_CAP = -999_999.0     # effectively disabled
-LOSS_STREAK_THRESHOLD = 999     # effectively disabled
-LOSS_STREAK_MULTIPLIER = 1.0    # no reduction
-LOSS_STREAK_COOLDOWN = 0
 
 # ── OI Gate (backtest_external_gates.py, backtest_oi_gate_validate.py) ──
 # Skip LONG entries when token OI has fallen >10% in 24h: longs are unwinding,

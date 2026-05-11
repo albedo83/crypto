@@ -54,7 +54,6 @@ class MultiSignalBot:
         self._degraded: list[str] = []
         self._consecutive_losses = 0
         self._signal_first_seen: dict[str, float] = {}
-        self._loss_streak_until: float = 0
         self._pos_lock = threading.Lock()
         self._failed_closes: set[str] = set()  # symbols with exchange close failures
         self._closing: set[str] = set()  # symbols currently mid-close (mutex)
@@ -194,7 +193,7 @@ class MultiSignalBot:
             STATE_FILE, self.positions, self._pos_lock,
             self._total_pnl, self._wins, self._peak_balance,
             self._last_daily_report, self._paused,
-            self._consecutive_losses, self._loss_streak_until,
+            self._consecutive_losses,
             self._cooldowns, self._signal_first_seen, self._feature_cache,
             capital=self._capital)
 

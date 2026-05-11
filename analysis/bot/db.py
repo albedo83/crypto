@@ -1,4 +1,4 @@
-"""SQLite init, schema, migration helper, tick/event logging.
+"""SQLite init, schema, tick/event logging.
 
 Functions are standalone (not methods). Caller passes DB connections and
 callback functions as arguments to avoid coupling to the bot class.
@@ -6,20 +6,15 @@ callback functions as arguments to avoid coupling to the bot class.
 
 from __future__ import annotations
 
-import csv
 import json
 import logging
-import os
 import sqlite3
-import threading
 import time
 
-from .config import OUTPUT_DIR, ALL_SYMBOLS
+from .config import ALL_SYMBOLS
+from .concurrency import db_lock as _db_lock  # re-exported for back-compat (callers may import from here)
 
 log = logging.getLogger("multisignal")
-
-# Global write lock — serialises all SQLite writes from scan, API, and collector threads.
-_db_lock = threading.Lock()
 
 
 # ── SQLite Init & Migration ───────────────────────────────────────────
@@ -134,95 +129,11 @@ def init_db(db_path: str) -> sqlite3.Connection | None:
         ) WITHOUT ROWID""")
         db.execute("CREATE INDEX IF NOT EXISTS idx_tf_symbol_ts ON trade_flow(symbol, ts)")
         db.commit()
-        # Migrate existing CSV data if tables are empty
-        migrate_csv_to_db(db, OUTPUT_DIR)
         log.info("Tick database ready: %s", db_path)
         return db
     except Exception as e:
         log.warning("Tick DB init failed: %s — continuing without tick logging", e)
         return None
-
-
-def migrate_csv_to_db(db: sqlite3.Connection, output_dir: str) -> None:
-    """One-time migration of pre-v11.3.1 CSV data into SQLite tables.
-
-    Kept for upgrade safety — runs only if the target tables are empty, so it's
-    a no-op on fresh installs and on already-migrated systems.
-    """
-    if not db:
-        return
-    trades_csv = os.path.join(output_dir, "reversal_trades.csv")
-    market_csv = os.path.join(output_dir, "reversal_market.csv")
-    # Trades
-    count = db.execute("SELECT COUNT(*) FROM trades").fetchone()[0]
-    if count == 0 and os.path.exists(trades_csv):
-        try:
-            with open(trades_csv) as f:
-                rows = list(csv.DictReader(f))
-            if rows:
-                db.executemany("""INSERT INTO trades
-                    (symbol, direction, strategy, entry_time, exit_time, entry_price,
-                     exit_price, hold_hours, size_usdt, signal_info, gross_bps, net_bps,
-                     pnl_usdt, mae_bps, mfe_bps, reason, entry_oi_delta, entry_crowding,
-                     entry_confluence, entry_session)
-                    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    [(r["symbol"], r["direction"], r.get("strategy", "?"),
-                      r["entry_time"], r["exit_time"],
-                      float(r["entry_price"]), float(r["exit_price"]),
-                      float(r["hold_hours"]), float(r["size_usdt"]),
-                      r.get("signal_info", ""),
-                      float(r["gross_bps"]), float(r["net_bps"]), float(r["pnl_usdt"]),
-                      float(r.get("mae_bps", 0)), float(r.get("mfe_bps", 0)),
-                      r["reason"],
-                      float(r.get("entry_oi_delta", 0)),
-                      int(float(r.get("entry_crowding", 0))),
-                      int(float(r.get("entry_confluence", 0))),
-                      r.get("entry_session", ""))
-                     for r in rows])
-                db.commit()
-                log.info("Migrated %d trades from CSV to SQLite", len(rows))
-        except Exception as e:
-            log.warning("Trade CSV migration failed: %s", e)
-    # Trajectories
-    count = db.execute("SELECT COUNT(*) FROM trajectories").fetchone()[0]
-    traj_csv = os.path.join(output_dir, "reversal_trajectories.csv")
-    if count == 0 and os.path.exists(traj_csv):
-        try:
-            with open(traj_csv) as f:
-                rows = list(csv.DictReader(f))
-            if rows:
-                db.executemany("""INSERT INTO trajectories
-                    (symbol, strategy, entry_time, hours, unrealized_bps)
-                    VALUES (?,?,?,?,?)""",
-                    [(r["symbol"], r["strategy"], r["entry_time"],
-                      float(r["hours"]), float(r["unrealized_bps"])) for r in rows])
-                db.commit()
-                log.info("Migrated %d trajectory points from CSV to SQLite", len(rows))
-        except Exception as e:
-            log.warning("Trajectory CSV migration failed: %s", e)
-    # Market snapshots
-    count = db.execute("SELECT COUNT(*) FROM market_snapshots").fetchone()[0]
-    if count == 0 and os.path.exists(market_csv):
-        try:
-            with open(market_csv) as f:
-                rows = list(csv.DictReader(f))
-            if rows:
-                from datetime import datetime as _dt
-                db.executemany("""INSERT OR IGNORE INTO market_snapshots
-                    (ts, symbol, price, oi, oi_delta_1h_pct, funding_ppm, premium_ppm, crowding, vol_z)
-                    VALUES (?,?,?,?,?,?,?,?,?)""",
-                    [(int(_dt.fromisoformat(r["timestamp"]).timestamp()),
-                      r["symbol"], float(r["price"]), float(r.get("oi", 0)),
-                      float(r.get("oi_delta_1h_pct", 0)),
-                      float(r.get("funding_ppm", 0)), float(r.get("premium_ppm", 0)),
-                      int(float(r.get("crowding", 0))),
-                      float(r.get("vol_z", 0)))
-                     for r in rows])
-                db.commit()
-                log.info("Migrated %d market snapshots from CSV to SQLite", len(rows))
-        except Exception as e:
-            log.warning("Market CSV migration failed: %s", e)
-    db.commit()
 
 
 # ── Tick & Event Logging ──────────────────────────────────────────────

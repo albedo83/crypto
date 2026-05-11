@@ -16,8 +16,7 @@ from .config import (
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
     STOP_LOSS_BPS, STOP_LOSS_S8, MAX_POSITIONS, MAX_SAME_DIRECTION,
     MAX_PER_SECTOR, MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS,
-    TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER,
-    LOSS_STREAK_COOLDOWN, SIZE_PCT, SIZE_BONUS, WEB_PORT,
+    SIZE_PCT, SIZE_BONUS, WEB_PORT,
     strat_size,
 )
 from .bot import MultiSignalBot
@@ -62,7 +61,6 @@ async def run():
         bot._last_daily_report = state.get("last_daily_report", 0)
         bot._paused = state.get("paused", False)
         bot._consecutive_losses = state.get("consecutive_losses", 0)
-        bot._loss_streak_until = state.get("loss_streak_until", 0)
         bot._cooldowns = state.get("cooldowns", {})
         bot._signal_first_seen = state.get("signal_first_seen", {})
         if "feature_cache" in state:
@@ -149,9 +147,6 @@ async def run():
              HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8,
              STOP_LOSS_BPS, STOP_LOSS_S8, LEVERAGE, MAX_POSITIONS, MAX_SAME_DIRECTION,
              MAX_PER_SECTOR, MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS)
-    log.info("Kill-switch: loss cap $%.0f | streak threshold %d \u2192 %.0f%% sizing for %dh",
-             TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER * 100,
-             LOSS_STREAK_COOLDOWN // 3600)
     send_telegram(f"\U0001f916 Bot v{VERSION} started | {mode_tag} | ${bot._capital:.0f} | {len(bot.positions)} pos",
                   category="system")
 

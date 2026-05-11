@@ -12,6 +12,7 @@ import orjson
 import websockets
 
 from .config import ALL_SYMBOLS
+from .concurrency import db_lock as _db_lock
 
 log = logging.getLogger("multisignal")
 
@@ -118,7 +119,6 @@ class TradeFlowCollector:
                          b.buy_count, b.sell_count, round(b.max_trade_usd, 2), vwap))
             del self._buckets[(ts, sym)]
         try:
-            from .db import _db_lock
             with _db_lock:
                 self._db.executemany(
                     "INSERT OR IGNORE INTO trade_flow VALUES (?,?,?,?,?,?,?,?)", rows)

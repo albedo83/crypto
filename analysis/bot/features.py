@@ -367,8 +367,8 @@ def compute_entry_side_imbalance(direction: int, mark: float,
 def fetch_dxy(degraded: list, dxy_cache_path: str) -> float:
     """Fetch DXY 7-day return (bps) via Yahoo Finance with 3-tier fallback:
     1. Fresh cache (<6h) -- normal operation
-    2. Stale cache (6-48h) -- S4 stays active, dashboard shows warning
-    3. No data (>48h) -- S4 disabled, returns 0.0
+    2. Stale cache (6-48h) -- dashboard shows warning, value still served
+    3. No data (>48h) -- returns 0.0, dashboard shows DXY missing
     """
     def _read_cache() -> tuple[float | None, float]:
         """Returns (dxy_bps or None, age_hours)."""

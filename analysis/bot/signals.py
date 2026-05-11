@@ -162,9 +162,6 @@ def detect_token_signals(
             "hold_hours": HOLD_HOURS_DEFAULT, "ctx": entry_ctx,
         })
 
-    # S2 REMOVED — Alt crash mean-reversion (z=4.00) loses in portfolio.
-    # S4 SUSPENDED — Vol compression + DXY SHORT. Code kept in original for reactivation.
-
     # S5: Sector breakout — when a token diverges >10% from its sector peers
     # with high volume, FOLLOW the divergence (don't fade it). Backtested both
     # directions in backtest_sector.py: follow works, fade doesn't.

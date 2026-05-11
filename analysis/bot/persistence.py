@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import orjson
 
 from .config import OUTPUT_DIR, STATE_FILE, CAPITAL_USDT, VERSION
+from .concurrency import db_lock as _db_lock
 from .models import Position, Trade
 
 log = logging.getLogger("multisignal")
@@ -26,7 +27,6 @@ def write_trade(trade: Trade, db: sqlite3.Connection | None) -> None:
     if not db:
         log.warning("No DB — trade recorded in memory only")
         return
-    from .db import _db_lock
     try:
         with _db_lock:
             db.execute("""INSERT INTO trades
@@ -51,7 +51,6 @@ def write_trajectory(sym: str, pos: Position, db: sqlite3.Connection | None) -> 
     """Write hourly trajectory to SQLite. One row per hour of the trade's life."""
     if not pos.trajectory or not db:
         return
-    from .db import _db_lock
     entry_t = pos.entry_time.isoformat(timespec="seconds")
     try:
         with _db_lock:
@@ -77,7 +76,6 @@ def log_market_snapshot(states: dict, feature_cache: dict,
     """
     if not db:
         return
-    from .db import _db_lock
     ts_epoch = int(time.time())
     rows: list[tuple] = []
     for sym in trade_symbols:
@@ -108,7 +106,6 @@ def log_basket_snapshot(metrics: dict | None,
     (< 2 positions or insufficient history) or db is None."""
     if not metrics or not db:
         return
-    from .db import _db_lock
     ts = int(time.time())
     try:
         with _db_lock:
@@ -129,7 +126,7 @@ def log_basket_snapshot(metrics: dict | None,
 def save_state(state_file: str, positions: dict, pos_lock,
                total_pnl: float, wins: int, peak_balance: float,
                last_daily_report: float, paused: bool,
-               consecutive_losses: int, loss_streak_until: float,
+               consecutive_losses: int,
                cooldowns: dict, signal_first_seen: dict,
                feature_cache: dict, capital: float = 0) -> None:
     """Atomically persist bot state (write to .tmp then os.replace)."""
@@ -154,7 +151,6 @@ def save_state(state_file: str, positions: dict, pos_lock,
         "peak_balance": peak_balance, "last_daily_report": last_daily_report,
         "paused": paused,
         "consecutive_losses": consecutive_losses,
-        "loss_streak_until": loss_streak_until,
         "cooldowns": {k: v for k, v in cooldowns.items() if v > time.time()},
         "signal_first_seen": signal_first_seen,
         "feature_cache": {k: {fk: float(fv) if hasattr(fv, '__float__') else fv
@@ -178,7 +174,7 @@ def load_state(state_file: str, states: dict) -> dict:
 
     Returns dict with all restored fields. Caller applies them to the bot instance.
     Keys: total_pnl, wins, peak_balance, last_daily_report, paused,
-          consecutive_losses, loss_streak_until, cooldowns, signal_first_seen,
+          consecutive_losses, cooldowns, signal_first_seen,
           feature_cache, positions.
     """
     result: dict = {}
@@ -196,7 +192,6 @@ def load_state(state_file: str, states: dict) -> dict:
         result["last_daily_report"] = data.get("last_daily_report", 0)
         result["paused"] = data.get("paused", False)
         result["consecutive_losses"] = data.get("consecutive_losses", 0)
-        result["loss_streak_until"] = data.get("loss_streak_until", 0)
         result["cooldowns"] = data.get("cooldowns", {})
         result["signal_first_seen"] = data.get("signal_first_seen", {})
         # Restore feature cache if recent enough (avoids blank dashboard on restart)

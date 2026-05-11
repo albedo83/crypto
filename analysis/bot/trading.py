@@ -12,11 +12,10 @@ import time
 from collections import defaultdict
 from datetime import datetime, timezone, timedelta
 
-from .config import (CAPITAL_USDT, LEVERAGE, COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTION,
+from .config import (COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTION,
                      MAX_PER_SECTOR, MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS, MACRO_STRATEGIES,
                      TOKEN_SECTOR, STOP_LOSS_BPS, STOP_LOSS_S8, COOLDOWN_HOURS,
-                     TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD, LOSS_STREAK_MULTIPLIER,
-                     LOSS_STREAK_COOLDOWN, HOLD_HOURS_DEFAULT,
+                     HOLD_HOURS_DEFAULT,
                      S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS,
                      S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
                      DEAD_TIMEOUT_LEAD_HOURS, DEAD_TIMEOUT_MFE_CAP_BPS,
@@ -465,32 +464,14 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
         if pnl > 0:
             bot._wins += 1
 
-        # Track consecutive losses — protects against correlated drawdowns.
+        # Track consecutive losses (observation only — no penalty currently wired).
         if pnl > 0:
             bot._consecutive_losses = 0
         else:
             bot._consecutive_losses += 1
-            if bot._consecutive_losses >= LOSS_STREAK_THRESHOLD:
-                bot._loss_streak_until = time.time() + LOSS_STREAK_COOLDOWN
-                log.warning("Loss streak: %d consecutive losses \u2014 sizing reduced for 24h",
-                            bot._consecutive_losses)
-
-        # Kill-switch: if total P&L breaches cap, stop all trading.
-        if bot._total_pnl <= TOTAL_LOSS_CAP:
-            bot._paused = True
-            log.critical("KILL-SWITCH: P&L $%.2f below cap $%.0f \u2014 auto-paused",
-                         bot._total_pnl, TOTAL_LOSS_CAP)
-            log_event(bot._db, "KILL_SWITCH", None,
-                      {"total_pnl": round(bot._total_pnl, 2), "cap": TOTAL_LOSS_CAP})
 
         # Cooldown
         bot._cooldowns[sym] = time.time() + COOLDOWN_HOURS * 3600
-
-    # Kill-switch telegram (outside lock — I/O)
-    if bot._total_pnl <= TOTAL_LOSS_CAP:
-        send_telegram(
-            f"\U0001f6d1 KILL-SWITCH: P&L ${bot._total_pnl:.2f} < cap ${TOTAL_LOSS_CAP:.0f} \u2014 bot paused",
-            category="trade")
 
     trade = Trade(
         symbol=sym, direction="LONG" if pos.direction == 1 else "SHORT",
@@ -643,10 +624,6 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             modulator_mult = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
             modulator_z = bot._btc_z
             size = round(size * modulator_mult, 2)
-        # Loss streak penalty: protects against correlated losses
-        # (e.g. flash crash hitting multiple positions simultaneously)
-        if time.time() < bot._loss_streak_until:
-            size = round(size * LOSS_STREAK_MULTIPLIER, 2)
         # v11.10.1: skip explicit if post-modulator size below the live exchange
         # minimum ($10). Without this, execute_open raises ValueError and the
         # try/except logs an alarming "Order too small" — clean SKIP instead.
