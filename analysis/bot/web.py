@@ -41,6 +41,7 @@ log = logging.getLogger("multisignal")
 # DRY: shared helpers live in trading.py
 from .analytics import (is_bot_trade, compute_signal_drift, compute_s10_health,
                          estimate_win_prob, filter_recent_trades)
+from .trading import signal_skip_reason
 from .net import send_telegram
 
 def _collect_active_signals(bot, btc_f) -> list:
@@ -216,25 +217,25 @@ def build_state_response(bot) -> dict:
         _s = TOKEN_SECTOR.get(p.symbol)
         if _s:
             sector_counts[_s] = sector_counts.get(_s, 0) + 1
-    # S1 is a macro signal (BTC 30d > threshold) — same fire state across all tokens.
-    # Emit once here with a synthetic symbol; per-token blocking is not meaningful.
-    _s1_fires = btc_f.get("btc_30d", 0) > 2000
-    if _s1_fires:
-        _s1_reason = "would enter"
-        if len(bot.positions) >= MAX_POSITIONS:
-            _s1_reason = "max_positions"
-        elif n_macro >= MAX_MACRO_SLOTS:
-            _s1_reason = "max_macro"
-        elif n_long >= MAX_SAME_DIRECTION:
-            _s1_reason = "max_long"
-        preview.append({"symbol": "ALTS", "strategy": "S1",
-                        "direction": "LONG", "status": _s1_reason})
+    # Shared ctx for signal_skip_reason — same source of truth as rank_and_enter.
+    _disp_24h = cross.get("disp_24h")
+    _skip_ctx = dict(n_total=len(pos_snapshot), n_longs=n_long, n_shorts=n_short,
+                     n_macro=n_macro, n_token=n_token_sig,
+                     sector_counts=sector_counts, disp_24h=_disp_24h)
+
+    # S1: macro-wide signal, no per-token state. Emit once with synthetic symbol.
+    if btc_f.get("btc_30d", 0) > 2000:
+        _s1 = {"symbol": "ALTS", "strategy": "S1", "direction": 1}
+        _r = signal_skip_reason(bot, _s1, **_skip_ctx)
+        preview.append({"symbol": "ALTS", "strategy": "S1", "direction": "LONG",
+                        "status": _r or "would enter"})
+
     for _sym in TRADE_SYMBOLS:
         _st = bot.states.get(_sym)
         _f = bot._get_cached_features(_sym) if hasattr(bot, "_get_cached_features") else None
         if not _st or not _f:
             continue
-        # Gather triggered signals for this token (S1 emitted above, macro-wide)
+        # Re-detect signals from cached features (same thresholds as signals.py).
         _fires: list = []
         _sd = bot._compute_sector_divergence(_sym) if hasattr(bot, "_compute_sector_divergence") else None
         if _sd and abs(_sd["divergence"]) >= S5_DIV_THRESHOLD and _sd["vol_z"] >= S5_VOL_Z_MIN:
@@ -246,7 +247,6 @@ def build_state_response(bot) -> dict:
         _ret24 = _f.get("ret_24h", 0)
         if abs(_ret24) >= S9_RET_THRESH:
             _fires.append(("S9", -1 if _ret24 > 0 else 1))
-        # S10: squeeze detector (same logic as signals.py). Uses st.candles_4h.
         if hasattr(bot, "_detect_squeeze"):
             _sq = bot._detect_squeeze(_sym)
             if _sq:
@@ -254,35 +254,12 @@ def build_state_response(bot) -> dict:
                 if not ((not _SAL and _sq["direction"] == 1) or _sym not in _SAT):
                     _fires.append(("S10", _sq["direction"]))
         for _strat, _dir in _fires:
-            _reason = "would enter"
-            if _sym in bot.positions:
-                _reason = "already in position"
-            elif _sym in TRADE_BLACKLIST:
-                _reason = "blacklist"
-            elif _sym in bot._cooldowns and time.time() < bot._cooldowns[_sym]:
-                _reason = "cooldown"
-            elif len(bot.positions) >= MAX_POSITIONS:
-                _reason = "max_positions"
-            elif _dir == 1 and n_long >= MAX_SAME_DIRECTION:
-                _reason = "max_long"
-            elif _dir == -1 and n_short >= MAX_SAME_DIRECTION:
-                _reason = "max_short"
-            elif _strat in MACRO_STRATEGIES and n_macro >= MAX_MACRO_SLOTS:
-                _reason = "max_macro"
-            elif _strat not in MACRO_STRATEGIES and n_token_sig >= MAX_TOKEN_SLOTS:
-                _reason = "max_token"
-            else:
-                _sect = TOKEN_SECTOR.get(_sym)
-                if _sect and sector_counts.get(_sect, 0) >= MAX_PER_SECTOR:
-                    _reason = "max_sector"
-                elif _dir == 1:
-                    _oi = oi_delta_24h_bps(_st.oi_history)
-                    if _oi is not None and _oi < -OI_LONG_GATE_BPS:
-                        _reason = "oi_gate"
-        # Record all fires regardless of status
+            _sig = {"symbol": _sym, "strategy": _strat, "direction": _dir}
+            _reason = signal_skip_reason(bot, _sig, **_skip_ctx)
             preview.append({"symbol": _sym, "strategy": _strat,
                             "direction": "LONG" if _dir == 1 else "SHORT",
-                            "status": _reason})
+                            "status": _reason or "would enter"})
+
     # Sort so "would enter" at top, then by strategy priority
     _prio = {"would enter": 0, "already in position": 1}
     preview.sort(key=lambda x: (_prio.get(x["status"], 2), x["strategy"]))

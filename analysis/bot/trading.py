@@ -23,7 +23,8 @@ from .config import (COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTI
                      RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
                      RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
                      OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size,
-                     get_adaptive_alpha, MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX)
+                     get_adaptive_alpha, MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX,
+                     DISP_GATE_BPS, DISP_GATE_STRATEGIES)
 from .analytics import compute_signal_drift
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
@@ -33,6 +34,88 @@ from .db import log_event
 from .net import send_telegram
 
 log = logging.getLogger("multisignal")
+
+
+# ── Shared skip-reason helper (consumed by rank_and_enter & dashboard preview) ──
+
+def signal_skip_reason(bot, sig: dict, *,
+                       n_total: int, n_longs: int, n_shorts: int,
+                       n_macro: int, n_token: int,
+                       sector_counts: dict, disp_24h: float | None = None,
+                       check_size_floor: bool = True) -> str | None:
+    """Pure check: if `sig` would be skipped by rank_and_enter under the given
+    counters, return the reason string; else None ("would enter").
+
+    Mirrors rank_and_enter's check order exactly. Use this in:
+      - rank_and_enter itself (single source of truth)
+      - dashboard preview (no more drift between displayed status and actual
+        scan decision)
+
+    `disp_24h` is the cross-sectional 24h dispersion. Pass None if unknown
+    (the disp_gate then skips its check, same as fail-open in production).
+    """
+    sym = sig["symbol"]
+    direction = sig["direction"]
+    strategy = sig["strategy"]
+
+    # Already in position
+    if sym in bot.positions:
+        return "already in position"
+
+    # Cooldown (post-loss)
+    if sym in bot._cooldowns and time.time() < bot._cooldowns[sym]:
+        return "cooldown"
+
+    # Dispersion gate (S5 / S9 mean-reversion strats)
+    if (strategy in DISP_GATE_STRATEGIES and disp_24h is not None
+            and disp_24h >= DISP_GATE_BPS):
+        return "disp_gate"
+
+    # Total positions cap
+    if n_total >= MAX_POSITIONS:
+        return "max_positions"
+
+    # Trade blacklist (structurally negative tokens)
+    if sym in TRADE_BLACKLIST:
+        return "blacklist"
+
+    # Direction cap
+    if direction == 1 and n_longs >= MAX_SAME_DIRECTION:
+        return "max_long"
+    if direction == -1 and n_shorts >= MAX_SAME_DIRECTION:
+        return "max_short"
+
+    # Macro / token slot reservation
+    if strategy in MACRO_STRATEGIES and n_macro >= MAX_MACRO_SLOTS:
+        return "max_macro"
+    if strategy not in MACRO_STRATEGIES and n_token >= MAX_TOKEN_SLOTS:
+        return "max_token"
+
+    # Sector concentration cap
+    sym_sector = TOKEN_SECTOR.get(sym)
+    if sym_sector and sector_counts.get(sym_sector, 0) >= MAX_PER_SECTOR:
+        return "max_sector"
+
+    # OI gate (LONG only): block when 24h OI delta beats threshold downward
+    st = bot.states.get(sym)
+    if st is not None and direction == 1:
+        oi_d = oi_delta_24h_bps(st.oi_history)
+        if oi_d is not None and oi_d < -OI_LONG_GATE_BPS:
+            return "oi_gate"
+
+    # Modulator floor: post-modulator size < $10 → exchange would reject
+    if check_size_floor:
+        current_capital = bot._capital + bot._total_pnl
+        size = strat_size(strategy, current_capital)
+        alpha = get_adaptive_alpha(strategy, direction)
+        if alpha != 0 and bot._btc_z is not None:
+            z_clip = max(-MACRO_Z_CLIP, min(MACRO_Z_CLIP, bot._btc_z))
+            mult = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
+            size = round(size * mult, 2)
+        if size < 10:
+            return "modulator_floor"
+
+    return None  # would enter
 
 
 # ── Exit Logic ───────────────────────────────────────────────────────
