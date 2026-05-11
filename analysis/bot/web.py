@@ -856,12 +856,7 @@ def create_app(bot) -> FastAPI:
         st = bot.states.get(sym)
         if not st or st.price <= 0:
             return JSONResponse({"error": f"no price for {sym}"}, status_code=400)
-        bot._close_position(sym, st.price, datetime.now(timezone.utc), "manual_close")
-        # _failed_closes is the canonical "exchange close failed" signal.
-        # bot.positions presence is unreliable: a concurrent close may be in
-        # flight (mutex held), so the position will disappear shortly even
-        # though our call returned silently — that's success, not failure.
-        if sym in bot._failed_closes:
+        if not bot.close_and_check(sym, st.price, datetime.now(timezone.utc), "manual_close"):
             return JSONResponse({"error": f"close failed for {sym}, will retry"}, status_code=500)
         bot._save_state()
         return JSONResponse({"status": "closed", "symbol": sym})
@@ -915,8 +910,7 @@ def create_app(bot) -> FastAPI:
         for sym in list(bot.positions.keys()):
             st = bot.states.get(sym)
             if st and st.price > 0:
-                bot._close_position(sym, st.price, now, "manual_stop")
-                if sym in bot._failed_closes:
+                if not bot.close_and_check(sym, st.price, now, "manual_stop"):
                     failed.append(sym)
         bot._paused = True
         bot._save_state()

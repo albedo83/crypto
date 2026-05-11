@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.5.3] — 2026-05-11
+- **Trading engine**: scan orchestrator slimmed (per-token signal loop and ETH observation extracted to dedicated methods); close path no longer hangs if the exchange funding endpoint slows down (5s timeout, fail-open preserved).
+- **Infra**: shared close helper consolidates the manual-close / pause flows around a single success/failure signal.
+
 ## [12.5.2] — 2026-05-11
 - **Trading engine**: internal refactor — extraction of read-only analytics into its own module, shared skip-reason helper between scan and dashboard preview, removal of dead kill-switch toggles and the one-time CSV migration. No behavior change.
 - **Infra**: shared SQLite write-lock moved to a dedicated concurrency module.

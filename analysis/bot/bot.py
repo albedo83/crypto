@@ -174,6 +174,18 @@ class MultiSignalBot:
         """Wrapper for web.py pause/reset handlers."""
         trading.close_position(sym, exit_price, now, reason, self)
 
+    def close_and_check(self, sym: str, exit_price: float, now, reason: str) -> bool:
+        """Close a position and report success via the canonical _failed_closes
+        signal. Returns True iff the exchange close succeeded (live mode) or
+        the position was closed in memory (paper mode).
+
+        Single source of truth for the "did the close work?" check, used by
+        api_close_symbol, api_pause, check_exits retries. See trading.close_position
+        for the close mechanics and the _closing mutex that guards re-entry.
+        """
+        trading.close_position(sym, exit_price, now, reason, self)
+        return sym not in self._failed_closes
+
     # ── Core bot operations ──────────────────────────────────
 
     def _refresh_feature_cache(self):
@@ -197,29 +209,13 @@ class MultiSignalBot:
             self._cooldowns, self._signal_first_seen, self._feature_cache,
             capital=self._capital)
 
-    def _scan_and_trade(self) -> int:
-        """Detect signals across all tokens, then rank and enter positions."""
-        now = datetime.now(timezone.utc)
-        btc_f = self._compute_btc_features()
-        btc = self.states.get("BTC")
-        if btc and len(btc.candles_4h) >= 200:
-            self._btc_z = features.compute_btc_z(
-                list(btc.candles_4h),
-                lookback_days=MACRO_LOOKBACK_DAYS,
-                z_window_days=MACRO_Z_WINDOW_DAYS,
-            )
-        # Basket correlation (observation-only)
-        with self._pos_lock:
-            pos_for_basket = dict(self.positions)
-        self._basket_metrics = features.compute_basket_correlation(
-            pos_for_basket, self.states)
-        alt_index = self._compute_alt_index()
-        dxy_7d = features.fetch_dxy(self._degraded, features.DXY_CACHE)
-        self._dxy_cache = (dxy_7d, time.time())
-
-        cross_ctx = signals.compute_cross_context(self._feature_cache)
-        all_signals = []
-
+    def _build_token_signals(self, now, btc_f: dict, cross_ctx: dict) -> list:
+        """Per-token signal detection loop. Returns the list of fired token-level
+        signals for this scan (S5/S8/S9/S10). Applies dispersion gate inline
+        and logs S9F_OBS events. Macro signals (S1) are added separately by
+        trading.rank_and_enter — this only builds token-level candidates.
+        """
+        all_signals: list = []
         for sym in TRADE_SYMBOLS:
             if sym in self.positions or (sym in self._cooldowns and time.time() < self._cooldowns[sym]):
                 continue
@@ -271,8 +267,8 @@ class MultiSignalBot:
             token_sigs = signals.detect_token_signals(
                 sym, f, btc_f, sd, sq, oi_tag, entry_ctx)
             # v11.7.28 dispersion gate: skip mean-reversion strats (S5/S9) when
-            # cross-sectional dispersion is at p98+ extreme. See config.py for
-            # rationale. Logs SKIP event so the rule is auditable in events DB.
+            # cross-sectional dispersion is at p98+ extreme. Logs SKIP event so
+            # the rule is auditable in events DB.
             if cross_ctx["disp_24h"] >= DISP_GATE_BPS:
                 gated = [s for s in token_sigs if s["strategy"] in DISP_GATE_STRATEGIES]
                 token_sigs = [s for s in token_sigs if s["strategy"] not in DISP_GATE_STRATEGIES]
@@ -289,33 +285,65 @@ class MultiSignalBot:
             if s9f:
                 log.info("S9F_OBS: %s %s ret_2h=%+.0f (observation only)", s9f["dir"], sym, s9f["ret_2h"])
                 db_mod.log_event(self._db, "S9F_OBS", sym, s9f)
+        return all_signals
 
-        # ETH observation — log signals but don't trade (not enough data to validate)
+    def _log_eth_observations(self, btc_f: dict) -> None:
+        """ETH is tracked but not traded. Log signal fires for future analysis."""
         eth_f = self._feature_cache.get("ETH")
-        if eth_f:
-            eth_st = self.states.get("ETH")
-            btc_7d = btc_f.get("btc_7d", 0)
-            # S8 on ETH (4/4 wins in backtest, +2089 bps avg)
-            if (eth_f.get("drawdown", 0) < -4000 and eth_f.get("vol_z", 0) > 1.0
-                    and eth_f.get("ret_24h", 0) < -50 and btc_7d < -300):
-                log.info("ETH_OBS: S8 LONG dd=%.0f vz=%.1f r24h=%.0f BTC7d=%+.0f",
-                         eth_f["drawdown"], eth_f["vol_z"], eth_f["ret_24h"], btc_7d)
-                db_mod.log_event(self._db, "ETH_OBS", "ETH",
-                                 {"signal": "S8", "dir": "LONG", "drawdown": eth_f["drawdown"],
-                                  "ret_24h": eth_f["ret_24h"], "btc_7d": btc_7d})
-            # S9 on ETH (0/3 wins — observation only, do NOT trade)
-            if abs(eth_f.get("ret_24h", 0)) >= 2000:
-                s9_dir = "SHORT" if eth_f["ret_24h"] > 0 else "LONG"
-                log.info("ETH_OBS: S9 %s ret_24h=%+.0f (loses on ETH — observation only)",
-                         s9_dir, eth_f["ret_24h"])
-                db_mod.log_event(self._db, "ETH_OBS", "ETH",
-                                 {"signal": "S9", "dir": s9_dir, "ret_24h": eth_f["ret_24h"]})
-            # S9-fast on ETH
-            if eth_st and len(eth_st.price_ticks) >= 120:
-                s9f = signals.check_s9f_observation(eth_st.price_ticks, eth_st.price)
-                if s9f:
-                    log.info("S9F_OBS: %s ETH ret_2h=%+.0f (observation only)", s9f["dir"], s9f["ret_2h"])
-                    db_mod.log_event(self._db, "S9F_OBS", "ETH", s9f)
+        if not eth_f:
+            return
+        eth_st = self.states.get("ETH")
+        btc_7d = btc_f.get("btc_7d", 0)
+        # S8 on ETH (4/4 wins in backtest, +2089 bps avg)
+        if (eth_f.get("drawdown", 0) < -4000 and eth_f.get("vol_z", 0) > 1.0
+                and eth_f.get("ret_24h", 0) < -50 and btc_7d < -300):
+            log.info("ETH_OBS: S8 LONG dd=%.0f vz=%.1f r24h=%.0f BTC7d=%+.0f",
+                     eth_f["drawdown"], eth_f["vol_z"], eth_f["ret_24h"], btc_7d)
+            db_mod.log_event(self._db, "ETH_OBS", "ETH",
+                             {"signal": "S8", "dir": "LONG", "drawdown": eth_f["drawdown"],
+                              "ret_24h": eth_f["ret_24h"], "btc_7d": btc_7d})
+        # S9 on ETH (0/3 wins — observation only, do NOT trade)
+        if abs(eth_f.get("ret_24h", 0)) >= 2000:
+            s9_dir = "SHORT" if eth_f["ret_24h"] > 0 else "LONG"
+            log.info("ETH_OBS: S9 %s ret_24h=%+.0f (loses on ETH — observation only)",
+                     s9_dir, eth_f["ret_24h"])
+            db_mod.log_event(self._db, "ETH_OBS", "ETH",
+                             {"signal": "S9", "dir": s9_dir, "ret_24h": eth_f["ret_24h"]})
+        # S9-fast on ETH
+        if eth_st and len(eth_st.price_ticks) >= 120:
+            s9f = signals.check_s9f_observation(eth_st.price_ticks, eth_st.price)
+            if s9f:
+                log.info("S9F_OBS: %s ETH ret_2h=%+.0f (observation only)", s9f["dir"], s9f["ret_2h"])
+                db_mod.log_event(self._db, "S9F_OBS", "ETH", s9f)
+
+    def _scan_and_trade(self) -> int:
+        """Detect signals across all tokens, then rank and enter positions.
+
+        Thin orchestrator: refresh macro context, build candidates, hand off
+        to trading.rank_and_enter, then surface WR alerts. The heavy lifting
+        lives in _build_token_signals and rank_and_enter.
+        """
+        now = datetime.now(timezone.utc)
+        btc_f = self._compute_btc_features()
+        btc = self.states.get("BTC")
+        if btc and len(btc.candles_4h) >= 200:
+            self._btc_z = features.compute_btc_z(
+                list(btc.candles_4h),
+                lookback_days=MACRO_LOOKBACK_DAYS,
+                z_window_days=MACRO_Z_WINDOW_DAYS,
+            )
+        # Basket correlation (observation-only)
+        with self._pos_lock:
+            pos_for_basket = dict(self.positions)
+        self._basket_metrics = features.compute_basket_correlation(
+            pos_for_basket, self.states)
+        self._compute_alt_index()  # warms cache used by /api/state widgets
+        dxy_7d = features.fetch_dxy(self._degraded, features.DXY_CACHE)
+        self._dxy_cache = (dxy_7d, time.time())
+
+        cross_ctx = signals.compute_cross_context(self._feature_cache)
+        all_signals = self._build_token_signals(now, btc_f, cross_ctx)
+        self._log_eth_observations(btc_f)
 
         signals.track_signal_age(all_signals, self._signal_first_seen, time.time())
         n_new = trading.rank_and_enter(all_signals, now, self)

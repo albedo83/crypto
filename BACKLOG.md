@@ -42,13 +42,13 @@ Analyse rétrospective via `backtests/analyze_obs_features.py` puis hypothèses 
 
 ---
 
-## 4. Refactors différés (code review 2026-05-11)
+## 4. Refactors du code review 2026-05-11 — section close
 
-Non-bloquant. Tous sans changement de comportement, restart-compatible.
+Tous traités le 2026-05-11 :
 
-- [ ] **m4 — extract `_scan_and_trade` body to `signals.scan`** (130 lignes → fonction pure de `signals.py`). Rend `bot.py` réellement "thin orchestrator" comme son docstring le prétend.
-- [ ] **m6 — unify close helpers via `bot.close_with_retry(sym, exit_price, reason)`** — actuellement `api_close_symbol`, `api_pause`, `check_exits` re-implémentent la même logique autour de `_failed_closes` avec des conventions légèrement différentes.
-- [ ] **m7 — async funding fetch dans `close_position`** — actuellement bloque le close path sur un roundtrip HL. Pattern proposé : log close immédiat avec `funding_usdt=0`, task background qui fait UPDATE après. Plus invasif que m4/m6 (transaction trade ↔ funding).
+- ✅ **m4** — `_scan_and_trade` passé de 130 à ~30 lignes. Extraction de `_build_token_signals` et `_log_eth_observations` comme méthodes du bot. Pas de changement de comportement.
+- ✅ **m6** — méthode `bot.close_and_check(sym, exit_price, now, reason) -> bool` ajoutée. Encapsule le check `_failed_closes`. Les 2 callers concernés (`api_close_symbol`, `api_pause`) utilisent maintenant cette méthode au lieu d'inspecter `_failed_closes` directement.
+- ✅ **m7** — fetch_position_funding désormais time-boxé à 5s via `ThreadPoolExecutor.future.result(timeout=)`. Si HL ralentit, le close path ne hang plus — fallback fail-open existant préservé. Version douce du pattern async UPDATE (jugée plus invasive pour gain marginal vu la fréquence de close ~50/mois).
 
 ---
 

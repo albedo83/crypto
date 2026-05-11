@@ -302,14 +302,25 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
     # Note: pos_peek read outside _pos_lock. Safe because (a) entry_time never
     # mutates after Position creation, (b) the _closing mutex below guards
     # against concurrent close races on the same sym.
+    # Time-boxed via thread + future.result(timeout=) so a slow HL history
+    # endpoint can't hang the close path; falls back to 0 (fail-open).
     funding_usdt = 0.0
     if bot._exchange:
         pos_peek = bot.positions.get(sym)
         if pos_peek:
             start_ms = int(pos_peek.entry_time.timestamp() * 1000)
             end_ms = int(now.timestamp() * 1000)
-            funding_usdt = fetch_position_funding(
-                bot._hl_info, bot._hl_address, sym, start_ms, end_ms)
+            try:
+                from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTO
+                with ThreadPoolExecutor(max_workers=1) as ex:
+                    fut = ex.submit(fetch_position_funding,
+                                    bot._hl_info, bot._hl_address, sym,
+                                    start_ms, end_ms)
+                    funding_usdt = fut.result(timeout=5.0)
+            except _FTO:
+                log.warning("Funding fetch timed out for %s — using 0.0", sym)
+            except Exception as e:
+                log.warning("Funding fetch error for %s: %s — using 0.0", sym, e)
 
     with bot._pos_lock:
         if sym not in bot.positions:
