@@ -524,9 +524,10 @@ Position ouverte
 
 Output : Telegram + event `STRATEGY_REVIEW` dans events DB. **Observation-only**, aucune action auto.
 
-### Win probability estimator (v12.3.x → v12.4.0)
+### Win probability estimator (v12.3.x → v12.5.6)
 
-Pour chaque position ouverte affichée sur le dashboard :
+Pour chaque position ouverte affichée sur le dashboard, le bot calcule une probabilité que le trade finisse gagnant, basée sur des trades historiques similaires.
+
 ```
 😀 65%+   très solide, laisse tourner
 🙂 55-65% bon
@@ -535,21 +536,26 @@ Pour chaque position ouverte affichée sur le dashboard :
 😟 25-35% à surveiller
 😱 < 25%  alarme, considère fermer
 ⌛  fresh, pas assez de hold pour analyser MAE/MFE
-—   pas assez de données historiques (n < 3 exact ou n < 8 strat+dir)
+—   position currently in profit → indicator caché (v12.5.6) OU pas assez de données
 ```
 
-**Calcul** :
+**Calcul (v12.5.5)** :
 ```
-1. Tier 1: match (strat, token, direction) sur historique 6 mois. Min 3 trades.
-2. Tier 2 si insuffisant: match (strat, direction). Min 8 trades.
-3. Base WR = % wins dans l'échantillon
-4. Adjustments (si trade mature ≥ 2h):
-   - MAE conditionnel (< -200 bps): "des trades qui ont aussi hit cette MAE, combien ont gagné ?"
+1. Tier 1 : match (strat, token, direction) sur historique 6 mois.
+            Min 5 trades (relevé depuis 3 en v12.5.5 — n=3 produit du 0%/100% statistiquement absurde).
+2. Tier 2 si insuffisant : match (strat, direction). Min 8 trades.
+3. Base WR = % wins dans l'échantillon.
+4. Adjustments (si trade mature ≥ 2h) :
+   - MAE conditionnel (< -200 bps) : "des trades qui ont aussi hit cette MAE, combien ont gagné ?"
+     → v12.5.5 : appliqué UNIQUEMENT si position currently underwater (ur_bps ≤ 0).
+     Si la position a déjà récupéré, ce penalty est ignoré (over-pessimise un trade revenu).
    - MFE pulse (≥ 200 bps) : ×1.10 (mean-reversion plausible)
-   - Pas de pulse + late in hold: ×0.90
+   - Pas de pulse + late in hold : ×0.90
 ```
 
-**Telegram alarm WR** (v12.4.0) : si une position passe en 😱 (< 25%) pour la première fois après maturité, message Telegram envoyé avec contexte. Un seul alert par position (anti-spam).
+**Telegram alarme WR (v12.4.0 + v12.5.4)** : si une position passe en 😱 (< 25%) pour la première fois après maturité **ET qu'elle est actuellement en perte**, message Telegram envoyé. Un seul alert par position (anti-spam). Le gate "position currently profitable → silence" évite les fausses alarmes du genre "APT à +$3.68 considère fermer".
+
+**Dashboard (v12.5.6)** : le smiley/% est caché sur les positions en profit (montre "—" dim) — la colonne devient un indicateur "should I worry?" qui ne parle que quand il y a lieu.
 
 ### Basket correlation observability (post-12.5.1, observation-only)
 
@@ -696,23 +702,9 @@ SUPERVISOR_ENABLED = 0 dans .env
 crontab -l | grep -v strategy_review | crontab -
 ```
 
-### Loss streak protection (currently disabled)
+### Kill-switches automatiques supprimés (v12.5.2)
 
-```
-LOSS_STREAK_THRESHOLD = 999     # désactivé
-LOSS_STREAK_MULTIPLIER = 1.0    # désactivé
-LOSS_STREAK_COOLDOWN = 0        # désactivé
-```
-
-Présent dans le code, désactivé après backtest qui montrait que ça détruisait le compounding.
-
-### Total loss cap (currently disabled)
-
-```
-TOTAL_LOSS_CAP = $-999999       # désactivé
-```
-
-Pareil — backtest a montré que tout cap absolu nuit au compounding.
+Anciens : `LOSS_STREAK_THRESHOLD/MULTIPLIER/COOLDOWN`, `TOTAL_LOSS_CAP`. Backtest historique a montré que tout cap absolu ou pénalité loss-streak détruit le compounding (perte de −65 à −99% du P&L cumulé sur 28m). Les constantes étaient présentes mais désactivées (valeurs sentinelles infinies). Retirées du code dans le sweep v12.5.2 pour que la config arrête de mentir. L'observation `_consecutive_losses` reste calculée pour le dashboard, juste sans action automatique associée.
 
 ---
 
@@ -752,6 +744,11 @@ v12.3.2       : Maturity gate (mute MAE noise on fresh)
 v12.4.0       : Telegram WR alarm
 v12.5.0       : Dead-timeout MAE floor -800 → -500
 v12.5.1       : Fix /api/state crash (Position missing pnl_usdt)
+v12.5.2       : Refactor sweep — kill dead code (CSV migration, dead toggles, _db_lock module)
+v12.5.3       : Refactor — analytics.py extracted, signal_skip_reason shared, scan slimmed, funding fetch timeboxed
+v12.5.4       : WR alarme gate on currently-profitable positions (faux positifs DOGE/APT)
+v12.5.5       : WR estimator fix — skip MAE penalty when recovered, tier-1 min raised 3 → 5
+v12.5.6       : Dashboard — Path column = courbe de prix, smiley caché si en profit
 ```
 
 ### Backtests cette semaine (mai 2026) — résumé
@@ -772,6 +769,11 @@ v12.5.1       : Fix /api/state crash (Position missing pnl_usdt)
 | backtest_partial_fills.py | ✓ S5×1.30 | Validé |
 | backtest_wr_autoclose.py | ✗ auto-close WR rejeté / ✓ DT -800→-500 | v12.5.0 bonus |
 | backtest_s5_directional_flip.py | ✗ flip directionnel rejeté | -80k+ sur 28m |
+| backtest_modulator_2d.py | ✗ 0/14 configs strict, retest 2026-08-11 | +59k pp en 28m mais 3m casse partout |
+| backtest_l2_imbalance.py | ✗ rétro fort, gate destructeur live | OBI observation-only |
+| backtest_we_oi_gates.py | ✗ WE skip S5 LONG à 3/4 (ΔDD +0.39) | Très proche, retest 2026-08-11 |
+| backtest_crowding_confluence_gates.py | ✗ 0/6 configs strict | Crowding/confluence enterrés |
+| backtest_obs_features (analytique rétro) | 2 signaux fort + 2 weak | Walk-forward a tué les 4 in fine |
 
 ### Pistes rejetées historiquement (ne pas re-tester sans raison)
 
@@ -840,7 +842,7 @@ Le strict 4/4 + sliding walk-forward OOS sont les défenses. Mais ils sont **con
 
 ### Version
 
-**v12.5.1** — déployée sur les 4 bots (paper / live / junior / admin)
+**v12.5.6** — déployée sur paper / live / junior (admin reste sur ancienne version, sans impact).
 
 ### Capitaux
 
@@ -849,6 +851,10 @@ Paper  : $1000 simulé (raz fait 2026-05-10)
 Live   : $500 réel
 Junior : $300 réel
 ```
+
+### Règle restart (CLAUDE.md 2026-05-11)
+
+Une autorisation générique "restart les bots" **ne couvre QUE paper (:8097) et live (:8098)**. Junior (:8099) nécessite un mot explicite ("restart junior", "les 3 bots", etc.). Le `start_bots.sh` ne fait pas la différence — donc on ne `fuser -k` que sur 8097 + 8098 quand junior n'est pas autorisé ; le `start_bots.sh` tentera de relancer junior mais fail-bindra silencieusement sur 8099.
 
 ### Paramètres clés (config.py)
 
@@ -952,13 +958,13 @@ Equity (HL)  $XXX  +$XX (+X%) on $cap         Total P&L  +$XX
 Symbol | Strat | Side | WR est. | P&L | Position | Margin | Entry | Current | Unrealized/stop | Remaining/held | Path | Close
 ```
 
-- **WR est.** : smiley + % (😀🙂😐😕😟😱⌛—) — voir section 7
+- **WR est.** : smiley (14px, +30% v12.5.6) + % (😀🙂😐😕😟😱⌛). Caché ("—" dim) si la position est currently in profit — voir section 7 v12.5.6.
 - **P&L** : $ + bps unrealized
 - **Position** : notional total ($)
 - **Margin** : notional / leverage
 - **Unrealized** : bps + barre de progression vers stop (visuel)
 - **Remaining** : hold time restant + held actuel
-- **Path** : sparkline du P&L sur les trajectory points
+- **Path (price)** : sparkline de la **courbe de prix** sur les trajectory points (v12.5.6 — était P&L bps avant). Formule de reconstruction côté JS : `price = entry × (1 + ur_bps / (direction × 1e4))`. Ligne pointillée grise = prix d'entrée, ligne pointillée colorée = prix actuel.
 - **Close** : bouton manual_close
 
 ### Card "Strats stats"
