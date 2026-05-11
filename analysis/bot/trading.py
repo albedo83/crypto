@@ -299,6 +299,9 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
 
     # Live only: fetch actual funding paid on this token during the trade.
     # Flat FUNDING_DRAG_BPS in COST_BPS is a rough estimate; this is precise.
+    # Note: pos_peek read outside _pos_lock. Safe because (a) entry_time never
+    # mutates after Position creation, (b) the _closing mutex below guards
+    # against concurrent close races on the same sym.
     funding_usdt = 0.0
     if bot._exchange:
         pos_peek = bot.positions.get(sym)

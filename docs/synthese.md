@@ -579,6 +579,23 @@ Basket: +0.62 eff 2.4/4
 
 **Kill-switch (gate futur, pas actif)** : aucune action de trading n'utilise ces métriques aujourd'hui.
 
+### État des features observation-only (tracking)
+
+Pour éviter que ces métriques deviennent silencieusement de la télémétrie permanente, voici l'état au moment du code review (2026-05-11) :
+
+| Feature | Où loggée | Depuis | Sample size live | Seuil analyse | Statut |
+|---------|-----------|--------|------------------|---------------|--------|
+| `entry_oi_delta` | trades + OPEN | v8.x | 87 trades | 50+ | ✅ prête, jamais analysée |
+| `entry_crowding` | trades + OPEN | v8.x | 87 trades | 50+ | ✅ prête, jamais analysée |
+| `entry_confluence` | trades + OPEN | v8.x | 87 trades | 50+ | ✅ prête, jamais analysée |
+| `entry_session` | trades + OPEN | v8.x | 87 trades | 50+ | ✅ prête, jamais analysée |
+| `S9F_OBS` events (±3% / 2h) | events table | v11.x | n/a | 6+ mois | ⏳ attente |
+| `ETH_OBS` events | events table | v11.x | n/a | observation | ⏳ attente |
+| `basket_metrics` (mean_corr, effective_n, max_pairwise) | basket_snapshots + OPEN | 2026-05-11 | début | 1-2 mois | ⏳ attente forward |
+| `entry_side_imbalance` / `book_skew` / `book_spread_bps` | OPEN | 2026-05-11 | début | 3-6 mois | ⏳ attente forward |
+
+**Action recommandée** : un script d'analyse rétrospective tous les 3 mois sur les features `entry_*` (qui ont déjà 87+ trades). Si une corrèle significativement avec pnl_usdt, candidate pour un gate validé walk-forward. Si après 200+ trades aucune ne sort du bruit → classer comme "instrumentation suffisante, pas de gate".
+
 ### Dashboard live (port 8098/bot/)
 
 ```
