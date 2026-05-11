@@ -128,6 +128,12 @@ class MultiSignalBot:
                                               hold_target_h=hold_target)
             if not wp or not wp.get("mature") or wp.get("wr_pct", 100) >= 25:
                 continue
+            # v12.5.4 — suppress the alarm when the position is currently up
+            # OR has already shown strong mean-reversion pulse. Historical WR
+            # < 25 % can be a tiny-sample artefact (n=3 all losers etc); if
+            # the live trade is profitable right now there is nothing to act on.
+            if cur_pnl > 0 or pos.mfe_bps >= 500:
+                continue
             side = "LONG" if pos.direction == 1 else "SHORT"
             msg = (f"🚨 {sym} {pos.strategy} {side}: WR drift to {wp['wr_pct']}% "
                    f"(base {wp['base_wr_pct']}%, n={wp['n']} {wp['scope']})\n"

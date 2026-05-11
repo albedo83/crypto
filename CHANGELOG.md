@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.4] — 2026-05-11
+- **Telegram (bug fix)**: WR drift alarm no longer fires on positions that are already profitable or have shown strong mean-reversion — was sending misleading "consider manual close" pings on winning trades whose historical pattern was thin (e.g. n=3 all losers).
+
 ## [12.5.3] — 2026-05-11
 - **Trading engine**: scan orchestrator slimmed (per-token signal loop and ETH observation extracted to dedicated methods); close path no longer hangs if the exchange funding endpoint slows down (5s timeout, fail-open preserved).
 - **Infra**: shared close helper consolidates the manual-close / pause flows around a single success/failure signal.
