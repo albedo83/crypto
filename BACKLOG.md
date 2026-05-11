@@ -10,16 +10,16 @@ Mettre à jour au fil de l'eau. Quand un item est traité → le supprimer et lo
 
 ---
 
-## 1. Analyses prêtes à lancer (données suffisantes)
+## 1. Section close — 4 features observation-only testées 2026-05-11
 
-Ces features ont été analysées le 2026-05-11 via `backtests/analyze_obs_features.py` (rétrospectif) puis les hypothèses fortes testées en walk-forward via `backtests/backtest_we_oi_gates.py`. **Aucun gate n'a passé 4/4 strict.** Résumé :
+Analyse rétrospective via `backtests/analyze_obs_features.py` puis hypothèses fortes testées en walk-forward 4/4 strict :
 
-- ❌ **`entry_session` (WE)** — rétrospectif fort (WE n=22 avg −$3.12, WR 36%). Walk-forward : `WE skip S5 LONG only` à **3/4** (ΔDD +0.39, à 0.11pp du seuil 0.5pp), le 12m casse. **Re-tester ~2026-08-11** : si la fenêtre 12m glisse vers une période moins négative, ça pourrait basculer 4/4.
-- ❌ **`entry_oi_delta` SHORT gate** (mirror v11.4.9) — rétrospectif fort sur S5 SHORT (n=5 avg −$8.25). Walk-forward : **0/4 toutes thresholds** (+5% à +25%). Pattern = bruit d'échantillonnage, sur 28 mois historique le gate détruit systématiquement le pnl. **Classer définitivement.**
-- 🟡 **`entry_crowding`** — rétrospectif WEAK (spread $3.62, pas extrême). Pas testé en walk-forward (signal trop faible pour justifier le coût).
-- 🟡 **`entry_confluence`** — rétrospectif WEAK (spread $5.69 mais buckets pas extrêmes). Pas testé en walk-forward.
+- ❌ **`entry_session` (WE)** — rétrospectif fort (WE n=22 avg −$3.12, WR 36%). Walk-forward `WE skip S5 LONG only` à **3/4** (ΔDD +0.39, à 0.11pp du seuil), le 12m casse. **Re-tester ~2026-08-11** : si la fenêtre 12m glisse vers une période moins négative, ça pourrait basculer 4/4.
+- ❌ **`entry_oi_delta` SHORT gate** (mirror v11.4.9) — rétrospectif fort (n=5 S5 SHORT avg −$8.25). Walk-forward **0/4** toutes thresholds (+5% à +25%). Pattern = bruit. **Classer définitivement.**
+- ❌ **`entry_crowding`** — rétrospectif WEAK (spread $3.62). Walk-forward **0/6** configs (skip crowd<1, <20, <30 testés). Toutes les configs détruisent le pnl par −300k+ pp. **Classer définitivement.**
+- ❌ **`entry_confluence`** — rétrospectif WEAK (spread $5.69). Walk-forward **0/6** configs (skip conf=0, conf=1, conf<2). Pareil, destruction massive du pnl. **Classer définitivement.**
 
-**Re-run** `backtests/analyze_obs_features.py` et `backtests/backtest_we_oi_gates.py` à 200+ trades ou ~2026-08-11.
+**Conclusion section** : sur 4 features × ~15 gates testés, **un seul (WE skip S5 LONG only) atteint 3/4 strict, à 0.11pp du seuil ΔDD**. Les 3 autres features ne survivent pas au walk-forward. Re-tester WE skip à 2026-08-11 ; les autres sont enterrées.
 
 ---
 
