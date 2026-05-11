@@ -110,6 +110,16 @@ def init_db(db_path: str) -> sqlite3.Connection | None:
             vol_z REAL,
             PRIMARY KEY (ts, symbol)
         ) WITHOUT ROWID""")
+        # Basket correlation snapshots (observation-only). One row per scan
+        # when >=2 positions open. Used to study whether basket concentration
+        # correlates with drawdown — not a trading gate.
+        db.execute("""CREATE TABLE IF NOT EXISTS basket_snapshots (
+            ts INTEGER PRIMARY KEY,
+            n_positions INTEGER,
+            mean_corr_to_btc REAL,
+            max_pairwise_corr REAL,
+            effective_n REAL
+        ) WITHOUT ROWID""")
         # 60s aggregated trade flow from WebSocket (buy/sell pressure, large trades)
         db.execute("""CREATE TABLE IF NOT EXISTS trade_flow (
             ts INTEGER NOT NULL,

@@ -705,6 +705,7 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                 entry_confluence=int(ctx.get("confluence", 0) or 0),
                 entry_session=ctx.get("session", "") or "",
             )
+        basket_at_entry = getattr(bot, "_basket_metrics", None)
         log_event(bot._db, "OPEN", sym, {
             "strategy": sig["strategy"], "dir": side,
             "entry_price": round(entry_price, 6), "size_usdt": round(filled_size, 2),
@@ -712,6 +713,10 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             "stop_bps": round(sig.get("stop_bps", 0.0), 1),
             "btc_z": round(modulator_z, 3) if modulator_z is not None else None,
             "mult": round(modulator_mult, 3) if modulator_mult is not None else None,
+            "basket_mean_corr_btc": basket_at_entry["mean_corr_to_btc"] if basket_at_entry else None,
+            "basket_max_pairwise": basket_at_entry["max_pairwise_corr"] if basket_at_entry else None,
+            "basket_effective_n": basket_at_entry["effective_n"] if basket_at_entry else None,
+            "basket_n_positions": basket_at_entry["n_positions"] if basket_at_entry else None,
         })
 
         # Update local counters (avoid re-reading bot.positions mid-scan)

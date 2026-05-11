@@ -102,6 +102,28 @@ def log_market_snapshot(states: dict, feature_cache: dict,
             log.warning("Market snapshot DB write failed: %s", e)
 
 
+def log_basket_snapshot(metrics: dict | None,
+                         db: sqlite3.Connection | None) -> None:
+    """Write one basket-correlation snapshot row. No-op if metrics is None
+    (< 2 positions or insufficient history) or db is None."""
+    if not metrics or not db:
+        return
+    from .db import _db_lock
+    ts = int(time.time())
+    try:
+        with _db_lock:
+            db.execute("""INSERT OR IGNORE INTO basket_snapshots
+                (ts, n_positions, mean_corr_to_btc, max_pairwise_corr, effective_n)
+                VALUES (?,?,?,?,?)""",
+                (ts, metrics["n_positions"],
+                 metrics["mean_corr_to_btc"],
+                 metrics["max_pairwise_corr"],
+                 metrics["effective_n"]))
+            db.commit()
+    except Exception as e:
+        log.warning("Basket snapshot DB write failed: %s", e)
+
+
 # ── State Persistence ─────────────────────────────────────────────────
 
 def save_state(state_file: str, positions: dict, pos_lock,

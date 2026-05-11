@@ -339,6 +339,7 @@ def build_state_response(bot) -> dict:
         "signal_drift": compute_signal_drift(bot.trades),
         "s10_health": compute_s10_health(bot.trades),
         "btc_z_30d": round(bot._btc_z, 3) if bot._btc_z is not None else None,
+        "basket_metrics": bot._basket_metrics,
         "peak_balance": round(bot._peak_balance, 2),
         "drawdown_pct": round((balance - bot._peak_balance) / bot._peak_balance * 100, 2) if bot._peak_balance > 0 else 0,
         "pnl_pct": round((balance - bot._capital) / bot._capital * 100, 2) if bot._capital > 0 else 0,

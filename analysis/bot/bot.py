@@ -62,6 +62,7 @@ class MultiSignalBot:
         self._drift_alerted: bool = False  # one-shot alert for bot vs exchange P&L drift
         self._btc_z: float | None = None  # rolling z-score of BTC ret_30d (adaptive modulator)
         self._wr_alerted: set[str] = set()  # v12.4.0 — symbols already alerted on WR drop
+        self._basket_metrics: dict | None = None  # observation-only basket correlation
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -208,6 +209,11 @@ class MultiSignalBot:
                 lookback_days=MACRO_LOOKBACK_DAYS,
                 z_window_days=MACRO_Z_WINDOW_DAYS,
             )
+        # Basket correlation (observation-only)
+        with self._pos_lock:
+            pos_for_basket = dict(self.positions)
+        self._basket_metrics = features.compute_basket_correlation(
+            pos_for_basket, self.states)
         alt_index = self._compute_alt_index()
         dxy_7d = features.fetch_dxy(self._degraded, features.DXY_CACHE)
         self._dxy_cache = (dxy_7d, time.time())
@@ -394,6 +400,7 @@ class MultiSignalBot:
                     persistence.log_market_snapshot(
                         self.states, self._feature_cache, TRADE_SYMBOLS,
                         self._db, self._compute_oi_features, self._compute_crowding_score)
+                    persistence.log_basket_snapshot(self._basket_metrics, self._db)
 
                     _bt = [t for t in self.trades if trading.is_bot_trade(t)]
                     n = len(_bt)

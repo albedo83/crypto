@@ -346,6 +346,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <span id="mkt-alt" class="dim"></span>
   <span id="mkt-dxy" class="dim"></span>
   <span id="mkt-oi" class="dim"></span>
+  <span id="mkt-basket" class="dim" title="Corrélation du panier — observation seule (pas de gate)"></span>
 </div>
 
 <div class="cards">
@@ -1086,6 +1087,24 @@ function refresh(){
     document.getElementById('mkt-alt').innerHTML='Alts: <b style="color:'+mkC(alt)+'">'+fmt(alt,0)+'</b>bp';
     document.getElementById('mkt-dxy').innerHTML='DXY: <b style="color:'+mkC(-dxy)+'">'+fmt(dxy,0)+'</b>bp';
     document.getElementById('mkt-oi').innerHTML='OI: <span style="color:#3fb950">'+oiR+'↑</span> <span style="color:#f85149">'+oiF+'↓</span>';
+
+    // Basket correlation (observation-only)
+    const bm=s.basket_metrics;
+    const bel=document.getElementById('mkt-basket');
+    if(bm && bm.n_positions>=2){
+      const eff=bm.effective_n, n=bm.n_positions, ratio=eff/n;
+      const ratioColor=ratio>=0.7?'#3fb950':ratio>=0.5?'#d29922':'#f85149';
+      const corr=bm.mean_corr_to_btc;
+      const corrColor=Math.abs(corr)<0.3?'#3fb950':Math.abs(corr)<0.6?'#d29922':'#f85149';
+      bel.innerHTML='Basket: <b style="color:'+corrColor+'">'+(corr>=0?'+':'')+fmt(corr,2)+'</b> '+
+                    'eff <b style="color:'+ratioColor+'">'+fmt(eff,1)+'/'+n+'</b>';
+      bel.title='mean_corr_to_btc='+fmt(corr,3)+' (signed BTC exposure) | '+
+                'effective_n='+fmt(eff,2)+' / '+n+' positions | '+
+                'max_pairwise='+fmt(bm.max_pairwise_corr,3)+' (worst same-trade pair) — observation only';
+    } else {
+      bel.innerHTML='';
+      bel.title='';
+    }
 
   }).catch(e=>console.warn('state fetch error:',e));
 }

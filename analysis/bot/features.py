@@ -233,6 +233,99 @@ def compute_btc_z(btc_candles: list, lookback_days: int = 30,
     return (current_ret - mean) / std
 
 
+def compute_basket_correlation(positions: dict, states: dict,
+                                lookback_days: int = 30,
+                                candles_per_day: int = 6) -> dict | None:
+    """Basket-level correlation metrics over currently open positions.
+
+    Observation-only (no trading decisions). Computes:
+      - mean_corr_to_btc: signed BTC exposure of the basket. +1 = fully long-BTC,
+        -1 = fully short-BTC, 0 = hedged. mean over positions of
+        direction_i * corr(alt_i, BTC) on the rolling lookback window.
+      - max_pairwise_corr: maximum signed pairwise correlation between any two
+        positions (sign-adjusted by directions). High positive = strongest "same
+        trade" pair in the basket. Negative = best hedge pair.
+      - effective_n: effective number of independent positions, equal-weighted.
+        Equals n if all pairwise correlations are 0; equals 1 if all signed
+        correlations are 1. Clamped to [1, n_positions].
+
+    Returns None if < 2 positions, insufficient candle history, or zero-variance.
+    """
+    if len(positions) < 2:
+        return None
+    btc_st = states.get("BTC")
+    n_candles = lookback_days * candles_per_day
+    if not btc_st or len(btc_st.candles_4h) < n_candles + 1:
+        return None
+    btc_closes = np.array([c["c"] for c in list(btc_st.candles_4h)[-(n_candles + 1):]])
+    if (btc_closes[:-1] == 0).any():
+        return None
+    btc_rets = np.diff(btc_closes) / btc_closes[:-1]
+    btc_std = float(np.std(btc_rets))
+    if btc_std == 0:
+        return None
+
+    dirs = []
+    rets_list = []
+    for sym, pos in positions.items():
+        st = states.get(sym)
+        if not st or len(st.candles_4h) < n_candles + 1:
+            return None
+        closes = np.array([c["c"] for c in list(st.candles_4h)[-(n_candles + 1):]])
+        if (closes[:-1] == 0).any():
+            return None
+        rets = np.diff(closes) / closes[:-1]
+        if len(rets) != len(btc_rets):
+            return None
+        dirs.append(pos.direction)
+        rets_list.append(rets)
+
+    n = len(dirs)
+    if n < 2:
+        return None
+    dirs_arr = np.array(dirs, dtype=float)
+
+    # Per-position correlation to BTC, sign-adjusted
+    signed_btc = []
+    for r in rets_list:
+        if float(np.std(r)) == 0:
+            signed_btc.append(0.0)
+            continue
+        c = float(np.corrcoef(r, btc_rets)[0, 1])
+        signed_btc.append(c)
+    signed_btc_arr = np.array(signed_btc) * dirs_arr
+    mean_corr_to_btc = float(signed_btc_arr.mean())
+
+    # Pairwise signed correlation matrix
+    R = np.array(rets_list)
+    corr_mat = np.corrcoef(R)
+    # corrcoef can produce NaN for zero-variance rows — replace with 0
+    if np.isnan(corr_mat).any():
+        corr_mat = np.nan_to_num(corr_mat, nan=0.0)
+    signed_mat = corr_mat * np.outer(dirs_arr, dirs_arr)
+
+    # Max off-diagonal signed corr (worst same-trade pair)
+    off_diag = signed_mat.copy()
+    np.fill_diagonal(off_diag, -np.inf)
+    max_pairwise = float(off_diag.max())
+
+    # Effective n with sign-adjusted matrix (diagonal = 1)
+    signed_mat_clean = signed_mat.copy()
+    np.fill_diagonal(signed_mat_clean, 1.0)
+    total = float(signed_mat_clean.sum())
+    if total <= 0:
+        effective_n = float(n)  # fully over-hedged → cap at n
+    else:
+        effective_n = max(1.0, min(float(n), (n * n) / total))
+
+    return {
+        "n_positions": n,
+        "mean_corr_to_btc": round(mean_corr_to_btc, 3),
+        "max_pairwise_corr": round(max_pairwise, 3),
+        "effective_n": round(effective_n, 2),
+    }
+
+
 def fetch_dxy(degraded: list, dxy_cache_path: str) -> float:
     """Fetch DXY 7-day return (bps) via Yahoo Finance with 3-tier fallback:
     1. Fresh cache (<6h) -- normal operation
