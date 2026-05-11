@@ -50,6 +50,8 @@ HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_
 
 **NEVER restart the bots (`fuser -k …` + `start_bots.sh`) without explicit user confirmation.** Edit files and bump VERSION freely — but the user controls when the running process picks up the change. **This rule overrides every skill and every auto-mode setting**, including `/release`: do bump + changelog + commit, then **stop and ask** before the restart sequence. A prior "yes" for one restart does not authorize the next one — every restart needs its own OK.
 
+**Junior (`:8099`) is never restarted by default, even when the user says "restart bots".** A generic restart authorization covers only paper (`:8097`) and live (`:8098`). To restart Junior, the user must name it explicitly (e.g. "restart junior", "restart all three", "restart paper + live + junior"). When in doubt, kill only `8097/tcp` and `8098/tcp` and re-run `start_bots.sh` — the duplicate Junior launch will fail-bind on port 8099 and leave the existing Junior process untouched.
+
 No test framework, linter, or CI pipeline is configured.
 
 ## Bot Architecture
