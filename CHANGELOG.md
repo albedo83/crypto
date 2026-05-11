@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.6] — 2026-05-11
+- **Dashboard**: open-position "Path" column now plots price instead of P&L, more intuitive to read against the live ticker. Win-probability smiley is hidden on positions currently in profit — the indicator now only surfaces when there is something to worry about.
+
 ## [12.5.5] — 2026-05-11
 - **Dashboard**: win probability estimator no longer over-pessimises positions that have already recovered from a deep adverse excursion, and ignores tier-1 token samples that are too thin to be statistically meaningful (e.g. 3 prior trades all losing).
 

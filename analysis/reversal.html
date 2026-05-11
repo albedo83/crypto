@@ -372,7 +372,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 <div class="section" data-block="open-positions">
   <h2>Open Positions</h2>
   <table class="responsive"><thead><tr>
-    <th>Symbol</th><th>Strat</th><th>Side</th><th>WR est<span class="dim" style="font-weight:400">.</span></th><th>P&L</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path<span class="dim" style="font-weight:400"> (P&L)</span></th><th></th>
+    <th>Symbol</th><th>Strat</th><th>Side</th><th>WR est<span class="dim" style="font-weight:400">.</span></th><th>P&L</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path<span class="dim" style="font-weight:400"> (price)</span></th><th></th>
   </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
@@ -547,22 +547,27 @@ function holdBar(prog){
   const pct=Math.round(prog*100);
   return `<div class="bar-inline" title="Hold elapsed: ${pct}%"><div class="fill fill-hold" style="width:${pct}%"></div></div>`;
 }
-function sparkline(traj,w=70,h=24){
+function sparkline(traj,entryPx,dirSign,w=70,h=24){
+  // v12.5.6: y-axis is PRICE instead of P&L bps. Trajectory still ships
+  // (hours, unrealized_bps); we invert to price via
+  //   price = entry × (1 + bps / (direction × 1e4))
+  // where direction = +1 for LONG, -1 for SHORT. Color still reflects
+  // P&L sign (last unrealized_bps), not raw price direction, so a SHORT
+  // winning on a falling price still draws green.
   if(!traj||traj.length<2)return '<span class="dim" style="font-size:10px">--</span>';
-  const xs=traj.map(p=>p[0]),ys=traj.map(p=>p[1]);
+  const ds = dirSign||1;
+  const ep = entryPx||1;
+  const xs=traj.map(p=>p[0]);
+  const ys=traj.map(p=>ep*(1+p[1]/(ds*1e4)));   // prices
+  const lastBps=traj[traj.length-1][1];
   const xmin=Math.min(...xs),xmax=Math.max(...xs);
-  const ymin=Math.min(0,...ys),ymax=Math.max(0,...ys);
-  const xr=Math.max(xmax-xmin,0.1),yr=Math.max(ymax-ymin,1);
-  const pts=traj.map(p=>((p[0]-xmin)/xr*w).toFixed(1)+','+(h-(p[1]-ymin)/yr*h).toFixed(1)).join(' ');
+  const ymin=Math.min(ep,...ys),ymax=Math.max(ep,...ys);  // include entry
+  const xr=Math.max(xmax-xmin,0.1),yr=Math.max(ymax-ymin,ep*0.0001);
+  const pts=traj.map((p,i)=>((p[0]-xmin)/xr*w).toFixed(1)+','+(h-(ys[i]-ymin)/yr*h).toFixed(1)).join(' ');
   const yOf=v=>(h-(v-ymin)/yr*h).toFixed(1);
-  const zy=yOf(0);                    // entry baseline (0 bps)
-  const lastBps=ys[ys.length-1];
-  const cy=yOf(lastBps);              // current level
+  const zy=yOf(ep);                   // entry price baseline
+  const cy=yOf(ys[ys.length-1]);      // current price level
   const col=lastBps>=0?'#3fb950':'#f85149';
-  // v11.7.24: visible reference lines — entry (0 bps) in mid-grey,
-  // current bps in the polyline color. Slightly thicker and higher opacity
-  // so they read against the dark dashboard bg without stealing focus from
-  // the polyline.
   return `<svg class="spark" width="${w}" height="${h}">`
        + `<line x1="0" y1="${zy}" x2="${w}" y2="${zy}" stroke="#7d8590" stroke-width="1" stroke-dasharray="2,3" opacity="0.75"/>`
        + `<line x1="0" y1="${cy}" x2="${w}" y2="${cy}" stroke="${col}" stroke-width="1" stroke-dasharray="3,2" opacity="0.85"/>`
@@ -758,26 +763,32 @@ function refresh(){
       // v11.7.21: position strip subsumes stopBar (shows stop + MAE + current + MFE + trailing)
       const stopViz=positionStrip(p)||(p.stop_progress!==undefined?stopBar(p.stop_progress):'');
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress):'';
-      const pathViz=sparkline(p.trajectory);
+      const pathViz=sparkline(p.trajectory, p.entry_price, p.direction==='LONG'?1:-1);
       const bpsSign=p.unrealized_bps>=0?'+':'';
       // v12.3.0: historical-pattern win probability (from /api/state)
       // v12.3.1: smiley + colored %.  v12.3.2: dim when "fresh" (low confidence).
       let wpStr = '<span class="dim">—</span>';
       if (p.win_prob && p.win_prob.wr_pct !== undefined) {
         const w = p.win_prob.wr_pct;
-        let col, smiley;
-        if (w >= 65)      { col = '#3fb950'; smiley = '😀'; }
-        else if (w >= 55) { col = '#3fb950'; smiley = '🙂'; }
-        else if (w >= 45) { col = '#d29922'; smiley = '😐'; }
-        else if (w >= 35) { col = '#d29922'; smiley = '😕'; }
-        else if (w >= 25) { col = '#f85149'; smiley = '😟'; }
-        else              { col = '#f85149'; smiley = '😱'; }
-        const tooltip = `${p.win_prob.note} (n=${p.win_prob.n}, base ${p.win_prob.base_wr_pct}%)`;
-        // Fresh trades: dim styling + ⌛ marker — WR shouldn't be trusted yet
-        if (p.win_prob.mature === false) {
-          wpStr = `<span class="dim" style="font-size:11px" title="${tooltip}"><span style="font-size:14px">⌛</span> ${w}%</span>`;
+        // v12.5.6: hide the smiley/% entirely when the position is currently
+        // profitable — the WR estimator is a "should I worry?" indicator
+        // and adds noise when there's nothing to worry about.
+        if (p.unrealized_bps > 0) {
+          wpStr = `<span class="dim" title="WR ${w}% (hidden — position in profit)">—</span>`;
         } else {
-          wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}"><span style="font-size:14px">${smiley}</span> ${w}%</span>`;
+          let col, smiley;
+          if (w >= 65)      { col = '#3fb950'; smiley = '😀'; }
+          else if (w >= 55) { col = '#3fb950'; smiley = '🙂'; }
+          else if (w >= 45) { col = '#d29922'; smiley = '😐'; }
+          else if (w >= 35) { col = '#d29922'; smiley = '😕'; }
+          else if (w >= 25) { col = '#f85149'; smiley = '😟'; }
+          else              { col = '#f85149'; smiley = '😱'; }
+          const tooltip = `${p.win_prob.note} (n=${p.win_prob.n}, base ${p.win_prob.base_wr_pct}%)`;
+          if (p.win_prob.mature === false) {
+            wpStr = `<span class="dim" style="font-size:11px" title="${tooltip}"><span style="font-size:14px">⌛</span> ${w}%</span>`;
+          } else {
+            wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}"><span style="font-size:14px">${smiley}</span> ${w}%</span>`;
+          }
         }
       }
       tr.innerHTML=`
@@ -792,7 +803,7 @@ function refresh(){
         <td data-label="Current" class="pos-detail">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
         <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
         <td data-label="Remaining" class="pos-remaining"><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim stop-meta" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
-        <td data-label="Path (P&L)" class="pos-spark">${pathViz}</td>
+        <td data-label="Path (price)" class="pos-spark">${pathViz}</td>
         <td data-label="" class="pos-close"><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
     });
