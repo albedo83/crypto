@@ -775,9 +775,9 @@ function refresh(){
         const tooltip = `${p.win_prob.note} (n=${p.win_prob.n}, base ${p.win_prob.base_wr_pct}%)`;
         // Fresh trades: dim styling + ⌛ marker — WR shouldn't be trusted yet
         if (p.win_prob.mature === false) {
-          wpStr = `<span class="dim" style="font-size:11px" title="${tooltip}">⌛ ${w}%</span>`;
+          wpStr = `<span class="dim" style="font-size:11px" title="${tooltip}"><span style="font-size:14px">⌛</span> ${w}%</span>`;
         } else {
-          wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}">${smiley} ${w}%</span>`;
+          wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}"><span style="font-size:14px">${smiley}</span> ${w}%</span>`;
         }
       }
       tr.innerHTML=`
