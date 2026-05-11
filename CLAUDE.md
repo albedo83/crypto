@@ -201,5 +201,7 @@ Cost: zero (no LLM calls). Uses only stdlib + the trade DB.
 
 ## Related docs
 - `docs/bot.md` — detailed bot description (French): signals, parameters, protections, research, architecture.
+- `docs/synthese.md` — pedagogical synthesis (French): "for-dummies" walkthrough of strategies, modulator, exits, observability features.
 - `docs/backtests.md` — rolling backtest results for the current parameters, regenerated via `python3 -m backtests.backtest_rolling`.
 - `CHANGELOG.md` — release history, maintained via `/release` skill.
+- `BACKLOG.md` — tests/analyses/refactors différés. Check it when starting R&D or refactor work to remember what's pending.
