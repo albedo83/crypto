@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.5.2] — 2026-05-11
+- **Trading engine**: internal refactor — extraction of read-only analytics into its own module, shared skip-reason helper between scan and dashboard preview, removal of dead kill-switch toggles and the one-time CSV migration. No behavior change.
+- **Infra**: shared SQLite write-lock moved to a dedicated concurrency module.
+
 ## [12.5.1] — 2026-05-11
 - **Dashboard (bug fix)**: `/api/state` crashed since v12.3.0 because the win probability estimator referenced a field that doesn't exist on open positions — dashboard now loads again.
 
