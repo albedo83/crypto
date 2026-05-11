@@ -39,7 +39,8 @@ def _mode_color() -> str:
 log = logging.getLogger("multisignal")
 
 # DRY: shared helpers live in trading.py
-from .trading import is_bot_trade, compute_signal_drift, compute_s10_health, estimate_win_prob
+from .analytics import (is_bot_trade, compute_signal_drift, compute_s10_health,
+                         estimate_win_prob, filter_recent_trades)
 from .net import send_telegram
 
 def _collect_active_signals(bot, btc_f) -> list:
@@ -145,6 +146,10 @@ def build_state_response(bot) -> dict:
     positions = []
     with bot._pos_lock:
         pos_snapshot = dict(bot.positions)
+    # I4: filter trades once per /api/state call instead of per-position.
+    # The estimate_win_prob signature accepts pre_filtered=True to skip its
+    # internal cutoff filter (which would otherwise run len(positions) times).
+    recent_trades = filter_recent_trades(list(bot.trades))
     for sym, pos in pos_snapshot.items():
         st = bot.states.get(sym)
         px = st.price if st else pos.entry_price
@@ -167,9 +172,10 @@ def build_state_response(bot) -> dict:
         # v12.3.0 — historical-pattern win probability estimate
         # v12.3.2: pass hours_held + hold_target so the maturity gate can mute
         # noisy early-hold MAE-based adjustments.
-        win_prob = estimate_win_prob(pos, list(bot.trades),
+        win_prob = estimate_win_prob(pos, recent_trades,
                                       hours_held=hold_h,
-                                      hold_target_h=hold_h + max(rem, 0))
+                                      hold_target_h=hold_h + max(rem, 0),
+                                      pre_filtered=True)
         positions.append({
             "symbol": sym, "direction": "LONG" if pos.direction == 1 else "SHORT",
             "strategy": pos.strategy, "entry_price": pos.entry_price,

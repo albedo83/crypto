@@ -23,7 +23,7 @@ from .config import (
     MACRO_LOOKBACK_DAYS, MACRO_Z_WINDOW_DAYS,
 )
 from .models import SymbolState, Position, Trade
-from . import features, signals, db as db_mod, net, persistence, trading, web
+from . import analytics, features, signals, db as db_mod, net, persistence, trading, web
 
 log = logging.getLogger("multisignal")
 
@@ -123,9 +123,9 @@ class MultiSignalBot:
             if st and st.price > 0 and pos.entry_price > 0:
                 ur_bps = (st.price / pos.entry_price - 1) * 1e4 * pos.direction
                 cur_pnl = pos.size_usdt * ur_bps / 1e4
-            wp = trading.estimate_win_prob(pos, trades_list,
-                                            hours_held=hold_h,
-                                            hold_target_h=hold_target)
+            wp = analytics.estimate_win_prob(pos, trades_list,
+                                              hours_held=hold_h,
+                                              hold_target_h=hold_target)
             if not wp or not wp.get("mature") or wp.get("wr_pct", 100) >= 25:
                 continue
             side = "LONG" if pos.direction == 1 else "SHORT"
@@ -401,7 +401,7 @@ class MultiSignalBot:
                         self._db, self._compute_oi_features, self._compute_crowding_score)
                     persistence.log_basket_snapshot(self._basket_metrics, self._db)
 
-                    _bt = [t for t in self.trades if trading.is_bot_trade(t)]
+                    _bt = [t for t in self.trades if analytics.is_bot_trade(t)]
                     n = len(_bt)
                     balance = self._capital + self._total_pnl
                     wr = sum(1 for t in _bt if t.pnl_usdt > 0) / n * 100 if n > 0 else 0
