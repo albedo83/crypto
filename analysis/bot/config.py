@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.5.7"
+VERSION = "12.5.8"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -187,8 +187,16 @@ SIGNAL_MULT = {"S1": 1.125, "S5": 3.25, "S8": 1.25, "S9": 2.00, "S10": 2.00}
 # 4/4 strict + OOS confirmed for S1/S8/S9. Conservative α=±0.5 chosen
 # (vs ±1.0 optimum) to limit overfit risk.
 ADAPTIVE_ALPHA = {"S1": +0.5, "S8": -0.5, "S9": -0.5}
-# Direction-specific overrides (precedence over ADAPTIVE_ALPHA when present):
-ADAPTIVE_ALPHA_DIR = {("S5", -1): -0.5}    # S5 SHORT only (v12.2.0)
+# Direction-specific overrides (precedence over ADAPTIVE_ALPHA when present).
+# v12.5.8: both losing-SHORT directions tightened from -0.5 → -1.5 after
+# walk-forward 4/4 strict validation (backtest_short_kill.py). At -1.5 the
+# multiplier hits the 0.3 floor at btc_z=0.47 — effectively zero-sized in any
+# meaningful bull regime, where these SHORTs structurally bleed. S5 LONG and
+# S9 LONG unchanged (S9 LONG still uses ADAPTIVE_ALPHA["S9"]=-0.5).
+ADAPTIVE_ALPHA_DIR = {
+    ("S5", -1): -1.5,
+    ("S9", -1): -1.5,
+}
 MACRO_LOOKBACK_DAYS = 30        # BTC return horizon (= ret_30d)
 MACRO_Z_WINDOW_DAYS = 180       # rolling 6m for mean/std of past ret_30d
 MACRO_Z_CLIP = 2.5              # clip btc_z within ±2.5 (extreme outliers)

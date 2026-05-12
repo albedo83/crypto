@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.8] — 2026-05-12
+- **Trading engine**: structurally weak short directions are now sized down much more aggressively in the regimes where they historically bleed — walk-forward validated, drawdown unchanged.
+
 ## [12.5.7] — 2026-05-12
 - **Dashboard (bug fix)**: fresh positions (< 2h) now correctly show the hourglass marker even when slightly in profit — the v12.5.6 "hide on profit" check was firing before the freshness check.
 
