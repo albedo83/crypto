@@ -126,24 +126,37 @@ def build_state_response(bot) -> dict:
     n_bot, wins = len(bt), sum(1 for t in bt if t.pnl_usdt > 0)
     balance = bot._capital + bot._total_pnl
     btc_f, alt_idx = bot._compute_btc_features(), bot._compute_alt_index()
-    # Regime classifier (v11.4.11 batch 2): stress > BTC trend > default
+    # Regime classifier (v12.5.9): aligned with the adaptive modulator's
+    # btc_z (rolling z-score) instead of raw return thresholds. Fallback to
+    # raw-return logic when btc_z hasn't been computed yet (cold boot).
+    # Stress always wins as override.
     from . import signals as signals_mod
     cross = signals_mod.compute_cross_context(bot._feature_cache)
     n_stress = cross.get("n_stress_global", 0)
     btc30 = btc_f.get("btc_30d", 0)
     btc7 = btc_f.get("btc_7d", 0)
+    z = bot._btc_z
     if n_stress >= 5:
         regime = "STRESSED"
-    elif btc30 > 2000:
-        regime = "BULL"
-    elif btc30 < -1500:
-        regime = "BEAR"
-    elif btc7 > 1000 and btc30 > 500:
-        regime = "RALLY"
-    elif btc7 < -700:
-        regime = "FLUSH"
+    elif z is not None:
+        if z >= 1.0:
+            regime = "RALLY" if btc7 > 800 else "BULL"
+        elif z <= -1.0:
+            regime = "FLUSH" if btc7 < -800 else "BEAR"
+        else:
+            regime = "CHOPPY"
     else:
-        regime = "CHOPPY"
+        # Cold boot fallback (no btc_z yet) — use legacy raw-return thresholds
+        if btc30 > 2000:
+            regime = "BULL"
+        elif btc30 < -1500:
+            regime = "BEAR"
+        elif btc7 > 1000 and btc30 > 500:
+            regime = "RALLY"
+        elif btc7 < -700:
+            regime = "FLUSH"
+        else:
+            regime = "CHOPPY"
     positions = []
     with bot._pos_lock:
         pos_snapshot = dict(bot.positions)

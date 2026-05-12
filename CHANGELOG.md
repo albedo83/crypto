@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.9] — 2026-05-12
+- **Dashboard**: regime badge now reflects the same rolling z-score the adaptive modulator already uses for sizing — label and trading logic finally agree instead of giving "CHOPPY" while the bot actively trades a bull regime.
+
 ## [12.5.8] — 2026-05-12
 - **Trading engine**: structurally weak short directions are now sized down much more aggressively in the regimes where they historically bleed — walk-forward validated, drawdown unchanged.
 
