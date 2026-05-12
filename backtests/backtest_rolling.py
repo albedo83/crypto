@@ -246,6 +246,7 @@ def run_window(features, data, sector_features, dxy_data,
                partial_profit: dict | None = None,
                giveback: dict | None = None,
                stop_override: dict | None = None,
+               early_mae_exit: dict | None = None,
                interval_hours: int = 4,
                funding_data: dict | None = None,
                apply_adaptive_modulator: bool = False) -> dict:
@@ -436,6 +437,23 @@ def run_window(features, data, sector_features, dxy_data,
                 if worst < stop:
                     exit_reason = "stop"
                     exit_price = pos["entry"] * (1 - stop / 1e4)
+
+            # Early-MAE exit (experimental): if MAE crosses an aggressive
+            # threshold within the first N candles, exit immediately at that
+            # threshold price. Mirrors a "fast crash detector" — different
+            # hypothesis from WR auto-close (which uses historical WR estimate).
+            if (early_mae_exit is not None and not exit_reason
+                    and held <= early_mae_exit.get("max_candles", 2)
+                    and pos["strat"] in early_mae_exit.get("strats", set())
+                    and (early_mae_exit.get("dirs") is None
+                         or pos["dir"] in early_mae_exit["dirs"])):
+                thr = early_mae_exit["mae_threshold"]
+                if pos.get("mae", 0) <= thr:
+                    exit_reason = "early_mae_exit"
+                    if pos["dir"] == 1:
+                        exit_price = pos["entry"] * (1 + thr / 1e4)
+                    else:
+                        exit_price = pos["entry"] * (1 - thr / 1e4)
 
             # Runner extension: at the natural timeout, if the position is
             # still showing strong upside (high MFE retained), extend hold by
