@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.7] — 2026-05-12
+- **Dashboard (bug fix)**: fresh positions (< 2h) now correctly show the hourglass marker even when slightly in profit — the v12.5.6 "hide on profit" check was firing before the freshness check.
+
 ## [12.5.6] — 2026-05-11
 - **Dashboard**: open-position "Path" column now plots price instead of P&L, more intuitive to read against the live ticker. Win-probability smiley is hidden on positions currently in profit — the indicator now only surfaces when there is something to worry about.
 

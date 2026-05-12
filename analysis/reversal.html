@@ -770,10 +770,13 @@ function refresh(){
       let wpStr = '<span class="dim">—</span>';
       if (p.win_prob && p.win_prob.wr_pct !== undefined) {
         const w = p.win_prob.wr_pct;
-        // v12.5.6: hide the smiley/% entirely when the position is currently
-        // profitable — the WR estimator is a "should I worry?" indicator
-        // and adds noise when there's nothing to worry about.
-        if (p.unrealized_bps > 0) {
+        const tooltip = `${p.win_prob.note} (n=${p.win_prob.n}, base ${p.win_prob.base_wr_pct}%)`;
+        // v12.5.7: ordered checks — fresh first, then profit, then alarm zone.
+        // Fresh (< 2h) always shows ⌛ regardless of P&L; mature + profit hides
+        // the smiley as noise; mature + loss shows the smiley + %.
+        if (p.win_prob.mature === false) {
+          wpStr = `<span class="dim" style="font-size:11px" title="${tooltip}"><span style="font-size:14px">⌛</span> ${w}%</span>`;
+        } else if (p.unrealized_bps > 0) {
           wpStr = `<span class="dim" title="WR ${w}% (hidden — position in profit)">—</span>`;
         } else {
           let col, smiley;
@@ -783,12 +786,7 @@ function refresh(){
           else if (w >= 35) { col = '#d29922'; smiley = '😕'; }
           else if (w >= 25) { col = '#f85149'; smiley = '😟'; }
           else              { col = '#f85149'; smiley = '😱'; }
-          const tooltip = `${p.win_prob.note} (n=${p.win_prob.n}, base ${p.win_prob.base_wr_pct}%)`;
-          if (p.win_prob.mature === false) {
-            wpStr = `<span class="dim" style="font-size:11px" title="${tooltip}"><span style="font-size:14px">⌛</span> ${w}%</span>`;
-          } else {
-            wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}"><span style="font-size:14px">${smiley}</span> ${w}%</span>`;
-          }
+          wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}"><span style="font-size:14px">${smiley}</span> ${w}%</span>`;
         }
       }
       tr.innerHTML=`
