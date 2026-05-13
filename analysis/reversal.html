@@ -387,7 +387,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 </div>
 
 <div class="cards">
-  <div class="card" id="card-balance"><div class="label">Equity</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
+  <div class="card" id="card-balance" title="Si tu fermes toutes les positions au prix marché actuel, tu récupères environ ce montant (avant frais de close ~9 bps)"><div class="label">Si je ferme tout</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
   <div class="card" id="card-dd" title="Drawdown depuis le pic — % de baisse de la balance par rapport à son sommet historique"><div class="label">Drawdown</div><div class="value" id="dd-pct">--</div><div class="sub dim" id="dd-peak">--</div><div class="dd-bar" style="height:3px;background:#30363d;border-radius:2px;margin-top:4px;overflow:hidden"><div id="dd-bar-fill" style="height:100%;width:0%;background:#3fb950;transition:width .3s,background .3s"></div></div></div>
   <div class="card"><div class="label">Total P&L</div><div class="value" id="pnl-amt">$0</div><div class="sub" id="pnl-pct">0%</div><div class="sub dim" id="pnl-fees"></div></div>
   <div class="card" id="card-pnl"><div class="label">Unrealized</div><div class="value" id="unrealized">--</div><div class="sub dim" id="available"></div></div>
@@ -750,7 +750,11 @@ function refresh(){
     // exchange_account.equity stays for the optional HL cross-check footer.
     const acct=s.exchange_account;
     const equity=(s.equity!=null)?s.equity:s.balance;
-    document.getElementById('balance').textContent='$'+equity.toFixed(2);
+    // v12.5.27: subtract estimated close-side fees so the card shows the
+    // actual "if I close all now" value, not the theoretical mid-price equity.
+    const closeFeesEst=(s.positions||[]).reduce((a,p)=>a+(p.size_usdt||0)*0.0009,0);
+    const stopNowEquity=equity-closeFeesEst;
+    document.getElementById('balance').textContent='$'+stopNowEquity.toFixed(2);
     if(acct){
       document.getElementById('capital').textContent='Available: $'+acct.available.toFixed(0)+' | Margin: $'+acct.margin_used.toFixed(0);
       const urEl=document.getElementById('unrealized');
@@ -1044,14 +1048,20 @@ function refresh(){
           const botEq=bal+openU;
           const gap=acct.equity-botEq;
           rec.style.display='block';
+          // Estimate close-all-now fees: sum of position notionals × COST_BPS (round-trip
+          // already baked in for prior fills; this captures the remaining close-side fee).
+          const closeFees=(s.positions||[]).reduce((a,p)=>a+(p.size_usdt||0)*0.0009,0);
+          const closeNow=botEq-closeFees;
           rec.innerHTML=
             `<b>Reconciliation (live)</b><br>`+
             `&nbsp;&nbsp;Capital &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="color:#c9d1d9">$${cap.toFixed(2)}</span><br>`+
             `&nbsp;&nbsp;+ Bot realized P&L &nbsp;&nbsp; <span class="${cls(botTotal)}">$${fmt(botTotal)}</span> <span class="dim">(Total row above)</span><br>`+
             `&nbsp;&nbsp;+ Open unrealized &nbsp;&nbsp;&nbsp; <span class="${cls(openU)}">$${fmt(openU)}</span><br>`+
-            `&nbsp;&nbsp;= <b>Bot equity</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>$${botEq.toFixed(2)}</b> <span class="dim">(the Equity card above)</span><br>`+
-            `&nbsp;&nbsp;Δ HL vs bot &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="${cls(gap)}">$${fmt(gap)}</span> <span class="dim">(snapshot lag / fees / funding / slippage)</span><br>`+
-            `&nbsp;&nbsp;= <b>HL équity (raw)</b> &nbsp;&nbsp;<b>$${acct.equity.toFixed(2)}</b> <span class="dim">(direct from HL API — can be transiently desynchronised)</span>`;
+            `&nbsp;&nbsp;= <b>Bot equity</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>$${botEq.toFixed(2)}</b><br>`+
+            `&nbsp;&nbsp;− Close fees est. &nbsp;&nbsp;&nbsp; <span class="red">$${closeFees.toFixed(2)}</span> <span class="dim">(${(s.positions||[]).length} × ~9 bps taker fee)</span><br>`+
+            `&nbsp;&nbsp;= 💰 <b>Si je ferme tout</b> &nbsp; <b style="color:#3fb950">$${closeNow.toFixed(2)}</b> <span class="dim">(the Equity card)</span><br>`+
+            `&nbsp;&nbsp;<span class="dim">────────────</span><br>`+
+            `&nbsp;&nbsp;<span class="dim">HL raw equity</span> &nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">$${acct.equity.toFixed(2)}</span> <span class="dim">(audit only — Δ vs bot = ${gap>=0?'+':''}${fmt(gap)})</span>`;
         } else {
           rec.style.display='none';
         }

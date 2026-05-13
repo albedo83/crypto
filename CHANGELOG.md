@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.5.27] — 2026-05-13
+- **Dashboard: rename "Equity" card → "Si je ferme tout"**. The headline number now subtracts estimated close-side taker fees (`Σ size × 9 bps`) so it represents the actual liquidation value — what the user would receive in USDC if all positions closed at current price right now. Tooltip explains the math.
+- **Reconciliation footer reorganized** to make "Si je ferme tout" the primary line, with the close-fees subtraction visible. HL raw equity is now demoted to an audit-only line at the bottom (smaller, dimmed) with a Δ vs bot to flag transient HL desync.
+
 ## [12.5.26] — 2026-05-13
 - **Per-trade P&L coherence check** in `trading.close_position` (live mode). After computing the recorded `pnl`, compares against the coin-based ground truth (`coins × (exit_price − entry_price) × dir`) plus the expected fee / funding adjustments. If the discrepancy exceeds $1 OR 5% of expected P&L, logs a `PNL_DISCREPANCY` event in the events DB AND sends a Telegram alert (category `reconcile`). Catches future regressions where `size_usdt` or P&L math gets accidentally modified.
 - **Mobile cards layout**: 9 visible cards (Equity, Drawdown, Total P&L, Unrealized, Positions, Trades, Total, Fees, S10 30d) → **3-column grid** (3 lignes). Uniform sizing, Utilization stays hidden.
