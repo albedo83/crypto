@@ -225,8 +225,20 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .header-actions{order:10;width:100%;justify-content:flex-start;overflow-x:auto;margin-left:0!important;scrollbar-width:none}
   .header-actions::-webkit-scrollbar{display:none}
   .activity-bar,#market-bar{padding:6px 12px;flex-wrap:wrap;gap:8px}
-  .cards{grid-template-columns:repeat(2,1fr);display:grid!important;gap:8px;padding:10px 12px}
-  .card{min-width:0;flex:unset;padding:8px 10px}
+  /* v12.5.23: mobile top cards — Equity full-width and prominent, the rest small + discreet */
+  .cards{grid-template-columns:repeat(3,1fr);display:grid!important;gap:6px;padding:10px 12px}
+  .card{min-width:0;flex:unset;padding:6px 8px;font-size:11px;background:#161b22;border:1px solid #21262d}
+  .card .label{font-size:9px}
+  .card .value{font-size:13px;font-weight:600;margin-top:2px}
+  .card .sub{font-size:9px;margin-top:1px}
+  /* Equity: full-width, prominent — the main info */
+  .card#card-balance{grid-column:1/-1;padding:14px 14px;background:linear-gradient(135deg,#161b22,#1c2128);border:1px solid #30363d;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
+  .card#card-balance .label{font-size:11px;color:#7d8590}
+  .card#card-balance .value{font-size:30px;font-weight:700;margin-top:4px;letter-spacing:-0.5px}
+  .card#card-balance .sub{font-size:11px;margin-top:4px}
+  /* DD: secondary but still useful — 2nd row full-width with bar */
+  .card#card-dd{grid-column:1/-1;padding:8px 12px}
+  .card#card-dd .value{font-size:14px}
   .card .value{font-size:15px}
   .section{padding:10px 12px}
   .section h2{font-size:12px}

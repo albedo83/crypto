@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.23] — 2026-05-13
+- **Dashboard mobile top-bar hierarchy** (≤640px). The Equity card is now full-width, prominent (font-size 30px, gradient background, subtle shadow) — it's the headline number. The Drawdown card stays full-width on row 2 (still important context). The other 8 cards (Total P&L, Unrealized, Positions, Trades, Total, Utilization, Fees, S10 30d) shrink into a 3-column compact grid below with smaller fonts (label 9px, value 13px) — visible but discreet. Frees vertical space for what matters: scanning the equity at a glance and getting straight to the open positions section.
+
 ## [12.5.22] — 2026-05-13
 - **Dashboard mobile open-positions: restore position / margin / entry info pills** (≤640px). The v12.5.21 mobile card rebuild dropped these three values (they used to be inside the desktop expanded detail rows on the prior layout). Re-added as additional labeled pills in the `m-info` row: `pos $230`, `mgn $115`, `entry $4.8751`, followed by the existing `held / rest / stop / mae / mfe`. Wrap to a second line if narrow.
 
