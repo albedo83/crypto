@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.16] — 2026-05-13
+- **Dashboard mobile open-positions redesign** (≤640px): 4-row layout per card. Row 1 = symbol/side/strat + P&L (with bps inline AND a 🎯 badge showing the active manual-stop value if set, addresses "active stop next to P&L"). Row 2 = full-width hold-progress bar with held/total label. Row 3 = compact stop info (stopBar + stop/MAE/trail text). Row 4 = 50/50 split big tap-targets: **🎯 Stop** (yellow, opens prompt) and **✕ Close** (red). Button padding 10px (was 3px), font 13px (was 11px) — meets Apple HIG 44pt tap target. Caret moved from absolute-positioned right of row to a `▾`/`▴` next to the symbol. The duplicate "🎯 manual stop @ $X" line in the stop-meta block is now hidden on mobile (the badge in row 1 is the canonical display). Desktop layout untouched.
+
 ## [12.5.15] — 2026-05-13
 - **Dashboard**: removed the dense `positionStrip` SVG (the strip in the Unrealized cell with two MAE/MFE dots, an entry baseline, a current-price line and a trailing dashed marker — too much information packed into ~20px). Fall back to the simple `stopBar` (horizontal distance-to-stop indicator). Reverted v12.5.14's removal of the Path (price) sparkline column — that wasn't the confusing one.
 
