@@ -376,7 +376,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 <div class="section" data-block="open-positions">
   <h2>Open Positions</h2>
   <table class="responsive"><thead><tr>
-    <th>Symbol</th><th>Strat</th><th>Side</th><th>WR est<span class="dim" style="font-weight:400">.</span></th><th>P&L</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th></th>
+    <th>Symbol</th><th>Strat</th><th>Side</th><th>WR est<span class="dim" style="font-weight:400">.</span></th><th>P&L</th><th>Position</th><th>Margin</th><th>Entry</th><th>Current</th><th>Unrealized<span class="dim" style="font-weight:400"> / stop</span></th><th>Remaining<span class="dim" style="font-weight:400"> / held</span></th><th>Path<span class="dim" style="font-weight:400"> (price)</span></th><th></th>
   </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
@@ -793,9 +793,12 @@ function refresh(){
       const mstopStr=p.manual_stop_usdt!=null?`<div class="stop-meta" style="font-size:10px;color:#d29922">🎯 manual stop @ $${p.manual_stop_usdt.toFixed(2)} (${p.manual_stop_bps>=0?'+':''}${p.manual_stop_bps} bps)</div>`:'';
       const stopStr=p.stop_bps!==undefined?`<div class="dim stop-meta" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}${mstopStr}`:mstopStr;
       // v11.7.21: position strip subsumes stopBar (shows stop + MAE + current + MFE + trailing)
-      const stopViz=positionStrip(p)||(p.stop_progress!==undefined?stopBar(p.stop_progress):'');
+      // v12.5.15: positionStrip (SVG with 2 MAE/MFE dots) removed — too dense / confusing.
+      // Fall back to the simple stopBar for stop-distance feedback.
+      const stopViz=p.stop_progress!==undefined?stopBar(p.stop_progress):'';
       const totalH=p.hold_hours+(p.remaining_hours||0);
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress,p.hold_hours,totalH):'';
+      const pathViz=sparkline(p.trajectory, p.entry_price, p.direction==='LONG'?1:-1);
       const bpsSign=p.unrealized_bps>=0?'+':'';
       // v12.3.0: historical-pattern win probability (from /api/state)
       // v12.3.1: smiley + colored %.  v12.3.2: dim when "fresh" (low confidence).
@@ -833,6 +836,7 @@ function refresh(){
         <td data-label="Current" class="pos-detail">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
         <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
         <td data-label="Remaining" class="pos-remaining">${holdViz}<div class="dim" style="font-size:10px;margin-top:2px">${p.remaining||Math.floor(p.remaining_hours)+'h'} restant</div></td>
+        <td data-label="Path (price)" class="pos-spark">${pathViz}</td>
         <td data-label="" class="pos-close"><button onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop (close if unrealized drops below $X)" style="background:#d29922;color:#fff;border:none;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🎯</button><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
     });
