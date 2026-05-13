@@ -247,65 +247,46 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .heatmap{grid-template-columns:50px repeat(5,1fr);font-size:9px}
   .pnl-chart,.price-chart{height:200px}
   .pnl-chart canvas{width:100%!important;height:100%!important}
-  /* Open Positions — mobile CARD v12.5.17: real card style, compact icon buttons,
-     MAE/MFE positionStrip restored. Each <tr> becomes a free-form card via flex. */
-  [data-block="open-positions"] table.responsive{padding:0;background:transparent;border-radius:0}
+  /* Open Positions — v12.5.21: mobile uses a single full-width <td> per row
+     containing a free-form .m-card div (no table-grid constraints).
+     The table headers are hidden, and only the .m-card layout drives mobile UX. */
+  [data-block="open-positions"] table.responsive{padding:0;background:transparent;border-radius:0;border-collapse:separate;border-spacing:0 10px}
   [data-block="open-positions"] table.responsive thead{display:none}
-  [data-block="open-positions"] table.responsive tbody{display:flex;flex-direction:column;gap:10px}
-  [data-block="open-positions"] table.responsive tbody tr{
-    display:block;
-    background:#161b22;
-    border:1px solid #30363d;
-    border-radius:10px;
-    padding:14px 14px 12px;
-    box-shadow:0 2px 6px rgba(0,0,0,0.25);
-    margin-bottom:0;
-    cursor:default;
-    position:relative;
-  }
+  [data-block="open-positions"] table.responsive tbody tr{background:transparent;border:0;box-shadow:none;padding:0;display:table-row;margin:0}
   [data-block="open-positions"] table.responsive tbody tr::after{display:none}
-  [data-block="open-positions"] table.responsive tbody tr.pos-profit{border-color:rgba(63,185,80,0.35);box-shadow:0 2px 6px rgba(63,185,80,0.1)}
-  [data-block="open-positions"] table.responsive tbody tr.pos-loss{border-color:rgba(248,81,73,0.35);box-shadow:0 2px 6px rgba(248,81,73,0.1)}
-  /* Reset all td defaults inherited from responsive card mode */
-  [data-block="open-positions"] table.responsive tbody tr td{display:flex;align-items:center;padding:0;border:0;background:transparent;white-space:nowrap;justify-content:flex-start;min-width:0}
-  [data-block="open-positions"] table.responsive tbody tr td::before{display:none}
-  /* Header strip: symbol big | side · strat | P&L (right) */
-  [data-block="open-positions"] td.pos-symbol{order:1;font-size:20px;font-weight:700;margin:0 8px 4px 0;padding:0;border:0}
-  [data-block="open-positions"] td.pos-side{order:2;font-size:11px;font-weight:600;margin-bottom:4px;padding:1px 6px;border-radius:3px;background:rgba(255,255,255,0.05)}
-  [data-block="open-positions"] td.pos-strat{order:3;font-size:11px;margin-left:6px;margin-bottom:4px}
-  [data-block="open-positions"] td.pos-pnl{order:4;margin-left:auto;font-size:18px;font-weight:700;margin-bottom:4px;justify-content:flex-end;gap:6px;align-items:center;flex-wrap:nowrap}
-  [data-block="open-positions"] td.pos-pnl .bps-inline{display:inline;font-size:12px;font-weight:500;opacity:.75;margin-left:4px}
-  [data-block="open-positions"] td.pos-pnl .mstop-badge{display:inline-flex;align-items:center;background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.5);color:#d29922;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-left:6px;white-space:nowrap}
-  /* Card layout: flex+wrap. v12.5.20: row 2 = graph | MAE | buttons-vertical, row 3 = labeled info line */
-  [data-block="open-positions"] table.responsive tbody tr{display:flex;flex-wrap:wrap;align-items:center}
-  /* Row 2 SHARED: sparkline (left) | positionStrip MAE (middle) | buttons stacked vertically (right) */
-  [data-block="open-positions"] td.pos-spark{order:5;flex:0 0 35%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;margin-top:8px;padding:4px 6px;background:rgba(255,255,255,0.02);border-radius:6px;align-self:stretch}
-  [data-block="open-positions"] td.pos-spark svg{flex:0 0 auto;width:100%;max-height:32px;height:auto}
-  [data-block="open-positions"] td.pos-spark .spark-price{flex:0 0 auto;font-size:11px;font-weight:600;color:#c9d1d9;text-align:center;letter-spacing:0}
-  [data-block="open-positions"] td.pos-unrealized{order:6;flex:1 1 0;font-size:11px;gap:4px;overflow:hidden;margin-top:8px;margin-left:6px;align-self:stretch;flex-direction:column;align-items:flex-start;justify-content:center;flex-wrap:nowrap}
-  [data-block="open-positions"] td.pos-unrealized svg{flex-shrink:0;max-width:100%}
-  /* Hide the stop-meta TEXT in pos-unrealized on mobile (moved to row 3) - keep just the MAE/MFE strip viz */
-  [data-block="open-positions"] td.pos-unrealized .stop-meta{display:none}
-  [data-block="open-positions"] td.pos-close{order:7;flex:0 0 auto;justify-content:flex-end;margin-top:8px;margin-left:6px;display:flex;flex-direction:column;gap:5px;align-self:stretch}
-  [data-block="open-positions"] td.pos-close button{padding:6px 10px!important;font-size:13px!important;width:42px!important;min-width:42px;margin:0!important;border-radius:5px;line-height:1.1}
-  [data-block="open-positions"] td.pos-close button:nth-child(2){background:#da3633;flex:0 0 auto}
-  /* Row 3: textual info on a single line, labeled. pos-remaining cell repurposed. */
-  [data-block="open-positions"] td.pos-remaining{order:8;flex:1 1 100%;font-size:11px;gap:8px;flex-wrap:wrap;justify-content:flex-start;margin-top:8px;min-width:0;color:#7d8590;border-top:1px dashed #21262d;padding-top:6px}
-  [data-block="open-positions"] td.pos-remaining .hold-progress{display:none}  /* hide visual bar on mobile, info row 3 has the text version */
-  [data-block="open-positions"] td.pos-remaining .info-line{display:flex;flex-wrap:wrap;gap:10px;width:100%}
-  [data-block="open-positions"] td.pos-remaining .info-pill{display:inline-flex;gap:3px;align-items:baseline;white-space:nowrap}
-  [data-block="open-positions"] td.pos-remaining .info-pill b{color:#c9d1d9;font-weight:600}
-  [data-block="open-positions"] td.pos-remaining .info-pill .lbl{color:#7d8590;font-size:9px;text-transform:uppercase;letter-spacing:.3px}
-  [data-block="open-positions"] td.pos-detail{order:10;display:none;flex:1 1 100%;justify-content:space-between;font-size:11px;padding:3px 0;border-top:1px dashed #30363d;margin-top:2px}
-  [data-block="open-positions"] td.pos-detail::before{display:inline;content:attr(data-label);color:#7d8590;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-right:8px}
-  [data-block="open-positions"] tr.expanded td.pos-detail{display:flex}
-  [data-block="open-positions"] .stop-meta{display:block;font-size:10px;color:#7d8590}
-  /* Hide the duplicate manual-stop line on mobile (badge shown next to P&L) */
-  [data-block="open-positions"] .stop-meta.mstop-line{display:none}
-  [data-block="open-positions"] .bps-main{display:none}
-  /* Caret next to symbol: hint that tap expands the card */
-  [data-block="open-positions"] td.pos-symbol::after{content:' ▾';color:#7d8590;font-size:11px;transition:transform .15s;display:inline-block;margin-left:6px;opacity:.6;font-weight:400}
-  [data-block="open-positions"] tr.expanded td.pos-symbol::after{content:' ▴'}
+  [data-block="open-positions"] table.responsive tbody td.m-card-wrap{padding:0;border:0;background:transparent;display:table-cell}
+  /* Hide every regular <td> on mobile — only .m-card-wrap is shown */
+  [data-block="open-positions"] table.responsive tbody tr td:not(.m-card-wrap){display:none}
+  /* iOS-style card */
+  .m-card{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,0.35);display:flex;flex-direction:column;gap:12px}
+  .m-card.pos-profit{border-color:rgba(63,185,80,0.4)}
+  .m-card.pos-loss{border-color:rgba(248,81,73,0.4)}
+  .m-card .m-header{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+  .m-card .m-sym{font-size:19px;font-weight:700;color:#c9d1d9}
+  .m-card .m-side{font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.05)}
+  .m-card .m-side.LONG{color:#3fb950}
+  .m-card .m-side.SHORT{color:#f85149}
+  .m-card .m-strat{font-size:11px;color:#7d8590}
+  .m-card .m-pnl{margin-left:auto;font-size:18px;font-weight:700;display:flex;align-items:baseline;gap:6px;flex-wrap:nowrap}
+  .m-card .m-pnl.green{color:#3fb950}.m-card .m-pnl.red{color:#f85149}
+  .m-card .m-bps{font-size:12px;font-weight:500;opacity:.75}
+  .m-card .m-mstop{display:inline-flex;align-items:center;background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.5);color:#d29922;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap}
+  .m-card .m-progress{width:100%}
+  .m-card .m-progress .hold-progress{width:100%;height:16px;min-width:0}
+  .m-card .m-mid{display:flex;align-items:stretch;gap:10px}
+  .m-card .m-spark{flex:0 0 36%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 6px;background:rgba(255,255,255,0.03);border-radius:8px}
+  .m-card .m-spark svg{width:100%;max-height:32px;height:auto}
+  .m-card .m-price{font-size:11px;font-weight:600;color:#c9d1d9}
+  .m-card .m-mae{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
+  .m-card .m-mae svg{max-width:100%}
+  .m-card .m-actions{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;justify-content:center}
+  .m-card .m-btn{width:42px;height:36px;padding:0;border:0;border-radius:6px;color:#fff;font-size:14px;cursor:pointer;font-weight:600}
+  .m-card .m-btn-stop{background:#d29922}
+  .m-card .m-btn-close{background:#da3633}
+  .m-card .m-info{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;border-top:1px dashed #21262d;padding-top:8px}
+  .m-card .m-info .pill{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
+  .m-card .m-info .pill .lbl{color:#7d8590;font-size:9px;text-transform:uppercase;letter-spacing:.4px}
+  .m-card .m-info .pill b{color:#c9d1d9;font-weight:600;font-size:11px}
 }
 @media(max-width:420px){.cards{grid-template-columns:1fr}}
 </style>
@@ -861,20 +842,52 @@ function refresh(){
           wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}"><span style="font-size:14px">${smiley}</span> ${w}%</span>`;
         }
       }
-      tr.innerHTML=`
-        <td data-label="Symbol" class="pos-symbol"><b>${p.symbol}</b></td>
-        <td data-label="Strat" class="dim pos-strat">${p.strategy||'?'}</td>
-        <td data-label="Side" class="${sideClass} pos-side">${p.direction}</td>
-        <td data-label="WR est" class="pos-wp" style="font-size:11px">${wpStr}</td>
-        <td data-label="P&L" class="${cls(p.pnl_usdt)} pos-pnl">$${fmt(p.pnl_usdt)}<span class="bps-inline"> ${bpsSign}${fmt(p.unrealized_bps,0)}bps</span>${p.manual_stop_usdt!=null?`<span class="mstop-badge" title="Active manual stop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:''}</td>
-        <td data-label="Position" class="pos-detail">$${p.size_usdt.toFixed(0)}</td>
-        <td data-label="Margin" class="dim pos-detail">$${(p.size_usdt/2).toFixed(0)}</td>
-        <td data-label="Entry" class="pos-detail">$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
-        <td data-label="Current" class="pos-detail">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
-        <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
-        <td data-label="Remaining" class="pos-remaining">${holdViz}<div class="info-line"><span class="info-pill"><span class="lbl">held</span><b>${p.hold_hours.toFixed(1)}h</b></span><span class="info-pill"><span class="lbl">rest</span><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b></span><span class="info-pill"><span class="lbl">stop</span><b>${p.stop_bps>=0?'+':''}${p.stop_bps}</b></span><span class="info-pill"><span class="lbl">mae</span><b>${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</b></span><span class="info-pill"><span class="lbl">mfe</span><b>${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}</b></span></div></td>
-        <td data-label="Path (price)" class="pos-spark">${pathViz}<div class="dim spark-price" style="font-size:9px;margin-top:2px;text-align:center;letter-spacing:.2px">$${p.current_price.toFixed(p.current_price>10?2:4)}</div></td>
-        <td data-label="" class="pos-close"><button onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop @ $X" style="background:#d29922;color:#fff;border:none;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:12px;margin-right:3px">🎯</button><button onclick="closePos('${p.symbol}')" title="Close position" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px">✕</button></td>`;
+      // v12.5.21: on mobile, render a single full-width <td> with a free-form
+      // .m-card div instead of fighting the table's column constraints.
+      const isMobile=window.matchMedia('(max-width:640px)').matches;
+      if(isMobile){
+        const pnlSign=p.pnl_usdt>=0?'+':'';
+        const mstopBadge=p.manual_stop_usdt!=null?`<span class="m-mstop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:'';
+        tr.innerHTML=`<td class="m-card-wrap" colspan="13"><div class="m-card ${p.pnl_usdt>=0?'pos-profit':'pos-loss'}">
+          <div class="m-header">
+            <span class="m-sym">${p.symbol}</span>
+            <span class="m-side ${p.direction}">${p.direction}</span>
+            <span class="m-strat">${p.strategy||'?'}</span>
+            <span class="m-pnl ${cls(p.pnl_usdt)}">${pnlSign}$${fmt(Math.abs(p.pnl_usdt))}<span class="m-bps">${bpsSign}${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}</span>
+          </div>
+          <div class="m-progress">${holdViz}</div>
+          <div class="m-mid">
+            <div class="m-spark">${pathViz}<div class="m-price">$${p.current_price.toFixed(p.current_price>10?2:4)}</div></div>
+            <div class="m-mae">${stopViz}</div>
+            <div class="m-actions">
+              <button class="m-btn m-btn-stop" onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop">🎯</button>
+              <button class="m-btn m-btn-close" onclick="closePos('${p.symbol}')" title="Close position">✕</button>
+            </div>
+          </div>
+          <div class="m-info">
+            <span class="pill"><span class="lbl">held</span><b>${p.hold_hours.toFixed(1)}h</b></span>
+            <span class="pill"><span class="lbl">rest</span><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b></span>
+            <span class="pill"><span class="lbl">stop</span><b>${p.stop_bps}</b></span>
+            <span class="pill"><span class="lbl">mae</span><b>${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</b></span>
+            <span class="pill"><span class="lbl">mfe</span><b>${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}</b></span>
+          </div>
+        </div></td>`;
+      } else {
+        tr.innerHTML=`
+          <td data-label="Symbol" class="pos-symbol"><b>${p.symbol}</b></td>
+          <td data-label="Strat" class="dim pos-strat">${p.strategy||'?'}</td>
+          <td data-label="Side" class="${sideClass} pos-side">${p.direction}</td>
+          <td data-label="WR est" class="pos-wp" style="font-size:11px">${wpStr}</td>
+          <td data-label="P&L" class="${cls(p.pnl_usdt)} pos-pnl">$${fmt(p.pnl_usdt)}<span class="bps-inline"> ${bpsSign}${fmt(p.unrealized_bps,0)}bps</span>${p.manual_stop_usdt!=null?`<span class="mstop-badge" title="Active manual stop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:''}</td>
+          <td data-label="Position" class="pos-detail">$${p.size_usdt.toFixed(0)}</td>
+          <td data-label="Margin" class="dim pos-detail">$${(p.size_usdt/2).toFixed(0)}</td>
+          <td data-label="Entry" class="pos-detail">$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
+          <td data-label="Current" class="pos-detail">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
+          <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
+          <td data-label="Remaining" class="pos-remaining">${holdViz}<div class="info-line"><span class="info-pill"><span class="lbl">held</span><b>${p.hold_hours.toFixed(1)}h</b></span><span class="info-pill"><span class="lbl">rest</span><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b></span><span class="info-pill"><span class="lbl">stop</span><b>${p.stop_bps>=0?'+':''}${p.stop_bps}</b></span><span class="info-pill"><span class="lbl">mae</span><b>${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</b></span><span class="info-pill"><span class="lbl">mfe</span><b>${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}</b></span></div></td>
+          <td data-label="Path (price)" class="pos-spark">${pathViz}<div class="dim spark-price" style="font-size:9px;margin-top:2px;text-align:center;letter-spacing:.2px">$${p.current_price.toFixed(p.current_price>10?2:4)}</div></td>
+          <td data-label="" class="pos-close"><button onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop @ $X" style="background:#d29922;color:#fff;border:none;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:12px;margin-right:3px">🎯</button><button onclick="closePos('${p.symbol}')" title="Close position" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px">✕</button></td>`;
+      }
       pb.appendChild(tr);
     });
     if(!pb.dataset.boundExpand){

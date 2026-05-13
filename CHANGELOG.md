@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.21] — 2026-05-13
+- **Dashboard mobile open-positions: true iOS-style card** (≤640px). The JS render now branches on `matchMedia('(max-width:640px)')` and emits a single `<td colspan="13" class="m-card-wrap">` containing a free-form `.m-card` div for the mobile case — completely independent of the table's column-based positioning that was being fought via CSS in prior iterations. Layout: header (Symbol · Side · Strat) + right-aligned P&L (with bps inline + optional 🎯 stop badge) → full-width hold progress bar → 3-cell mid section (sparkline+price 36% | MAE/MFE strip flex | 🎯/✕ buttons stacked vertically) → labeled info pills (held/rest/stop/mae/mfe) on a single wrapping line. All visible sections render reliably regardless of viewport since they're not bound to table column widths. Desktop layout (≥641px) untouched.
+
 ## [12.5.20] — 2026-05-13
 - **Dashboard mobile open-positions: 3-row card** (≤640px).
   - Row 1: identity (Symbol · Side · Strat) + P&L (with bps inline + optional 🎯 stop badge), all on one line.
