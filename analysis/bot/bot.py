@@ -362,6 +362,31 @@ class MultiSignalBot:
             log.warning("WR alert check failed: %s", e)
         return n_new
 
+    async def equity_refresh_loop(self):
+        """v12.5.12 fast equity refresh (15s) for live mode only.
+
+        Calls fetch_equity_only (cheap: 2 HL API calls, no fills/funding)
+        and merges into self._exchange_account. Keeps the dashboard equity
+        card fresh between the 60s main_loop ticks. Falls back gracefully
+        if the call errors — main_loop's full refresh still runs at 60s.
+        """
+        from .exchange import fetch_equity_only
+        while self.running:
+            try:
+                if self._exchange:
+                    fast = await asyncio.to_thread(
+                        fetch_equity_only, self._hl_info, self._hl_address)
+                    if fast:
+                        if self._exchange_account is None:
+                            self._exchange_account = fast
+                        else:
+                            # Preserve slower diagnostic fields (taker_fees,
+                            # funding_paid, closed_pnl) from the last full refresh.
+                            self._exchange_account.update(fast)
+            except Exception:
+                log.exception("equity_refresh_loop error")
+            await asyncio.sleep(15)
+
     async def main_loop(self):
         """Two cadences: prices every 60s (for stop checks), full scan every hour."""
         while self.running:

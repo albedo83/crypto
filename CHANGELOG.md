@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.12] — 2026-05-13
+- **Live exchange refresh**: dedicated 15s loop refreshes the displayed Equity, Unrealized, Margin and Available fields. Only the cheap `user_state` + `spot_user_state` calls run on this fast path; the expensive `user_fills_by_time` + `user_funding_history` calls (taker fees, funding paid, closed PnL) stay on the 60s main loop. Eliminates the ±$15-30 jumps users saw at restart when a stale 60s-old `spot.hold` value snapped to fresh. New helper `exchange.fetch_equity_only()`; new method `bot.equity_refresh_loop()`; new task spawned in `main.py` for live bots only (paper / Junior-with-no-key skip it).
+
 ## [12.5.11] — 2026-05-13
 - **Dashboard**: redesign of the per-position "remaining time" indicator. The thin 3px hold bar is replaced by a 14px progress bar with a color gradient (blue → yellow → red as the position nears timeout) and the elapsed/total hours displayed inside (e.g. "23.6h / 48h"). The redundant "held Xh" subtitle is removed; the "X restant" hint moves below the bar in dim style. Pure visual change — no API or strategy logic touched.
 

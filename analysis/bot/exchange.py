@@ -191,6 +191,44 @@ def fetch_position_funding(hl_info, address: str, coin: str,
         return 0.0
 
 
+def fetch_equity_only(hl_info, address: str) -> dict | None:
+    """Cheap fast-path: only user_state + spot_user_state for live equity refresh.
+    Returns {equity, unrealized, margin_used, available}. Skips the expensive
+    user_fills_by_time / user_funding_history calls (those drive diagnostic
+    fields refreshed at the slower main_loop cadence).
+    """
+    if not hl_info:
+        return None
+    try:
+        state = hl_info.user_state(address)
+        spot = hl_info.spot_user_state(address)
+        spot_usdc = 0.0
+        spot_hold = 0.0
+        for b in spot.get("balances", []):
+            if b["coin"] == "USDC":
+                spot_usdc = float(b["total"])
+                spot_hold = float(b.get("hold", 0))
+                break
+        unrealized = 0.0
+        for p in state.get("assetPositions", []):
+            sz = float(p["position"].get("szi", 0))
+            if abs(sz) > 0:
+                unrealized += float(p["position"].get("unrealizedPnl", 0))
+        account_value = float(state.get("marginSummary", {}).get("accountValue", 0))
+        equity = (spot_usdc - spot_hold) + account_value
+        margin_used = float(state.get("marginSummary", {}).get("totalMarginUsed", 0))
+        available = equity - margin_used
+        return {
+            "equity": round(equity, 2),
+            "unrealized": round(unrealized, 2),
+            "margin_used": round(margin_used, 2),
+            "available": round(available, 2),
+        }
+    except Exception:
+        log.exception("fetch_equity_only failed")
+        return None
+
+
 def fetch_account_state(hl_info, address: str) -> dict | None:
     """Fetch real account state from Hyperliquid. Returns equity, unrealized, available, fees."""
     if not hl_info:

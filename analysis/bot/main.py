@@ -159,6 +159,10 @@ async def run():
         asyncio.create_task(server.serve()),
         asyncio.create_task(collector.run()),
     ]
+    if bot._exchange:
+        # v12.5.12: fast equity refresh (15s) keeps the dashboard Equity
+        # card aligned with HL state without waiting for the 60s main_loop.
+        tasks.append(asyncio.create_task(bot.equity_refresh_loop()))
 
     await bot._shutdown_event.wait()
     bot.running = False
