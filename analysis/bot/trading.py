@@ -414,6 +414,39 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
         "mfe_bps": round(pos.mfe_bps, 1), "reason": reason,
     })
 
+    # v12.5.26: per-trade P&L coherence check. Compare the bot-recorded P&L
+    # against the coin-based ground truth and the expected cost/funding adjustments.
+    # Catches future regressions where size_usdt or bps math goes off.
+    coins = pos.size_usdt / pos.entry_price if pos.entry_price > 0 else 0
+    coin_pnl_gross = pos.direction * coins * (exit_price - pos.entry_price)
+    expected_cost = -pos.size_usdt * effective_cost / 1e4
+    if bot._exchange:
+        expected_funding_adj = funding_usdt - flat_funding_usdt
+    else:
+        expected_funding_adj = 0.0
+    expected_pnl = coin_pnl_gross + expected_cost + expected_funding_adj
+    discrepancy = pnl - expected_pnl
+    if abs(discrepancy) > 1.0 or (abs(expected_pnl) > 0 and abs(discrepancy / expected_pnl) > 0.05):
+        log.warning(
+            "PNL_DISCREPANCY %s: recorded=$%.2f coin-based=$%.2f Δ$%.2f (size=$%.2f coins=%.4f)",
+            sym, pnl, expected_pnl, discrepancy, pos.size_usdt, coins)
+        log_event(bot._db, "PNL_DISCREPANCY", sym, {
+            "recorded_pnl": round(pnl, 4),
+            "coin_pnl_gross": round(coin_pnl_gross, 4),
+            "expected_cost": round(expected_cost, 4),
+            "expected_funding": round(expected_funding_adj, 4),
+            "expected_pnl_total": round(expected_pnl, 4),
+            "discrepancy": round(discrepancy, 4),
+            "size_usdt": round(pos.size_usdt, 4),
+            "coins": round(coins, 6),
+            "entry_price": pos.entry_price,
+            "exit_price": exit_price,
+        })
+        send_telegram(
+            f"⚠️ PNL_DISCREPANCY {sym}: recorded ${pnl:.2f} vs expected ${expected_pnl:.2f} "
+            f"(Δ${discrepancy:+.2f}) — check trading.close_position",
+            category="reconcile")
+
     n = len(bot.trades)
     balance = bot._capital + bot._total_pnl
     wr = bot._wins / n * 100 if n > 0 else 0

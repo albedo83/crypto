@@ -232,11 +232,11 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .header-actions{order:10;width:100%;justify-content:flex-start;overflow-x:auto;margin-left:0!important;scrollbar-width:none}
   .header-actions::-webkit-scrollbar{display:none}
   .activity-bar,#market-bar{padding:6px 12px;flex-wrap:wrap;gap:8px}
-  /* v12.5.25: mobile top cards — all uniform 2-col grid, Utilization hidden */
-  .cards{grid-template-columns:repeat(2,1fr);display:grid!important;gap:6px;padding:10px 12px}
-  .card{min-width:0;flex:unset;padding:8px 10px;font-size:11px;background:#161b22;border:1px solid #21262d}
-  .card .label{font-size:10px}
-  .card .value{font-size:15px;font-weight:600;margin-top:2px}
+  /* v12.5.26: mobile top cards — 3-col uniform (9 cards = 3 lignes), Utilization hidden */
+  .cards{grid-template-columns:repeat(3,1fr);display:grid!important;gap:6px;padding:10px 12px}
+  .card{min-width:0;flex:unset;padding:6px 8px;font-size:10px;background:#161b22;border:1px solid #21262d}
+  .card .label{font-size:9px}
+  .card .value{font-size:13px;font-weight:600;margin-top:2px}
   .card .sub{font-size:9px;margin-top:1px}
   .card.card-util{display:none}  /* hidden on mobile per user — not useful */
   .card .value{font-size:15px}
@@ -1031,7 +1031,10 @@ function refresh(){
       sdEl.appendChild(tot);
 
       // Reconciliation footer — only on live (exchange_account present).
-      // Explains the gap between bot internal accounting and real HL equity.
+      // Explains the gap between bot internal accounting and HL's raw API value.
+      // Since v12.5.13 the Equity card shows bot-internal (capital+realized+unreal),
+      // NOT HL raw. The two can diverge transiently when HL returns desynchronised
+      // spot/perps snapshots; this footer surfaces the gap.
       const rec=document.getElementById('strat-reconcile');
       if(rec){
         const acct=s.exchange_account;
@@ -1046,9 +1049,9 @@ function refresh(){
             `&nbsp;&nbsp;Capital &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span style="color:#c9d1d9">$${cap.toFixed(2)}</span><br>`+
             `&nbsp;&nbsp;+ Bot realized P&L &nbsp;&nbsp; <span class="${cls(botTotal)}">$${fmt(botTotal)}</span> <span class="dim">(Total row above)</span><br>`+
             `&nbsp;&nbsp;+ Open unrealized &nbsp;&nbsp;&nbsp; <span class="${cls(openU)}">$${fmt(openU)}</span><br>`+
-            `&nbsp;&nbsp;= Bot-implied equity &nbsp;<span class="${cls(botEq-cap)}">$${botEq.toFixed(2)}</span><br>`+
-            `&nbsp;&nbsp;+ Exchange drag &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="${cls(gap)}">$${fmt(gap)}</span> <span class="dim">(real fees + funding + slippage not modeled per trade)</span><br>`+
-            `&nbsp;&nbsp;= <b>Real equity (HL)</b> &nbsp;&nbsp;&nbsp;<b>$${acct.equity.toFixed(2)}</b> <span class="dim">(the big Equity card above)</span>`;
+            `&nbsp;&nbsp;= <b>Bot equity</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>$${botEq.toFixed(2)}</b> <span class="dim">(the Equity card above)</span><br>`+
+            `&nbsp;&nbsp;Δ HL vs bot &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <span class="${cls(gap)}">$${fmt(gap)}</span> <span class="dim">(snapshot lag / fees / funding / slippage)</span><br>`+
+            `&nbsp;&nbsp;= <b>HL équity (raw)</b> &nbsp;&nbsp;<b>$${acct.equity.toFixed(2)}</b> <span class="dim">(direct from HL API — can be transiently desynchronised)</span>`;
         } else {
           rec.style.display='none';
         }
