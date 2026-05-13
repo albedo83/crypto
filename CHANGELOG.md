@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.15] — 2026-05-13
+- **Dashboard**: removed the dense `positionStrip` SVG (the strip in the Unrealized cell with two MAE/MFE dots, an entry baseline, a current-price line and a trailing dashed marker — too much information packed into ~20px). Fall back to the simple `stopBar` (horizontal distance-to-stop indicator). Reverted v12.5.14's removal of the Path (price) sparkline column — that wasn't the confusing one.
+
 ## [12.5.14] — 2026-05-13
 - **Dashboard**: removed the "Path (price)" sparkline column from the open-positions table. The tiny price sparkline next to the Remaining-time progress bar was visually noisy and hard to interpret at the size shown. Header column and per-row cell both removed. The `sparkline()` JS helper stays available for potential reuse elsewhere.
 
