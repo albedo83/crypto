@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.24] — 2026-05-13
+- **Dashboard mobile**: fix the v12.5.23 top-cards layout. The legacy `@media(max-width:420px){.cards{grid-template-columns:1fr}}` rule was overriding the new 3-col grid on most phones (≤420px covers iPhone SE/12/13/14 widths). Replaced with a `@media(max-width:380px)` 2-col fallback for genuinely narrow viewports. Standard phones (390-414px) now render the intended 3-col grid for the small stat cards (Total P&L, Unrealized, Positions, Trades, Total, Utilization, Fees, S10) with Equity full-width above.
+
 ## [12.5.23] — 2026-05-13
 - **Dashboard mobile top-bar hierarchy** (≤640px). The Equity card is now full-width, prominent (font-size 30px, gradient background, subtle shadow) — it's the headline number. The Drawdown card stays full-width on row 2 (still important context). The other 8 cards (Total P&L, Unrealized, Positions, Trades, Total, Utilization, Fees, S10 30d) shrink into a 3-column compact grid below with smaller fonts (label 9px, value 13px) — visible but discreet. Frees vertical space for what matters: scanning the equity at a glance and getting straight to the open positions section.
 

@@ -300,7 +300,10 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .m-card .m-info .pill .lbl{color:#7d8590;font-size:9px;text-transform:uppercase;letter-spacing:.4px}
   .m-card .m-info .pill b{color:#c9d1d9;font-weight:600;font-size:11px}
 }
-@media(max-width:420px){.cards{grid-template-columns:1fr}}
+/* v12.5.24: removed the 420px → 1fr override that collapsed mobile cards
+   into a single column. The 640px rule already sets 3 columns; narrower
+   phones fall back to 2 here so the small cards stay compact but visible. */
+@media(max-width:380px){.cards{grid-template-columns:repeat(2,1fr)}}
 </style>
 </head>
 <body>
