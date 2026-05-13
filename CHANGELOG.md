@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.11] — 2026-05-13
+- **Dashboard**: redesign of the per-position "remaining time" indicator. The thin 3px hold bar is replaced by a 14px progress bar with a color gradient (blue → yellow → red as the position nears timeout) and the elapsed/total hours displayed inside (e.g. "23.6h / 48h"). The redundant "held Xh" subtitle is removed; the "X restant" hint moves below the bar in dim style. Pure visual change — no API or strategy logic touched.
+
 ## [12.5.10] — 2026-05-13
 - **Trading engine**: per-position manual stop. New field `Position.manual_stop_bps` (Optional). When set, `trading.check_exits` closes the position with reason `manual_stop_set` as soon as unrealized falls at or below the threshold — checked right after the catastrophe stop, before strategy-specific exits (S9 early, S10 trailing, dead_timeout). Persisted across restarts via `persistence.save_state`/`load_state`.
 - **Web API**: new endpoint `POST /api/manual_stop/{symbol}` accepting `{"stop_usdt": X}` (set) or `{"clear": true}` (remove). Validates that the threshold is strictly between the catastrophe stop and the current unrealized — rejects redundant or self-triggering values. `/api/state` now exposes `manual_stop_bps` and `manual_stop_usdt` per position.

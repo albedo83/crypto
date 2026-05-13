@@ -101,6 +101,10 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 .bar-inline{position:relative;height:3px;background:#30363d;border-radius:2px;margin-top:2px;overflow:hidden;min-width:40px}
 .bar-inline .fill{position:absolute;top:0;left:0;height:100%;border-radius:2px;transition:width .3s}
 .fill-hold{background:#58a6ff}
+/* v12.5.11: bigger, clearer hold progress bar with label inside */
+.hold-progress{position:relative;height:14px;background:#21262d;border:1px solid #30363d;border-radius:3px;overflow:hidden;margin-top:3px;min-width:80px}
+.hold-progress .fill{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,#58a6ff 0%,#58a6ff 50%,#d29922 75%,#f85149 100%);transition:width .3s}
+.hold-progress .label{position:absolute;top:0;left:0;right:0;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;text-shadow:0 0 2px rgba(0,0,0,0.7);letter-spacing:.2px}
 .spark{vertical-align:middle;display:block}
 .oi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:6px;margin-top:10px}
 .oi-cell{background:#161b22;border:1px solid #30363d;border-radius:4px;padding:4px 8px;font-size:11px;display:flex;justify-content:space-between;align-items:center;gap:4px}
@@ -564,9 +568,14 @@ function positionStrip(p,w=180,h=20){
   svg+=`</svg>`;
   return svg;
 }
-function holdBar(prog){
+function holdBar(prog, heldH, totalH){
+  // v12.5.11: visible progress bar with held / total displayed inside.
+  // Color gradient shifts toward red as the position nears timeout.
   const pct=Math.round(prog*100);
-  return `<div class="bar-inline" title="Hold elapsed: ${pct}%"><div class="fill fill-hold" style="width:${pct}%"></div></div>`;
+  const held=(heldH!=null)?heldH.toFixed(1)+'h':'';
+  const total=(totalH!=null)?totalH.toFixed(0)+'h':'';
+  const label=(held&&total)?`${held} / ${total}`:`${pct}%`;
+  return `<div class="hold-progress" title="${pct}% du hold écoulé"><div class="fill" style="width:${pct}%"></div><div class="label">${label}</div></div>`;
 }
 function sparkline(traj,entryPx,dirSign,w=70,h=24){
   // v12.5.6: y-axis is PRICE instead of P&L bps. Trajectory still ships
@@ -784,7 +793,8 @@ function refresh(){
       const stopStr=p.stop_bps!==undefined?`<div class="dim stop-meta" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}${mstopStr}`:mstopStr;
       // v11.7.21: position strip subsumes stopBar (shows stop + MAE + current + MFE + trailing)
       const stopViz=positionStrip(p)||(p.stop_progress!==undefined?stopBar(p.stop_progress):'');
-      const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress):'';
+      const totalH=p.hold_hours+(p.remaining_hours||0);
+      const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress,p.hold_hours,totalH):'';
       const pathViz=sparkline(p.trajectory, p.entry_price, p.direction==='LONG'?1:-1);
       const bpsSign=p.unrealized_bps>=0?'+':'';
       // v12.3.0: historical-pattern win probability (from /api/state)
@@ -822,7 +832,7 @@ function refresh(){
         <td data-label="Entry" class="pos-detail">$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
         <td data-label="Current" class="pos-detail">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
         <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
-        <td data-label="Remaining" class="pos-remaining"><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim stop-meta" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
+        <td data-label="Remaining" class="pos-remaining">${holdViz}<div class="dim" style="font-size:10px;margin-top:2px">${p.remaining||Math.floor(p.remaining_hours)+'h'} restant</div></td>
         <td data-label="Path (price)" class="pos-spark">${pathViz}</td>
         <td data-label="" class="pos-close"><button onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop (close if unrealized drops below $X)" style="background:#d29922;color:#fff;border:none;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🎯</button><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
