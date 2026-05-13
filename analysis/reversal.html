@@ -387,7 +387,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 </div>
 
 <div class="cards">
-  <div class="card" id="card-balance" title="Si tu fermes toutes les positions au prix marché actuel, tu récupères environ ce montant (avant frais de close ~9 bps)"><div class="label">Si je ferme tout</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
+  <div class="card" id="card-balance" title="Estimated liquidation value: if all open positions close at current price, this is the USDC you keep (after estimated close-side taker fees ~9 bps)"><div class="label">Liquidation value</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
   <div class="card" id="card-dd" title="Drawdown depuis le pic — % de baisse de la balance par rapport à son sommet historique"><div class="label">Drawdown</div><div class="value" id="dd-pct">--</div><div class="sub dim" id="dd-peak">--</div><div class="dd-bar" style="height:3px;background:#30363d;border-radius:2px;margin-top:4px;overflow:hidden"><div id="dd-bar-fill" style="height:100%;width:0%;background:#3fb950;transition:width .3s,background .3s"></div></div></div>
   <div class="card"><div class="label">Total P&L</div><div class="value" id="pnl-amt">$0</div><div class="sub" id="pnl-pct">0%</div><div class="sub dim" id="pnl-fees"></div></div>
   <div class="card" id="card-pnl"><div class="label">Unrealized</div><div class="value" id="unrealized">--</div><div class="sub dim" id="available"></div></div>
@@ -395,7 +395,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">--</div></div>
   <div class="card" id="card-total"><div class="label">Total (real+unreal)</div><div class="value" id="today-pnl">$0.00</div></div>
   <div class="card card-util"><div class="label">Utilization</div><div class="value" id="util-pct">0%</div></div>
-  <div class="card" id="card-fees"><div class="label">Frais exchange</div><div class="value red" id="fees-total">--</div><div class="sub dim" id="fees-detail">--</div></div>
+  <div class="card" id="card-fees"><div class="label">Exchange fees</div><div class="value red" id="fees-total">--</div><div class="sub dim" id="fees-detail">--</div></div>
   <div class="card" id="card-s10" title="S10 rolling P&L over last 30d — walk-forward filter health">
     <div class="label">S10 30d <span id="s10-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:4px;vertical-align:middle"></span></div>
     <div class="value" id="s10-pnl">$--</div>
@@ -413,6 +413,11 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   </tr></thead><tbody id="pos-body"></tbody></table>
 </div>
 
+<!-- v12.5.28: always-visible reconciliation footer (live mode only — JS hides it when no exchange_account) -->
+<div class="section" id="reconcile-section" style="padding:6px 20px 14px">
+  <div id="reconcile-footer" class="dim" style="font-size:12px;line-height:1.7"></div>
+</div>
+
 <div class="section" data-block="strategy-performance" hidden>
   <h2>Strategy Performance <span class="dim" style="font-size:12px;font-weight:400">— lifetime + recent 20 with trend arrow</span></h2>
   <table id="strat-table"><thead><tr>
@@ -423,7 +428,6 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
     <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
     <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
   </tr></thead><tbody id="strat-drift"></tbody></table>
-  <div id="strat-reconcile" class="dim" style="margin-top:10px;font-size:12px;line-height:1.7;display:none"></div>
 </div>
 
 <div class="section" data-block="pnl-curve" hidden>
@@ -604,13 +608,12 @@ function positionStrip(p,w=180,h=20){
   return svg;
 }
 function holdBar(prog, heldH, totalH){
-  // v12.5.25: explicit "écoulé / total" label, no more ambiguous "X / Y"
-  // The bar fills LEFT→RIGHT proportional to time elapsed (prog = held/total).
+  // v12.5.28: tech-EN label "elapsed / total". Bar fills L→R proportional to elapsed.
   const pct=Math.round(prog*100);
   const held=(heldH!=null)?heldH.toFixed(1)+'h':'';
   const total=(totalH!=null)?totalH.toFixed(0)+'h':'';
-  const label=(held&&total)?`${held} écoulé / ${total} total`:`${pct}%`;
-  return `<div class="hold-progress" title="${pct}% du hold écoulé"><div class="fill" style="width:${pct}%"></div><div class="label">${label}</div></div>`;
+  const label=(held&&total)?`${held} elapsed / ${total} total`:`${pct}%`;
+  return `<div class="hold-progress" title="${pct}% of hold elapsed"><div class="fill" style="width:${pct}%"></div><div class="label">${label}</div></div>`;
 }
 function sparkline(traj,entryPx,dirSign,w=70,h=24){
   // v12.5.6: y-axis is PRICE instead of P&L bps. Trajectory still ships
@@ -1039,7 +1042,7 @@ function refresh(){
       // Since v12.5.13 the Equity card shows bot-internal (capital+realized+unreal),
       // NOT HL raw. The two can diverge transiently when HL returns desynchronised
       // spot/perps snapshots; this footer surfaces the gap.
-      const rec=document.getElementById('strat-reconcile');
+      const rec=document.getElementById('reconcile-footer');
       if(rec){
         const acct=s.exchange_account;
         if(acct){
@@ -1047,7 +1050,7 @@ function refresh(){
           const openU=(s.positions||[]).reduce((a,p)=>a+(p.pnl_usdt||0),0);
           const botEq=bal+openU;
           const gap=acct.equity-botEq;
-          rec.style.display='block';
+          document.getElementById('reconcile-section').style.display='';
           // Estimate close-all-now fees: sum of position notionals × COST_BPS (round-trip
           // already baked in for prior fills; this captures the remaining close-side fee).
           const closeFees=(s.positions||[]).reduce((a,p)=>a+(p.size_usdt||0)*0.0009,0);
@@ -1059,11 +1062,11 @@ function refresh(){
             `&nbsp;&nbsp;+ Open unrealized &nbsp;&nbsp;&nbsp; <span class="${cls(openU)}">$${fmt(openU)}</span><br>`+
             `&nbsp;&nbsp;= <b>Bot equity</b> &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp; <b>$${botEq.toFixed(2)}</b><br>`+
             `&nbsp;&nbsp;− Close fees est. &nbsp;&nbsp;&nbsp; <span class="red">$${closeFees.toFixed(2)}</span> <span class="dim">(${(s.positions||[]).length} × ~9 bps taker fee)</span><br>`+
-            `&nbsp;&nbsp;= 💰 <b>Si je ferme tout</b> &nbsp; <b style="color:#3fb950">$${closeNow.toFixed(2)}</b> <span class="dim">(the Equity card)</span><br>`+
+            `&nbsp;&nbsp;= 💰 <b>Liquidation value</b> &nbsp; <b style="color:#3fb950">$${closeNow.toFixed(2)}</b> <span class="dim">(headline card)</span><br>`+
             `&nbsp;&nbsp;<span class="dim">────────────</span><br>`+
             `&nbsp;&nbsp;<span class="dim">HL raw equity</span> &nbsp;&nbsp;&nbsp;&nbsp;<span class="dim">$${acct.equity.toFixed(2)}</span> <span class="dim">(audit only — Δ vs bot = ${gap>=0?'+':''}${fmt(gap)})</span>`;
         } else {
-          rec.style.display='none';
+          document.getElementById('reconcile-section').style.display='none';
         }
       }
     }

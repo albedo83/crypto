@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.5.28] — 2026-05-13
+- **Dashboard tech-English labels** (no more French on the UI):
+  - "Si je ferme tout" → "Liquidation value"
+  - "Frais exchange" → "Exchange fees"
+  - Hold-progress bar: "X écoulé / Y total" → "X elapsed / Y total"
+- **Reconciliation footer is now always visible** below the Open Positions section, not behind the strategy-performance toggle. It's part of the page baseline like Open Positions itself, not optional. Hidden only when there's no exchange_account (paper mode or pre-first-fetch).
+
 ## [12.5.27] — 2026-05-13
 - **Dashboard: rename "Equity" card → "Si je ferme tout"**. The headline number now subtracts estimated close-side taker fees (`Σ size × 9 bps`) so it represents the actual liquidation value — what the user would receive in USDC if all positions closed at current price right now. Tooltip explains the math.
 - **Reconciliation footer reorganized** to make "Si je ferme tout" the primary line, with the close-fees subtraction visible. HL raw equity is now demoted to an audit-only line at the bottom (smaller, dimmed) with a Δ vs bot to flag transient HL desync.
