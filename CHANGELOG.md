@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.14] — 2026-05-13
+- **Dashboard**: removed the "Path (price)" sparkline column from the open-positions table. The tiny price sparkline next to the Remaining-time progress bar was visually noisy and hard to interpret at the size shown. Header column and per-row cell both removed. The `sparkline()` JS helper stays available for potential reuse elsewhere.
+
 ## [12.5.13] — 2026-05-13
 - **Dashboard equity card switched to deterministic formula**. The "Equity" card now displays `capital + realized + sum(positions.unrealized_at_current_price)` — computed at every `/api/state` request from the latest market prices. Replaces the previous `bot._exchange_account.equity` which depends on HL's two info APIs (`user_state` + `spot_user_state`) and can be transiently incorrect when those APIs return desynchronised data. The internal formula is stable, doesn't depend on HL data races, and updates in real-time as prices move (5s dashboard refresh × per-position price snapshot). HL equity is still computed in the background (10s refresh, down from 15s in v12.5.12) and exposed as `s.hl_equity` in /api/state for cross-checking by the drift-alert system.
 
