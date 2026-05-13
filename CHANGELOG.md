@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.18] — 2026-05-13
+- **Dashboard mobile open-positions: space-optimized layout** (≤640px). Sharing rows for compactness: (a) the two action buttons (🎯, ✕) now sit **next to** the hold progress bar (same row, right corner) instead of a dedicated row — saves ~40px height. (b) The price sparkline and the current-price label are now on the **same row** (sparkline left at ~65% width, price right-aligned). P&L row stays compact with bps inline AND 🎯 stop badge inline (instead of the badge wrapping to a second line). Resulting card ~25% shorter than v12.5.17. Desktop layout untouched.
+
 ## [12.5.17] — 2026-05-13
 - **Dashboard mobile open-positions: true card design** (≤640px). The `<tr>` is now a real card with rounded corners, padding, subtle shadow, and color-tinted border on profit/loss — instead of the prior grid-of-columns that mimicked a table. Header strip (Symbol big · Side pill · Strat) + right-aligned big P&L (with bps inline and optional 🎯 stop badge). Subsequent rows below: hold progress bar, **price sparkline + current price** label (sparkline was hidden in v12.5.16, now restored on mobile per user request), **positionStrip restored** (MAE/MFE dots + entry baseline + current line — the visualization that was removed in v12.5.15), and a compact action row with two **icon-only buttons** (🎯 set/edit stop, ✕ close) right-aligned, ~44px square each — far less space than the prior 50/50 split. Desktop layout untouched.
 
