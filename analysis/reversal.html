@@ -246,38 +246,59 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .heatmap{grid-template-columns:50px repeat(5,1fr);font-size:9px}
   .pnl-chart,.price-chart{height:200px}
   .pnl-chart canvas{width:100%!important;height:100%!important}
-  /* Open Positions — mobile card v12.5.16: 4 rows, big tap targets, mstop badge near P&L */
-  [data-block="open-positions"] table.responsive tbody tr{display:grid;grid-template-columns:auto auto auto 1fr;gap:4px 8px;align-items:center;padding:10px 10px 8px 10px;cursor:default;position:relative}
+  /* Open Positions — mobile CARD v12.5.17: real card style, compact icon buttons,
+     MAE/MFE positionStrip restored. Each <tr> becomes a free-form card via flex. */
+  [data-block="open-positions"] table.responsive{padding:0;background:transparent;border-radius:0}
+  [data-block="open-positions"] table.responsive thead{display:none}
+  [data-block="open-positions"] table.responsive tbody{display:flex;flex-direction:column;gap:10px}
+  [data-block="open-positions"] table.responsive tbody tr{
+    display:block;
+    background:#161b22;
+    border:1px solid #30363d;
+    border-radius:10px;
+    padding:14px 14px 12px;
+    box-shadow:0 2px 6px rgba(0,0,0,0.25);
+    margin-bottom:0;
+    cursor:default;
+    position:relative;
+  }
   [data-block="open-positions"] table.responsive tbody tr::after{display:none}
+  [data-block="open-positions"] table.responsive tbody tr.pos-profit{border-color:rgba(63,185,80,0.35);box-shadow:0 2px 6px rgba(63,185,80,0.1)}
+  [data-block="open-positions"] table.responsive tbody tr.pos-loss{border-color:rgba(248,81,73,0.35);box-shadow:0 2px 6px rgba(248,81,73,0.1)}
+  /* Reset all td defaults inherited from responsive card mode */
   [data-block="open-positions"] table.responsive tbody tr td{display:flex;align-items:center;padding:0;border:0;background:transparent;white-space:nowrap;justify-content:flex-start;min-width:0}
   [data-block="open-positions"] table.responsive tbody tr td::before{display:none}
-  /* Row 1: identity (left) + P&L with optional manual-stop badge (right) */
-  [data-block="open-positions"] td.pos-symbol{grid-column:1;grid-row:1;font-size:16px;margin-bottom:0;padding-bottom:0;border-bottom:0}
-  [data-block="open-positions"] td.pos-side{grid-column:2;grid-row:1;font-size:12px;font-weight:600}
-  [data-block="open-positions"] td.pos-strat{grid-column:3;grid-row:1;font-size:12px}
-  [data-block="open-positions"] td.pos-pnl{grid-column:4;grid-row:1;justify-content:flex-end;font-weight:600;font-size:15px;flex-wrap:wrap;gap:4px}
-  [data-block="open-positions"] td.pos-pnl .mstop-badge{display:inline-flex;align-items:center;background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.5);color:#d29922;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-left:6px;white-space:nowrap}
-  /* Row 2: timing progress bar — full width */
-  [data-block="open-positions"] td.pos-remaining{grid-column:1/-1;grid-row:2;font-size:11px;gap:6px;flex-wrap:wrap;justify-content:flex-start}
+  /* Header strip: symbol big | side · strat | P&L (right) */
+  [data-block="open-positions"] td.pos-symbol{order:1;font-size:20px;font-weight:700;margin:0 8px 4px 0;padding:0;border:0}
+  [data-block="open-positions"] td.pos-side{order:2;font-size:11px;font-weight:600;margin-bottom:4px;padding:1px 6px;border-radius:3px;background:rgba(255,255,255,0.05)}
+  [data-block="open-positions"] td.pos-strat{order:3;font-size:11px;margin-left:6px;margin-bottom:4px}
+  [data-block="open-positions"] td.pos-pnl{order:4;margin-left:auto;font-size:18px;font-weight:700;margin-bottom:4px;flex-wrap:wrap;justify-content:flex-end;gap:4px;align-items:flex-end}
+  [data-block="open-positions"] td.pos-pnl .bps-inline{display:inline;font-size:12px;font-weight:500;opacity:.75;margin-left:4px}
+  [data-block="open-positions"] td.pos-pnl .mstop-badge{display:inline-flex;align-items:center;background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.5);color:#d29922;padding:1px 6px;border-radius:3px;font-size:10px;font-weight:600;margin-left:0;white-space:nowrap;width:100%;justify-content:flex-end;margin-top:2px}
+  /* Force header items to wrap into a row + the rest below */
+  [data-block="open-positions"] table.responsive tbody tr{display:flex;flex-wrap:wrap;align-items:center}
+  /* The next sections each take a full row */
+  [data-block="open-positions"] td.pos-remaining{order:5;flex:1 1 100%;font-size:11px;gap:6px;flex-wrap:wrap;justify-content:flex-start;margin-top:4px}
   [data-block="open-positions"] td.pos-remaining .hold-progress{flex:1;min-width:0}
-  /* Row 3: stop info compact */
-  [data-block="open-positions"] td.pos-unrealized{grid-column:1/-1;grid-row:3;font-size:11px;gap:6px;overflow:hidden;flex-wrap:wrap}
-  [data-block="open-positions"] td.pos-unrealized svg{flex-shrink:0}
-  /* Row 4: action buttons — big tap targets, 50/50 split */
-  [data-block="open-positions"] td.pos-close{grid-column:1/-1;grid-row:4;justify-content:stretch;gap:6px;margin-top:6px;display:grid;grid-template-columns:1fr 1fr}
-  [data-block="open-positions"] td.pos-close button{padding:10px 8px!important;font-size:13px!important;width:100%;margin-right:0!important}
-  /* Spark / detail / meta */
-  [data-block="open-positions"] td.pos-spark{display:none}
-  [data-block="open-positions"] td.pos-detail{display:none;grid-column:1/-1;justify-content:space-between;font-size:11px;padding:3px 0;border-top:1px dashed #30363d;margin-top:2px}
+  [data-block="open-positions"] td.pos-unrealized{order:7;flex:1 1 100%;font-size:11px;gap:6px;overflow:hidden;flex-wrap:wrap;margin-top:6px}
+  [data-block="open-positions"] td.pos-unrealized svg{flex-shrink:0;max-width:100%}
+  [data-block="open-positions"] td.pos-close{order:8;flex:1 1 100%;justify-content:flex-end;margin-top:8px;display:flex;gap:6px}
+  /* Compact icon-only buttons, ~44px square each */
+  [data-block="open-positions"] td.pos-close button{padding:7px 10px!important;font-size:13px!important;width:auto!important;min-width:44px;margin:0!important;border-radius:6px}
+  [data-block="open-positions"] td.pos-close button:nth-child(2){background:#da3633;flex:0 0 auto}
+  /* Mobile card: show the price sparkline + current-price label as a dedicated row */
+  [data-block="open-positions"] td.pos-spark{order:6;flex:1 1 100%;display:flex;flex-direction:column;align-items:center;justify-content:center;margin-top:6px;padding:6px 0;background:rgba(255,255,255,0.02);border-radius:6px}
+  [data-block="open-positions"] td.pos-spark svg{max-width:100%;height:auto}
+  [data-block="open-positions"] td.pos-spark .spark-price{font-size:11px;font-weight:600;color:#c9d1d9;margin-top:2px}
+  [data-block="open-positions"] td.pos-detail{order:9;display:none;flex:1 1 100%;justify-content:space-between;font-size:11px;padding:3px 0;border-top:1px dashed #30363d;margin-top:2px}
   [data-block="open-positions"] td.pos-detail::before{display:inline;content:attr(data-label);color:#7d8590;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-right:8px}
   [data-block="open-positions"] tr.expanded td.pos-detail{display:flex}
   [data-block="open-positions"] .stop-meta{display:block;font-size:10px;color:#7d8590}
   /* Hide the duplicate manual-stop line on mobile (badge shown next to P&L) */
   [data-block="open-positions"] .stop-meta.mstop-line{display:none}
   [data-block="open-positions"] .bps-main{display:none}
-  [data-block="open-positions"] td.pos-pnl .bps-inline{display:inline;margin-left:4px;opacity:.75;font-weight:400;font-size:12px}
-  /* Mobile: caret expand only if there's detail to show (Entry/Current/Margin in pos-detail) */
-  [data-block="open-positions"] td.pos-symbol::after{content:' ▾';color:#7d8590;font-size:10px;transition:transform .15s;display:inline-block;margin-left:4px}
+  /* Caret next to symbol: hint that tap expands the card */
+  [data-block="open-positions"] td.pos-symbol::after{content:' ▾';color:#7d8590;font-size:11px;transition:transform .15s;display:inline-block;margin-left:6px;opacity:.6;font-weight:400}
   [data-block="open-positions"] tr.expanded td.pos-symbol::after{content:' ▴'}
 }
 @media(max-width:420px){.cards{grid-template-columns:1fr}}
@@ -803,9 +824,9 @@ function refresh(){
       const mstopStr=p.manual_stop_usdt!=null?`<div class="stop-meta mstop-line" style="font-size:10px;color:#d29922">🎯 manual stop @ $${p.manual_stop_usdt.toFixed(2)} (${p.manual_stop_bps>=0?'+':''}${p.manual_stop_bps} bps)</div>`:'';
       const stopStr=p.stop_bps!==undefined?`<div class="dim stop-meta" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}${mstopStr}`:mstopStr;
       // v11.7.21: position strip subsumes stopBar (shows stop + MAE + current + MFE + trailing)
-      // v12.5.15: positionStrip (SVG with 2 MAE/MFE dots) removed — too dense / confusing.
-      // Fall back to the simple stopBar for stop-distance feedback.
-      const stopViz=p.stop_progress!==undefined?stopBar(p.stop_progress):'';
+      // v12.5.17: restored positionStrip (MAE/MFE dots) — the user wanted it back
+      // as part of the mobile card design. Falls back to stopBar when not applicable.
+      const stopViz=positionStrip(p)||(p.stop_progress!==undefined?stopBar(p.stop_progress):'');
       const totalH=p.hold_hours+(p.remaining_hours||0);
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress,p.hold_hours,totalH):'';
       const pathViz=sparkline(p.trajectory, p.entry_price, p.direction==='LONG'?1:-1);
@@ -846,8 +867,8 @@ function refresh(){
         <td data-label="Current" class="pos-detail">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
         <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
         <td data-label="Remaining" class="pos-remaining">${holdViz}<div class="dim" style="font-size:10px;margin-top:2px">${p.remaining||Math.floor(p.remaining_hours)+'h'} restant</div></td>
-        <td data-label="Path (price)" class="pos-spark">${pathViz}</td>
-        <td data-label="" class="pos-close"><button onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop (close if unrealized drops below $X)" style="background:#d29922;color:#fff;border:none;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🎯 ${p.manual_stop_usdt!=null?'Edit':'Stop'}</button><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">✕ Close</button></td>`;
+        <td data-label="Path (price)" class="pos-spark">${pathViz}<div class="dim spark-price" style="font-size:9px;margin-top:2px;text-align:center;letter-spacing:.2px">$${p.current_price.toFixed(p.current_price>10?2:4)}</div></td>
+        <td data-label="" class="pos-close"><button onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop @ $X" style="background:#d29922;color:#fff;border:none;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:12px;margin-right:3px">🎯</button><button onclick="closePos('${p.symbol}')" title="Close position" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px">✕</button></td>`;
       pb.appendChild(tr);
     });
     if(!pb.dataset.boundExpand){
