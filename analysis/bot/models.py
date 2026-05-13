@@ -49,6 +49,7 @@ class Position:
     entry_confluence: int = 0        # count of extreme features at entry (0-5)
     entry_session: str = ""          # Asia/EU/US/Night/WE
     extended: bool = False           # v11.7.32: target_exit was extended by runner_extension once
+    manual_stop_bps: float | None = None  # v12.5.10: user-set unrealized floor; close if unrealized_bps <= this
 
 
 @dataclass

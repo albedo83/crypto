@@ -8,7 +8,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 12.5.1). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 12.5.10). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
 
 ### Execution Modes
 
@@ -87,6 +87,8 @@ Hyperliquid SDK (write)
 ### Signals in one line
 
 5 active signals: **S1** (BTC momentum → LONG alts), **S5** (sector divergence follow), **S8** (capitulation flush LONG), **S9** (fade ±20%/24h extreme moves), **S10** (squeeze + false breakout fade — **v11.3.4 filters: SHORT-only + 13-token whitelist**, **v11.4.0 trailing stop: exit at MFE−150 bps when MFE > 600 bps**, kill-switch via `S10_ALLOW_LONGS` and `S10_ALLOWED_TOKENS` in `config.py`). S2 removed, S4 suspended.
+
+**v12.5.10 Manual per-position stop**: optional `Position.manual_stop_bps` set by the user via `POST /api/manual_stop/{symbol}` (`{"stop_usdt": X}` to set, `{"clear": true}` to remove). Checked in `trading.check_exits` right after the catastrophe stop and before strategy-specific exits — fires `reason="manual_stop_set"`. Endpoint validates the value is strictly between the catastrophe stop floor and the current unrealized (rejects redundant or self-triggering). Dashboard adds a 🎯 button per row + inline display in the stop-meta block. Persisted across restarts. Strategy-agnostic, manual override only — no impact on backtest results.
 
 **v11.4.9 OI gate LONG**: entries with `direction=1` are blocked when the token's OI has fallen >10% over 24h (`OI_LONG_GATE_BPS=1000` in `config.py`). Inactive for the first ~23h after a restart (insufficient `oi_history`). Rationale: longs unwinding = bearish flow still active = LONG catches a falling knife. Walk-forward validated 4/4 on 28m/12m/6m/3m, zero DD penalty. Affects mostly S8 and S5-LONG. Helper: `features.oi_delta_24h_bps()`.
 

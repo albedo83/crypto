@@ -509,6 +509,27 @@ document.addEventListener('DOMContentLoaded',()=>{
   applyBlockState();
 });
 function closePos(sym){if(!confirm('Close '+sym+' now?'))return;fetch('api/close/'+sym,{method:'POST',credentials:'same-origin'}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else refresh()}).catch(e=>alert('Error: '+e));}
+function setManualStop(sym,currentUsdt,activeUsdt){
+  const cur=currentUsdt!=null?currentUsdt.toFixed(2):'?';
+  const active=activeUsdt!=null?activeUsdt.toFixed(2):'none';
+  const msg='Manual stop for '+sym+'\n\nCurrent unrealized: $'+cur+'\nActive stop: $'+active+
+            '\n\nEnter $ value (e.g. 40), or leave empty + OK to clear, or Cancel to keep:';
+  const v=prompt(msg,activeUsdt!=null?activeUsdt.toFixed(2):'');
+  if(v===null)return;  // Cancel
+  if(v.trim()===''){
+    fetch('api/manual_stop/'+sym,{method:'POST',credentials:'same-origin',
+      headers:{'Content-Type':'application/json'},body:JSON.stringify({clear:true})})
+      .then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else refresh()})
+      .catch(e=>alert('Error: '+e));
+    return;
+  }
+  const usdt=parseFloat(v);
+  if(isNaN(usdt)){alert('Invalid number');return}
+  fetch('api/manual_stop/'+sym,{method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({stop_usdt:usdt})})
+    .then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else refresh()})
+    .catch(e=>alert('Error: '+e));
+}
 // Visual helpers (v11.4.10 batch 1)
 function stopBar(prog){
   const pct=Math.round(prog*100);
@@ -759,7 +780,8 @@ function refresh(){
       else if(p.pnl_usdt<-0.1)tr.className='pos-loss';
       const sideClass=p.direction==='LONG'?'green':'red';
       const trailExtra=p.trailing_active?`<div class="trailing-info stop-meta">▼ trail @ ${p.trailing_floor_bps>=0?'+':''}${p.trailing_floor_bps}</div>`:'';
-      const stopStr=p.stop_bps!==undefined?`<div class="dim stop-meta" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}`:'';
+      const mstopStr=p.manual_stop_usdt!=null?`<div class="stop-meta" style="font-size:10px;color:#d29922">🎯 manual stop @ $${p.manual_stop_usdt.toFixed(2)} (${p.manual_stop_bps>=0?'+':''}${p.manual_stop_bps} bps)</div>`:'';
+      const stopStr=p.stop_bps!==undefined?`<div class="dim stop-meta" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}${mstopStr}`:mstopStr;
       // v11.7.21: position strip subsumes stopBar (shows stop + MAE + current + MFE + trailing)
       const stopViz=positionStrip(p)||(p.stop_progress!==undefined?stopBar(p.stop_progress):'');
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress):'';
@@ -802,7 +824,7 @@ function refresh(){
         <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
         <td data-label="Remaining" class="pos-remaining"><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b>${holdViz}<div class="dim stop-meta" style="font-size:10px">held ${p.hold_hours.toFixed(1)}h</div></td>
         <td data-label="Path (price)" class="pos-spark">${pathViz}</td>
-        <td data-label="" class="pos-close"><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
+        <td data-label="" class="pos-close"><button onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop (close if unrealized drops below $X)" style="background:#d29922;color:#fff;border:none;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:11px;margin-right:3px">🎯</button><button onclick="closePos('${p.symbol}')" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:11px">Close</button></td>`;
       pb.appendChild(tr);
     });
     if(!pb.dataset.boundExpand){

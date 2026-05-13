@@ -210,6 +210,11 @@ def build_state_response(bot) -> dict:
             "trailing_floor_bps": round(pos.mfe_bps - S10_TRAILING_OFFSET, 0)
                                    if pos.strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER else None,
             "win_prob": win_prob,
+            # v12.5.10: user-set manual stop (None if not set)
+            "manual_stop_bps": round(pos.manual_stop_bps, 0)
+                               if pos.manual_stop_bps is not None else None,
+            "manual_stop_usdt": round(pos.size_usdt * pos.manual_stop_bps / 1e4, 2)
+                                if pos.manual_stop_bps is not None else None,
         })
     # OI delta 24h per token (for dashboard gauge + gate visualization)
     oi_deltas = {}
@@ -874,6 +879,83 @@ def create_app(bot) -> FastAPI:
             return JSONResponse({"error": f"close failed for {sym}, will retry"}, status_code=500)
         bot._save_state()
         return JSONResponse({"status": "closed", "symbol": sym})
+
+    @app.post("/api/manual_stop/{symbol}")
+    async def api_manual_stop(symbol: str, request: Request):
+        """Set or clear a per-position manual stop (v12.5.10).
+
+        Body:
+          {"stop_usdt": 40}    → set the stop at +$40 unrealized
+          {"clear": true}      → remove any previously-set manual stop
+
+        Validation:
+          - position must exist
+          - stop_usdt is converted to bps via size_usdt
+          - manual stop_bps must be strictly less than current unrealized_bps
+            (would trigger immediately — use /api/close instead)
+          - manual stop_bps must be strictly greater than the catastrophe stop
+            (otherwise redundant with the auto-stop)
+        """
+        sym = symbol.upper()
+        body = await request.json()
+        if sym not in bot.positions:
+            return JSONResponse({"error": f"{sym} not in positions"}, status_code=404)
+        pos = bot.positions[sym]
+
+        if body.get("clear"):
+            with bot._pos_lock:
+                pos.manual_stop_bps = None
+            bot._save_state()
+            log.info("MANUAL_STOP %s: cleared", sym)
+            return JSONResponse({"status": "cleared", "symbol": sym})
+
+        stop_usdt = body.get("stop_usdt")
+        if stop_usdt is None:
+            return JSONResponse({"error": "missing 'stop_usdt' or 'clear' field"},
+                                status_code=400)
+        try:
+            stop_usdt = float(stop_usdt)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "stop_usdt must be a number"}, status_code=400)
+
+        if pos.size_usdt <= 0:
+            return JSONResponse({"error": "position has invalid size"}, status_code=400)
+        stop_bps = stop_usdt / pos.size_usdt * 1e4
+
+        # Current unrealized
+        st = bot.states.get(sym)
+        if not st or st.price <= 0 or pos.entry_price <= 0:
+            return JSONResponse({"error": "no current price"}, status_code=400)
+        current_bps = pos.direction * (st.price / pos.entry_price - 1) * 1e4
+
+        if stop_bps >= current_bps:
+            return JSONResponse({"error": (
+                f"stop ${stop_usdt:.2f} ({stop_bps:+.0f} bps) is at or above "
+                f"current unrealized {current_bps:+.0f} bps — would trigger "
+                f"immediately. Use /api/close to close now, or pick a lower value.")},
+                status_code=400)
+
+        # Effective catastrophe stop floor for this strategy
+        if pos.strategy == "S8":
+            cata_stop = STOP_LOSS_S8
+        elif pos.stop_bps != 0:
+            cata_stop = pos.stop_bps
+        else:
+            cata_stop = STOP_LOSS_BPS
+        if stop_bps <= cata_stop:
+            return JSONResponse({"error": (
+                f"stop {stop_bps:+.0f} bps is at or below the catastrophe "
+                f"stop {cata_stop:+.0f} bps — redundant. Manual stop must be "
+                f"strictly above the auto-stop.")}, status_code=400)
+
+        with bot._pos_lock:
+            pos.manual_stop_bps = stop_bps
+        bot._save_state()
+        log.info("MANUAL_STOP %s: set at $%.2f (%.0f bps), current %+.0f bps",
+                 sym, stop_usdt, stop_bps, current_bps)
+        return JSONResponse({"status": "set", "symbol": sym,
+                             "stop_usdt": round(stop_usdt, 2),
+                             "stop_bps": round(stop_bps, 0)})
 
     @app.post("/api/capital")
     async def api_capital(request: Request):

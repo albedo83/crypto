@@ -222,6 +222,11 @@ def check_exits(bot) -> int:
             exit_reason = "catastrophe_stop"
             # Stop triggered at bps=stop: synthetic price = entry × (1 + dir × stop/1e4)
             exit_price = entry_price * (1 + direction * stop / 1e4)
+        elif pos.manual_stop_bps is not None and unrealized <= pos.manual_stop_bps:
+            # v12.5.10: user-set manual floor (set via /api/manual_stop).
+            # Fires before strategy-specific exits, after the catastrophe stop.
+            exit_reason = "manual_stop_set"
+            exit_price = entry_price * (1 + direction * pos.manual_stop_bps / 1e4)
         elif strategy == "S9" and hours_held >= S9_EARLY_EXIT_HOURS and unrealized < S9_EARLY_EXIT_BPS:
             exit_reason = "s9_early_exit"
             exit_price = entry_price * (1 + direction * S9_EARLY_EXIT_BPS / 1e4)

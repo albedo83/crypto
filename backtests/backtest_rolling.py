@@ -408,6 +408,7 @@ def run_window(features, data, sector_features, dxy_data,
                     "strat": pos["strat"], "coin": coin,
                     "entry_t": pos["entry_t"], "exit_t": ts,
                     "reason": "partial_profit", "size": partial_size,
+                    "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
                 })
                 pos["size"] = pos["size"] - partial_size
                 pos["partial_taken"] = True
@@ -604,6 +605,7 @@ def run_window(features, data, sector_features, dxy_data,
                     "strat": pos["strat"], "coin": coin,
                     "entry_t": pos["entry_t"], "exit_t": ts,
                     "reason": exit_reason, "size": pos["size"],
+                    "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
                 })
                 del positions[coin]
                 cooldown[coin] = ts + 24 * 3600 * 1000
@@ -789,6 +791,7 @@ def run_window(features, data, sector_features, dxy_data,
                 "strat": pos["strat"], "coin": coin,
                 "entry_t": pos["entry_t"], "exit_t": last_ts,
                 "reason": "mtm_final", "size": pos["size"],
+                "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
             })
 
     # Summary stats

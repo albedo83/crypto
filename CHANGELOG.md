@@ -1,5 +1,11 @@
 # Changelog
 
+## [12.5.10] — 2026-05-13
+- **Trading engine**: per-position manual stop. New field `Position.manual_stop_bps` (Optional). When set, `trading.check_exits` closes the position with reason `manual_stop_set` as soon as unrealized falls at or below the threshold — checked right after the catastrophe stop, before strategy-specific exits (S9 early, S10 trailing, dead_timeout). Persisted across restarts via `persistence.save_state`/`load_state`.
+- **Web API**: new endpoint `POST /api/manual_stop/{symbol}` accepting `{"stop_usdt": X}` (set) or `{"clear": true}` (remove). Validates that the threshold is strictly between the catastrophe stop and the current unrealized — rejects redundant or self-triggering values. `/api/state` now exposes `manual_stop_bps` and `manual_stop_usdt` per position.
+- **Dashboard**: each position row gets a 🎯 button next to Close that opens a prompt to set/clear the stop in dollars. Active stop shown inline in the existing stop-meta block ("🎯 manual stop @ $40 (+1739 bps)"). Mobile layout pushes both UI bits into the compact close cell; no other change.
+- **Why**: gives the user a guardrail to lock partial gains on outlier winners (e.g. an S5 at +$45 unrealized) without forcing an immediate full close. Manual override only — strategy logic and backtest results are unchanged.
+
 ## [12.5.9] — 2026-05-12
 - **Dashboard**: regime badge now reflects the same rolling z-score the adaptive modulator already uses for sizing — label and trading logic finally agree instead of giving "CHOPPY" while the bot actively trades a bull regime.
 
