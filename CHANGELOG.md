@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.5.20] — 2026-05-13
+- **Dashboard mobile open-positions: 3-row card** (≤640px).
+  - Row 1: identity (Symbol · Side · Strat) + P&L (with bps inline + optional 🎯 stop badge), all on one line.
+  - Row 2: shared row with three elements — **sparkline (with current price below)** at left ~35%, **positionStrip MAE/MFE** in the middle, and the **two action buttons stacked vertically** (🎯 on top, ✕ below) at the right.
+  - Row 3: textual info on one line with small uppercase labels — `held 24.4h`, `rest 23h36m`, `stop -1250`, `mae -575`, `mfe +2009`. Replaces the visual hold-progress bar on mobile (which moved to desktop-only) and consolidates the stop-meta text.
+- Desktop layout (≥641px) unchanged.
+
 ## [12.5.19] — 2026-05-13
 - **Dashboard mobile open-positions: sparkline + stop-info share a row** (≤640px). The price sparkline (with the current price label moved BELOW it instead of beside) now takes ~42% of the card width on the left; the stop info (positionStrip + stop/MAE meta) takes the remaining width on the right — same row. Trims another ~30px of card height. Desktop layout untouched.
 
