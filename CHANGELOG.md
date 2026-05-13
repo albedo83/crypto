@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.22] — 2026-05-13
+- **Dashboard mobile open-positions: restore position / margin / entry info pills** (≤640px). The v12.5.21 mobile card rebuild dropped these three values (they used to be inside the desktop expanded detail rows on the prior layout). Re-added as additional labeled pills in the `m-info` row: `pos $230`, `mgn $115`, `entry $4.8751`, followed by the existing `held / rest / stop / mae / mfe`. Wrap to a second line if narrow.
+
 ## [12.5.21] — 2026-05-13
 - **Dashboard mobile open-positions: true iOS-style card** (≤640px). The JS render now branches on `matchMedia('(max-width:640px)')` and emits a single `<td colspan="13" class="m-card-wrap">` containing a free-form `.m-card` div for the mobile case — completely independent of the table's column-based positioning that was being fought via CSS in prior iterations. Layout: header (Symbol · Side · Strat) + right-aligned P&L (with bps inline + optional 🎯 stop badge) → full-width hold progress bar → 3-cell mid section (sparkline+price 36% | MAE/MFE strip flex | 🎯/✕ buttons stacked vertically) → labeled info pills (held/rest/stop/mae/mfe) on a single wrapping line. All visible sections render reliably regardless of viewport since they're not bound to table column widths. Desktop layout (≥641px) untouched.
 

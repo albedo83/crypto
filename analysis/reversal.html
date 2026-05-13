@@ -865,6 +865,9 @@ function refresh(){
             </div>
           </div>
           <div class="m-info">
+            <span class="pill"><span class="lbl">pos</span><b>$${p.size_usdt.toFixed(0)}</b></span>
+            <span class="pill"><span class="lbl">mgn</span><b>$${(p.size_usdt/2).toFixed(0)}</b></span>
+            <span class="pill"><span class="lbl">entry</span><b>$${p.entry_price.toFixed(p.entry_price>10?2:4)}</b></span>
             <span class="pill"><span class="lbl">held</span><b>${p.hold_hours.toFixed(1)}h</b></span>
             <span class="pill"><span class="lbl">rest</span><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b></span>
             <span class="pill"><span class="lbl">stop</span><b>${p.stop_bps}</b></span>
