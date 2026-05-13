@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.5.25] — 2026-05-13
+- **Accounting BUGFIX (P&L over-recording for winners)**: at close, `trading.close_position` used to overwrite `pos.size_usdt` with `sz × close_price` (the close-time notional). Since P&L uses `pos.size_usdt × net_bps / 1e4` and size_usdt represents the OPEN notional, the overwrite inflated winners and shrank losers by `(close/open − 1)`. Example surfaced on INJ today: stored P&L $47.56 vs real P&L ~$40. The reconcile now compares COIN count (not notional) and only scales `size_usdt` proportionally if the fill actually differs in coin quantity (partial fill case). Affects all live trades; backtest math was already correct (uses open notional).
+- **Manual stop: dollar threshold, not bps** — `Position.manual_stop_usdt` field added as the source of truth. `trading.check_exits` compares current `pnl_usdt = size_usdt × unrealized_bps / 1e4` against `manual_stop_usdt` directly. The user's "stop at $40" now locks exactly $40 regardless of how the notional grew over the hold (previous behavior with the bps-based check could over- or under-lock). `manual_stop_bps` remains exposed for backward compat in `/api/state`.
+- **Dashboard mobile cards (≤640px)**: uniform 2-column grid for ALL top stat cards (Equity, Drawdown, Total P&L, Unrealized, Positions, Trades, Total, Fees, S10) — no more full-width-then-grid mix. `Utilization` card hidden on mobile (`.card-util{display:none}` in the mobile media block).
+- **Dashboard trade history → compact table** with sticky header in a scrollable container (max-height 520px). Limited to the **20 most recent trades** instead of the full list. Replaces the prior responsive table that converted to vertical cards on mobile.
+- **Hold-progress bar label clarified** from `"24h / 48h"` (ambiguous) to `"24h écoulé / 48h total"`.
+
 ## [12.5.24] — 2026-05-13
 - **Dashboard mobile**: fix the v12.5.23 top-cards layout. The legacy `@media(max-width:420px){.cards{grid-template-columns:1fr}}` rule was overriding the new 3-col grid on most phones (≤420px covers iPhone SE/12/13/14 widths). Replaced with a `@media(max-width:380px)` 2-col fallback for genuinely narrow viewports. Standard phones (390-414px) now render the intended 3-col grid for the small stat cards (Total P&L, Unrealized, Positions, Trades, Total, Utilization, Fees, S10) with Equity full-width above.
 

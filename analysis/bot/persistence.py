@@ -145,6 +145,7 @@ def save_state(state_file: str, positions: dict, pos_lock,
             "entry_confluence": p.entry_confluence, "entry_session": p.entry_session,
             "extended": p.extended,
             "manual_stop_bps": p.manual_stop_bps,
+            "manual_stop_usdt": p.manual_stop_usdt,
         } for p in positions.values()]
     data = {
         "version": VERSION, "capital": capital,
@@ -226,6 +227,7 @@ def load_state(state_file: str, states: dict) -> dict:
                     entry_session=p.get("entry_session", ""),
                     extended=p.get("extended", False),
                     manual_stop_bps=p.get("manual_stop_bps"),
+                    manual_stop_usdt=p.get("manual_stop_usdt"),
                 )
             except (KeyError, ValueError, TypeError) as e:
                 log.error("Skipping corrupt position %s: %s", sym, e)

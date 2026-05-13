@@ -222,11 +222,20 @@ def check_exits(bot) -> int:
             exit_reason = "catastrophe_stop"
             # Stop triggered at bps=stop: synthetic price = entry × (1 + dir × stop/1e4)
             exit_price = entry_price * (1 + direction * stop / 1e4)
-        elif pos.manual_stop_bps is not None and unrealized <= pos.manual_stop_bps:
-            # v12.5.10: user-set manual floor (set via /api/manual_stop).
-            # Fires before strategy-specific exits, after the catastrophe stop.
+        elif pos.manual_stop_usdt is not None and (
+                pos.size_usdt * unrealized / 1e4) <= pos.manual_stop_usdt:
+            # v12.5.25: compare current pnl_usdt directly to the user-stated
+            # manual_stop_usdt. Previous v12.5.10 stored a converted bps and
+            # the recorded P&L could differ from the user's intended dollar
+            # value (notional growth on winners over-locked, e.g. INJ user
+            # set $40 → realized $47 because the open-notional formula
+            # multiplied the bps stop by the close-time size).
+            # The dollar threshold is now exact: exit_price gives precisely
+            # the requested pnl_usdt at the open-notional reconciled size.
             exit_reason = "manual_stop_set"
-            exit_price = entry_price * (1 + direction * pos.manual_stop_bps / 1e4)
+            # Equivalent bps for the synthetic exit price (same dir convention)
+            equiv_stop_bps = pos.manual_stop_usdt / pos.size_usdt * 1e4
+            exit_price = entry_price * (1 + direction * equiv_stop_bps / 1e4)
         elif strategy == "S9" and hours_held >= S9_EARLY_EXIT_HOURS and unrealized < S9_EARLY_EXIT_BPS:
             exit_reason = "s9_early_exit"
             exit_price = entry_price * (1 + direction * S9_EARLY_EXIT_BPS / 1e4)
@@ -278,20 +287,29 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
             close_result = execute_close(bot._exchange, bot._hl_info, bot._hl_address, sym)
             if close_result:
                 exit_price = close_result["avgPx"]
-                # Reconcile pos.size_usdt to actual closed notional. Covers the
-                # partial-fill-at-open case where the bot has tracked more
-                # notional than HL actually held — pnl bookkeeping uses
-                # pos.size_usdt downstream, so updating it here keeps the
-                # close P&L aligned with the real cash impact.
-                actual_notional = close_result["sz"] * close_result["avgPx"]
+                # v12.5.25 BUGFIX: the prior reconcile overwrote pos.size_usdt
+                # with `sz × close_price` (the close-time notional). Since
+                # pos.size_usdt is the OPEN notional and P&L uses
+                # `pos.size_usdt × bps`, that overwrite inflated profits for
+                # winners (and shrank losses for losers) by `(close/open − 1)`.
+                # We now compare in COINS, not notional. If coin count differs
+                # significantly from what we expected to close, log a warning
+                # but DO NOT overwrite pos.size_usdt — the open notional is
+                # the right quantity for the P&L formula.
                 with bot._pos_lock:
                     if sym in bot.positions and close_result["sz"] > 0:
                         pos_now = bot.positions[sym]
-                        if abs(pos_now.size_usdt - actual_notional) > 1.0:
+                        expected_coins = (pos_now.size_usdt / pos_now.entry_price
+                                          if pos_now.entry_price > 0 else 0)
+                        actual_coins = close_result["sz"]
+                        if expected_coins > 0 and abs(actual_coins - expected_coins) / expected_coins > 0.01:
                             log.warning(
-                                "CLOSE size reconcile %s: tracked=$%.2f filled=$%.2f — adjusting",
-                                sym, pos_now.size_usdt, actual_notional)
-                            pos_now.size_usdt = actual_notional
+                                "CLOSE coin reconcile %s: expected=%.4f filled=%.4f — partial fill?",
+                                sym, expected_coins, actual_coins)
+                            # If partial, scale size_usdt proportionally to the
+                            # actual coin count (preserves the open-notional
+                            # semantics: size_usdt = coins × open_price).
+                            pos_now.size_usdt = actual_coins * pos_now.entry_price
             with bot._pos_lock:
                 bot._failed_closes.discard(sym)
         except Exception as e:

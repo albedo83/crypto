@@ -139,6 +139,21 @@ def build_state_response(bot) -> dict:
     bt = [t for t in bot.trades if is_bot_trade(t)]
     n_bot, wins = len(bt), sum(1 for t in bt if t.pnl_usdt > 0)
     balance = bot._capital + bot._total_pnl
+    # v12.5.13: deterministic equity = balance + sum of unrealized at current
+    # price. Computed here so the dashboard never sees the HL transient races
+    # that affect bot._exchange_account.equity.
+    _sum_unreal = 0.0
+    with bot._pos_lock:
+        _pos_iter = list(bot.positions.values())
+    for _p in _pos_iter:
+        _st = bot.states.get(_p.symbol)
+        _px = _st.price if _st and _st.price > 0 else _p.entry_price
+        if _p.entry_price > 0:
+            _ur = _p.direction * (_px / _p.entry_price - 1) * 1e4
+            _sum_unreal += _p.size_usdt * _ur / 1e4
+    equity = balance + _sum_unreal
+    _acct = bot._exchange_account
+    hl_equity = float(_acct["equity"]) if _acct and "equity" in _acct else None
     btc_f, alt_idx = bot._compute_btc_features(), bot._compute_alt_index()
     # Regime classifier (v12.5.9): aligned with the adaptive modulator's
     # btc_z (rolling z-score) instead of raw return thresholds. Fallback to
@@ -224,11 +239,13 @@ def build_state_response(bot) -> dict:
             "trailing_floor_bps": round(pos.mfe_bps - S10_TRAILING_OFFSET, 0)
                                    if pos.strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER else None,
             "win_prob": win_prob,
-            # v12.5.10: user-set manual stop (None if not set)
-            "manual_stop_bps": round(pos.manual_stop_bps, 0)
-                               if pos.manual_stop_bps is not None else None,
-            "manual_stop_usdt": round(pos.size_usdt * pos.manual_stop_bps / 1e4, 2)
-                                if pos.manual_stop_bps is not None else None,
+            # v12.5.25: manual_stop_usdt is the source of truth (dollar floor).
+            # manual_stop_bps stays exposed for back-compat in case any reader
+            # depends on it.
+            "manual_stop_usdt": round(pos.manual_stop_usdt, 2)
+                                if pos.manual_stop_usdt is not None else None,
+            "manual_stop_bps": round(pos.manual_stop_usdt / pos.size_usdt * 1e4, 0)
+                               if pos.manual_stop_usdt is not None and pos.size_usdt > 0 else None,
         })
     # OI delta 24h per token (for dashboard gauge + gate visualization)
     oi_deltas = {}
@@ -921,6 +938,7 @@ def create_app(bot) -> FastAPI:
         if body.get("clear"):
             with bot._pos_lock:
                 pos.manual_stop_bps = None
+                pos.manual_stop_usdt = None
             bot._save_state()
             log.info("MANUAL_STOP %s: cleared", sym)
             return JSONResponse({"status": "cleared", "symbol": sym})
@@ -966,8 +984,9 @@ def create_app(bot) -> FastAPI:
 
         with bot._pos_lock:
             pos.manual_stop_bps = stop_bps
+            pos.manual_stop_usdt = stop_usdt   # v12.5.25 source of truth
         bot._save_state()
-        log.info("MANUAL_STOP %s: set at $%.2f (%.0f bps), current %+.0f bps",
+        log.info("MANUAL_STOP %s: set at $%.2f (≈%.0f bps), current %+.0f bps",
                  sym, stop_usdt, stop_bps, current_bps)
         return JSONResponse({"status": "set", "symbol": sym,
                              "stop_usdt": round(stop_usdt, 2),

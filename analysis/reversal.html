@@ -29,6 +29,13 @@ body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;fon
 .green{color:#3fb950}.red{color:#f85149}.blue{color:#58a6ff}.yellow{color:#d29922}.dim{color:#7d8590}
 .bps-inline{display:none}
 .info-line{display:none}  /* mobile-only labeled info row, hidden on desktop */
+/* v12.5.25: trade history as compact rows (not cards) — scrollable container */
+.trades-scroll{max-height:520px;overflow-y:auto;background:#161b22;border:1px solid #30363d;border-radius:6px}
+.trades-table{width:100%;border-collapse:collapse;font-size:12px}
+.trades-table thead{position:sticky;top:0;background:#1c2128;z-index:1}
+.trades-table th{text-align:left;padding:6px 8px;color:#7d8590;font-size:10px;text-transform:uppercase;border-bottom:1px solid #30363d}
+.trades-table td{padding:5px 8px;border-top:1px solid #21262d;white-space:nowrap}
+.trades-table tbody tr:hover{background:rgba(255,255,255,0.02)}
 .section{padding:10px 20px}
 .section h2{font-size:13px;color:#7d8590;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
 table{width:100%;border-collapse:collapse;background:#161b22;border-radius:8px;overflow:hidden}
@@ -225,20 +232,13 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .header-actions{order:10;width:100%;justify-content:flex-start;overflow-x:auto;margin-left:0!important;scrollbar-width:none}
   .header-actions::-webkit-scrollbar{display:none}
   .activity-bar,#market-bar{padding:6px 12px;flex-wrap:wrap;gap:8px}
-  /* v12.5.23: mobile top cards — Equity full-width and prominent, the rest small + discreet */
-  .cards{grid-template-columns:repeat(3,1fr);display:grid!important;gap:6px;padding:10px 12px}
-  .card{min-width:0;flex:unset;padding:6px 8px;font-size:11px;background:#161b22;border:1px solid #21262d}
-  .card .label{font-size:9px}
-  .card .value{font-size:13px;font-weight:600;margin-top:2px}
+  /* v12.5.25: mobile top cards — all uniform 2-col grid, Utilization hidden */
+  .cards{grid-template-columns:repeat(2,1fr);display:grid!important;gap:6px;padding:10px 12px}
+  .card{min-width:0;flex:unset;padding:8px 10px;font-size:11px;background:#161b22;border:1px solid #21262d}
+  .card .label{font-size:10px}
+  .card .value{font-size:15px;font-weight:600;margin-top:2px}
   .card .sub{font-size:9px;margin-top:1px}
-  /* Equity: full-width, prominent — the main info */
-  .card#card-balance{grid-column:1/-1;padding:14px 14px;background:linear-gradient(135deg,#161b22,#1c2128);border:1px solid #30363d;box-shadow:0 2px 8px rgba(0,0,0,0.3)}
-  .card#card-balance .label{font-size:11px;color:#7d8590}
-  .card#card-balance .value{font-size:30px;font-weight:700;margin-top:4px;letter-spacing:-0.5px}
-  .card#card-balance .sub{font-size:11px;margin-top:4px}
-  /* DD: secondary but still useful — 2nd row full-width with bar */
-  .card#card-dd{grid-column:1/-1;padding:8px 12px}
-  .card#card-dd .value{font-size:14px}
+  .card.card-util{display:none}  /* hidden on mobile per user — not useful */
   .card .value{font-size:15px}
   .section{padding:10px 12px}
   .section h2{font-size:12px}
@@ -394,7 +394,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
   <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">--</div></div>
   <div class="card" id="card-total"><div class="label">Total (real+unreal)</div><div class="value" id="today-pnl">$0.00</div></div>
-  <div class="card"><div class="label">Utilization</div><div class="value" id="util-pct">0%</div></div>
+  <div class="card card-util"><div class="label">Utilization</div><div class="value" id="util-pct">0%</div></div>
   <div class="card" id="card-fees"><div class="label">Frais exchange</div><div class="value red" id="fees-total">--</div><div class="sub dim" id="fees-detail">--</div></div>
   <div class="card" id="card-s10" title="S10 rolling P&L over last 30d — walk-forward filter health">
     <div class="label">S10 30d <span id="s10-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:4px;vertical-align:middle"></span></div>
@@ -438,10 +438,12 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 </div>
 
 <div class="section" data-block="trade-history" hidden>
-  <h2>Trade History</h2>
-  <table class="responsive"><thead><tr>
-    <th>Time</th><th>Symbol</th><th>Strat</th><th>Side</th><th>Gross</th><th>Net</th><th>P&L</th><th>Hold</th><th>Exit</th>
-  </tr></thead><tbody id="trades-body"></tbody></table>
+  <h2>Trade History <span class="dim" style="font-size:12px;font-weight:400">— 20 derniers</span></h2>
+  <div class="trades-scroll">
+    <table class="trades-table"><thead><tr>
+      <th>Time</th><th>Sym</th><th>St</th><th>Side</th><th>Gross</th><th>Net</th><th>P&L</th><th>Hold</th><th>Exit</th>
+    </tr></thead><tbody id="trades-body"></tbody></table>
+  </div>
 </div>
 
 <div class="section" data-block="sector-overview" hidden>
@@ -602,12 +604,12 @@ function positionStrip(p,w=180,h=20){
   return svg;
 }
 function holdBar(prog, heldH, totalH){
-  // v12.5.11: visible progress bar with held / total displayed inside.
-  // Color gradient shifts toward red as the position nears timeout.
+  // v12.5.25: explicit "écoulé / total" label, no more ambiguous "X / Y"
+  // The bar fills LEFT→RIGHT proportional to time elapsed (prog = held/total).
   const pct=Math.round(prog*100);
   const held=(heldH!=null)?heldH.toFixed(1)+'h':'';
   const total=(totalH!=null)?totalH.toFixed(0)+'h':'';
-  const label=(held&&total)?`${held} / ${total}`:`${pct}%`;
+  const label=(held&&total)?`${held} écoulé / ${total} total`:`${pct}%`;
   return `<div class="hold-progress" title="${pct}% du hold écoulé"><div class="fill" style="width:${pct}%"></div><div class="label">${label}</div></div>`;
 }
 function sparkline(traj,entryPx,dirSign,w=70,h=24){
@@ -1292,7 +1294,7 @@ function refreshTrades(){
   fetch('api/trades',{credentials:'same-origin'}).then(r=>r.json()).then(trades=>{
     const tb=document.getElementById('trades-body');
     tb.innerHTML='';
-    trades.forEach(t=>{
+    trades.slice(0,20).forEach(t=>{  // v12.5.25: cap at 20 most recent
       const tr=document.createElement('tr');
       const sc=t.direction==='LONG'?'green':'red';
       const _d=new Date(t.exit_time);const time=`${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')} ${String(_d.getHours()).padStart(2,'0')}:${String(_d.getMinutes()).padStart(2,'0')}`;
