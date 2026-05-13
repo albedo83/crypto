@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.19] — 2026-05-13
+- **Dashboard mobile open-positions: sparkline + stop-info share a row** (≤640px). The price sparkline (with the current price label moved BELOW it instead of beside) now takes ~42% of the card width on the left; the stop info (positionStrip + stop/MAE meta) takes the remaining width on the right — same row. Trims another ~30px of card height. Desktop layout untouched.
+
 ## [12.5.18] — 2026-05-13
 - **Dashboard mobile open-positions: space-optimized layout** (≤640px). Sharing rows for compactness: (a) the two action buttons (🎯, ✕) now sit **next to** the hold progress bar (same row, right corner) instead of a dedicated row — saves ~40px height. (b) The price sparkline and the current-price label are now on the **same row** (sparkline left at ~65% width, price right-aligned). P&L row stays compact with bps inline AND 🎯 stop badge inline (instead of the badge wrapping to a second line). Resulting card ~25% shorter than v12.5.17. Desktop layout untouched.
 

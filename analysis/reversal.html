@@ -284,12 +284,11 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   /* Compact icon buttons next to the progress bar */
   [data-block="open-positions"] td.pos-close button{padding:5px 9px!important;font-size:13px!important;width:auto!important;min-width:32px;margin:0!important;border-radius:5px;line-height:1.1}
   [data-block="open-positions"] td.pos-close button:nth-child(2){background:#da3633;flex:0 0 auto}
-  /* Row 3 SHARED: sparkline (left) + current price (right) */
-  [data-block="open-positions"] td.pos-spark{order:7;flex:1 1 100%;display:flex;flex-direction:row;align-items:center;justify-content:flex-start;gap:10px;margin-top:8px;padding:4px 6px;background:rgba(255,255,255,0.02);border-radius:6px}
-  [data-block="open-positions"] td.pos-spark svg{flex:0 0 auto;max-width:65%;height:auto}
-  [data-block="open-positions"] td.pos-spark .spark-price{flex:1;font-size:13px;font-weight:600;color:#c9d1d9;text-align:right;letter-spacing:0}
-  /* Row 4: stop info */
-  [data-block="open-positions"] td.pos-unrealized{order:8;flex:1 1 100%;font-size:11px;gap:6px;overflow:hidden;flex-wrap:wrap;margin-top:6px}
+  /* Row 3 SHARED: sparkline (left, with price below) + stop info (right) on same row */
+  [data-block="open-positions"] td.pos-spark{order:7;flex:0 0 42%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;margin-top:8px;padding:4px 6px;background:rgba(255,255,255,0.02);border-radius:6px;align-self:stretch}
+  [data-block="open-positions"] td.pos-spark svg{flex:0 0 auto;width:100%;max-height:32px;height:auto}
+  [data-block="open-positions"] td.pos-spark .spark-price{flex:0 0 auto;font-size:11px;font-weight:600;color:#c9d1d9;text-align:center;letter-spacing:0}
+  [data-block="open-positions"] td.pos-unrealized{order:8;flex:1 1 0;font-size:11px;gap:4px;overflow:hidden;flex-wrap:wrap;margin-top:8px;margin-left:8px;align-self:stretch;flex-direction:column;align-items:flex-start;justify-content:center}
   [data-block="open-positions"] td.pos-unrealized svg{flex-shrink:0;max-width:100%}
   [data-block="open-positions"] td.pos-detail{order:10;display:none;flex:1 1 100%;justify-content:space-between;font-size:11px;padding:3px 0;border-top:1px dashed #30363d;margin-top:2px}
   [data-block="open-positions"] td.pos-detail::before{display:inline;content:attr(data-label);color:#7d8590;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-right:8px}
