@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.13] — 2026-05-13
+- **Dashboard equity card switched to deterministic formula**. The "Equity" card now displays `capital + realized + sum(positions.unrealized_at_current_price)` — computed at every `/api/state` request from the latest market prices. Replaces the previous `bot._exchange_account.equity` which depends on HL's two info APIs (`user_state` + `spot_user_state`) and can be transiently incorrect when those APIs return desynchronised data. The internal formula is stable, doesn't depend on HL data races, and updates in real-time as prices move (5s dashboard refresh × per-position price snapshot). HL equity is still computed in the background (10s refresh, down from 15s in v12.5.12) and exposed as `s.hl_equity` in /api/state for cross-checking by the drift-alert system.
+
 ## [12.5.12] — 2026-05-13
 - **Live exchange refresh**: dedicated 15s loop refreshes the displayed Equity, Unrealized, Margin and Available fields. Only the cheap `user_state` + `spot_user_state` calls run on this fast path; the expensive `user_fills_by_time` + `user_funding_history` calls (taker fees, funding paid, closed PnL) stay on the 60s main loop. Eliminates the ±$15-30 jumps users saw at restart when a stale 60s-old `spot.hold` value snapped to fresh. New helper `exchange.fetch_equity_only()`; new method `bot.equity_refresh_loop()`; new task spawned in `main.py` for live bots only (paper / Junior-with-no-key skip it).
 

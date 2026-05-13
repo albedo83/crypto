@@ -82,16 +82,30 @@ def build_daily_summary(bot) -> str:
     today = datetime.now(timezone.utc).isoformat()[:10]
     cap = bot._capital
     realized = bot._total_pnl
-    # Card 1 — Equity: real HL equity on live, else internal balance
+    # Card 1 — Equity: internal accounting (capital + realized + sum of open
+    # positions' unrealized at current price). v12.5.13 switch: was previously
+    # reading bot._exchange_account.equity, which can be transiently incorrect
+    # when HL's two info APIs (user_state vs spot_user_state) return
+    # desynchronised data. The internal formula is deterministic, refreshes on
+    # every /api/state call from the latest market price, and won't show
+    # phantom jumps. HL equity is kept in exchange_account for the drift alert
+    # system and is exposed separately as `hl_equity` for cross-checking.
     acct = bot._exchange_account
-    if acct and "equity" in acct:
-        equity = float(acct["equity"])
-        equity_label = "Equity (HL)"
-    else:
-        equity = cap + realized
-        equity_label = "Balance"
+    now_eq = datetime.now(timezone.utc)
+    sum_unreal = 0.0
+    with bot._pos_lock:
+        _pos_iter = list(bot.positions.values())
+    for _p in _pos_iter:
+        _st = bot.states.get(_p.symbol)
+        _px = _st.price if _st and _st.price > 0 else _p.entry_price
+        if _p.entry_price > 0:
+            _ur = _p.direction * (_px / _p.entry_price - 1) * 1e4
+            sum_unreal += _p.size_usdt * _ur / 1e4
+    equity = cap + realized + sum_unreal
+    equity_label = "Equity"
     equity_delta = equity - cap
     equity_pct = (equity_delta / cap * 100) if cap > 0 else 0
+    hl_equity = float(acct["equity"]) if acct and "equity" in acct else None
     # Card 2 — Total P&L: realized + percentage
     ab = [t for t in bot.trades if is_bot_trade(t)]
     n = len(ab)
@@ -311,6 +325,8 @@ def build_state_response(bot) -> dict:
         "paused": bot._paused, "running": bot.running,
         "degraded": list(bot._degraded), "loss_streak": bot._consecutive_losses,
         "balance": round(balance, 2), "capital": bot._capital,
+        "equity": round(equity, 2),  # v12.5.13 = balance + sum_unrealized (deterministic)
+        "hl_equity": round(hl_equity, 2) if hl_equity is not None else None,
         "exchange_account": bot._exchange_account,  # real exchange balance (live only)
         "total_pnl": round(bot._total_pnl, 2), "total_trades": n_bot,
         "win_rate": round(wins / n_bot, 3) if n_bot > 0 else 0,

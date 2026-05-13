@@ -711,17 +711,18 @@ function refresh(){
     _nextScan=s.next_scan_s;
     _scanInterval=s.scan_interval||3600;
 
-    // Equity: use exchange account if available (live), else simulated balance
+    // Equity (v12.5.13): use s.equity (deterministic: capital + realized + sum_unrealized).
+    // exchange_account.equity stays for the optional HL cross-check footer.
     const acct=s.exchange_account;
+    const equity=(s.equity!=null)?s.equity:s.balance;
+    document.getElementById('balance').textContent='$'+equity.toFixed(2);
     if(acct){
-      document.getElementById('balance').textContent='$'+acct.equity.toFixed(2);
       document.getElementById('capital').textContent='Available: $'+acct.available.toFixed(0)+' | Margin: $'+acct.margin_used.toFixed(0);
       const urEl=document.getElementById('unrealized');
       urEl.textContent='$'+fmt(acct.unrealized);
       urEl.className='value '+cls(acct.unrealized);
       document.getElementById('available').textContent='P&L bot: $'+fmt(s.total_pnl);
     } else {
-      document.getElementById('balance').textContent='$'+s.balance.toFixed(2);
       document.getElementById('capital').textContent='Capital: $'+s.capital.toFixed(0);
       const urEl=document.getElementById('unrealized');
       const unrealTotal=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);

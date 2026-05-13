@@ -385,7 +385,7 @@ class MultiSignalBot:
                             self._exchange_account.update(fast)
             except Exception:
                 log.exception("equity_refresh_loop error")
-            await asyncio.sleep(15)
+            await asyncio.sleep(10)
 
     async def main_loop(self):
         """Two cadences: prices every 60s (for stop checks), full scan every hour."""
