@@ -249,7 +249,8 @@ def run_window(features, data, sector_features, dxy_data,
                early_mae_exit: dict | None = None,
                interval_hours: int = 4,
                funding_data: dict | None = None,
-               apply_adaptive_modulator: bool = False) -> dict:
+               apply_adaptive_modulator: bool = False,
+               inlife_exit_extra=None) -> dict:
     """Run the portfolio backtest on a time window.
 
     `interval_hours` (default 4) tells the engine how many hours each candle
@@ -273,6 +274,23 @@ def run_window(features, data, sector_features, dxy_data,
     trailing_extra (optional): adds a trailing-stop rule to a non-S10 strategy
         dict with keys: strategy (e.g. "S5"), trigger_bps, offset_bps.
         When MFE >= trigger_bps and current drops to MFE - offset_bps, exit.
+
+    inlife_exit_extra (optional): research hook for in-life exit rules. A
+        callable that receives a per-position snapshot dict and returns
+        (should_exit: bool, reason: str). Invoked in the exit chain just
+        BEFORE the dead_timeout block so rollback rules can fire while MFE
+        is still recent. Snapshot schema:
+            symbol            (str)   pos["coin"]
+            strat             (str)   pos["strat"]
+            dir               (int)   +1 LONG / -1 SHORT
+            hold_h            (float) hours since entry
+            hold_max_h        (float) max hold in hours
+            mfe_bps           (float) best unrealized in bps
+            mae_bps           (float) worst unrealized in bps
+            cur_bps           (float) current unrealized in bps
+            time_since_mfe_h  (float) hours since last new MFE high
+            btc_z             (float) BTC z-score at ts (0.0 if unavailable)
+            ts_ms             (int)   current candle timestamp (ms)
     """
     coins = [c for c in TOKENS if c in features and c in data]
     macro_strats = set(MACRO_STRATEGIES)
@@ -377,6 +395,7 @@ def run_window(features, data, sector_features, dxy_data,
                 worst_bps = -(candle["h"] / pos["entry"] - 1) * 1e4
             if best_bps > pos.get("mfe", 0):
                 pos["mfe"] = best_bps
+                pos["mfe_held"] = held
             if worst_bps < pos.get("mae", 0):
                 pos["mae"] = worst_bps
 
@@ -494,6 +513,35 @@ def run_window(features, data, sector_features, dxy_data,
                     ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
                     if ur_bps <= mfe - S10_TRAILING_OFFSET:
                         exit_reason = "s10_trailing"
+
+            # Optional in-life exit (research hook — Families A/B/C from
+            # docs/superpowers/specs/2026-05-14-inlife-exit-design.md).
+            # Generic callable; sees a per-position snapshot and returns
+            # (should_exit, reason). Inserted BEFORE dead_timeout so that
+            # rollback rules can fire while MFE is still recent.
+            if not exit_reason and inlife_exit_extra is not None:
+                cur_bps_il = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                mfe_bps_il = pos.get("mfe", 0.0)
+                mae_bps_il = pos.get("mae", 0.0)
+                held_h_il = held * interval_hours
+                mfe_peak_held = pos.get("mfe_held", held)
+                time_since_mfe_h = (held - mfe_peak_held) * interval_hours
+                snap = {
+                    "symbol": pos["coin"],
+                    "strat":  pos["strat"],
+                    "dir":    pos["dir"],
+                    "hold_h": held_h_il,
+                    "hold_max_h": pos["hold"] * interval_hours,
+                    "mfe_bps": mfe_bps_il,
+                    "mae_bps": mae_bps_il,
+                    "cur_bps": cur_bps_il,
+                    "time_since_mfe_h": time_since_mfe_h,
+                    "btc_z":  btc_z_map.get(ts, 0.0) if btc_z_map else 0.0,
+                    "ts_ms":  ts,
+                }
+                res = inlife_exit_extra(snap)
+                if res and res[0]:
+                    exit_reason = res[1] or "inlife_exit"
 
             # Dead-timeout early exit (option D): if trade is close to timeout,
             # has never shown meaningful MFE, and is still pinned near its MAE,
@@ -759,7 +807,7 @@ def run_window(features, data, sector_features, dxy_data,
                 "strat": cand["strat"], "hold": cand["hold"],
                 "size": size, "coin": coin,
                 "stop": cand.get("stop", 0),
-                "mfe": 0.0, "mae": 0.0,
+                "mfe": 0.0, "mae": 0.0, "mfe_held": 0,
             }
             if cand["dir"] == 1:
                 n_long += 1
