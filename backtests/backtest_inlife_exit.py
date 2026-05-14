@@ -191,7 +191,131 @@ def run_family_A(ctx, quick=False):
               f"offset={w['params']['offset_bps']}  Δpnl avg={avg_pnl:+.1f}pp  ΔDD avg={avg_dd:+.2f}pp")
 
     _save_results("A1", winners_A1, base, results)
-    return winners_A1
+    if winners_A1:
+        print("\n→ A.1 has winners — skipping A.2 per parsimony rule (spec §3)")
+        return winners_A1
+    print("\n→ A.1 has 0 winners — running A.2")
+    winners_A2 = run_family_A2(ctx, base, specs)
+    _save_results("A2", winners_A2, base, {})
+    return winners_A1 + winners_A2
+
+
+# ── Family A.2 — regime-conditioned MFE trail ──────────────────────
+A2_REGIME_BUCKETS = [("bear", -10.0, -0.5), ("neutral", -0.5, 0.5), ("bull", 0.5, 10.0)]
+
+
+def regime_bucket(z: float) -> str:
+    for name, lo, hi in A2_REGIME_BUCKETS:
+        if lo <= z < hi:
+            return name
+    return "neutral"
+
+
+def make_A2_filtered_rule(strat: str, bucket_name: str, activation_bps: int, offset_bps: int):
+    """A.2 rule that only fires when in a specific regime bucket."""
+    def hook(snap):
+        if snap["strat"] != strat:
+            return False, ""
+        if regime_bucket(snap.get("btc_z", 0.0)) != bucket_name:
+            return False, ""
+        if snap["mfe_bps"] < activation_bps:
+            return False, ""
+        if snap["cur_bps"] <= snap["mfe_bps"] - offset_bps:
+            return True, f"{strat.lower()}_inlife_A2"
+        return False, ""
+    return hook
+
+
+def make_A2_composite_rule(strat: str, params_by_bucket: dict):
+    """Composite: each bucket has its own (act, off). Bucket with params (99999, 0) never fires."""
+    def hook(snap):
+        if snap["strat"] != strat:
+            return False, ""
+        b = regime_bucket(snap.get("btc_z", 0.0))
+        act, off = params_by_bucket.get(b, (99999, 0))
+        if snap["mfe_bps"] < act:
+            return False, ""
+        if snap["cur_bps"] <= snap["mfe_bps"] - off:
+            return True, f"{strat.lower()}_inlife_A2"
+        return False, ""
+    return hook
+
+
+def run_family_A2(ctx, base, specs):
+    """Per (strat, bucket), find best (act, off). Then compose final per-strat rule
+    and verify 4/4. Returns list of robust composite candidates."""
+    import time
+    from collections import defaultdict
+    print("\n— Family A.2 — per-regime sweep —")
+    n_combos = len(STRATS) * len(A2_REGIME_BUCKETS) * len(A1_ACTIVATIONS) * len(A1_OFFSETS)
+    print(f"A.2 grid: {n_combos} per-bucket combos × {len(specs)} windows = {n_combos*len(specs)} run_window calls")
+
+    # Step 1: per (strat, bucket), sweep 20 combos
+    winners_by_bucket = defaultdict(list)
+    t0 = time.time()
+    n_done = 0
+    for strat in STRATS:
+        for bname, _, _ in A2_REGIME_BUCKETS:
+            for act in A1_ACTIVATIONS:
+                for off in A1_OFFSETS:
+                    hook = make_A2_filtered_rule(strat, bname, act, off)
+                    d_pnl, d_dd = [], []
+                    for label, s, e in specs:
+                        r = run_one(ctx, s, e, hook=hook)
+                        d_pnl.append(r["pnl_pct"] - base[label]["pnl_pct"])
+                        d_dd.append(r["max_dd_pct"] - base[label]["max_dd_pct"])
+                    # Bucket may be empty in some windows → use >= instead of strict >
+                    if all(d >= 0 for d in d_pnl) and (sum(d_dd)/len(d_dd) <= 1.0):
+                        winners_by_bucket[(strat, bname)].append(dict(
+                            act=act, off=off,
+                            d_pnl_avg=sum(d_pnl)/len(d_pnl),
+                            d_pnl=d_pnl, d_dd=d_dd,
+                        ))
+                    n_done += 1
+                    elapsed = time.time() - t0
+                    if n_done % 10 == 0:
+                        print(f"  [{n_done:3d}/{n_combos}] {strat} {bname} act={act} off={off}  elapsed={elapsed:.0f}s")
+
+    # Step 2: best per (strat, bucket)
+    print("\nBest combo per (strat, bucket):")
+    best_per_bucket = {}
+    for (strat, bname), cands in winners_by_bucket.items():
+        if cands:
+            best = max(cands, key=lambda c: c["d_pnl_avg"])
+            best_per_bucket[(strat, bname)] = best
+            print(f"  {strat:>3} {bname:<8}: act={best['act']:>5} off={best['off']:>4}  Δpnl avg={best['d_pnl_avg']:+.1f}pp  ΔDD avg={sum(best['d_dd'])/4:+.2f}pp")
+        else:
+            print(f"  {strat:>3} {bname:<8}: no improving combo")
+
+    # Step 3: compose + verify
+    print("\nComposite rules:")
+    winners_A2 = []
+    for strat in STRATS:
+        params = {}
+        for bname, _, _ in A2_REGIME_BUCKETS:
+            if (strat, bname) in best_per_bucket:
+                b = best_per_bucket[(strat, bname)]
+                params[bname] = (b["act"], b["off"])
+            else:
+                params[bname] = (99999, 0)
+        hook = make_A2_composite_rule(strat, params)
+        d_pnl, d_dd = [], []
+        for label, s, e in specs:
+            r = run_one(ctx, s, e, hook=hook)
+            d_pnl.append(r["pnl_pct"] - base[label]["pnl_pct"])
+            d_dd.append(r["max_dd_pct"] - base[label]["max_dd_pct"])
+        avg_dd = sum(d_dd) / len(d_dd)
+        is_robust = all(d > 0 for d in d_pnl) and (avg_dd <= 1.0)
+        mark = "✓" if is_robust else " "
+        print(f"  {strat} composed {params}:")
+        print(f"    Δpnl: " + " ".join(f"{d:+8.1f}" for d in d_pnl) + f"  ΔDD avg={avg_dd:+.2f}pp  {mark}")
+        if is_robust:
+            winners_A2.append(dict(
+                family="A.2", strat=strat, params=params,
+                d_pnl=d_pnl, d_dd=d_dd,
+            ))
+    print(f"\nA.2 winners (strict 4/4 + ΔDD avg ≤+1pp): {len(winners_A2)}")
+    return winners_A2
 
 
 # ── Family B — placeholder, filled in Task 5 ───────────────────────
