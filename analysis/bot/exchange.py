@@ -7,10 +7,41 @@ from __future__ import annotations
 
 import logging
 import time
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTO
 
 from .config import TRADE_SYMBOLS, LEVERAGE
 
 log = logging.getLogger("multisignal")
+
+# v12.5.29: bounded executor + per-call timeout cap for SDK calls. Hyperliquid's
+# SDK doesn't expose request timeouts on market_open/close — a hung HTTP call
+# previously stalled close_position indefinitely with the _closing mutex held,
+# locking the symbol out of management until reboot. ThreadPoolExecutor.submit
+# + future.result(timeout=) lets the caller unblock; the underlying thread
+# keeps running (best-effort cancel) but the bot resumes scanning.
+#
+# NOTE: we deliberately do NOT wrap SDK access in a process-wide lock. A single
+# hung call would otherwise paralyze every subsequent SDK operation until
+# restart (lock acquisition would itself time out). requests.Session is
+# documented thread-safe for stateless GET/POST; if torn responses ever surface
+# under load, a lock can be added later — but the catastrophic-failure mode
+# of lock-based serialization is worse than the rare-race mode without it.
+_SDK_EXECUTOR = ThreadPoolExecutor(max_workers=6, thread_name_prefix="hl-sdk")
+
+
+def _sdk_call(fn, *args, timeout: float = 20.0, **kwargs):
+    """Run a Hyperliquid SDK call with a timeout cap.
+
+    Raises TimeoutError if the call doesn't return within `timeout` seconds.
+    The underlying thread may still be running — acceptable because SDK calls
+    are idempotent reads (user_state, user_fills_by_time) or already-sent
+    orders whose effect is reconciled on the next scan.
+    """
+    fut = _SDK_EXECUTOR.submit(fn, *args, **kwargs)
+    try:
+        return fut.result(timeout=timeout)
+    except _FTO:
+        raise TimeoutError(f"SDK call {fn.__name__} exceeded {timeout}s")
 
 
 def init_exchange(private_key: str, account_address: str = "") -> tuple:
@@ -88,7 +119,10 @@ def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
 
     side_str = "BUY" if is_buy else "SELL"
     log.info("EXEC OPEN: %s %s sz=%s (~$%.0f)", side_str, sym, sz, sz * price)
-    result = exchange.market_open(sym, is_buy, sz, slippage=0.01)
+    # v12.5.29: timeout-capped + serialized via _sdk_call. Without it a hung
+    # SDK request would stall the calling scan thread indefinitely.
+    result = _sdk_call(exchange.market_open, sym, is_buy, sz, slippage=0.01,
+                       timeout=20.0)
 
     # Validate response
     statuses = result.get("response", {}).get("data", {}).get("statuses", [])
@@ -103,17 +137,28 @@ def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
     # cap — in that case `totalSz` is smaller than the requested `sz`. Returning
     # the requested sz instead of `totalSz` would inflate Position.size_usdt and
     # surface as a hourly RECONCILE SIZE MISMATCH alert until close.
+    # v12.5.29: validate avgPx > 0 and sz > 0. A malformed filled response with
+    # avgPx="0" would otherwise propagate as entry_price=0 and crater the P&L
+    # formula (divide-by-zero in check_exits, or a fake -10000 bps gross).
     filled = first.get("filled") if isinstance(first, dict) else None
     if filled and "avgPx" in filled:
-        actual_sz = float(filled.get("totalSz", sz))
-        return {"avgPx": float(filled["avgPx"]), "sz": actual_sz}
+        try:
+            avg_px = float(filled["avgPx"])
+            actual_sz = float(filled.get("totalSz", sz))
+        except (TypeError, ValueError):
+            avg_px, actual_sz = 0.0, 0.0
+        if avg_px > 0 and actual_sz > 0:
+            return {"avgPx": avg_px, "sz": actual_sz}
+        log.warning("OPEN %s: invalid avgPx=%s sz=%s in filled response — falling back to user_fills",
+                    sym, filled.get("avgPx"), filled.get("totalSz"))
 
     # Fallback: query fills API (may lag a few hundred ms behind L1).
     # Sum sz across recent fills on this coin to handle multi-fill orders.
     try:
         time.sleep(0.5)
-        fills = hl_info.user_fills_by_time(
-            address, int((time.time() - 30) * 1000))
+        fills = _sdk_call(hl_info.user_fills_by_time,
+                          address, int((time.time() - 30) * 1000),
+                          timeout=10.0)
         coin_fills = [f for f in fills if f.get("coin") == sym]
         if coin_fills:
             total_sz = sum(float(f["sz"]) for f in coin_fills)
@@ -135,7 +180,10 @@ def execute_close(exchange, hl_info, address: str, sym: str) -> dict | None:
     market price + tracked size.
     """
     log.info("EXEC CLOSE: %s", sym)
-    result = exchange.market_close(sym, slippage=0.01)
+    # v12.5.29: timeout-capped + serialized. Hung close was the worst case —
+    # _closing mutex held forever, position stuck outside management.
+    result = _sdk_call(exchange.market_close, sym, slippage=0.01,
+                       timeout=20.0)
 
     statuses = result.get("response", {}).get("data", {}).get("statuses", [])
     if not statuses:
@@ -144,15 +192,27 @@ def execute_close(exchange, hl_info, address: str, sym: str) -> dict | None:
     if "error" in str(first).lower():
         raise RuntimeError(f"Close error: {first}")
 
+    # v12.5.29: validate avgPx > 0 and totalSz > 0 (see execute_open rationale).
+    # A zero avgPx propagated as exit_price would book a synthetic -10000 bps
+    # gross PnL — catastrophic. Fall through to user_fills_by_time on failure.
     filled = first.get("filled") if isinstance(first, dict) else None
     if filled and "avgPx" in filled and "totalSz" in filled:
-        return {"avgPx": float(filled["avgPx"]), "sz": float(filled["totalSz"])}
+        try:
+            avg_px = float(filled["avgPx"])
+            total_sz = float(filled["totalSz"])
+        except (TypeError, ValueError):
+            avg_px, total_sz = 0.0, 0.0
+        if avg_px > 0 and total_sz > 0:
+            return {"avgPx": avg_px, "sz": total_sz}
+        log.warning("CLOSE %s: invalid avgPx=%s sz=%s in filled response — falling back to user_fills",
+                    sym, filled.get("avgPx"), filled.get("totalSz"))
 
     # Fallback: query fills API and sum recent fills on this coin.
     try:
         time.sleep(0.5)
-        fills = hl_info.user_fills_by_time(
-            address, int((time.time() - 30) * 1000))
+        fills = _sdk_call(hl_info.user_fills_by_time,
+                          address, int((time.time() - 30) * 1000),
+                          timeout=10.0)
         coin_fills = [f for f in fills if f.get("coin") == sym]
         if coin_fills:
             total_sz = sum(float(f["sz"]) for f in coin_fills)
@@ -176,7 +236,8 @@ def fetch_position_funding(hl_info, address: str, coin: str,
         return 0.0
     try:
         # HL API requires a time window; grab slightly wider and filter
-        hist = hl_info.user_funding_history(address, start_ms, end_ms)
+        hist = _sdk_call(hl_info.user_funding_history, address, start_ms, end_ms,
+                         timeout=10.0)
         total = 0.0
         for ev in hist:
             if ev.get("delta", {}).get("coin") != coin:
@@ -200,8 +261,8 @@ def fetch_equity_only(hl_info, address: str) -> dict | None:
     if not hl_info:
         return None
     try:
-        state = hl_info.user_state(address)
-        spot = hl_info.spot_user_state(address)
+        state = _sdk_call(hl_info.user_state, address, timeout=10.0)
+        spot = _sdk_call(hl_info.spot_user_state, address, timeout=10.0)
         spot_usdc = 0.0
         spot_hold = 0.0
         for b in spot.get("balances", []):
@@ -234,8 +295,8 @@ def fetch_account_state(hl_info, address: str) -> dict | None:
     if not hl_info:
         return None
     try:
-        state = hl_info.user_state(address)
-        spot = hl_info.spot_user_state(address)
+        state = _sdk_call(hl_info.user_state, address, timeout=10.0)
+        spot = _sdk_call(hl_info.spot_user_state, address, timeout=10.0)
 
         # Spot USDC: total includes the cross-margin "hold" (collateral
         # earmarked for perps); we capture both to avoid double-counting.
@@ -271,13 +332,15 @@ def fetch_account_state(hl_info, address: str) -> dict | None:
         start_ms = int((_time.time() - 90 * 86400) * 1000)
         end_ms = int(_time.time() * 1000)
         try:
-            fills = hl_info.user_fills_by_time(address, start_ms, end_ms)
+            fills = _sdk_call(hl_info.user_fills_by_time, address, start_ms, end_ms,
+                              timeout=15.0)
             taker_fees = sum(float(f.get("fee", 0)) for f in fills)
             closed_pnl = sum(float(f.get("closedPnl", 0)) for f in fills)
         except Exception:
             taker_fees, closed_pnl = 0.0, 0.0
         try:
-            funding_hist = hl_info.user_funding_history(address, start_ms, end_ms)
+            funding_hist = _sdk_call(hl_info.user_funding_history, address, start_ms, end_ms,
+                                     timeout=15.0)
             funding_paid = sum(float(f["delta"]["usdc"]) for f in funding_hist)
         except Exception:
             funding_paid = 0.0
@@ -309,7 +372,7 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
     if not hl_info:
         return
     try:
-        state = hl_info.user_state(address)
+        state = _sdk_call(hl_info.user_state, address, timeout=10.0)
         exchange_positions: dict[str, dict] = {}
         for pos in state.get("assetPositions", []):
             p = pos["position"]

@@ -138,7 +138,20 @@ def send_telegram(msg: str, category: str = "other") -> None:
             req = urllib.request.Request(
                 f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage",
                 data=payload, headers={"Content-Type": "application/json"})
-            urllib.request.urlopen(req, timeout=5)
+            # v12.5.29: read body and verify ok:true. urlopen returns 200 even
+            # when Telegram rejects the message (rate-limit 429, bad chat_id,
+            # invalid markdown) — the failure is in the JSON body. Silently
+            # losing alerts on rate-limits or template breakage is unsafe.
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                body = resp.read()
+            try:
+                parsed = json.loads(body)
+            except (json.JSONDecodeError, ValueError):
+                log.warning("Telegram non-JSON body (first 200B): %r", body[:200])
+                return
+            if not parsed.get("ok"):
+                log.warning("Telegram non-OK: %s",
+                            parsed.get("description") or parsed)
         except Exception as e:
             log.warning("Telegram error: %s", e)
 

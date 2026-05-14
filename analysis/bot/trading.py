@@ -223,19 +223,20 @@ def check_exits(bot) -> int:
             # Stop triggered at bps=stop: synthetic price = entry × (1 + dir × stop/1e4)
             exit_price = entry_price * (1 + direction * stop / 1e4)
         elif pos.manual_stop_usdt is not None and (
-                pos.size_usdt * unrealized / 1e4) <= pos.manual_stop_usdt:
-            # v12.5.25: compare current pnl_usdt directly to the user-stated
-            # manual_stop_usdt. Previous v12.5.10 stored a converted bps and
-            # the recorded P&L could differ from the user's intended dollar
-            # value (notional growth on winners over-locked, e.g. INJ user
-            # set $40 → realized $47 because the open-notional formula
-            # multiplied the bps stop by the close-time size).
-            # The dollar threshold is now exact: exit_price gives precisely
-            # the requested pnl_usdt at the open-notional reconciled size.
+                pos.size_usdt * (unrealized - COST_BPS) / 1e4) <= pos.manual_stop_usdt:
+            # v12.5.29: compare NET pnl (after estimated COST_BPS) to the
+            # user-stated dollar threshold. Earlier v12.5.25 compared gross
+            # unrealized × notional, which over-shot the user's threshold by
+            # ~COST_BPS in dollars — a $40 stop locked $40 gross but only
+            # ~$39.50 net after taker fees, slippage and the flat funding drag.
+            # The synthetic exit_price reproduces the user's net target exactly:
+            #   size × (gross_bps - COST_BPS) / 1e4 = manual_stop_usdt
+            # In live mode close_position overrides exit_price with the real
+            # avgPx and reapplies real funding history; the user's net target
+            # is preserved up to a few bps of funding noise (FUNDING_DRAG_BPS).
             exit_reason = "manual_stop_set"
-            # Equivalent bps for the synthetic exit price (same dir convention)
-            equiv_stop_bps = pos.manual_stop_usdt / pos.size_usdt * 1e4
-            exit_price = entry_price * (1 + direction * equiv_stop_bps / 1e4)
+            target_gross_bps = pos.manual_stop_usdt / pos.size_usdt * 1e4 + COST_BPS
+            exit_price = entry_price * (1 + direction * target_gross_bps / 1e4)
         elif strategy == "S9" and hours_held >= S9_EARLY_EXIT_HOURS and unrealized < S9_EARLY_EXIT_BPS:
             exit_reason = "s9_early_exit"
             exit_price = entry_price * (1 + direction * S9_EARLY_EXIT_BPS / 1e4)

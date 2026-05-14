@@ -1,5 +1,19 @@
 # Changelog
 
+## [12.5.29] — 2026-05-13
+Hardening pass on bugs surfaced by a multi-agent code review. No strategy or sizing changes; only correctness/safety fixes. Backtests unaffected.
+- **`avgPx > 0` validation on live order responses** (`exchange.py`). Previously a malformed `filled` block with `"avgPx": "0"` was cast to 0.0 and returned silently; downstream code booked it as `entry_price = 0` (divide-by-zero in `check_exits`) or `exit_price = 0` (synthetic `-10000 bps` gross). Both `execute_open` and `execute_close` now fall through to the `user_fills_by_time` lookup when the response is invalid.
+- **Manual stop now compares NET P&L** (after `COST_BPS`) to the user-stated `stop_usdt`. The v12.5.25 check used gross unrealized × notional which over-shot by ~`COST_BPS` in dollars — a $40 stop locked $40 gross but only ~$39.50 net. The synthetic exit price reproduces the user's net dollar target precisely. Validation in `/api/manual_stop` aligned.
+- **`send_telegram` now verifies `ok:true`** in the response body (`net.py`). urlopen returns 200 even when Telegram rejects the message (429 rate-limit, bad chat_id, markdown breakage). Silently losing alerts on rate-limits or template breakage was a regression introduced when the `urlopen(...)` return value stopped being read; now logged at WARNING with the API's `description` field.
+- **Boot reconcile: two-attempt confirmation** (`main.py`). Previously a single transient HL response (cache lag, partial data, network glitch) was enough to silently drop a real position from `bot.positions`, leaving it open on the exchange outside the bot's stop-loss management. Now a position is dropped only if BOTH consecutive `user_state()` calls confirm its absence. Symbols missing from only one of the two attempts are flagged `DISPUTED` and KEPT.
+- **Web API hardening** (`web.py`):
+  - JSON body parse errors return 400 (not 500 stacktrace) on `/api/manual_stop` and `/api/capital`.
+  - NaN/inf rejected on `stop_usdt` and `amount` (would otherwise corrupt `pos.manual_stop_usdt` / `bot._capital` and propagate to every P&L).
+  - Symbol whitelisted against `TRADE_SYMBOLS` before logging on `/api/manual_stop` (log forgery protection).
+  - `/logout` bumps a server-side revocation epoch — sessions issued before the epoch are invalidated. Without this, `delete_cookie` was client-side only and a stolen cookie remained valid for 30 days.
+  - Per-IP rate-limit (30 / minute) on all mutating endpoints (POST/PUT/DELETE/PATCH). Prevents a stolen-cookie attacker from spamming `/api/reset`, `/api/close`, or `/api/capital`.
+- **SDK timeout cap on Hyperliquid calls** (`exchange.py`). `market_open`, `market_close`, `user_state`, `user_fills_by_time`, `user_funding_history`, `spot_user_state` are now wrapped via `_sdk_call(..., timeout=)` (10-20s depending on call). The HL Python SDK doesn't expose timeouts on order calls — a hung HTTP request previously stalled `close_position` indefinitely with the `_closing` mutex held, locking the symbol out of management until reboot. Implementation uses `ThreadPoolExecutor.submit` + `future.result(timeout=)`; a global lock was deliberately NOT added (one hung call would paralyze all subsequent SDK ops). If torn-response races surface under load, a lock can be added later.
+
 ## [12.5.28] — 2026-05-13
 - **Dashboard tech-English labels** (no more French on the UI):
   - "Si je ferme tout" → "Liquidation value"

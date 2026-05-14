@@ -1,9 +1,9 @@
 """FastAPI app, routes, auth, and API response builders."""
 from __future__ import annotations
-import hashlib, hmac, json, logging, os, time, secrets as _secrets
+import hashlib, hmac, json, logging, math, os, time, secrets as _secrets
 
 ROOT_PATH = os.environ.get("HL_ROOT_PATH", "")  # e.g. "/bot" when behind nginx subpath
-from collections import defaultdict
+from collections import defaultdict, deque
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from fastapi import FastAPI, Request, Form
@@ -616,6 +616,18 @@ def create_app(bot) -> FastAPI:
     _BACKOFF_BASE = 1.0   # seconds after 1st failure
     _BACKOFF_MAX = 300.0  # cap at 5 min
     _BACKOFF_RESET = 3600 # success or long idle clears the counter
+    # v12.5.29: server-side session revocation epoch. /logout bumps this; any
+    # session token signed before _revoked_before is rejected on subsequent
+    # requests. Without this, /logout only deletes the cookie client-side and
+    # a stolen cookie remains valid for 30 days regardless. Single-user model
+    # → one epoch covers all sessions.
+    _revoked_before: dict[str, float] = {"ts": 0.0}
+    # v12.5.29: rate-limit per IP for mutating endpoints (close, manual_stop,
+    # capital, pause, resume, reset). Authenticated callers are not infinite;
+    # protect against a stolen cookie spamming /api/reset or /api/close.
+    _MUT_LIMIT_PER_MIN = 30
+    _MUT_WINDOW = 60.0
+    _mutation_log: dict[str, deque] = {}
 
     def _sign_token(ts: float) -> str:
         msg = str(int(ts)).encode()
@@ -635,8 +647,31 @@ def create_app(bot) -> FastAPI:
             return False
         if time.time() - ts > _SESSION_MAX_AGE:
             return False
+        # v12.5.29: reject tokens issued before the current revocation epoch.
+        if ts < _revoked_before["ts"]:
+            return False
         expected = hmac.new(_SECRET, ts_str.encode(), hashlib.sha256).hexdigest()[:16]
         return hmac.compare_digest(sig, expected)
+
+    def _client_ip(request: Request) -> str:
+        """Trusted client IP — XFF only honored if direct peer is localhost (nginx)."""
+        xff = request.headers.get("x-forwarded-for", "")
+        direct_ip = request.client.host if request.client else "unknown"
+        return xff.split(",")[0].strip() if xff and direct_ip == "127.0.0.1" else direct_ip
+
+    def _check_mutation_rate(ip: str) -> bool:
+        """True = allowed. False = over the per-minute mutation budget."""
+        now = time.time()
+        dq = _mutation_log.get(ip)
+        if dq is None:
+            dq = deque(maxlen=_MUT_LIMIT_PER_MIN * 4)
+            _mutation_log[ip] = dq
+        while dq and now - dq[0] > _MUT_WINDOW:
+            dq.popleft()
+        if len(dq) >= _MUT_LIMIT_PER_MIN:
+            return False
+        dq.append(now)
+        return True
 
     def _backoff_delay(ip: str) -> float:
         """Returns seconds remaining before this IP may attempt login again."""
@@ -686,6 +721,20 @@ def create_app(bot) -> FastAPI:
                 response.headers["Strict-Transport-Security"] = "max-age=31536000"
             return response
 
+    # v12.5.29: per-IP rate-limit on mutating endpoints (POST). Prevents a
+    # stolen-cookie attacker from spamming /api/reset, /api/close, etc.
+    # Read endpoints (/api/state, /api/trades…) are unaffected.
+    class _MutationRateLimitMiddleware(BaseHTTPMiddleware):
+        async def dispatch(self, request: Request, call_next):
+            if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+                ip = _client_ip(request)
+                if not _check_mutation_rate(ip):
+                    log.warning("MUTATION RATE LIMIT: ip=%s path=%s", ip, request.url.path)
+                    return JSONResponse(
+                        {"error": "rate limit exceeded — slow down"},
+                        status_code=429)
+            return await call_next(request)
+
     if DASHBOARD_USER:
         class _AuthMiddleware(BaseHTTPMiddleware):
             async def dispatch(self, request: Request, call_next):
@@ -700,6 +749,9 @@ def create_app(bot) -> FastAPI:
                 return await call_next(request)
         app.add_middleware(_AuthMiddleware)
 
+    # Middlewares run outer-first; add rate-limit LAST so it lives inside
+    # auth (rate-limit applies only to authenticated requests).
+    app.add_middleware(_MutationRateLimitMiddleware)
     app.add_middleware(_SecurityHeadersMiddleware)
 
     @app.get("/auth")
@@ -762,6 +814,12 @@ def create_app(bot) -> FastAPI:
 
     @app.get("/logout")
     async def logout():
+        # v12.5.29: bump the revocation epoch so any session token issued
+        # before this moment is rejected by _verify_token. Without this, a
+        # stolen cookie remains valid until natural 30-day expiry regardless
+        # of how many times the legitimate user logged out.
+        _revoked_before["ts"] = time.time()
+        log.info("LOGOUT: session epoch bumped to %.0f", _revoked_before["ts"])
         resp = RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
         resp.delete_cookie("session")
         return resp
@@ -930,7 +988,18 @@ def create_app(bot) -> FastAPI:
             (otherwise redundant with the auto-stop)
         """
         sym = symbol.upper()
-        body = await request.json()
+        # v12.5.29: malformed/non-JSON body must not 500. Symbol whitelisted
+        # against TRADE_SYMBOLS to keep log-forgery payloads out of the audit
+        # trail (positions only contain whitelisted symbols anyway but the
+        # check happens BEFORE any log.info call referencing `sym`).
+        if sym not in TRADE_SYMBOLS:
+            return JSONResponse({"error": "unknown symbol"}, status_code=400)
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, ValueError):
+            return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "body must be a JSON object"}, status_code=400)
         if sym not in bot.positions:
             return JSONResponse({"error": f"{sym} not in positions"}, status_code=404)
         pos = bot.positions[sym]
@@ -951,36 +1020,45 @@ def create_app(bot) -> FastAPI:
             stop_usdt = float(stop_usdt)
         except (TypeError, ValueError):
             return JSONResponse({"error": "stop_usdt must be a number"}, status_code=400)
+        # v12.5.29: reject NaN/inf which sail past float() and then corrupt
+        # pos.manual_stop_usdt + every downstream P&L computation.
+        if not math.isfinite(stop_usdt):
+            return JSONResponse({"error": "stop_usdt must be finite"}, status_code=400)
 
         if pos.size_usdt <= 0:
             return JSONResponse({"error": "position has invalid size"}, status_code=400)
-        stop_bps = stop_usdt / pos.size_usdt * 1e4
+        # v12.5.29: validation mirrors the new exit logic (net-of-fees).
+        # trigger_gross_bps is the bps level at which size × (gross - COST_BPS) / 1e4
+        # equals stop_usdt — i.e. the gross-bps frontier of the manual stop.
+        trigger_gross_bps = stop_usdt / pos.size_usdt * 1e4 + COST_BPS
 
-        # Current unrealized
+        # Current unrealized (gross)
         st = bot.states.get(sym)
         if not st or st.price <= 0 or pos.entry_price <= 0:
             return JSONResponse({"error": "no current price"}, status_code=400)
         current_bps = pos.direction * (st.price / pos.entry_price - 1) * 1e4
+        current_pnl_net = pos.size_usdt * (current_bps - COST_BPS) / 1e4
 
-        if stop_bps >= current_bps:
+        if stop_usdt >= current_pnl_net:
             return JSONResponse({"error": (
-                f"stop ${stop_usdt:.2f} ({stop_bps:+.0f} bps) is at or above "
-                f"current unrealized {current_bps:+.0f} bps — would trigger "
-                f"immediately. Use /api/close to close now, or pick a lower value.")},
+                f"stop ${stop_usdt:.2f} is at or above current net pnl "
+                f"${current_pnl_net:.2f} ({current_bps:+.0f} bps gross) — would "
+                f"trigger immediately. Use /api/close to close now, or pick a lower value.")},
                 status_code=400)
 
-        # Effective catastrophe stop floor for this strategy
+        # Effective catastrophe stop floor for this strategy (gross bps)
         if pos.strategy == "S8":
             cata_stop = STOP_LOSS_S8
         elif pos.stop_bps != 0:
             cata_stop = pos.stop_bps
         else:
             cata_stop = STOP_LOSS_BPS
-        if stop_bps <= cata_stop:
+        if trigger_gross_bps <= cata_stop:
             return JSONResponse({"error": (
-                f"stop {stop_bps:+.0f} bps is at or below the catastrophe "
-                f"stop {cata_stop:+.0f} bps — redundant. Manual stop must be "
-                f"strictly above the auto-stop.")}, status_code=400)
+                f"stop ${stop_usdt:.2f} ({trigger_gross_bps:+.0f} bps gross) is at "
+                f"or below the catastrophe stop {cata_stop:+.0f} bps — redundant. "
+                f"Pick a higher dollar value.")}, status_code=400)
+        stop_bps = trigger_gross_bps  # stored for legacy back-compat field
 
         with bot._pos_lock:
             pos.manual_stop_bps = stop_bps
@@ -999,11 +1077,24 @@ def create_app(bot) -> FastAPI:
         Junior bot (BOT_LABEL=="JUNIOR") caps capital at JUNIOR_CAPITAL_CAP.
         Live/Paper have no cap. Withdrawals (amount < 0) are always allowed.
         """
-        body = await request.json()
+        # v12.5.29: same hardening as /api/manual_stop — guard JSON parse,
+        # type, and NaN/inf. A NaN propagated into bot._capital would corrupt
+        # every percentage/ratio in the dashboard until next manual reset.
+        try:
+            body = await request.json()
+        except (json.JSONDecodeError, ValueError):
+            return JSONResponse({"error": "invalid JSON body"}, status_code=400)
+        if not isinstance(body, dict):
+            return JSONResponse({"error": "body must be a JSON object"}, status_code=400)
         amount = body.get("amount")
         if amount is None:
             return JSONResponse({"error": "missing 'amount' field"}, status_code=400)
-        amount = float(amount)
+        try:
+            amount = float(amount)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "amount must be a number"}, status_code=400)
+        if not math.isfinite(amount):
+            return JSONResponse({"error": "amount must be finite"}, status_code=400)
         if amount == 0:
             return JSONResponse({"error": "amount cannot be zero"}, status_code=400)
 

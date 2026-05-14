@@ -97,18 +97,48 @@ async def run():
     # while the bot was offline, drop the ghost so check_exits doesn't try to
     # close it again. Orphan positions on the exchange are flagged but not
     # auto-imported (the bot doesn't know the original entry conditions).
+    #
+    # v12.5.29: two-attempt confirmation. A single transient HL response (cache
+    # lag, partial data, network glitch) was previously enough to silently
+    # drop a real position from tracking — leaving it open on the exchange
+    # outside the bot's stop-loss management. Now a position is only dropped
+    # if BOTH consecutive user_state() calls confirm its absence. Symbols
+    # missing from only one of the two attempts are flagged as "disputed"
+    # and KEPT — the hourly reconcile alerts will keep firing until either
+    # the exchange catches up or the user investigates.
     if bot._exchange:
         try:
-            ex_state = bot._hl_info.user_state(bot._hl_address)
-            exch_syms = set()
-            for ap in ex_state.get("assetPositions", []):
-                if abs(float(ap["position"].get("szi", 0))) > 0:
-                    exch_syms.add(ap["position"]["coin"])
+            attempts: list[set[str]] = []
+            for _i in range(2):
+                ex_state = bot._hl_info.user_state(bot._hl_address)
+                syms = set()
+                for ap in ex_state.get("assetPositions", []):
+                    if abs(float(ap["position"].get("szi", 0))) > 0:
+                        syms.add(ap["position"]["coin"])
+                attempts.append(syms)
+                if _i == 0:
+                    time.sleep(1.5)
+            exch_union = attempts[0] | attempts[1]
             with bot._pos_lock:
-                ghosts = set(bot.positions.keys()) - exch_syms
+                bot_syms = set(bot.positions.keys())
+                ghosts_a = bot_syms - attempts[0]
+                ghosts_b = bot_syms - attempts[1]
+                ghosts = ghosts_a & ghosts_b     # confirmed absent on both
+                disputed = (ghosts_a | ghosts_b) - ghosts
                 for s in ghosts:
                     bot.positions.pop(s, None)
-                orphans = exch_syms - set(bot.positions.keys())
+                orphans = exch_union - set(bot.positions.keys())
+            if disputed:
+                # Position appeared on the exchange in ONE of the two probes
+                # but not the other — likely a transient HL response. Keep
+                # the position; hourly reconcile will keep watch.
+                log.warning("BOOT RECONCILE: %d disputed (kept) — %s",
+                            len(disputed), sorted(disputed))
+                from .db import log_event as _log_ev
+                _log_ev(bot._db, "DISPUTED", None, {"symbols": sorted(disputed)})
+                send_telegram(
+                    f"⚠️ Boot reconcile: disputed positions (kept, transient "
+                    f"HL response): {sorted(disputed)}", category="reconcile")
             if ghosts:
                 log.warning("BOOT RECONCILE: dropped %d ghost positions: %s",
                             len(ghosts), sorted(ghosts))
@@ -128,8 +158,9 @@ async def run():
                     f"⚠️ Boot reconcile: orphan positions on exchange "
                     f"(not in bot): {sorted(orphans)}",
                     category="reconcile")
-            if not ghosts and not orphans:
-                log.info("Boot reconcile: %d positions match exchange", len(bot.positions))
+            if not ghosts and not orphans and not disputed:
+                log.info("Boot reconcile: %d positions match exchange (2/2 confirms)",
+                         len(bot.positions))
         except Exception:
             log.exception("Boot reconcile failed (continuing startup)")
 
