@@ -34,6 +34,10 @@ from analysis.bot.config import (
 
 WINDOWS = [("28m", 28), ("12m", 12), ("6m", 6), ("3m", 3)]
 STRATS = ["S5", "S8"]
+# Reads DEAD_TIMEOUT_* live from config so the research baseline always tracks
+# the currently-shipping dead_timeout (v12.5.0 tightened MAE floor to -500;
+# future retunes will shift this baseline). Pin these locally if you need a
+# frozen reference run.
 EARLY_EXIT = dict(
     exit_lead_candles=int(DEAD_TIMEOUT_LEAD_HOURS // 4),
     mfe_cap_bps=DEAD_TIMEOUT_MFE_CAP_BPS,
