@@ -318,10 +318,108 @@ def run_family_A2(ctx, base, specs):
     return winners_A2
 
 
-# ── Family B — placeholder, filled in Task 5 ───────────────────────
+# ── Family B — empirical percentile ─────────────────────────────────
+B_PERCENTILES = [70, 80, 90]
+B_MIN_MFE = [300, 500]
+B_HOLD_BUCKETS = [("early", 0, 12), ("mid", 12, 30), ("late", 30, 999)]
+
+
+def hold_bucket(h: float) -> str:
+    for name, lo, hi in B_HOLD_BUCKETS:
+        if lo <= h < hi:
+            return name
+    return "late"
+
+
+def build_B_distributions(ctx, start_ts, end_ts, min_mfe_bps: int):
+    """Run baseline on [start_ts, end_ts] and collect (MFE_peak - net_bps)
+    for each winner trade in STRATS, bucketed by (strat, dir, hold_bucket, regime).
+    The regime key uses regime_bucket(0.0) since trade-level btc_z_at_entry
+    isn't tracked in run_window's trade dict (acceptable fallback —
+    bucketing on entry regime is coarser anyway)."""
+    from collections import defaultdict
+    r = run_one(ctx, start_ts, end_ts, hook=None)
+    distribs = defaultdict(list)
+    for t in r.get("trades", []):
+        # run_window's trade dict keys: strat, dir, mfe_bps, mae_bps, entry_t,
+        # exit_t, net (bps), pnl, coin, reason, size
+        strat = t.get("strat")
+        if strat not in STRATS:
+            continue
+        mfe = t.get("mfe_bps", 0)
+        net = t.get("net", 0)
+        dir_v = t.get("dir", 1)
+        entry_t = t.get("entry_t", 0)
+        exit_t = t.get("exit_t", 0)
+        hold_h = (exit_t - entry_t) / 3.6e6 if entry_t and exit_t else 0
+        if mfe < min_mfe_bps or net <= 0:
+            continue
+        retrace = mfe - net
+        key = (strat, dir_v, hold_bucket(hold_h), regime_bucket(0.0))
+        distribs[key].append(retrace)
+    return distribs
+
+
+def make_B_rule(strat: str, distribs: dict, percentile: int, min_mfe_bps: int):
+    def hook(snap):
+        if snap["strat"] != strat:
+            return False, ""
+        if snap["mfe_bps"] < min_mfe_bps:
+            return False, ""
+        key = (strat, snap["dir"], hold_bucket(snap["hold_h"]), regime_bucket(snap.get("btc_z", 0.0)))
+        bucket = distribs.get(key)
+        if not bucket or len(bucket) < 10:
+            return False, ""
+        threshold = float(np.percentile(bucket, percentile))
+        if snap["mfe_bps"] - snap["cur_bps"] >= threshold:
+            return True, f"{strat.lower()}_inlife_B"
+        return False, ""
+    return hook
+
+
 def run_family_B(ctx, quick=False):
-    print("Family B — not yet implemented")
-    return []
+    import time
+    print("\n" + "=" * 70)
+    print(" Family B — Empirical percentile")
+    print("=" * 70)
+    base = compute_baseline(ctx)
+    specs = window_specs(ctx["end_ts"]) if not quick else window_specs(ctx["end_ts"])[-1:]
+    end_dt = datetime.fromtimestamp(ctx["end_ts"] / 1000, tz=timezone.utc)
+    is_start = int((end_dt - relativedelta(months=36)).timestamp() * 1000)
+    is_end = int((end_dt - relativedelta(months=12)).timestamp() * 1000)
+
+    winners_B = []
+    t0 = time.time()
+    for strat in STRATS:
+        for mfe_min in B_MIN_MFE:
+            distribs = build_B_distributions(ctx, is_start, is_end, mfe_min)
+            tot_obs = sum(len(v) for v in distribs.values())
+            print(f"  {strat} min_mfe={mfe_min}: built {tot_obs} obs across {len(distribs)} buckets")
+            if tot_obs < 30:
+                print(f"    skip — too few obs for reliable percentile")
+                continue
+            for p in B_PERCENTILES:
+                hook = make_B_rule(strat, distribs, p, mfe_min)
+                d_pnl, d_dd = [], []
+                for label, s, e in specs:
+                    r = run_one(ctx, s, e, hook=hook)
+                    d_pnl.append(r["pnl_pct"] - base[label]["pnl_pct"])
+                    d_dd.append(r["max_dd_pct"] - base[label]["max_dd_pct"])
+                avg_dd = sum(d_dd) / len(d_dd)
+                is_robust = all(d > 0 for d in d_pnl) and (avg_dd <= 1.0)
+                mark = "✓" if is_robust else " "
+                print(f"    p{p} mfe_min={mfe_min}: " + " ".join(f"{d:+7.1f}" for d in d_pnl) + f"  ΔDD avg={avg_dd:+.2f}pp  {mark}")
+                if is_robust:
+                    winners_B.append(dict(
+                        family="B", strat=strat,
+                        params=dict(percentile=p, min_mfe_bps=mfe_min),
+                        d_pnl=d_pnl, d_dd=d_dd,
+                    ))
+    print(f"\nB winners (strict 4/4 + ΔDD avg ≤+1pp): {len(winners_B)}  (runtime {time.time()-t0:.0f}s)")
+    for w in winners_B:
+        print(f"  ✓ {w['strat']} p{w['params']['percentile']} mfe_min={w['params']['min_mfe_bps']}")
+    _save_results("B", winners_B, base, {})
+    return winners_B
 
 
 # ── Family C — placeholder, filled in Task 6 ───────────────────────

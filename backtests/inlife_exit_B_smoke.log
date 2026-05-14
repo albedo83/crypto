@@ -1,0 +1,32 @@
+/home/crypto/backtests/backtest_inlife_exit.py:130: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  ts=datetime.utcnow().isoformat(),
+Loading data...
+
+======================================================================
+ Family B — Empirical percentile
+======================================================================
+  baseline 28m: pnl=+227769.6% DD=-70.8% trades=1108
+  baseline 12m: pnl=+8231.3% DD=-41.4% trades=462
+  baseline 6m: pnl=+1057.4% DD=-39.1% trades=231
+  baseline 3m: pnl=+207.4% DD=-17.4% trades=135
+  S5 min_mfe=300: built 155 obs across 3 buckets
+    p70 mfe_min=300:    +0.0  ΔDD avg=+0.00pp   
+    p80 mfe_min=300:    +0.0  ΔDD avg=+0.00pp   
+    p90 mfe_min=300:    +0.0  ΔDD avg=+0.00pp   
+  S5 min_mfe=500: built 143 obs across 3 buckets
+    p70 mfe_min=500:    +0.0  ΔDD avg=+0.00pp   
+    p80 mfe_min=500:    +0.0  ΔDD avg=+0.00pp   
+    p90 mfe_min=500:    +0.0  ΔDD avg=+0.00pp   
+  S8 min_mfe=300: built 155 obs across 3 buckets
+    p70 mfe_min=300:    +5.0  ΔDD avg=+0.00pp  ✓
+    p80 mfe_min=300:    +0.0  ΔDD avg=+0.00pp   
+    p90 mfe_min=300:    +0.0  ΔDD avg=+0.00pp   
+  S8 min_mfe=500: built 143 obs across 3 buckets
+    p70 mfe_min=500:    +5.0  ΔDD avg=+0.00pp  ✓
+    p80 mfe_min=500:    +0.0  ΔDD avg=+0.00pp   
+    p90 mfe_min=500:    +0.0  ΔDD avg=+0.00pp   
+
+B winners (strict 4/4 + ΔDD avg ≤+1pp): 2  (runtime 13s)
+  ✓ S8 p70 mfe_min=300
+  ✓ S8 p70 mfe_min=500
+  → saved B artifacts to /home/crypto/backtests/inlife_exit_artifacts.json
