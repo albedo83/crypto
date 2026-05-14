@@ -1,0 +1,28 @@
+Loading data...
+
+— Null-shuffle: A.2 S8 {'bear': [1500, 100], 'neutral': [300, 300], 'bull': [1500, 100]} —
+  REAL ΔPnL per window: [438123.9391829389, 6651.852136339052, 53.50212359324928, 8.391214214693463]  (avg +111209.4pp)
+  baseline 28m: pnl=+227769.6% DD=-70.8% trades=1108
+  baseline 12m: pnl=+8231.3% DD=-41.4% trades=462
+  baseline 6m: pnl=+1057.4% DD=-39.1% trades=231
+  baseline 3m: pnl=+207.4% DD=-17.4% trades=135
+  btc_z map: 5091 ts entries
+  shuffle  1/13: avg ΔPnL =     -26508.1pp
+  shuffle  2/13: avg ΔPnL =     -22402.5pp
+  shuffle  3/13: avg ΔPnL =      -1768.7pp
+  shuffle  4/13: avg ΔPnL =     -31626.8pp
+  shuffle  5/13: avg ΔPnL =     -32502.7pp
+  shuffle  6/13: avg ΔPnL =     -23524.0pp
+  shuffle  7/13: avg ΔPnL =      +6203.3pp
+  shuffle  8/13: avg ΔPnL =     -21855.1pp
+  shuffle  9/13: avg ΔPnL =     -17558.1pp
+  shuffle 10/13: avg ΔPnL =     -42693.2pp
+  shuffle 11/13: avg ΔPnL =      -9852.6pp
+  shuffle 12/13: avg ΔPnL =     -15136.0pp
+  shuffle 13/13: avg ΔPnL =     -22063.5pp
+
+  REAL avg     =    +111209.4pp
+  SHUFFLE mean =     -20099.1pp  (sd 12484.4)
+  z-score      = +10.52   →   SIGNAL ✓
+
+T7 results saved to artifacts.json

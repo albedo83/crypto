@@ -559,6 +559,99 @@ def run_family_C(ctx, quick=False):
     return winners_C
 
 
+# ── Task 7 — Null-shuffle validation ───────────────────────────────
+import random
+
+
+def _build_btc_z_map(ctx):
+    """Replicate run_window's btc_z computation (ts -> rolling z-score)."""
+    btc_candles = ctx["data"]["BTC"]
+    btc_closes = np.array([c["c"] for c in btc_candles])
+    n_lb = 30 * 6   # 30d at 4h candles
+    n_zw = 180 * 6  # 180d at 4h candles
+    ts_arr = [c["t"] for c in btc_candles]
+    zmap = {}
+    if len(btc_closes) >= n_lb + 30:
+        rets = []
+        for i in range(n_lb, len(btc_closes)):
+            if btc_closes[i - n_lb] > 0:
+                rets.append(float(btc_closes[i] / btc_closes[i - n_lb] - 1))
+            else:
+                rets.append(0.0)
+        for i, r in enumerate(rets):
+            window = rets[max(0, i - n_zw):i]
+            if len(window) >= 30:
+                mu, sd = np.mean(window), np.std(window)
+                if sd > 1e-9:
+                    zmap[ts_arr[n_lb + i]] = float(np.clip((r - mu) / sd, -2.5, 2.5))
+                else:
+                    zmap[ts_arr[n_lb + i]] = 0.0
+    return zmap
+
+
+def _candidate_to_hook(candidate):
+    """Rebuild the rule hook from a saved candidate dict."""
+    fam = candidate["family"]
+    strat = candidate["strat"]
+    p = candidate["params"]
+    if fam == "A.1":
+        return make_A1_rule(strat, p["activation_bps"], p["offset_bps"])
+    if fam == "A.2":
+        # params is a dict mapping bucket name -> (act, off)
+        # JSON-loaded keys are strings; values may be lists [act, off] not tuples
+        params = {k: tuple(v) for k, v in p.items()}
+        return make_A2_composite_rule(strat, params)
+    raise NotImplementedError(f"_candidate_to_hook: {fam}")
+
+
+def null_shuffle_test(ctx, candidate, n_shuffles: int = 13):
+    """Re-run candidate with btc_z shuffled n times. Compare avg ΔPnL to real."""
+    print(f"\n— Null-shuffle: {candidate['family']} {candidate['strat']} {candidate['params']} —")
+    real_d_pnl_per_window = candidate["d_pnl"]
+    real_avg = sum(real_d_pnl_per_window) / len(real_d_pnl_per_window)
+    print(f"  REAL ΔPnL per window: {real_d_pnl_per_window}  (avg {real_avg:+.1f}pp)")
+
+    specs = window_specs(ctx["end_ts"])
+    base = compute_baseline(ctx)
+    if "_btc_z_map" not in ctx:
+        ctx["_btc_z_map"] = _build_btc_z_map(ctx)
+    real_map = ctx["_btc_z_map"]
+    ts_keys = list(real_map.keys())
+    z_vals = list(real_map.values())
+    print(f"  btc_z map: {len(z_vals)} ts entries")
+
+    shuf_avgs = []
+    for s in range(n_shuffles):
+        rng = random.Random(1000 + s)
+        permuted = z_vals[:]
+        rng.shuffle(permuted)
+        fake_map = dict(zip(ts_keys, permuted))
+
+        original_hook = _candidate_to_hook(candidate)
+        def wrapped(snap, _h=original_hook, _m=fake_map):
+            snap = dict(snap)
+            snap["btc_z"] = _m.get(snap["ts_ms"], 0.0)
+            return _h(snap)
+
+        d_pnl_run = []
+        for label, ws, we in specs:
+            r = run_one(ctx, ws, we, hook=wrapped)
+            d_pnl_run.append(r["pnl_pct"] - base[label]["pnl_pct"])
+        shuf_avg = sum(d_pnl_run) / len(d_pnl_run)
+        shuf_avgs.append(shuf_avg)
+        print(f"  shuffle {s+1:2d}/13: avg ΔPnL = {shuf_avg:+12.1f}pp")
+
+    mu = sum(shuf_avgs) / len(shuf_avgs)
+    sd = (sum((x-mu)**2 for x in shuf_avgs) / len(shuf_avgs)) ** 0.5
+    z = (real_avg - mu) / sd if sd > 1e-9 else 0.0
+    is_signal = z >= 1.0
+    print(f"\n  REAL avg     = {real_avg:+12.1f}pp")
+    print(f"  SHUFFLE mean = {mu:+12.1f}pp  (sd {sd:.1f})")
+    print(f"  z-score      = {z:+.2f}   →   {'SIGNAL ✓' if is_signal else 'NOISE ✗'}")
+    return dict(real_avg=real_avg, shuf_mean=mu, shuf_sd=sd, z=z,
+                is_signal=is_signal, shuf_runs=shuf_avgs)
+
+
 def _self_test(ctx):
     """Tiny sanity check: baseline runs and produces sensible numbers."""
     base = compute_baseline(ctx)
@@ -575,10 +668,32 @@ def main():
     p.add_argument("--family", choices=["A", "B", "C", "all"], default="all")
     p.add_argument("--quick", action="store_true",
                    help="run only on 3m window (smoke test)")
+    p.add_argument("--validate", action="store_true",
+                   help="run T7 null-shuffle on all A.2 winners saved in artifacts.json")
     args = p.parse_args()
     ctx = load_all()
     if args.self_test:
         _self_test(ctx)
+        return
+    if args.validate:
+        import json
+        with open("/home/crypto/backtests/inlife_exit_artifacts.json") as f:
+            arts = json.load(f)
+        targets = []
+        for tag in ("A2",):  # only A.2 currently — regime-dependent. C had 0 winners.
+            for c in arts.get(tag, {}).get("winners", []):
+                targets.append(c)
+        if not targets:
+            print("No A.2 winners to validate.")
+            return
+        results = {}
+        for c in targets:
+            results[f"{c['family']}_{c['strat']}"] = null_shuffle_test(ctx, c)
+        # Persist into artifacts.json under "T7_null_shuffle" key
+        arts["T7_null_shuffle"] = {k: {kk: vv for kk, vv in v.items() if kk != "shuf_runs"} | {"shuf_runs": v["shuf_runs"]} for k, v in results.items()}
+        with open("/home/crypto/backtests/inlife_exit_artifacts.json", "w") as f:
+            json.dump(arts, f, indent=2, default=str)
+        print(f"\nT7 results saved to artifacts.json")
         return
     if args.family in ("A", "all"):
         run_family_A(ctx, quick=args.quick)
