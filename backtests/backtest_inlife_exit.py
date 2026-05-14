@@ -94,10 +94,104 @@ def compute_baseline(ctx):
     return base
 
 
-# ── Family A — placeholder, filled in Task 3 ───────────────────────
+# ── Family A.1 — Global MFE trail ──────────────────────────────────
+A1_ACTIVATIONS = [300, 500, 700, 1000, 1500]
+A1_OFFSETS = [100, 150, 200, 300]
+
+
+def make_A1_rule(strat: str, activation_bps: int, offset_bps: int):
+    """Returns a hook closure for run_window. Fires when MFE>=activation
+    and current drops to MFE-offset. Strategy-filtered."""
+    def hook(snap):
+        if snap["strat"] != strat:
+            return False, ""
+        if snap["mfe_bps"] < activation_bps:
+            return False, ""
+        if snap["cur_bps"] <= snap["mfe_bps"] - offset_bps:
+            return True, f"{strat.lower()}_inlife_A1"
+        return False, ""
+    return hook
+
+
+def _save_results(family_tag, winners, baseline, raw):
+    """Persist to JSON for the report stage. Append-mode-safe."""
+    import os, json
+    out = "/home/crypto/backtests/inlife_exit_artifacts.json"
+    state = {}
+    if os.path.exists(out):
+        with open(out) as f:
+            state = json.load(f)
+    raw_safe = {}
+    for k, v in raw.items():
+        key = f"{k[0]}|{k[1]}|{k[2]}" if isinstance(k, tuple) else str(k)
+        raw_safe[key] = v
+    state[family_tag] = dict(
+        winners=winners, baseline=baseline, raw=raw_safe,
+        ts=datetime.utcnow().isoformat(),
+    )
+    with open(out, "w") as f:
+        json.dump(state, f, indent=2, default=str)
+    print(f"  → saved {family_tag} artifacts to {out}")
+
+
 def run_family_A(ctx, quick=False):
-    print("Family A — not yet implemented")
-    return []
+    import time
+    print("\n" + "=" * 70)
+    print(" Family A.1 — Global MFE trail")
+    print("=" * 70)
+    base = compute_baseline(ctx)
+    specs = window_specs(ctx["end_ts"]) if not quick else window_specs(ctx["end_ts"])[-1:]
+    n_combos = len(STRATS) * len(A1_ACTIVATIONS) * len(A1_OFFSETS)
+    print(f"\nGrid: {n_combos} combos × {len(specs)} windows = {n_combos*len(specs)} run_window calls")
+
+    results = {}
+    t0 = time.time()
+    n_done = 0
+    for strat in STRATS:
+        for act in A1_ACTIVATIONS:
+            for off in A1_OFFSETS:
+                key = (strat, act, off)
+                results[key] = {}
+                for label, s, e in specs:
+                    hook = make_A1_rule(strat, act, off)
+                    r = run_one(ctx, s, e, hook=hook)
+                    results[key][label] = dict(
+                        pnl_pct=r["pnl_pct"], max_dd_pct=r["max_dd_pct"],
+                        n_trades=r["n_trades"])
+                n_done += 1
+                elapsed = time.time() - t0
+                eta = elapsed / n_done * (n_combos - n_done)
+                print(f"  [{n_done:3d}/{n_combos}] {strat} act={act} off={off}  elapsed={elapsed:.0f}s  eta={eta:.0f}s")
+
+    # ── Delta table
+    print("\n" + "─" * 70)
+    print(" A.1 deltas vs baseline  (Δ = candidate - baseline, in PnL pp)")
+    print("─" * 70)
+    header = f"{'strat':<6}{'act':>5}{'off':>5}  " + "  ".join(f"Δ{lab:<6}" for lab,_,_ in specs)
+    print(header)
+    winners_A1 = []
+    for (strat, act, off), ws in results.items():
+        d_pnl = [ws[lab]["pnl_pct"] - base[lab]["pnl_pct"] for lab,_,_ in specs]
+        d_dd  = [ws[lab]["max_dd_pct"] - base[lab]["max_dd_pct"] for lab,_,_ in specs]
+        avg_dd = sum(d_dd) / len(d_dd)
+        is_robust = all(d > 0 for d in d_pnl) and (avg_dd <= 1.0)
+        mark = "✓" if is_robust else " "
+        print(f"{strat:<6}{act:>5}{off:>5}  " + "  ".join(f"{d:+7.1f}" for d in d_pnl) + f"  {mark}")
+        if is_robust:
+            winners_A1.append(dict(
+                family="A.1", strat=strat,
+                params=dict(activation_bps=act, offset_bps=off),
+                d_pnl=d_pnl, d_dd=d_dd,
+            ))
+    print(f"\nA.1 winners (4/4 strict + ΔDD avg ≤+1pp): {len(winners_A1)}")
+    for w in winners_A1:
+        avg_pnl = sum(w['d_pnl']) / 4
+        avg_dd  = sum(w['d_dd']) / 4
+        print(f"  ✓ {w['strat']} activation={w['params']['activation_bps']} "
+              f"offset={w['params']['offset_bps']}  Δpnl avg={avg_pnl:+.1f}pp  ΔDD avg={avg_dd:+.2f}pp")
+
+    _save_results("A1", winners_A1, base, results)
+    return winners_A1
 
 
 # ── Family B — placeholder, filled in Task 5 ───────────────────────

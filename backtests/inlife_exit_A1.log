@@ -1,0 +1,101 @@
+/home/crypto/backtests/backtest_inlife_exit.py:130: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  ts=datetime.utcnow().isoformat(),
+Loading data...
+
+======================================================================
+ Family A.1 — Global MFE trail
+======================================================================
+  baseline 28m: pnl=+227769.6% DD=-70.8% trades=1108
+  baseline 12m: pnl=+8231.3% DD=-41.4% trades=462
+  baseline 6m: pnl=+1057.4% DD=-39.1% trades=231
+  baseline 3m: pnl=+207.4% DD=-17.4% trades=135
+
+Grid: 40 combos × 4 windows = 160 run_window calls
+  [  1/40] S5 act=300 off=100  elapsed=4s  eta=157s
+  [  2/40] S5 act=300 off=150  elapsed=8s  eta=150s
+  [  3/40] S5 act=300 off=200  elapsed=12s  eta=145s
+  [  4/40] S5 act=300 off=300  elapsed=16s  eta=141s
+  [  5/40] S5 act=500 off=100  elapsed=20s  eta=137s
+  [  6/40] S5 act=500 off=150  elapsed=23s  eta=133s
+  [  7/40] S5 act=500 off=200  elapsed=27s  eta=129s
+  [  8/40] S5 act=500 off=300  elapsed=31s  eta=125s
+  [  9/40] S5 act=700 off=100  elapsed=35s  eta=121s
+  [ 10/40] S5 act=700 off=150  elapsed=39s  eta=118s
+  [ 11/40] S5 act=700 off=200  elapsed=43s  eta=114s
+  [ 12/40] S5 act=700 off=300  elapsed=47s  eta=110s
+  [ 13/40] S5 act=1000 off=100  elapsed=51s  eta=106s
+  [ 14/40] S5 act=1000 off=150  elapsed=55s  eta=102s
+  [ 15/40] S5 act=1000 off=200  elapsed=59s  eta=98s
+  [ 16/40] S5 act=1000 off=300  elapsed=63s  eta=94s
+  [ 17/40] S5 act=1500 off=100  elapsed=67s  eta=90s
+  [ 18/40] S5 act=1500 off=150  elapsed=71s  eta=86s
+  [ 19/40] S5 act=1500 off=200  elapsed=75s  eta=82s
+  [ 20/40] S5 act=1500 off=300  elapsed=78s  eta=78s
+  [ 21/40] S8 act=300 off=100  elapsed=82s  eta=75s
+  [ 22/40] S8 act=300 off=150  elapsed=86s  eta=71s
+  [ 23/40] S8 act=300 off=200  elapsed=90s  eta=67s
+  [ 24/40] S8 act=300 off=300  elapsed=94s  eta=63s
+  [ 25/40] S8 act=500 off=100  elapsed=98s  eta=59s
+  [ 26/40] S8 act=500 off=150  elapsed=102s  eta=55s
+  [ 27/40] S8 act=500 off=200  elapsed=106s  eta=51s
+  [ 28/40] S8 act=500 off=300  elapsed=110s  eta=47s
+  [ 29/40] S8 act=700 off=100  elapsed=114s  eta=43s
+  [ 30/40] S8 act=700 off=150  elapsed=118s  eta=39s
+  [ 31/40] S8 act=700 off=200  elapsed=122s  eta=35s
+  [ 32/40] S8 act=700 off=300  elapsed=126s  eta=31s
+  [ 33/40] S8 act=1000 off=100  elapsed=130s  eta=27s
+  [ 34/40] S8 act=1000 off=150  elapsed=134s  eta=24s
+  [ 35/40] S8 act=1000 off=200  elapsed=137s  eta=20s
+  [ 36/40] S8 act=1000 off=300  elapsed=141s  eta=16s
+  [ 37/40] S8 act=1500 off=100  elapsed=145s  eta=12s
+  [ 38/40] S8 act=1500 off=150  elapsed=149s  eta=8s
+  [ 39/40] S8 act=1500 off=200  elapsed=153s  eta=4s
+  [ 40/40] S8 act=1500 off=300  elapsed=157s  eta=0s
+
+──────────────────────────────────────────────────────────────────────
+ A.1 deltas vs baseline  (Δ = candidate - baseline, in PnL pp)
+──────────────────────────────────────────────────────────────────────
+strat   act  off  Δ28m     Δ12m     Δ6m      Δ3m    
+S5      300  100  -220297.6  -7260.9   -613.5    -51.4   
+S5      300  150  -221784.7  -7641.3   -668.6    -53.2   
+S5      300  200  -225430.7  -7676.4   -550.7    +12.2   
+S5      300  300  -213361.4  -7195.1   -597.6    +10.1   
+S5      500  100  -198386.7  -6749.0   -367.3    +98.8   
+S5      500  150  -207810.9  -7374.4   -351.2    +97.3   
+S5      500  200  -220510.7  -7257.4   -373.8    +94.0   
+S5      500  300  -213109.5  -6616.4   -380.7    +95.8   
+S5      700  100  -150319.6  -5242.6   -390.0    +59.5   
+S5      700  150  -112121.0  -4973.2   -333.0    +98.7   
+S5      700  200  -145955.1  -5092.1   -346.5    +96.5   
+S5      700  300  -135929.3  -4667.4   -356.7    +11.6   
+S5     1000  100  -201997.0  -6088.1   -309.4    +70.4   
+S5     1000  150  -165229.1  -5843.7   -218.4    +82.8   
+S5     1000  200  -172964.8  -6024.1   -303.0    +48.0   
+S5     1000  300  -176368.8  -5295.9   -334.4    -32.4   
+S5     1500  100  -91684.4  -5438.9     +3.9    +87.7   
+S5     1500  150  -95447.3  -5405.5     +0.1    +86.4   
+S5     1500  200  -107671.8  -5670.4   -104.2    +51.3   
+S5     1500  300  -58675.3  -4695.2   -115.3    -25.3   
+S8      300  100  -147006.7  -3850.8   -832.4    -73.8   
+S8      300  150  -141582.3  -3427.3   -799.1    -73.8   
+S8      300  200  -138641.9  -3231.3   -785.3    -69.5   
+S8      300  300  -151047.7  -4672.1   -891.9    -71.6   
+S8      500  100  -139140.3  -4566.3   -740.9     +4.8   
+S8      500  150  -137143.5  -4676.1   -742.1     +4.8   
+S8      500  200  -144507.0  -4923.9   -748.5     +2.1   
+S8      500  300  -136185.9  -4934.6   -753.2     -0.5   
+S8      700  100  -47713.5  -2354.5   -508.7    +80.1   
+S8      700  150  -29792.4  -1840.7   -500.6    +91.2   
+S8      700  200  -36647.7  -1894.9   -510.4    +87.7   
+S8      700  300  -24602.8  -2163.1   -541.3    +84.4   
+S8     1000  100  +290445.2  +4307.7   -103.3   +112.9   
+S8     1000  150  +426263.3  +7642.8   +176.7   +124.0   
+S8     1000  200  +376448.3  +7784.6   +176.7   +124.0   
+S8     1000  300  +298890.6  +6457.4   +151.4   +122.8   
+S8     1500  100  +421431.7  +6264.5    +11.1     +0.0   
+S8     1500  150  +400887.4  +6264.5    +11.1     +0.0   
+S8     1500  200  +392819.7  +6495.6    +11.1     +0.0   
+S8     1500  300  +343593.0  +6115.3     +0.7     +0.0   
+
+A.1 winners (4/4 strict + ΔDD avg ≤+1pp): 0
+  → saved A1 artifacts to /home/crypto/backtests/inlife_exit_artifacts.json
