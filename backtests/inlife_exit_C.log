@@ -1,0 +1,40 @@
+/home/crypto/backtests/backtest_inlife_exit.py:130: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+  ts=datetime.utcnow().isoformat(),
+Loading data...
+
+======================================================================
+ Family C — ML (logit + GBM)
+======================================================================
+  baseline 28m: pnl=+227769.6% DD=-70.8% trades=1108
+  baseline 12m: pnl=+8231.3% DD=-41.4% trades=462
+  baseline 6m: pnl=+1057.4% DD=-39.1% trades=231
+  baseline 3m: pnl=+207.4% DD=-17.4% trades=135
+Building training dataset (per-trade rows from IS baseline)...
+  Dataset: 319 trades, 270 positive labels (84.6%)
+  Trained logit
+    net_proxy            -4.585
+    mfe                  +3.747
+    mae                  -0.426
+    is_S5                -0.152
+    is_S8                +0.152
+    logit τ=0.55 S5: -223284.2 -7904.0  -775.0   -86.3  ΔDD avg=-4.13pp   
+    logit τ=0.55 S8: -136664.8 -3555.7  -835.9   -88.5  ΔDD avg=-4.21pp   
+    logit τ=0.65 S5: -220425.9 -7852.8  -703.5   -53.9  ΔDD avg=-4.69pp   
+    logit τ=0.65 S8: -151673.8 -4201.4  -869.5   -91.9  ΔDD avg=-2.44pp   
+    logit τ=0.75 S5: -203696.4 -7394.4  -602.9   +23.1  ΔDD avg=-4.65pp   
+    logit τ=0.75 S8: -156329.5 -4313.7  -855.9   -79.9  ΔDD avg=-3.04pp   
+  Trained gbm
+    net_proxy            0.533
+    mfe                  0.450
+    mae                  0.009
+    is_long              0.005
+    is_S5                0.002
+    gbm τ=0.55 S5: -216881.0 -7686.4  -637.9    -4.6  ΔDD avg=-5.61pp   
+    gbm τ=0.55 S8: -167252.1 -5216.5  -932.7   -79.9  ΔDD avg=-6.19pp   
+    gbm τ=0.65 S5: -217353.8 -7735.4  -669.5   -12.7  ΔDD avg=-6.85pp   
+    gbm τ=0.65 S8: -163960.2 -5037.3  -920.5   -79.9  ΔDD avg=-3.94pp   
+    gbm τ=0.75 S5: -212418.1 -7361.4  -577.2   +16.3  ΔDD avg=-3.01pp   
+    gbm τ=0.75 S8: -146245.4 -5066.0  -890.7   -79.9  ΔDD avg=-3.93pp   
+
+C winners (strict 4/4 + ΔDD avg ≤+1pp): 0  (runtime 54s)
+  → saved C artifacts to /home/crypto/backtests/inlife_exit_artifacts.json

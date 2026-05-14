@@ -422,10 +422,141 @@ def run_family_B(ctx, quick=False):
     return winners_B
 
 
-# ── Family C — placeholder, filled in Task 6 ───────────────────────
+# ── Family C — ML (logit + light GBM) ──────────────────────────────
+# Per-trade aggregate features (simplified — see plan Caveat 2).
+# `bps_path` is not tracked in run_window's trade dict, so we cannot derive
+# per-candle granular features here. Acceptable degradation: train on
+# trade-level aggregates, apply at runtime via per-snapshot prediction.
+C_TAUS = [0.55, 0.65, 0.75]
+C_LABEL_DRAWDOWN_BPS = 200
+
+
+def build_snapshot_dataset(ctx, start_ts, end_ts, label_dd_bps: int = C_LABEL_DRAWDOWN_BPS):
+    """Reconstruct per-trade aggregate features (one row per trade).
+    Label = 1 if the trade ended having given back ≥`label_dd_bps` from MFE
+    (i.e. mfe_bps - net >= label_dd_bps). Returns (X, y, feat_names).
+
+    Feature order MUST match the runtime construction in make_C_rule below.
+    """
+    r = run_one(ctx, start_ts, end_ts, hook=None)
+    rows, ys = [], []
+    feat_names = ["mfe", "mae", "net_proxy", "hold_h",
+                  "is_S5", "is_S8", "is_long"]
+    for t in r.get("trades", []):
+        strat = t.get("strat")
+        if strat not in STRATS:
+            continue
+        mfe = float(t.get("mfe_bps", 0) or 0)
+        mae = float(t.get("mae_bps", 0) or 0)
+        net = float(t.get("net", 0) or 0)  # net P&L bps (run_window key)
+        dir_v = int(t.get("dir", 1))
+        entry_t = t.get("entry_t", 0) or 0
+        exit_t = t.get("exit_t", 0) or 0
+        hold_h = (exit_t - entry_t) / 3.6e6 if entry_t and exit_t else 0.0
+        row = [mfe, mae, net, hold_h,
+               1.0 if strat == "S5" else 0.0,
+               1.0 if strat == "S8" else 0.0,
+               1.0 if dir_v == 1 else 0.0]
+        label = 1 if (mfe - net) >= label_dd_bps else 0
+        rows.append(row)
+        ys.append(label)
+    return np.array(rows), np.array(ys), feat_names
+
+
+def make_C_rule(strat: str, model, scaler, tau: float, feat_names):
+    """Runtime hook: per-snapshot, build feature row (mfe, mae, cur_bps as
+    net-proxy, hold_h, strat one-hot, is_long) → scale → predict_proba →
+    exit if proba ≥ tau. Gated by mfe_bps ≥ 100 to avoid premature triggers."""
+    def hook(snap):
+        if snap["strat"] != strat:
+            return False, ""
+        if snap["mfe_bps"] < 100:
+            return False, ""
+        feats = np.array([[
+            snap["mfe_bps"], snap["mae_bps"], snap["cur_bps"], snap["hold_h"],
+            1.0 if strat == "S5" else 0.0,
+            1.0 if strat == "S8" else 0.0,
+            1.0 if snap["dir"] == 1 else 0.0,
+        ]])
+        feats_s = scaler.transform(feats)
+        proba = float(model.predict_proba(feats_s)[0, 1])
+        if proba >= tau:
+            return True, f"{strat.lower()}_inlife_C"
+        return False, ""
+    return hook
+
+
 def run_family_C(ctx, quick=False):
-    print("Family C — not yet implemented")
-    return []
+    import time
+    from sklearn.linear_model import LogisticRegression
+    from sklearn.ensemble import GradientBoostingClassifier
+    from sklearn.preprocessing import StandardScaler
+
+    print("\n" + "=" * 70)
+    print(" Family C — ML (logit + GBM)")
+    print("=" * 70)
+    base = compute_baseline(ctx)
+    specs = window_specs(ctx["end_ts"]) if not quick else window_specs(ctx["end_ts"])[-1:]
+    end_dt = datetime.fromtimestamp(ctx["end_ts"] / 1000, tz=timezone.utc)
+    is_start = int((end_dt - relativedelta(months=36)).timestamp() * 1000)
+    is_end = int((end_dt - relativedelta(months=12)).timestamp() * 1000)
+
+    print("Building training dataset (per-trade rows from IS baseline)...")
+    X, y, names = build_snapshot_dataset(ctx, is_start, is_end)
+    print(f"  Dataset: {X.shape[0]} trades, {int(y.sum())} positive labels"
+          f" ({y.mean():.1%})" if X.shape[0] else "  Dataset: empty")
+    if X.shape[0] < 100 or y.sum() < 20:
+        print(f"  WARNING: dataset too small ({X.shape[0]} trades, {int(y.sum())} positives). Skipping Family C.")
+        _save_results("C", [], base, {})
+        return []
+
+    scaler = StandardScaler().fit(X)
+    Xs = scaler.transform(X)
+
+    C_MODELS = [
+        ("logit", LogisticRegression(max_iter=1000)),
+        ("gbm",   GradientBoostingClassifier(max_depth=3, n_estimators=50, random_state=42)),
+    ]
+
+    winners_C = []
+    t0 = time.time()
+    for mname, mdl in C_MODELS:
+        # Fresh instance per fit (defensive copy)
+        m = mdl.__class__(**mdl.get_params()).fit(Xs, y)
+        print(f"  Trained {mname}")
+        if hasattr(m, "feature_importances_"):
+            ranked = sorted(zip(names, m.feature_importances_), key=lambda x: -x[1])
+            for f, w in ranked[:5]:
+                print(f"    {f:<20} {w:.3f}")
+        elif hasattr(m, "coef_"):
+            ranked = sorted(zip(names, m.coef_[0]), key=lambda x: -abs(x[1]))
+            for f, w in ranked[:5]:
+                print(f"    {f:<20} {w:+.3f}")
+        for tau in C_TAUS:
+            for strat in STRATS:
+                hook = make_C_rule(strat, m, scaler, tau, names)
+                d_pnl, d_dd = [], []
+                for label, s, e in specs:
+                    r = run_one(ctx, s, e, hook=hook)
+                    d_pnl.append(r["pnl_pct"] - base[label]["pnl_pct"])
+                    d_dd.append(r["max_dd_pct"] - base[label]["max_dd_pct"])
+                avg_dd = sum(d_dd) / len(d_dd)
+                is_robust = all(d > 0 for d in d_pnl) and (avg_dd <= 1.0)
+                mark = "✓" if is_robust else " "
+                print(f"    {mname} τ={tau} {strat}: "
+                      + " ".join(f"{d:+7.1f}" for d in d_pnl)
+                      + f"  ΔDD avg={avg_dd:+.2f}pp  {mark}")
+                if is_robust:
+                    winners_C.append(dict(
+                        family=f"C.{mname}", strat=strat,
+                        params=dict(model=mname, tau=tau),
+                        d_pnl=d_pnl, d_dd=d_dd,
+                    ))
+    print(f"\nC winners (strict 4/4 + ΔDD avg ≤+1pp): {len(winners_C)}  (runtime {time.time()-t0:.0f}s)")
+    for w in winners_C:
+        print(f"  ✓ {w}")
+    _save_results("C", winners_C, base, {})
+    return winners_C
 
 
 def _self_test(ctx):
