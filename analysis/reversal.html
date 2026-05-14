@@ -841,7 +841,6 @@ function refresh(){
       const totalH=p.hold_hours+(p.remaining_hours||0);
       const holdViz=p.hold_progress!==undefined?holdBar(p.hold_progress,p.hold_hours,totalH):'';
       const pathViz=sparkline(p.trajectory, p.entry_price, p.direction==='LONG'?1:-1);
-      const bpsSign=p.unrealized_bps>=0?'+':'';
       // v12.3.0: historical-pattern win probability (from /api/state)
       // v12.3.1: smiley + colored %.  v12.3.2: dim when "fresh" (low confidence).
       let wpStr = '<span class="dim">—</span>';
@@ -870,14 +869,14 @@ function refresh(){
       // .m-card div instead of fighting the table's column constraints.
       const isMobile=window.matchMedia('(max-width:640px)').matches;
       if(isMobile){
-        const pnlSign=p.pnl_usdt>=0?'+':'';
+        const pnlSign=p.pnl_usdt>=0?'+':'-';
         const mstopBadge=p.manual_stop_usdt!=null?`<span class="m-mstop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:'';
         tr.innerHTML=`<td class="m-card-wrap" colspan="13"><div class="m-card ${p.pnl_usdt>=0?'pos-profit':'pos-loss'}">
           <div class="m-header">
             <span class="m-sym">${p.symbol}</span>
             <span class="m-side ${p.direction}">${p.direction}</span>
             <span class="m-strat">${p.strategy||'?'}</span>
-            <span class="m-pnl ${cls(p.pnl_usdt)}">${pnlSign}$${fmt(Math.abs(p.pnl_usdt))}<span class="m-bps">${bpsSign}${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}</span>
+            <span class="m-pnl ${cls(p.pnl_usdt)}">${pnlSign}$${Math.abs(p.pnl_usdt).toFixed(2)}<span class="m-bps">${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}</span>
           </div>
           <div class="m-progress">${holdViz}</div>
           <div class="m-mid">
@@ -905,7 +904,7 @@ function refresh(){
           <td data-label="Strat" class="dim pos-strat">${p.strategy||'?'}</td>
           <td data-label="Side" class="${sideClass} pos-side">${p.direction}</td>
           <td data-label="WR est" class="pos-wp" style="font-size:11px">${wpStr}</td>
-          <td data-label="P&L" class="${cls(p.pnl_usdt)} pos-pnl">$${fmt(p.pnl_usdt)}<span class="bps-inline"> ${bpsSign}${fmt(p.unrealized_bps,0)}bps</span>${p.manual_stop_usdt!=null?`<span class="mstop-badge" title="Active manual stop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:''}</td>
+          <td data-label="P&L" class="${cls(p.pnl_usdt)} pos-pnl">$${fmt(p.pnl_usdt)}<span class="bps-inline"> ${fmt(p.unrealized_bps,0)}bps</span>${p.manual_stop_usdt!=null?`<span class="mstop-badge" title="Active manual stop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:''}</td>
           <td data-label="Position" class="pos-detail">$${p.size_usdt.toFixed(0)}</td>
           <td data-label="Margin" class="dim pos-detail">$${(p.size_usdt/2).toFixed(0)}</td>
           <td data-label="Entry" class="pos-detail">$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>

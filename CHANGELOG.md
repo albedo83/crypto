@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.5.30] — 2026-05-14
+- **Trading engine**: new regime-aware in-life exit on S8 positions.
+- **Dashboard**: P&L sign fix on the mobile card (negative P&L was displaying as positive).
+
 ## [12.5.29] — 2026-05-13
 Hardening pass on bugs surfaced by a multi-agent code review. No strategy or sizing changes; only correctness/safety fixes. Backtests unaffected.
 - **`avgPx > 0` validation on live order responses** (`exchange.py`). Previously a malformed `filled` block with `"avgPx": "0"` was cast to 0.0 and returned silently; downstream code booked it as `entry_price = 0` (divide-by-zero in `check_exits`) or `exit_price = 0` (synthetic `-10000 bps` gross). Both `execute_open` and `execute_close` now fall through to the `user_fills_by_time` lookup when the response is invalid.

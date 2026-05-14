@@ -58,6 +58,15 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 **z-score** : 6.99.
 **Conditions** : `drawdown < -4000 bps AND vol_z > 1.0 AND ret_24h < -50 bps AND btc_7d < -300 bps`.
 
+**In-life MFE trail conditionné par régime BTC (v12.5.30)** (`backtest_inlife_exit.py`, walk-forward 4/4 strict + null-shuffle z=+10.52) : sur les positions S8 ouvertes, à chaque scan horaire, si MFE atteint un seuil d'activation et que l'unrealized retombe sous (MFE − offset), exit immédiat. Les paramètres dépendent du régime BTC via `bot._btc_z` (z-score 6m du ret_30d BTC, alimenté par le modulateur v11.10.0) :
+- **Bear** (`btc_z < −0.5`) → activation 1500 bps, offset 100 (lock fort des gros winners en regime baissier)
+- **Neutral** (`|btc_z| ≤ 0.5`) → activation 300 bps, offset 300 (lock plus précoce, retracements plus tolérables)
+- **Bull** (`btc_z > 0.5`) → activation 1500, offset 100 (bucket presque inactif en pratique, contribution ~+34pp avg)
+
+Validation 3 couches : (1) strict 4/4 sur 28m/12m/6m/3m avec ΔDD avg +0.30pp ; (2) null-shuffle 13× sur btc_z — la règle perd massivement (−20 099 pp avg) quand le régime est mélangé, signal génuinement régime-driven ; (3) cross-validée par la Famille B (percentile empirique des retracements) qui trouve indépendamment S8 trailable au seuil P70. Mécanique cohérente avec le modulateur S8 α=−0.5 (bear-favored) : le trail aggressif en bear locks les gains où la position a le plus de slippage upside à rendre. Block placé entre `s10_trailing` et `dead_timeout`. Kill-switch : `S8_INLIFE_PARAMS = {}` dans `config.py` (lookup graceful, jamais d'exception). New exit reason : `s8_inlife`.
+
+S5 a été testé sur les 3 familles (A.1 global, A.2 régime, B percentile, C ML) — **aucune ne produit de candidate robuste** sur S5. Les winners S5 ont une distribution bimodale (certains gigantesques, certains modestes) ; cutter à seuil fixe ampute le tail. Pour les S5-like (INJ, BLUR), l'override manuel via 🎯 reste la stratégie de référence.
+
 ### S9 — Fade extreme (+20% en 24h)
 
 **Quoi** : si un token a bouge de plus de ±20% en 24h, prendre la position inverse (fade). Si +20% → SHORT, si -20% → LONG.
@@ -120,6 +129,7 @@ P&L : `size_usdt` est le **notionnel** (deja leveraged). `pnl = notionnel × mou
 | **Stop loss** | -12.5% / -7.5% (S8) / adaptatif (S9) | Crash extreme sur un trade |
 | **S9 early exit** | Coupe S9 si -500 bps apres 8h | Perte qui s'enkyste sur un S9 |
 | **S10 trailing stop** | MFE > +600 bps → plancher MFE − 150 | Verrouille les gains S10 (rendait 70% du MFE) |
+| **S8 in-life trail (regime-conditionné)** (v12.5.30) | Bear `btc_z<-0.5` → MFE ≥ 1500 puis sortie à MFE−100. Neutral `|z|≤0.5` → MFE ≥ 300 puis MFE−300. Bull `z>0.5` → idem bear. | Verrouille les gains S8 retracables. Cible bear-favored cohérente avec modulateur S8 α=−0.5. Validé 4/4 + null-shuffle z=+10.52. |
 | **OI gate LONG** (v11.4.9) | Skip LONG si `Δ(OI,24h) < -10%` | Entrer LONG pendant que les longs se débouclent |
 | **Trade blacklist** (v11.4.10) | Skip tout trade sur `{SUI, IMX, LINK}` | Tokens structurellement net-négatifs |
 | **Dead-timeout early exit** (v11.7.2) | Sortie anticipée à T−12h si `MFE ≤ +150 bps` ET `MAE ≤ −1000 bps` ET `current ≤ MAE + 300 bps` | Cristalliser la perte d'un trade sans pouls au lieu d'attendre le timeout à la MAE |

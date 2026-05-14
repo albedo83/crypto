@@ -18,6 +18,7 @@ from .config import (COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTI
                      HOLD_HOURS_DEFAULT,
                      S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS,
                      S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
+                     S8_INLIFE_PARAMS, S8_INLIFE_Z_THRESHOLD,
                      DEAD_TIMEOUT_LEAD_HOURS, DEAD_TIMEOUT_MFE_CAP_BPS,
                      DEAD_TIMEOUT_MAE_FLOOR_BPS, DEAD_TIMEOUT_SLACK_BPS,
                      RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
@@ -245,6 +246,24 @@ def check_exits(bot) -> int:
             if unrealized <= trailing_bps:
                 exit_reason = "s10_trailing"
                 exit_price = entry_price * (1 + direction * trailing_bps / 1e4)
+        elif strategy == "S8" and bot._btc_z is not None and S8_INLIFE_PARAMS:
+            # v12.5.30 — regime-conditioned MFE trail.
+            # Walk-forward 4/4 strict + null-shuffle z=+10.52 (12/13 shuffles
+            # produce negative ΔPnL, real beats by ~10σ). See
+            # backtests/inlife_exit_results.md.
+            z = bot._btc_z
+            if z < -S8_INLIFE_Z_THRESHOLD:
+                bucket = "bear"
+            elif z > S8_INLIFE_Z_THRESHOLD:
+                bucket = "bull"
+            else:
+                bucket = "neutral"
+            act, off = S8_INLIFE_PARAMS.get(bucket, (99999, 0))
+            if pos.mfe_bps >= act:
+                trailing_bps = pos.mfe_bps - off
+                if unrealized <= trailing_bps:
+                    exit_reason = "s8_inlife"
+                    exit_price = entry_price * (1 + direction * trailing_bps / 1e4)
         # Dead-timeout early exit (v11.7.2, walk-forward 4/4 validated).
         # Checked last so stops/trailing take precedence.
         if (not exit_reason

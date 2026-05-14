@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.5.29"
+VERSION = "12.5.30"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -138,6 +138,18 @@ S10_CAPITAL_SHARE = 0.0      # no pocket — full capital (backtest: +48% P&L vs
 # S10 gives back 70% of MFE on average; this locks in gains on big winners.
 S10_TRAILING_TRIGGER = 600   # activate trailing after +600 bps MFE
 S10_TRAILING_OFFSET = 150    # exit at MFE - 150 bps
+
+# ── S8 in-life regime-conditioned trail (v12.5.30, walk-forward 4/4 + null-shuffle z=10.52)
+# Per-regime (activation_bps, offset_bps). Activates a MFE trail on open S8
+# positions: when MFE >= activation AND unrealized <= MFE-offset, exit.
+# Bucketed on bot._btc_z (rolling 30d/180d z-score of BTC ret_30d, v11.10.0).
+# Kill-switch: empty the dict ({}) → trail never fires (graceful lookup).
+S8_INLIFE_PARAMS = {
+    "bear":    (1500, 100),  # btc_z < -threshold
+    "neutral": (300,  300),  # |btc_z| <= threshold
+    "bull":    (1500, 100),  # btc_z > +threshold
+}
+S8_INLIFE_Z_THRESHOLD = 0.5
 
 S10_ALLOW_LONGS = False      # LONG fades were 45% WR, -$4.8k on 28m
 S10_ALLOWED_TOKENS = {       # tokens with positive S10 P&L on train window
