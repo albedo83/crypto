@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.37] — 2026-05-15
+- **Trading engine**: new dead-in-water exit on amorphous S8 positions.
+
 ## [12.5.36] — 2026-05-15
 - **Dashboard**: Open Positions rendered as cards on every screen size, laid out in a responsive grid (1 column on narrow, 2-3+ columns on wider screens). The 13-column desktop table view was retired.
 

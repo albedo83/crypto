@@ -19,6 +19,7 @@ from .config import (COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTI
                      S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS,
                      S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
                      S8_INLIFE_PARAMS, S8_INLIFE_Z_THRESHOLD,
+                     S8_DEAD_T_H, S8_DEAD_MFE_MAX_BPS,
                      DEAD_TIMEOUT_LEAD_HOURS, DEAD_TIMEOUT_MFE_CAP_BPS,
                      DEAD_TIMEOUT_MAE_FLOOR_BPS, DEAD_TIMEOUT_SLACK_BPS,
                      RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
@@ -246,6 +247,19 @@ def check_exits(bot) -> int:
             if unrealized <= trailing_bps:
                 exit_reason = "s10_trailing"
                 exit_price = entry_price * (1 + direction * trailing_bps / 1e4)
+        elif (strategy == "S8" and direction == 1
+                and hours_held >= S8_DEAD_T_H
+                and pos.mfe_bps <= S8_DEAD_MFE_MAX_BPS):
+            # v12.5.37 — Dead-in-water exit. If at T+8h the S8 LONG has never
+            # crossed +0.5% MFE, the capitulation thesis is invalidated. mfe_bps
+            # is monotonically non-decreasing so the check is naturally
+            # idempotent: once MFE crosses the ceiling, the rule never fires.
+            # Walk-forward 28m/12m/6m all positive ΔPnL (+207872/+1723/+138pp),
+            # 3m null intersection (rule didn't trigger), 0 DD degradation,
+            # +8.39pp DD improvement on 6m. See backtests/s8_dead_in_water_walkforward.md.
+            # Opposite tail of S8_INLIFE_PARAMS (MFE >= 300/1500) — no overlap.
+            exit_reason = "s8_dead_in_water"
+            # exit_price stays at st.price (live mark)
         elif strategy == "S8" and bot._btc_z is not None and S8_INLIFE_PARAMS:
             # v12.5.30 — regime-conditioned MFE trail.
             # Walk-forward 4/4 strict + null-shuffle z=+10.52 (12/13 shuffles

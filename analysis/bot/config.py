@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.5.36"
+VERSION = "12.5.37"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -150,6 +150,15 @@ S8_INLIFE_PARAMS = {
     "bull":    (1500, 100),  # btc_z > +threshold
 }
 S8_INLIFE_Z_THRESHOLD = 0.5
+
+# ── S8 dead-in-water exit (v12.5.37, walk-forward 3/3-with-cuts + 1/4 null)
+# At T+8h after entry, if a S8 LONG has never crossed even +0.5% MFE, the
+# capitulation thesis is invalidated: pressure absorbing every bid. Cut the
+# trade rather than waiting 52 more hours for the inevitable. Opposite-tail
+# pair with S8_INLIFE_PARAMS (which fires at MFE >= 300/1500 bps, never
+# overlaps). Kill-switch: set S8_DEAD_MFE_MAX_BPS = -99999 (rule never fires).
+S8_DEAD_T_H = 8.0           # checkpoint: hours_held >= 8.0
+S8_DEAD_MFE_MAX_BPS = 50.0  # MFE-so-far ceiling; <= => cut
 
 S10_ALLOW_LONGS = False      # LONG fades were 45% WR, -$4.8k on 28m
 S10_ALLOWED_TOKENS = {       # tokens with positive S10 P&L on train window
