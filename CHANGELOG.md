@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.34] — 2026-05-15
+- **Dashboard**: tighter Y-axis margins on the price chart so the lowest prices stop hiding at the bottom border.
+
 ## [12.5.33] — 2026-05-15
 - **Dashboard**: mobile sparkline now fills the price zone; Trade History rows tinted by win/loss for faster scanning.
 
