@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.5.32] — 2026-05-15
+- **Dashboard**: softer color palette on the hold-progress bar; mobile card sticks the win-prob emoji next to the P&L; larger price sparkline on mobile.
+- **Dashboard**: Trade History column order — P&L now sits right after Side.
+
 ## [12.5.31] — 2026-05-15
 - **Infra**: boot reconcile and SDK executor hardened against sustained Hyperliquid outages.
 - **Security**: rate-limit memory accounting bounded to prevent slow growth.

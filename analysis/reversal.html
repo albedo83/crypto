@@ -111,7 +111,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 .fill-hold{background:#58a6ff}
 /* v12.5.11: bigger, clearer hold progress bar with label inside */
 .hold-progress{position:relative;height:14px;background:#21262d;border:1px solid #30363d;border-radius:3px;overflow:hidden;margin-top:3px;min-width:80px}
-.hold-progress .fill{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,#58a6ff 0%,#58a6ff 50%,#d29922 75%,#f85149 100%);transition:width .3s}
+.hold-progress .fill{position:absolute;top:0;left:0;height:100%;background:linear-gradient(90deg,#4c7fa3 0%,#4c7fa3 60%,#8c6e3f 85%,#8c4a4a 100%);transition:width .3s}
 .hold-progress .label{position:absolute;top:0;left:0;right:0;height:100%;display:flex;align-items:center;justify-content:center;font-size:10px;color:#fff;font-weight:600;text-shadow:0 0 2px rgba(0,0,0,0.7);letter-spacing:.2px}
 .spark{vertical-align:middle;display:block}
 .oi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(105px,1fr));gap:6px;margin-top:10px}
@@ -281,14 +281,16 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .m-card .m-strat{font-size:11px;color:#7d8590}
   .m-card .m-pnl{margin-left:auto;font-size:18px;font-weight:700;display:flex;align-items:baseline;gap:6px;flex-wrap:nowrap}
   .m-card .m-pnl.green{color:#3fb950}.m-card .m-pnl.red{color:#f85149}
+  .m-card .m-pnl-num{display:inline-flex;align-items:baseline;gap:3px}
+  .m-card .m-emoji{font-size:16px;line-height:1;filter:none}
   .m-card .m-bps{font-size:12px;font-weight:500;opacity:.75}
   .m-card .m-mstop{display:inline-flex;align-items:center;background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.5);color:#d29922;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap}
   .m-card .m-progress{width:100%}
   .m-card .m-progress .hold-progress{width:100%;height:16px;min-width:0}
   .m-card .m-mid{display:flex;align-items:stretch;gap:10px}
-  .m-card .m-spark{flex:0 0 36%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:4px 6px;background:rgba(255,255,255,0.03);border-radius:8px}
-  .m-card .m-spark svg{width:100%;max-height:32px;height:auto}
-  .m-card .m-price{font-size:11px;font-weight:600;color:#c9d1d9}
+  .m-card .m-spark{flex:0 0 44%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:8px}
+  .m-card .m-spark svg{width:100%;max-height:52px;height:auto}
+  .m-card .m-price{font-size:12px;font-weight:600;color:#c9d1d9}
   .m-card .m-mae{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
   .m-card .m-mae svg{max-width:100%}
   .m-card .m-actions{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;justify-content:center}
@@ -445,7 +447,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <h2>Trade History <span class="dim" style="font-size:12px;font-weight:400">— 20 derniers</span></h2>
   <div class="trades-scroll">
     <table class="trades-table"><thead><tr>
-      <th>Time</th><th>Sym</th><th>St</th><th>Side</th><th>Gross</th><th>Net</th><th>P&L</th><th>Hold</th><th>Exit</th>
+      <th>Time</th><th>Sym</th><th>St</th><th>Side</th><th>P&L</th><th>Gross</th><th>Net</th><th>Hold</th><th>Exit</th>
     </tr></thead><tbody id="trades-body"></tbody></table>
   </div>
 </div>
@@ -843,7 +845,11 @@ function refresh(){
       const pathViz=sparkline(p.trajectory, p.entry_price, p.direction==='LONG'?1:-1);
       // v12.3.0: historical-pattern win probability (from /api/state)
       // v12.3.1: smiley + colored %.  v12.3.2: dim when "fresh" (low confidence).
+      // v12.5.32: mobileEmoji extracted so the mobile card can stick the glyph
+      // next to the P&L (the WR% column doesn't exist on mobile).
       let wpStr = '<span class="dim">—</span>';
+      let mobileEmoji = '';
+      let mobileEmojiTitle = '';
       if (p.win_prob && p.win_prob.wr_pct !== undefined) {
         const w = p.win_prob.wr_pct;
         const tooltip = `${p.win_prob.note} (n=${p.win_prob.n}, base ${p.win_prob.base_wr_pct}%)`;
@@ -852,6 +858,8 @@ function refresh(){
         // the smiley as noise; mature + loss shows the smiley + %.
         if (p.win_prob.mature === false) {
           wpStr = `<span class="dim" style="font-size:11px" title="${tooltip}"><span style="font-size:14px">⌛</span> ${w}%</span>`;
+          mobileEmoji = '⌛';
+          mobileEmojiTitle = tooltip;
         } else if (p.unrealized_bps > 0) {
           wpStr = `<span class="dim" title="WR ${w}% (hidden — position in profit)">—</span>`;
         } else {
@@ -863,6 +871,8 @@ function refresh(){
           else if (w >= 25) { col = '#f85149'; smiley = '😟'; }
           else              { col = '#f85149'; smiley = '😱'; }
           wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}"><span style="font-size:14px">${smiley}</span> ${w}%</span>`;
+          mobileEmoji = smiley;
+          mobileEmojiTitle = tooltip;
         }
       }
       // v12.5.21: on mobile, render a single full-width <td> with a free-form
@@ -876,7 +886,7 @@ function refresh(){
             <span class="m-sym">${p.symbol}</span>
             <span class="m-side ${p.direction}">${p.direction}</span>
             <span class="m-strat">${p.strategy||'?'}</span>
-            <span class="m-pnl ${cls(p.pnl_usdt)}">${pnlSign}$${Math.abs(p.pnl_usdt).toFixed(2)}<span class="m-bps">${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}</span>
+            <span class="m-pnl ${cls(p.pnl_usdt)}"><span class="m-pnl-num">${pnlSign}$${Math.abs(p.pnl_usdt).toFixed(2)}${mobileEmoji?`<span class="m-emoji" title="${mobileEmojiTitle}">${mobileEmoji}</span>`:''}</span><span class="m-bps">${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}</span>
           </div>
           <div class="m-progress">${holdViz}</div>
           <div class="m-mid">
@@ -1318,9 +1328,9 @@ function refreshTrades(){
         <td data-label="Symbol"><b>${t.symbol}</b></td>
         <td data-label="Strat" class="dim">${t.strategy||'?'}</td>
         <td data-label="Side" class="${sc}">${t.direction}</td>
+        <td data-label="P&L" class="${cls(t.pnl_usdt)}"><b>$${fmt(t.pnl_usdt)}</b></td>
         <td data-label="Gross">${fmt(t.gross_bps,1)}</td>
         <td data-label="Net" class="${cls(t.net_bps)}">${fmt(t.net_bps,1)}</td>
-        <td data-label="P&L" class="${cls(t.pnl_usdt)}"><b>$${fmt(t.pnl_usdt)}</b></td>
         <td data-label="Hold">${t.hold_hours.toFixed(0)}h</td>
         <td data-label="Exit">${t.reason}</td>`;
       tb.appendChild(tr);
