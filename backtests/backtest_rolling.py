@@ -250,7 +250,8 @@ def run_window(features, data, sector_features, dxy_data,
                interval_hours: int = 4,
                funding_data: dict | None = None,
                apply_adaptive_modulator: bool = False,
-               inlife_exit_extra=None) -> dict:
+               inlife_exit_extra=None,
+               basket_haircut_fn=None) -> dict:
     """Run the portfolio backtest on a time window.
 
     `interval_hours` (default 4) tells the engine how many hours each candle
@@ -954,6 +955,13 @@ def run_window(features, data, sector_features, dxy_data,
                     z_clip = max(-MACRO_Z_CLIP, min(MACRO_Z_CLIP, z))
                     m = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
                     size *= m
+            # basket_haircut_eda: multiplicative haircut from basket concentration.
+            # Runs AFTER the adaptive modulator so it stacks on top, not in place
+            # of it. Signature: basket_haircut_fn(cand, effn_dict, n_positions)
+            # → multiplier. effn_dict = {7: v|None, 14: v|None, 30: v|None}.
+            if basket_haircut_fn is not None:
+                effn_basket = _compute_effective_n(positions, ts)
+                size *= basket_haircut_fn(cand, effn_basket, len(positions))
             # EDA hook (feature_modulator_eda): record entry features for
             # post-hoc analysis. Partial confluence = 4 of the 5 live components
             # (drops the OI component since the backtest has no live-grade

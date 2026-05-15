@@ -1,0 +1,1365 @@
+{
+  "baselines": {
+    "28m": {
+      "n_trades": 1105,
+      "pnl": 1731873.8921840421,
+      "pnl_pct": 173187.38921840422,
+      "dd_pct": -74.34158454067082,
+      "calmar": 23296.165973386913,
+      "wr": 52.03619909502263
+    },
+    "12m": {
+      "n_trades": 461,
+      "pnl": 90115.79014088413,
+      "pnl_pct": 9011.579014088413,
+      "dd_pct": -41.40600181870139,
+      "calmar": 2176.3943916986095,
+      "wr": 55.31453362255966
+    },
+    "6m": {
+      "n_trades": 230,
+      "pnl": 13057.58157563764,
+      "pnl_pct": 1305.758157563764,
+      "dd_pct": -32.87021052472042,
+      "calmar": 397.24666703359065,
+      "wr": 54.347826086956516
+    },
+    "3m": {
+      "n_trades": 135,
+      "pnl": 2325.060009288991,
+      "pnl_pct": 232.5060009288991,
+      "dd_pct": -17.446157004932626,
+      "calmar": 133.27061132326259,
+      "wr": 53.333333333333336
+    }
+  },
+  "configs": [
+    {
+      "window_d": 7,
+      "effn_ref": 3.0,
+      "min_haircut": 0.25,
+      "windows": {
+        "28m": {
+          "pnl": 175180.27075871621,
+          "pnl_pct": 17518.02707587162,
+          "dd_pct": -66.84269974926185,
+          "calmar": 2620.7838913725313,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -89.88492917704309,
+          "delta_dd_pp": 7.498884791408969,
+          "delta_calmar_pct": -88.75014929767214
+        },
+        "12m": {
+          "pnl": 28167.97114325588,
+          "pnl_pct": 2816.797114325588,
+          "dd_pct": -38.73143602823912,
+          "calmar": 727.2637947820625,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -68.74246888451071,
+          "delta_dd_pp": 2.6745657904622675,
+          "delta_calmar_pct": -66.58400712866866
+        },
+        "6m": {
+          "pnl": 7063.911040645117,
+          "pnl_pct": 706.3911040645116,
+          "dd_pct": -30.3694171940192,
+          "calmar": 232.5994929542556,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -45.90184254468143,
+          "delta_dd_pp": 2.500793330701221,
+          "delta_calmar_pct": -41.44708760147073
+        },
+        "3m": {
+          "pnl": 1272.218715713891,
+          "pnl_pct": 127.22187157138909,
+          "dd_pct": -17.446157004932626,
+          "calmar": 72.92257632177626,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -45.282327740739106,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -45.282327740739106
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 7,
+      "effn_ref": 3.0,
+      "min_haircut": 0.4,
+      "windows": {
+        "28m": {
+          "pnl": 187207.277809657,
+          "pnl_pct": 18720.7277809657,
+          "dd_pct": -67.01680655024919,
+          "calmar": 2793.4377575763633,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -89.19047866853789,
+          "delta_dd_pp": 7.324777990421637,
+          "delta_calmar_pct": -88.0090236274607
+        },
+        "12m": {
+          "pnl": 29396.238987185126,
+          "pnl_pct": 2939.6238987185125,
+          "dd_pct": -38.686196243484346,
+          "calmar": 759.8637716194736,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -67.3794803982432,
+          "delta_dd_pp": 2.7198055752170447,
+          "delta_calmar_pct": -65.08611791512553
+        },
+        "6m": {
+          "pnl": 7208.095204828045,
+          "pnl_pct": 720.8095204828045,
+          "dd_pct": -30.296209301299914,
+          "calmar": 237.9206960561488,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -44.7976245595383,
+          "delta_dd_pp": 2.574001223420506,
+          "delta_calmar_pct": -40.107566456679535
+        },
+        "3m": {
+          "pnl": 1283.5381206947345,
+          "pnl_pct": 128.35381206947346,
+          "dd_pct": -17.446157004932626,
+          "calmar": 73.5713957137858,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -44.795484178180686,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -44.79548417818069
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 7,
+      "effn_ref": 3.0,
+      "min_haircut": 0.5,
+      "windows": {
+        "28m": {
+          "pnl": 239458.8483718087,
+          "pnl_pct": 23945.88483718087,
+          "dd_pct": -67.9099281344848,
+          "calmar": 3526.124308327916,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -86.17342466720655,
+          "delta_dd_pp": 6.431656406186022,
+          "delta_calmar_pct": -84.86392862947451
+        },
+        "12m": {
+          "pnl": 34214.92996080699,
+          "pnl_pct": 3421.492996080699,
+          "dd_pct": -38.65597218157074,
+          "calmar": 885.1136843770543,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -62.0322588224367,
+          "delta_dd_pp": 2.750029637130652,
+          "delta_calmar_pct": -59.331190718321515
+        },
+        "6m": {
+          "pnl": 7655.3301570594085,
+          "pnl_pct": 765.5330157059408,
+          "dd_pct": -30.092507060569112,
+          "calmar": 254.3932328951867,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -41.37252666035459,
+          "delta_dd_pp": 2.7777034641513083,
+          "delta_calmar_pct": -35.96088928955682
+        },
+        "3m": {
+          "pnl": 1382.012022215939,
+          "pnl_pct": 138.2012022215939,
+          "dd_pct": -17.446157004932626,
+          "calmar": 79.21584230986782,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -40.56015686930327,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -40.56015686930328
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 7,
+      "effn_ref": 4.0,
+      "min_haircut": 0.25,
+      "windows": {
+        "28m": {
+          "pnl": 127633.74864562096,
+          "pnl_pct": 12763.374864562096,
+          "dd_pct": -59.6373475432467,
+          "calmar": 2140.164744132289,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -92.63030933016354,
+          "delta_dd_pp": 14.704236997424125,
+          "delta_calmar_pct": -90.81323190014541
+        },
+        "12m": {
+          "pnl": 21469.295868053276,
+          "pnl_pct": 2146.9295868053277,
+          "dd_pct": -37.990355695063656,
+          "calmar": 565.1248974971542,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -76.17587790720265,
+          "delta_dd_pp": 3.4156461236377353,
+          "delta_calmar_pct": -74.03389295374487
+        },
+        "6m": {
+          "pnl": 5634.520788336124,
+          "pnl_pct": 563.4520788336124,
+          "dd_pct": -23.616943291525484,
+          "calmar": 238.57959596142868,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -56.84866484886598,
+          "delta_dd_pp": 9.253267233194936,
+          "delta_calmar_pct": -39.9416997647825
+        },
+        "3m": {
+          "pnl": 990.256550316562,
+          "pnl_pct": 99.02565503165619,
+          "dd_pct": -17.446157004932626,
+          "calmar": 56.76072673406427,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -57.40941969840233,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -57.40941969840233
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 7,
+      "effn_ref": 4.0,
+      "min_haircut": 0.4,
+      "windows": {
+        "28m": {
+          "pnl": 176297.7389066875,
+          "pnl_pct": 17629.77389066875,
+          "dd_pct": -59.12589006243192,
+          "calmar": 2981.735052453875,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -89.82040553285546,
+          "delta_dd_pp": 15.215694478238902,
+          "delta_calmar_pct": -87.20074772878871
+        },
+        "12m": {
+          "pnl": 26099.967684240743,
+          "pnl_pct": 2609.996768424074,
+          "dd_pct": -37.89324196964976,
+          "calmar": 688.7763180871478,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -71.03729807679998,
+          "delta_dd_pp": 3.5127598490516334,
+          "delta_calmar_pct": -68.35241256298316
+        },
+        "6m": {
+          "pnl": 6102.0455688624415,
+          "pnl_pct": 610.2045568862442,
+          "dd_pct": -23.37298730733725,
+          "calmar": 261.0725573340335,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -53.26817961262126,
+          "delta_dd_pp": 9.49722321738317,
+          "delta_calmar_pct": -34.27948451183417
+        },
+        "3m": {
+          "pnl": 1087.4000172282917,
+          "pnl_pct": 108.74000172282918,
+          "dd_pct": -17.446157004932626,
+          "calmar": 62.32891386457467,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -53.23131390656788,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -53.23131390656789
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 7,
+      "effn_ref": 4.0,
+      "min_haircut": 0.5,
+      "windows": {
+        "28m": {
+          "pnl": 242947.51690600094,
+          "pnl_pct": 24294.751690600093,
+          "dd_pct": -60.298263212039224,
+          "calmar": 4029.0964277308362,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -85.97198572006745,
+          "delta_dd_pp": 14.043321328631599,
+          "delta_calmar_pct": -82.70489473532426
+        },
+        "12m": {
+          "pnl": 31082.0556776227,
+          "pnl_pct": 3108.2055677622698,
+          "dd_pct": -37.77642899415014,
+          "calmar": 822.7896734875577,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -65.50875753402372,
+          "delta_dd_pp": 3.6295728245512535,
+          "delta_calmar_pct": -62.194826607442444
+        },
+        "6m": {
+          "pnl": 6510.722425259786,
+          "pnl_pct": 651.0722425259786,
+          "dd_pct": -23.18949741848151,
+          "calmar": 280.76168740383685,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -50.13837449495813,
+          "delta_dd_pp": 9.680713106238912,
+          "delta_calmar_pct": -29.323085452068497
+        },
+        "3m": {
+          "pnl": 1187.78118957286,
+          "pnl_pct": 118.77811895728603,
+          "dd_pct": -17.446157004932626,
+          "calmar": 68.08268372438891,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -48.91395556125511,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -48.9139555612551
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 7,
+      "effn_ref": 6.0,
+      "min_haircut": 0.25,
+      "windows": {
+        "28m": {
+          "pnl": 113064.87543887208,
+          "pnl_pct": 11306.487543887208,
+          "dd_pct": -58.554802615436074,
+          "calmar": 1930.9240299456872,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -93.47152954097093,
+          "delta_dd_pp": 15.786781925234749,
+          "delta_calmar_pct": -91.71140851180604
+        },
+        "12m": {
+          "pnl": 18907.650734948165,
+          "pnl_pct": 1890.7650734948168,
+          "dd_pct": -33.82680998407061,
+          "calmar": 558.9545908660016,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -79.01849309051326,
+          "delta_dd_pp": 7.579191834630784,
+          "delta_calmar_pct": -74.31740345417107
+        },
+        "6m": {
+          "pnl": 4625.873189520199,
+          "pnl_pct": 462.5873189520199,
+          "dd_pct": -16.571436042462434,
+          "calmar": 279.1473942069306,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -64.5732775037685,
+          "delta_dd_pp": 16.298774482257986,
+          "delta_calmar_pct": -29.72945593440907
+        },
+        "3m": {
+          "pnl": 792.1415326354986,
+          "pnl_pct": 79.21415326354986,
+          "dd_pct": -17.446157004932626,
+          "calmar": 45.40492971670111,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -65.9302758005916,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -65.9302758005916
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 7,
+      "effn_ref": 6.0,
+      "min_haircut": 0.4,
+      "windows": {
+        "28m": {
+          "pnl": 212336.431938817,
+          "pnl_pct": 21233.643193881697,
+          "dd_pct": -56.1945410195709,
+          "calmar": 3778.5953597319444,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -87.73949807216952,
+          "delta_dd_pp": 18.147043521099924,
+          "delta_calmar_pct": -83.78018355445896
+        },
+        "12m": {
+          "pnl": 26118.79416273994,
+          "pnl_pct": 2611.879416273994,
+          "dd_pct": -34.038290215877566,
+          "calmar": 767.3356680693826,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -71.01640664537628,
+          "delta_dd_pp": 7.3677116028238245,
+          "delta_calmar_pct": -64.74280254552114
+        },
+        "6m": {
+          "pnl": 5434.322006445496,
+          "pnl_pct": 543.4322006445497,
+          "dd_pct": -16.945555580659743,
+          "calmar": 320.6930560983071,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -58.38186439834574,
+          "delta_dd_pp": 15.924654944060677,
+          "delta_calmar_pct": -19.271051789292986
+        },
+        "3m": {
+          "pnl": 975.3599862980566,
+          "pnl_pct": 97.53599862980566,
+          "dd_pct": -17.446157004932626,
+          "calmar": 55.9068673990661,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -58.050115592658436,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -58.05011559265844
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 7,
+      "effn_ref": 6.0,
+      "min_haircut": 0.5,
+      "windows": {
+        "28m": {
+          "pnl": 353246.3594456315,
+          "pnl_pct": 35324.63594456315,
+          "dd_pct": -54.171148883087916,
+          "calmar": 6520.931653268185,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -79.60322855839362,
+          "delta_dd_pp": 20.170435657582907,
+          "delta_calmar_pct": -72.00856286516172
+        },
+        "12m": {
+          "pnl": 33416.91566826346,
+          "pnl_pct": 3341.6915668263455,
+          "dd_pct": -34.54992594017421,
+          "calmar": 967.2065788542457,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -62.91780206773916,
+          "delta_dd_pp": 6.856075878527179,
+          "delta_calmar_pct": -55.55922297247925
+        },
+        "6m": {
+          "pnl": 6334.441287994534,
+          "pnl_pct": 633.4441287994534,
+          "dd_pct": -17.75792291792344,
+          "calmar": 356.71070976443144,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -51.48840348956269,
+          "delta_dd_pp": 15.11228760679698,
+          "delta_calmar_pct": -10.204228413509016
+        },
+        "3m": {
+          "pnl": 1148.3033025082023,
+          "pnl_pct": 114.83033025082024,
+          "dd_pct": -17.446157004932626,
+          "calmar": 65.81984228294733,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -50.61188537411745,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -50.61188537411745
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 14,
+      "effn_ref": 3.0,
+      "min_haircut": 0.25,
+      "windows": {
+        "28m": {
+          "pnl": 175392.73611978823,
+          "pnl_pct": 17539.273611978824,
+          "dd_pct": -66.89344628508817,
+          "calmar": 2621.9718950088927,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -89.8726612306279,
+          "delta_dd_pp": 7.4481382555826485,
+          "delta_calmar_pct": -88.74504973048276
+        },
+        "12m": {
+          "pnl": 28645.846761240435,
+          "pnl_pct": 2864.5846761240437,
+          "dd_pct": -38.906784920435,
+          "calmar": 736.2686693290553,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -68.21217822486332,
+          "delta_dd_pp": 2.49921689826639,
+          "delta_calmar_pct": -66.17025516434914
+        },
+        "6m": {
+          "pnl": 7175.912109085105,
+          "pnl_pct": 717.5912109085106,
+          "dd_pct": -30.346700608332718,
+          "calmar": 236.4643261124313,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -45.04409512957851,
+          "delta_dd_pp": 2.5235099163877024,
+          "delta_calmar_pct": -40.474182482584254
+        },
+        "3m": {
+          "pnl": 1274.7523216203003,
+          "pnl_pct": 127.47523216203005,
+          "dd_pct": -17.446157004932626,
+          "calmar": 73.06780061992359,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -45.173358256240334,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -45.17335825624033
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 14,
+      "effn_ref": 3.0,
+      "min_haircut": 0.4,
+      "windows": {
+        "28m": {
+          "pnl": 186502.04452058117,
+          "pnl_pct": 18650.204452058115,
+          "dd_pct": -66.96264722805967,
+          "calmar": 2785.1653457695197,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -89.23119949077898,
+          "delta_dd_pp": 7.378937312611157,
+          "delta_calmar_pct": -88.04453338394292
+        },
+        "12m": {
+          "pnl": 29838.317488621902,
+          "pnl_pct": 2983.8317488621906,
+          "dd_pct": -38.88373934748022,
+          "calmar": 767.3726341485599,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -66.8889132060279,
+          "delta_dd_pp": 2.5222624712211683,
+          "delta_calmar_pct": -64.74110404458224
+        },
+        "6m": {
+          "pnl": 7310.046328797956,
+          "pnl_pct": 731.0046328797956,
+          "dd_pct": -30.28046296272262,
+          "calmar": 241.41131322189946,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -44.01684349851756,
+          "delta_dd_pp": 2.5897475619978003,
+          "delta_calmar_pct": -39.228863762502996
+        },
+        "3m": {
+          "pnl": 1292.6056569698817,
+          "pnl_pct": 129.26056569698815,
+          "dd_pct": -17.446157004932626,
+          "calmar": 74.09113976243695,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -44.40549268381405,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -44.40549268381406
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 14,
+      "effn_ref": 3.0,
+      "min_haircut": 0.5,
+      "windows": {
+        "28m": {
+          "pnl": 239746.29103483688,
+          "pnl_pct": 23974.629103483687,
+          "dd_pct": -67.78723112015244,
+          "calmar": 3536.747069811541,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -86.15682746204483,
+          "delta_dd_pp": 6.554353420518382,
+          "delta_calmar_pct": -84.81832987517409
+        },
+        "12m": {
+          "pnl": 34429.865123521864,
+          "pnl_pct": 3442.9865123521863,
+          "dd_pct": -38.655979838599094,
+          "calmar": 890.673713802558,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -61.79374883170272,
+          "delta_dd_pp": 2.7500219801022965,
+          "delta_calmar_pct": -59.07572096308269
+        },
+        "6m": {
+          "pnl": 7747.677071872551,
+          "pnl_pct": 774.7677071872552,
+          "dd_pct": -30.09241581644142,
+          "calmar": 257.46278129120816,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -40.66529834033061,
+          "delta_dd_pp": 2.777794708279,
+          "delta_calmar_pct": -35.18818339904726
+        },
+        "3m": {
+          "pnl": 1393.3883596425367,
+          "pnl_pct": 139.33883596425366,
+          "dd_pct": -17.446157004932626,
+          "calmar": 79.86792502489678,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -40.07086466260119,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -40.07086466260119
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 14,
+      "effn_ref": 4.0,
+      "min_haircut": 0.25,
+      "windows": {
+        "28m": {
+          "pnl": 127783.46364077464,
+          "pnl_pct": 12778.346364077464,
+          "dd_pct": -60.21898708101966,
+          "calmar": 2121.979625277532,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -92.62166464790178,
+          "delta_dd_pp": 14.12259745965116,
+          "delta_calmar_pct": -90.89129246545703
+        },
+        "12m": {
+          "pnl": 21751.942605154174,
+          "pnl_pct": 2175.194260515417,
+          "dd_pct": -38.124539138756255,
+          "calmar": 570.5496537541567,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -75.86222950367757,
+          "delta_dd_pp": 3.281462679945136,
+          "delta_calmar_pct": -73.78463866979274
+        },
+        "6m": {
+          "pnl": 5704.860329852397,
+          "pnl_pct": 570.4860329852397,
+          "dd_pct": -23.611234548145035,
+          "calmar": 241.61635081891924,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -56.30997748850892,
+          "delta_dd_pp": 9.258975976575385,
+          "delta_calmar_pct": -39.1772490822463
+        },
+        "3m": {
+          "pnl": 992.0142611170386,
+          "pnl_pct": 99.20142611170387,
+          "dd_pct": -17.446157004932626,
+          "calmar": 56.86147733489743,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -57.33382118509711,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -57.33382118509711
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 14,
+      "effn_ref": 4.0,
+      "min_haircut": 0.4,
+      "windows": {
+        "28m": {
+          "pnl": 176847.7196476274,
+          "pnl_pct": 17684.77196476274,
+          "dd_pct": -59.38578002043773,
+          "calmar": 2977.9472389983753,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -89.78864913630593,
+          "delta_dd_pp": 14.955804520233094,
+          "delta_calmar_pct": -87.21700711438817
+        },
+        "12m": {
+          "pnl": 26252.561574176212,
+          "pnl_pct": 2625.256157417621,
+          "dd_pct": -37.893222581535035,
+          "calmar": 692.8036146223363,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -70.86796716409654,
+          "delta_dd_pp": 3.512779237166356,
+          "delta_calmar_pct": -68.16736813580813
+        },
+        "6m": {
+          "pnl": 6160.596054535785,
+          "pnl_pct": 616.0596054535785,
+          "dd_pct": -23.372875653826345,
+          "calmar": 263.5788657664484,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -52.81977739254564,
+          "delta_dd_pp": 9.497334870894075,
+          "delta_calmar_pct": -33.648564572057055
+        },
+        "3m": {
+          "pnl": 1095.176683033841,
+          "pnl_pct": 109.5176683033841,
+          "dd_pct": -17.446157004932626,
+          "calmar": 62.77466623303901,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -52.89684228972874,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -52.89684228972874
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 14,
+      "effn_ref": 4.0,
+      "min_haircut": 0.5,
+      "windows": {
+        "28m": {
+          "pnl": 246040.14861248317,
+          "pnl_pct": 24604.014861248317,
+          "dd_pct": -60.10309766941305,
+          "calmar": 4093.635072950574,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -85.79341430557594,
+          "delta_dd_pp": 14.23848687125777,
+          "delta_calmar_pct": -82.42785925535101
+        },
+        "12m": {
+          "pnl": 31323.02833975537,
+          "pnl_pct": 3132.302833975537,
+          "dd_pct": -37.776282281240306,
+          "calmar": 829.1718096174429,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -65.24135416136733,
+          "delta_dd_pp": 3.629719537461085,
+          "delta_calmar_pct": -61.90158305957131
+        },
+        "6m": {
+          "pnl": 6577.6557619387,
+          "pnl_pct": 657.7655761938701,
+          "dd_pct": -23.189623553326914,
+          "calmar": 283.64650882808456,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -49.62577316605817,
+          "delta_dd_pp": 9.680586971393506,
+          "delta_calmar_pct": -28.596881392059665
+        },
+        "3m": {
+          "pnl": 1193.8134772375001,
+          "pnl_pct": 119.38134772375003,
+          "dd_pct": -17.446157004932626,
+          "calmar": 68.42844970958178,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -48.6545090247984,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -48.6545090247984
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 14,
+      "effn_ref": 6.0,
+      "min_haircut": 0.25,
+      "windows": {
+        "28m": {
+          "pnl": 113122.99187820588,
+          "pnl_pct": 11312.299187820588,
+          "dd_pct": -58.77695393169582,
+          "calmar": 1924.6147394719555,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -93.46817384402347,
+          "delta_dd_pp": 15.564630608975001,
+          "delta_calmar_pct": -91.73849146820726
+        },
+        "12m": {
+          "pnl": 18972.519930477407,
+          "pnl_pct": 1897.2519930477408,
+          "dd_pct": -33.82674772338341,
+          "calmar": 560.873309063711,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -78.94650881846968,
+          "delta_dd_pp": 7.579254095317978,
+          "delta_calmar_pct": -74.2292430451465
+        },
+        "6m": {
+          "pnl": 4657.094414614662,
+          "pnl_pct": 465.70944146146627,
+          "dd_pct": -16.571462604309964,
+          "calmar": 281.03098234693107,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -64.33417331044136,
+          "delta_dd_pp": 16.298747920410456,
+          "delta_calmar_pct": -29.255295092716928
+        },
+        "3m": {
+          "pnl": 796.7798629812796,
+          "pnl_pct": 79.67798629812796,
+          "dd_pct": -17.446157004932626,
+          "calmar": 45.670795164574216,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -65.73078287020485,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -65.73078287020485
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 14,
+      "effn_ref": 6.0,
+      "min_haircut": 0.4,
+      "windows": {
+        "28m": {
+          "pnl": 213985.55404535081,
+          "pnl_pct": 21398.555404535084,
+          "dd_pct": -56.14653131738564,
+          "calmar": 3811.1981100975104,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -87.64427623679363,
+          "delta_dd_pp": 18.195053223285186,
+          "delta_calmar_pct": -83.64023455854776
+        },
+        "12m": {
+          "pnl": 26251.80508063397,
+          "pnl_pct": 2625.180508063397,
+          "dd_pct": -34.038474014753575,
+          "calmar": 771.2391886092025,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -70.86880663245282,
+          "delta_dd_pp": 7.367527803947816,
+          "delta_calmar_pct": -64.5634453226433
+        },
+        "6m": {
+          "pnl": 5471.926275767524,
+          "pnl_pct": 547.1926275767524,
+          "dd_pct": -16.945581851770257,
+          "calmar": 322.9116783143028,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -58.09387638843593,
+          "delta_dd_pp": 15.924628672950163,
+          "delta_calmar_pct": -18.712551894866422
+        },
+        "3m": {
+          "pnl": 978.9513497740638,
+          "pnl_pct": 97.89513497740639,
+          "dd_pct": -17.446157004932626,
+          "calmar": 56.11272152929042,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -57.89565233314431,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -57.89565233314432
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 14,
+      "effn_ref": 6.0,
+      "min_haircut": 0.5,
+      "windows": {
+        "28m": {
+          "pnl": 353227.77752269764,
+          "pnl_pct": 35322.777752269765,
+          "dd_pct": -54.171148883087916,
+          "calmar": 6520.5886307678875,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -79.60430149580655,
+          "delta_dd_pp": 20.170435657582907,
+          "delta_calmar_pct": -72.01003530702485
+        },
+        "12m": {
+          "pnl": 33416.91566826346,
+          "pnl_pct": 3341.6915668263455,
+          "dd_pct": -34.54992594017421,
+          "calmar": 967.2065788542457,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -62.91780206773916,
+          "delta_dd_pp": 6.856075878527179,
+          "delta_calmar_pct": -55.55922297247925
+        },
+        "6m": {
+          "pnl": 6334.441287994534,
+          "pnl_pct": 633.4441287994534,
+          "dd_pct": -17.75792291792344,
+          "calmar": 356.71070976443144,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -51.48840348956269,
+          "delta_dd_pp": 15.11228760679698,
+          "delta_calmar_pct": -10.204228413509016
+        },
+        "3m": {
+          "pnl": 1148.3033025082023,
+          "pnl_pct": 114.83033025082024,
+          "dd_pct": -17.446157004932626,
+          "calmar": 65.81984228294733,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -50.61188537411745,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -50.61188537411745
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 30,
+      "effn_ref": 3.0,
+      "min_haircut": 0.25,
+      "windows": {
+        "28m": {
+          "pnl": 173311.08191009198,
+          "pnl_pct": 17331.1081910092,
+          "dd_pct": -66.85022932035758,
+          "calmar": 2592.5278592472137,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -89.99285786960321,
+          "delta_dd_pp": 7.491355220313238,
+          "delta_calmar_pct": -88.87143978022449
+        },
+        "12m": {
+          "pnl": 28687.39112848093,
+          "pnl_pct": 2868.739112848093,
+          "dd_pct": -38.91662316197339,
+          "calmar": 737.1500607614961,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -68.16607712851213,
+          "delta_dd_pp": 2.4893786567280003,
+          "delta_calmar_pct": -66.12975738344129
+        },
+        "6m": {
+          "pnl": 7159.677893938103,
+          "pnl_pct": 715.9677893938102,
+          "dd_pct": -30.332966273502414,
+          "calmar": 236.03619340692347,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -45.16842301566494,
+          "delta_dd_pp": 2.537244251218006,
+          "delta_calmar_pct": -40.58195751030315
+        },
+        "3m": {
+          "pnl": 1267.7616439360122,
+          "pnl_pct": 126.77616439360122,
+          "dd_pct": -17.446157004932626,
+          "calmar": 72.66710047247497,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -45.47402480490398,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -45.47402480490399
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 30,
+      "effn_ref": 3.0,
+      "min_haircut": 0.4,
+      "windows": {
+        "28m": {
+          "pnl": 181632.45697973468,
+          "pnl_pct": 18163.245697973467,
+          "dd_pct": -66.90488482875175,
+          "calmar": 2714.7861840676815,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -89.51237397829928,
+          "delta_dd_pp": 7.436699711919076,
+          "delta_calmar_pct": -88.3466395836594
+        },
+        "12m": {
+          "pnl": 29338.130863248196,
+          "pnl_pct": 2933.81308632482,
+          "dd_pct": -38.893003304493384,
+          "calmar": 754.3292718631144,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -67.44396202110428,
+          "delta_dd_pp": 2.5129985142080074,
+          "delta_calmar_pct": -65.34041464449909
+        },
+        "6m": {
+          "pnl": 7277.538168710949,
+          "pnl_pct": 727.753816871095,
+          "dd_pct": -30.2714438290273,
+          "calmar": 240.40935113020657,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -44.26580353678115,
+          "delta_dd_pp": 2.5987666956931186,
+          "delta_calmar_pct": -39.48109044552969
+        },
+        "3m": {
+          "pnl": 1286.8555313324464,
+          "pnl_pct": 128.68555313324467,
+          "dd_pct": -17.446157004932626,
+          "calmar": 73.76154708275342,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -44.652803532328186,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -44.652803532328186
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 30,
+      "effn_ref": 3.0,
+      "min_haircut": 0.5,
+      "windows": {
+        "28m": {
+          "pnl": 235701.1143797526,
+          "pnl_pct": 23570.111437975258,
+          "dd_pct": -67.77202446193706,
+          "calmar": 3477.852642754237,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -86.39039970268774,
+          "delta_dd_pp": 6.569560078733758,
+          "delta_calmar_pct": -85.07113725611643
+        },
+        "12m": {
+          "pnl": 34221.65274265446,
+          "pnl_pct": 3422.1652742654464,
+          "dd_pct": -38.655979838599094,
+          "calmar": 885.28742216704,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -62.02479866274997,
+          "delta_dd_pp": 2.7500219801022965,
+          "delta_calmar_pct": -59.323207891741525
+        },
+        "6m": {
+          "pnl": 7718.154980647976,
+          "pnl_pct": 771.8154980647976,
+          "dd_pct": -30.092391190083667,
+          "calmar": 256.4819436213941,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -40.89138991060773,
+          "delta_dd_pp": 2.777819334636753,
+          "delta_calmar_pct": -35.43509237304529
+        },
+        "3m": {
+          "pnl": 1386.707517194196,
+          "pnl_pct": 138.67075171941957,
+          "dd_pct": -17.446157004932626,
+          "calmar": 79.48498438952065,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -40.358205308504935,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -40.358205308504935
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 30,
+      "effn_ref": 4.0,
+      "min_haircut": 0.25,
+      "windows": {
+        "28m": {
+          "pnl": 127406.39172019328,
+          "pnl_pct": 12740.639172019328,
+          "dd_pct": -60.28521476122343,
+          "calmar": 2113.393677451796,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -92.64343712927489,
+          "delta_dd_pp": 14.056369779447394,
+          "delta_calmar_pct": -90.9281480915525
+        },
+        "12m": {
+          "pnl": 21776.87999366778,
+          "pnl_pct": 2177.687999366778,
+          "dd_pct": -38.130976683590866,
+          "calmar": 571.1073223844055,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -75.83455689660768,
+          "delta_dd_pp": 3.275025135110525,
+          "delta_calmar_pct": -73.7590151599925
+        },
+        "6m": {
+          "pnl": 5694.871038575803,
+          "pnl_pct": 569.4871038575803,
+          "dd_pct": -23.605091236867878,
+          "calmar": 241.25604859688931,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -56.386479337022976,
+          "delta_dd_pp": 9.265119287852542,
+          "delta_calmar_pct": -39.26794895512892
+        },
+        "3m": {
+          "pnl": 987.3963888787193,
+          "pnl_pct": 98.73963888787193,
+          "dd_pct": -17.446157004932626,
+          "calmar": 56.596784529655935,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -57.53243421959385,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -57.53243421959385
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 30,
+      "effn_ref": 4.0,
+      "min_haircut": 0.4,
+      "windows": {
+        "28m": {
+          "pnl": 176205.67544770296,
+          "pnl_pct": 17620.567544770296,
+          "dd_pct": -59.545989200878424,
+          "calmar": 2959.1527122552793,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -89.8257213621084,
+          "delta_dd_pp": 14.7955953397924,
+          "delta_calmar_pct": -87.29768359464919
+        },
+        "12m": {
+          "pnl": 26199.43395116404,
+          "pnl_pct": 2619.9433951164037,
+          "dd_pct": -37.893222581535035,
+          "calmar": 691.4015796569054,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -70.92692200755863,
+          "delta_dd_pp": 3.512779237166356,
+          "delta_calmar_pct": -68.2317882138408
+        },
+        "6m": {
+          "pnl": 6146.713514397095,
+          "pnl_pct": 614.6713514397096,
+          "dd_pct": -23.372953105309616,
+          "calmar": 262.9840348672394,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -52.926095243659745,
+          "delta_dd_pp": 9.497257419410804,
+          "delta_calmar_pct": -33.79830299620819
+        },
+        "3m": {
+          "pnl": 1091.2299402642138,
+          "pnl_pct": 109.12299402642138,
+          "dd_pct": -17.446157004932626,
+          "calmar": 62.54844204117192,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -53.066590285645376,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -53.066590285645376
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 30,
+      "effn_ref": 4.0,
+      "min_haircut": 0.5,
+      "windows": {
+        "28m": {
+          "pnl": 246999.60986500038,
+          "pnl_pct": 24699.96098650004,
+          "dd_pct": -60.10312602852592,
+          "calmar": 4109.596724599156,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -85.73801412564094,
+          "delta_dd_pp": 14.238458512144902,
+          "delta_calmar_pct": -82.35934303827557
+        },
+        "12m": {
+          "pnl": 31268.579669575724,
+          "pnl_pct": 3126.857966957572,
+          "dd_pct": -37.776282281240306,
+          "calmar": 827.7304642310896,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -65.30177494899459,
+          "delta_dd_pp": 3.629719537461085,
+          "delta_calmar_pct": -61.967809355313065
+        },
+        "6m": {
+          "pnl": 6561.9760780790875,
+          "pnl_pct": 656.1976078079088,
+          "dd_pct": -23.189623553326914,
+          "calmar": 282.97035797019953,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -49.745854237493845,
+          "delta_dd_pp": 9.680586971393506,
+          "delta_calmar_pct": -28.767090713873273
+        },
+        "3m": {
+          "pnl": 1189.2720281258503,
+          "pnl_pct": 118.92720281258504,
+          "dd_pct": -17.446157004932626,
+          "calmar": 68.16813741786241,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -48.84983512793149,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -48.8498351279315
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 30,
+      "effn_ref": 6.0,
+      "min_haircut": 0.25,
+      "windows": {
+        "28m": {
+          "pnl": 112599.8549765275,
+          "pnl_pct": 11259.98549765275,
+          "dd_pct": -58.88316137255,
+          "calmar": 1912.258994793357,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -93.49838025247155,
+          "delta_dd_pp": 15.458423168120824,
+          "delta_calmar_pct": -91.79152914270149
+        },
+        "12m": {
+          "pnl": 18912.279116668473,
+          "pnl_pct": 1891.2279116668471,
+          "dd_pct": -33.82674772338341,
+          "calmar": 559.0924457569116,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -79.01335705196433,
+          "delta_dd_pp": 7.579254095317978,
+          "delta_calmar_pct": -74.3110693590532
+        },
+        "6m": {
+          "pnl": 4647.355738368362,
+          "pnl_pct": 464.73557383683624,
+          "dd_pct": -16.571402991043993,
+          "calmar": 280.4443136697613,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -64.40875585231473,
+          "delta_dd_pp": 16.298807533676428,
+          "delta_calmar_pct": -29.402978818184195
+        },
+        "3m": {
+          "pnl": 794.2435307923563,
+          "pnl_pct": 79.42435307923563,
+          "dd_pct": -17.446157004932626,
+          "calmar": 45.525414598057125,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -65.83986961114014,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -65.83986961114014
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 30,
+      "effn_ref": 6.0,
+      "min_haircut": 0.4,
+      "windows": {
+        "28m": {
+          "pnl": 214539.27969784077,
+          "pnl_pct": 21453.92796978408,
+          "dd_pct": -56.08074017559238,
+          "calmar": 3825.54294087604,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -87.61230360558827,
+          "delta_dd_pp": 18.26084436507844,
+          "delta_calmar_pct": -83.57865862886509
+        },
+        "12m": {
+          "pnl": 26217.979113135334,
+          "pnl_pct": 2621.7979113135334,
+          "dd_pct": -34.038474014753575,
+          "calmar": 770.2454317362012,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -70.90634274842735,
+          "delta_dd_pp": 7.367527803947816,
+          "delta_calmar_pct": -64.60910602075903
+        },
+        "6m": {
+          "pnl": 5462.221941393455,
+          "pnl_pct": 546.2221941393456,
+          "dd_pct": -16.945581851770257,
+          "calmar": 322.339001940074,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -58.16819592699562,
+          "delta_dd_pp": 15.924628672950163,
+          "delta_calmar_pct": -18.856713299291837
+        },
+        "3m": {
+          "pnl": 975.9842723455115,
+          "pnl_pct": 97.59842723455114,
+          "dd_pct": -17.446157004932626,
+          "calmar": 55.942650984372506,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -58.02326527288343,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -58.02326527288344
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    },
+    {
+      "window_d": 30,
+      "effn_ref": 6.0,
+      "min_haircut": 0.5,
+      "windows": {
+        "28m": {
+          "pnl": 354659.9710469733,
+          "pnl_pct": 35465.99710469733,
+          "dd_pct": -54.04289449868291,
+          "calmar": 6562.564317416729,
+          "n_trades": 1105,
+          "delta_pnl_pct_vs_baseline": -79.52160531736428,
+          "delta_dd_pp": 20.29869004198791,
+          "delta_calmar_pct": -71.82985249627052
+        },
+        "12m": {
+          "pnl": 33416.91566826346,
+          "pnl_pct": 3341.6915668263455,
+          "dd_pct": -34.54992594017421,
+          "calmar": 967.2065788542457,
+          "n_trades": 461,
+          "delta_pnl_pct_vs_baseline": -62.91780206773916,
+          "delta_dd_pp": 6.856075878527179,
+          "delta_calmar_pct": -55.55922297247925
+        },
+        "6m": {
+          "pnl": 6334.441287994534,
+          "pnl_pct": 633.4441287994534,
+          "dd_pct": -17.75792291792344,
+          "calmar": 356.71070976443144,
+          "n_trades": 230,
+          "delta_pnl_pct_vs_baseline": -51.48840348956269,
+          "delta_dd_pp": 15.11228760679698,
+          "delta_calmar_pct": -10.204228413509016
+        },
+        "3m": {
+          "pnl": 1148.3033025082023,
+          "pnl_pct": 114.83033025082024,
+          "dd_pct": -17.446157004932626,
+          "calmar": 65.81984228294733,
+          "n_trades": 135,
+          "delta_pnl_pct_vs_baseline": -50.61188537411745,
+          "delta_dd_pp": 0.0,
+          "delta_calmar_pct": -50.61188537411745
+        }
+      },
+      "passes_A": false,
+      "passes_B": false
+    }
+  ],
+  "criteria": {
+    "A": "\u0394PnL \u2265 -5% AND \u0394DD \u2265 +5pp on all 4 windows",
+    "B": "\u0394Calmar \u2265 +15% on all 4 windows"
+  }
+}
