@@ -318,6 +318,17 @@ def run_window(features, data, sector_features, dxy_data,
             if len(rets) > 4:
                 disp_by_ts[ts] = float(np.std(rets))
 
+    # EDA hook (feature_modulator_eda): precompute n_stress_global per ts —
+    # mirrors signals.compute_cross_context's stress count (vol_z>1.5 AND
+    # drawdown<-1500). Used to reconstruct entry_confluence_partial at open
+    # time so the trade dataset can be analyzed for feature→outcome signal.
+    n_stress_by_ts: dict[int, int] = {}
+    for ts, fmap in feat_by_ts.items():
+        n_stress_by_ts[ts] = sum(
+            1 for f in fmap.values()
+            if f.get("vol_z", 0) > 1.5 and f.get("drawdown", 0) < -1500
+        )
+
     btc_candles = data.get("BTC", [])
     btc_closes = np.array([c["c"] for c in btc_candles])
     btc_by_ts = {c["t"]: i for i, c in enumerate(btc_candles)}
@@ -428,6 +439,8 @@ def run_window(features, data, sector_features, dxy_data,
                     "entry_t": pos["entry_t"], "exit_t": ts,
                     "reason": "partial_profit", "size": partial_size,
                     "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
+                    "conf_partial": pos.get("conf_partial"),
+                    "session": pos.get("session"),
                 })
                 pos["size"] = pos["size"] - partial_size
                 pos["partial_taken"] = True
@@ -654,6 +667,8 @@ def run_window(features, data, sector_features, dxy_data,
                     "entry_t": pos["entry_t"], "exit_t": ts,
                     "reason": exit_reason, "size": pos["size"],
                     "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
+                    "conf_partial": pos.get("conf_partial"),
+                    "session": pos.get("session"),
                 })
                 del positions[coin]
                 cooldown[coin] = ts + 24 * 3600 * 1000
@@ -801,13 +816,32 @@ def run_window(features, data, sector_features, dxy_data,
                     z_clip = max(-MACRO_Z_CLIP, min(MACRO_Z_CLIP, z))
                     m = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
                     size *= m
+            # EDA hook (feature_modulator_eda): record entry features for
+            # post-hoc analysis. Partial confluence = 4 of the 5 live components
+            # (drops the OI component since the backtest has no live-grade
+            # 1h-delta OI series). Mirrors analysis/bot/bot.py:258-266 exactly.
+            entry_ts_ms = data[coin][idx_f + 1]["t"]
+            conf_partial = int(sum([
+                abs(f.get("drawdown", 0)) > 3000,
+                f.get("vol_z", 0) > 1.5,
+                abs(f.get("ret_6h", 0)) > 200,  # ret_6h on 4h candles = 24h
+                n_stress_by_ts.get(ts, 0) >= 5,
+            ]))
+            _dt = datetime.utcfromtimestamp(entry_ts_ms // 1000)
+            _h, _dow = _dt.hour, _dt.weekday()
+            session = ("WE" if _dow >= 5 else
+                       "Asia" if _h < 8 else
+                       "EU"   if _h < 14 else
+                       "US"   if _h < 21 else "Night")
+
             positions[coin] = {
                 "dir": cand["dir"], "entry": entry, "idx": idx_f + 1,
-                "entry_t": data[coin][idx_f + 1]["t"],
+                "entry_t": entry_ts_ms,
                 "strat": cand["strat"], "hold": cand["hold"],
                 "size": size, "coin": coin,
                 "stop": cand.get("stop", 0),
                 "mfe": 0.0, "mae": 0.0, "mfe_held": 0,
+                "conf_partial": conf_partial, "session": session,
             }
             if cand["dir"] == 1:
                 n_long += 1
@@ -840,6 +874,8 @@ def run_window(features, data, sector_features, dxy_data,
                 "entry_t": pos["entry_t"], "exit_t": last_ts,
                 "reason": "mtm_final", "size": pos["size"],
                 "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
+                "conf_partial": pos.get("conf_partial"),
+                "session": pos.get("session"),
             })
 
     # Summary stats
