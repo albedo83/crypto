@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.5.37"
+VERSION = "12.6.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -151,7 +151,7 @@ S8_INLIFE_PARAMS = {
 }
 S8_INLIFE_Z_THRESHOLD = 0.5
 
-# ── S8 dead-in-water exit (v12.5.37, walk-forward 3/3-with-cuts + 1/4 null)
+# ── S8 dead-in-water exit (v12.6.0, walk-forward 3/3-with-cuts + 1/4 null)
 # At T+8h after entry, if a S8 LONG has never crossed even +0.5% MFE, the
 # capitulation thesis is invalidated: pressure absorbing every bid. Cut the
 # trade rather than waiting 52 more hours for the inevitable. Opposite-tail

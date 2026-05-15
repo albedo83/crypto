@@ -250,7 +250,7 @@ def check_exits(bot) -> int:
         elif (strategy == "S8" and direction == 1
                 and hours_held >= S8_DEAD_T_H
                 and pos.mfe_bps <= S8_DEAD_MFE_MAX_BPS):
-            # v12.5.37 — Dead-in-water exit. If at T+8h the S8 LONG has never
+            # v12.6.0 — Dead-in-water exit. If at T+8h the S8 LONG has never
             # crossed +0.5% MFE, the capitulation thesis is invalidated. mfe_bps
             # is monotonically non-decreasing so the check is naturally
             # idempotent: once MFE crosses the ceiling, the rule never fires.

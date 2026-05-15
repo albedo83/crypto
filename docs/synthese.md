@@ -1,6 +1,6 @@
 # Synthèse complète du bot
 
-Document de référence unique. État au 2026-05-15, **bot v12.5.37**.
+Document de référence unique. État au 2026-05-15, **bot v12.6.0**.
 
 Lecture recommandée dans l'ordre. Sections indépendantes — utilise la table des matières pour piocher.
 
@@ -484,7 +484,7 @@ Vérifié dans `check_exits` juste après la catastrophe et avant les exits stra
 
 Clear : `POST /api/manual_stop/{symbol}` avec `{"clear": true}`.
 
-### 9. S8 dead-in-water exit (v12.5.37, mid-trade signature)
+### 9. S8 dead-in-water exit (v12.6.0, mid-trade signature)
 
 Sur les positions S8 **LONG**, à T+8h après l'entrée, si `pos.mfe_bps ≤ 50` (la position n'a jamais respiré au-dessus de +0.5% de profit), exit immédiat. Reason = `s8_dead_in_water`.
 
@@ -540,7 +540,7 @@ Position ouverte
     │   ├─ Manual stop $ fixé par user (v12.5.10) ?
     │   ├─ S10 trailing actif ?
     │   ├─ S9 early exit conditions ?
-    │   ├─ S8 dead-in-water (v12.5.37) — à T+8h, mfe ≤ 50 ? → cut
+    │   ├─ S8 dead-in-water (v12.6.0) — à T+8h, mfe ≤ 50 ? → cut
     │   ├─ S8 in-life MFE trail (v12.5.30, régime-conditionné) ?
     │   └─ Update MAE/MFE
     │
@@ -910,7 +910,7 @@ Le strict 4/4 + sliding walk-forward OOS sont les défenses. Mais ils sont **con
 
 ### Version
 
-**v12.5.37** — déployée sur paper / live / junior (admin reste sur ancienne version, sans impact).
+**v12.6.0** — déployée sur paper / live / junior (admin reste sur ancienne version, sans impact).
 
 ### Capitaux
 
@@ -962,7 +962,7 @@ S8_INLIFE_PARAMS = {
     "bull":    (1500, 100),
 }
 
-# S8 dead-in-water exit (v12.5.37)
+# S8 dead-in-water exit (v12.6.0)
 S8_DEAD_T_H = 8.0             # checkpoint T+8h
 S8_DEAD_MFE_MAX_BPS = 50.0    # si mfe ≤ 50 bps à T+8h → cut
 
@@ -1099,7 +1099,7 @@ Liste des 20 derniers trades fermés avec reason (`timeout`, `dead_timeout`, `ca
 | **catastrophe stop** | stop loss universel -1250 bps (ou -750 pour S8) |
 | **manual stop** | seuil $ fixé manuellement par le user via le bouton 🎯 du dashboard (v12.5.10) |
 | **s8_inlife** | trail spécifique à S8 conditionné par le régime BTC (v12.5.30) — exit quand MFE retrace de l'offset par bucket bear/neutral/bull |
-| **s8_dead_in_water** | exit anticipé à T+8h sur S8 LONG si MFE n'a jamais dépassé +50 bps (v12.5.37) — la capitulation thesis est invalidée |
+| **s8_dead_in_water** | exit anticipé à T+8h sur S8 LONG si MFE n'a jamais dépassé +50 bps (v12.6.0) — la capitulation thesis est invalidée |
 | **slot effect** | retirer un trade libère un slot pris par un autre signal — souvent fausse économie |
 | **compounding** | capital = initial + P&L cumulé, donc positions scalent avec gains/pertes |
 | **drift monitor** | script hebdo qui scanne pour dérives statistiques |
@@ -1115,4 +1115,4 @@ Liste des 20 derniers trades fermés avec reason (`timeout`, `dead_timeout`, `ca
 
 ---
 
-*Doc écrit le 2026-05-11, mis à jour le 2026-05-15 (v12.5.37). Mettre à jour à chaque commit majeur. Pour le détail technique destination Claude voir `CLAUDE.md`. Pour l'historique versions voir `CHANGELOG.md`. Pour les résultats backtests à jour voir `docs/backtests.md`.*
+*Doc écrit le 2026-05-11, mis à jour le 2026-05-15 (v12.6.0). Mettre à jour à chaque commit majeur. Pour le détail technique destination Claude voir `CLAUDE.md`. Pour l'historique versions voir `CHANGELOG.md`. Pour les résultats backtests à jour voir `docs/backtests.md`.*

@@ -1,6 +1,6 @@
 # Changelog
 
-## [12.5.37] — 2026-05-15
+## [12.6.0] — 2026-05-15
 - **Trading engine**: new dead-in-water exit on amorphous S8 positions.
 
 ## [12.5.36] — 2026-05-15
