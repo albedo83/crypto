@@ -35,7 +35,12 @@ body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;fon
 .trades-table thead{position:sticky;top:0;background:#1c2128;z-index:1}
 .trades-table th{text-align:left;padding:6px 8px;color:#7d8590;font-size:10px;text-transform:uppercase;border-bottom:1px solid #30363d}
 .trades-table td{padding:5px 8px;border-top:1px solid #21262d;white-space:nowrap}
-.trades-table tbody tr:hover{background:rgba(255,255,255,0.02)}
+/* v12.5.33: subtle win/loss row tinting for at-a-glance scanning */
+.trades-table tbody tr.trade-win td{background:rgba(63,185,80,0.07)}
+.trades-table tbody tr.trade-loss td{background:rgba(248,81,73,0.08)}
+.trades-table tbody tr:hover td{background:rgba(255,255,255,0.04)}
+.trades-table tbody tr.trade-win:hover td{background:rgba(63,185,80,0.13)}
+.trades-table tbody tr.trade-loss:hover td{background:rgba(248,81,73,0.14)}
 .section{padding:10px 20px}
 .section h2{font-size:13px;color:#7d8590;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
 table{width:100%;border-collapse:collapse;background:#161b22;border-radius:8px;overflow:hidden}
@@ -288,9 +293,9 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .m-card .m-progress{width:100%}
   .m-card .m-progress .hold-progress{width:100%;height:16px;min-width:0}
   .m-card .m-mid{display:flex;align-items:stretch;gap:10px}
-  .m-card .m-spark{flex:0 0 44%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;padding:6px 8px;background:rgba(255,255,255,0.03);border-radius:8px}
-  .m-card .m-spark svg{width:100%;max-height:52px;height:auto}
-  .m-card .m-price{font-size:12px;font-weight:600;color:#c9d1d9}
+  .m-card .m-spark{flex:0 0 44%;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:4px;padding:5px 7px;background:rgba(255,255,255,0.03);border-radius:8px;min-height:78px}
+  .m-card .m-spark svg{width:100%;flex:1 1 auto;min-height:0;display:block}
+  .m-card .m-price{font-size:12px;font-weight:600;color:#c9d1d9;text-align:center;flex:0 0 auto}
   .m-card .m-mae{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
   .m-card .m-mae svg{max-width:100%}
   .m-card .m-actions{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;justify-content:center}
@@ -638,10 +643,13 @@ function sparkline(traj,entryPx,dirSign,w=70,h=24){
   const zy=yOf(ep);                   // entry price baseline
   const cy=yOf(ys[ys.length-1]);      // current price level
   const col=lastBps>=0?'#3fb950':'#f85149';
-  return `<svg class="spark" width="${w}" height="${h}">`
-       + `<line x1="0" y1="${zy}" x2="${w}" y2="${zy}" stroke="#7d8590" stroke-width="1" stroke-dasharray="2,3" opacity="0.75"/>`
-       + `<line x1="0" y1="${cy}" x2="${w}" y2="${cy}" stroke="${col}" stroke-width="1" stroke-dasharray="3,2" opacity="0.85"/>`
-       + `<polyline points="${pts}" stroke="${col}" stroke-width="1.5" fill="none"/>`
+  // v12.5.33: viewBox + preserveAspectRatio="none" so CSS can stretch the svg
+  // to fill its container (mobile m-spark) without leaving aspect-ratio dead
+  // space. Mild horizontal/vertical distortion is acceptable on a sparkline.
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`
+       + `<line x1="0" y1="${zy}" x2="${w}" y2="${zy}" stroke="#7d8590" stroke-width="1" stroke-dasharray="2,3" opacity="0.75" vector-effect="non-scaling-stroke"/>`
+       + `<line x1="0" y1="${cy}" x2="${w}" y2="${cy}" stroke="${col}" stroke-width="1" stroke-dasharray="3,2" opacity="0.85" vector-effect="non-scaling-stroke"/>`
+       + `<polyline points="${pts}" stroke="${col}" stroke-width="1.5" fill="none" vector-effect="non-scaling-stroke"/>`
        + `</svg>`;
 }
 function addCapital(){const a=prompt('DCA amount ($):');if(!a)return;const v=parseFloat(a);if(isNaN(v)||v===0){alert('Invalid amount');return}if(!confirm((v>0?'Deposit':'Withdraw')+' $'+Math.abs(v)+' ?'))return;fetch('api/capital',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:v})}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else{alert('Capital: $'+j.old+' -> $'+j.new);refresh()}}).catch(e=>alert('Error: '+e));}
@@ -1321,6 +1329,8 @@ function refreshTrades(){
     tb.innerHTML='';
     trades.slice(0,20).forEach(t=>{  // v12.5.25: cap at 20 most recent
       const tr=document.createElement('tr');
+      // v12.5.33: subtle background tint by win/loss for at-a-glance scanning.
+      tr.className=t.pnl_usdt>=0?'trade-win':'trade-loss';
       const sc=t.direction==='LONG'?'green':'red';
       const _d=new Date(t.exit_time);const time=`${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')} ${String(_d.getHours()).padStart(2,'0')}:${String(_d.getMinutes()).padStart(2,'0')}`;
       tr.innerHTML=`

@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.33] — 2026-05-15
+- **Dashboard**: mobile sparkline now fills the price zone; Trade History rows tinted by win/loss for faster scanning.
+
 ## [12.5.32] — 2026-05-15
 - **Dashboard**: softer color palette on the hold-progress bar; mobile card sticks the win-prob emoji next to the P&L; larger price sparkline on mobile.
 - **Dashboard**: Trade History column order — P&L now sits right after Side.
