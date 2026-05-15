@@ -251,7 +251,9 @@ def run_window(features, data, sector_features, dxy_data,
                funding_data: dict | None = None,
                apply_adaptive_modulator: bool = False,
                inlife_exit_extra=None,
-               basket_haircut_fn=None) -> dict:
+               basket_haircut_fn=None,
+               mid_trade_dump_path: str | None = None,
+               mid_trade_checkpoints_h: tuple[int, ...] = (4, 8, 12, 24)) -> dict:
     """Run the portfolio backtest on a time window.
 
     `interval_hours` (default 4) tells the engine how many hours each candle
@@ -477,6 +479,16 @@ def run_window(features, data, sector_features, dxy_data,
     peak_capital = start_capital
     max_dd_pct = 0.0
 
+    # mid_trade_profiling_eda: snapshot collector. Snapshots emitted at
+    # specified hold-hour checkpoints (default 4/8/12/24h) for each position
+    # still open at that checkpoint. Final outcome joined post-hoc by trade_id.
+    # Disabled when mid_trade_dump_path is None — zero overhead in baseline.
+    mid_trade_snapshots: list[dict] = []
+    _next_trade_id = [0]  # mutable counter
+
+    # Convert hour-based checkpoints to candle counts (held = candle index delta)
+    mid_trade_checkpoints = tuple(int(h // interval_hours) for h in mid_trade_checkpoints_h)
+
     # Scale candle-count constants from the default 4h grid to whatever
     # `interval_hours` the caller is using. For 4h: factor 1 (no change).
     # For 1h: factor 4 (HOLD_HOURS_S5=48 → 48 candles instead of 12).
@@ -539,6 +551,38 @@ def run_window(features, data, sector_features, dxy_data,
             if worst_bps < pos.get("mae", 0):
                 pos["mae"] = worst_bps
 
+            # mid_trade_profiling_eda: per-candle pain counter (count 4h candles
+            # where close was below entry). Updated BEFORE checkpoint snapshot
+            # so the value reflects the candle just closed.
+            if mid_trade_dump_path is not None:
+                cur_bps_pain = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                if cur_bps_pain < 0:
+                    pos["pain_candles"] = pos.get("pain_candles", 0) + 1
+                # Snapshot when held matches one of the checkpoints exactly
+                if held in mid_trade_checkpoints:
+                    sf_now = sector_features.get((ts, coin))
+                    sector_div_now = float(sf_now["divergence"]) if sf_now else float("nan")
+                    sector_div_entry = pos.get("sector_div_at_entry", float("nan"))
+                    pain_pct = (pos.get("pain_candles", 0) / held * 100.0) if held > 0 else 0.0
+                    mid_trade_snapshots.append({
+                        "trade_id": pos["trade_id"],
+                        "symbol": coin,
+                        "strat": pos["strat"],
+                        "dir": pos["dir"],
+                        "checkpoint_h": held * interval_hours,
+                        "entry_t": pos["entry_t"],
+                        "checkpoint_t": ts,
+                        "current_ur_bps": float(cur_bps_pain),
+                        "mfe_bps_to_date": float(pos.get("mfe", 0.0)),
+                        "mae_bps_to_date": float(pos.get("mae", 0.0)),
+                        "time_in_pain_pct": float(pain_pct),
+                        "sector_div_at_entry": sector_div_entry,
+                        "sector_div_now": sector_div_now,
+                        "sector_div_delta": (sector_div_now - sector_div_entry
+                                              if (sf_now and sector_div_entry == sector_div_entry)
+                                              else float("nan")),
+                    })
+
             # Optional partial profit-taking: when MFE crosses trigger and
             # not yet taken, exit `fraction` of the size at the current price.
             # Mirrors a live "scan & half-close" behavior. Fires once per
@@ -575,6 +619,7 @@ def run_window(features, data, sector_features, dxy_data,
                     "effn_at_open_14d": pos.get("effn_at_open_14d"),
                     "effn_at_open_30d": pos.get("effn_at_open_30d"),
                     "n_pos_at_open":    pos.get("n_pos_at_open"),
+                    "trade_id":         pos.get("trade_id"),
                 })
                 pos["size"] = pos["size"] - partial_size
                 pos["partial_taken"] = True
@@ -808,6 +853,7 @@ def run_window(features, data, sector_features, dxy_data,
                     "effn_at_open_14d": pos.get("effn_at_open_14d"),
                     "effn_at_open_30d": pos.get("effn_at_open_30d"),
                     "n_pos_at_open":    pos.get("n_pos_at_open"),
+                    "trade_id":         pos.get("trade_id"),
                 })
                 del positions[coin]
                 cooldown[coin] = ts + 24 * 3600 * 1000
@@ -1024,6 +1070,13 @@ def run_window(features, data, sector_features, dxy_data,
             # would use to size the candidate.
             effn_at_open = _compute_effective_n(positions, ts)
 
+            # mid_trade_profiling_eda: trade_id + entry-time sector divergence
+            # for later joining with checkpoint snapshots and final outcome.
+            _trade_id = _next_trade_id[0]
+            _next_trade_id[0] += 1
+            _sf_entry = sector_features.get((ts, coin))
+            _sector_div_at_entry = float(_sf_entry["divergence"]) if _sf_entry else float("nan")
+
             positions[coin] = {
                 "dir": cand["dir"], "entry": entry, "idx": idx_f + 1,
                 "entry_t": entry_ts_ms,
@@ -1037,6 +1090,9 @@ def run_window(features, data, sector_features, dxy_data,
                 "effn_at_open_14d": effn_at_open[14],
                 "effn_at_open_30d": effn_at_open[30],
                 "n_pos_at_open":    len(positions),  # excludes self
+                "trade_id":         _trade_id,
+                "sector_div_at_entry": _sector_div_at_entry,
+                "pain_candles":     0,
             }
             if cand["dir"] == 1:
                 n_long += 1
@@ -1076,6 +1132,7 @@ def run_window(features, data, sector_features, dxy_data,
                 "effn_at_open_14d": pos.get("effn_at_open_14d"),
                 "effn_at_open_30d": pos.get("effn_at_open_30d"),
                 "n_pos_at_open":    pos.get("n_pos_at_open"),
+                "trade_id":         pos.get("trade_id"),
             })
 
     # Summary stats
@@ -1097,6 +1154,35 @@ def run_window(features, data, sector_features, dxy_data,
         with open(basket_dump_path, "w") as _fh:
             for _row in basket_timeseries:
                 _fh.write(json.dumps(_row) + "\n")
+
+    # mid_trade_profiling_eda: join checkpoint snapshots with final outcomes
+    # (joined by trade_id) and dump as JSONL. Each line is a single checkpoint
+    # snapshot enriched with final_* fields.
+    if mid_trade_dump_path and mid_trade_snapshots:
+        trade_outcome = {}
+        for t in trades:
+            tid = t.get("trade_id")
+            if tid is None:
+                continue
+            # net_bps from realized pnl: pnl / size * 1e4 gives the realized
+            # net_bps per unit notional. Using "net" from trade is cleaner.
+            trade_outcome[tid] = {
+                "final_net_bps":     float(t["net"]),
+                "final_pnl_usdt":    float(t["pnl"]),
+                "final_winner":      bool(t["pnl"] > 0),
+                "final_big_winner":  bool(t["net"] > 1500),
+                "final_exit_reason": t["reason"],
+                "final_mfe_bps":     float(t["mfe_bps"]),
+                "final_mae_bps":     float(t["mae_bps"]),
+            }
+        with open(mid_trade_dump_path, "w") as _fh:
+            for _snap in mid_trade_snapshots:
+                tid = _snap["trade_id"]
+                _out = trade_outcome.get(tid)
+                if _out is None:
+                    continue
+                _snap.update(_out)
+                _fh.write(json.dumps(_snap) + "\n")
 
     return {
         "start_capital": start_capital,
