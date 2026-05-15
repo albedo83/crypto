@@ -294,6 +294,10 @@ def run_window(features, data, sector_features, dxy_data,
             time_since_mfe_h  (float) hours since last new MFE high
             btc_z             (float) BTC z-score at ts (0.0 if unavailable)
             ts_ms             (int)   current candle timestamp (ms)
+            trade_id          (int)   unique id for per-position state caching
+            time_in_pain_pct  (float) % of candles where close gave ur<0
+            sector_div_delta  (float) sector_divergence(now) - at_entry, NaN
+                                     if entry/now sector feature missing
     """
     coins = [c for c in TOKENS if c in features and c in data]
     macro_strats = set(MACRO_STRATEGIES)
@@ -554,10 +558,13 @@ def run_window(features, data, sector_features, dxy_data,
             # mid_trade_profiling_eda: per-candle pain counter (count 4h candles
             # where close was below entry). Updated BEFORE checkpoint snapshot
             # so the value reflects the candle just closed.
-            if mid_trade_dump_path is not None:
+            # s5_dead_t8h_walkforward: also enable when inlife_exit_extra is
+            # active, so the hook can read time_in_pain_pct in its snapshot.
+            if mid_trade_dump_path is not None or inlife_exit_extra is not None:
                 cur_bps_pain = pos["dir"] * (current / pos["entry"] - 1) * 1e4
                 if cur_bps_pain < 0:
                     pos["pain_candles"] = pos.get("pain_candles", 0) + 1
+            if mid_trade_dump_path is not None:
                 # Snapshot when held matches one of the checkpoints exactly
                 if held in mid_trade_checkpoints:
                     sf_now = sector_features.get((ts, coin))
@@ -718,6 +725,18 @@ def run_window(features, data, sector_features, dxy_data,
                 held_h_il = held * interval_hours
                 mfe_peak_held = pos.get("mfe_held", held)
                 time_since_mfe_h = (held - mfe_peak_held) * interval_hours
+                # s5_dead_t8h_walkforward: enrich snap with checkpoint-style
+                # features (time_in_pain_pct, sector_div_delta, trade_id) so
+                # the hook can reproduce mid_trade_profiling_eda rules in-life.
+                _pain_pct_il = (pos.get("pain_candles", 0) / held * 100.0
+                                if held > 0 else 0.0)
+                _sd_entry_il = pos.get("sector_div_at_entry", float("nan"))
+                _sf_now_il = sector_features.get((ts, pos["coin"]))
+                if _sf_now_il and _sd_entry_il == _sd_entry_il:
+                    _sd_now_il = float(_sf_now_il["divergence"])
+                    _sd_delta_il = _sd_now_il - _sd_entry_il
+                else:
+                    _sd_delta_il = float("nan")
                 snap = {
                     "symbol": pos["coin"],
                     "strat":  pos["strat"],
@@ -730,6 +749,9 @@ def run_window(features, data, sector_features, dxy_data,
                     "time_since_mfe_h": time_since_mfe_h,
                     "btc_z":  btc_z_map.get(ts, 0.0) if btc_z_map else 0.0,
                     "ts_ms":  ts,
+                    "trade_id": pos.get("trade_id"),
+                    "time_in_pain_pct": float(_pain_pct_il),
+                    "sector_div_delta": _sd_delta_il,
                 }
                 res = inlife_exit_extra(snap)
                 if res and res[0]:
