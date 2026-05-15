@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.35] — 2026-05-15
+- **Dashboard**: price-chart now resizes its canvas to the container height — fixes mobile clipping the lowest values when the canvas overflowed the 200px container.
+
 ## [12.5.34] — 2026-05-15
 - **Dashboard**: tighter Y-axis margins on the price chart so the lowest prices stop hiding at the bottom border.
 

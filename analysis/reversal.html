@@ -1440,7 +1440,10 @@ function initSymBar(){
 function initChart(){
   const container=document.getElementById('price-chart-container');
   _lwChart=LightweightCharts.createChart(container,{
-    width:container.clientWidth, height:300,
+    // v12.5.35: read container.clientHeight too (mobile CSS forces 200px;
+    // the previous hardcoded 300 made the canvas overflow into the
+    // container's overflow:hidden, clipping the lowest data points).
+    width:container.clientWidth, height:container.clientHeight||300,
     layout:{background:{color:'#161b22'},textColor:'#7d8590',fontSize:11},
     grid:{vertLines:{color:'#21262d'},horzLines:{color:'#21262d'}},
     crosshair:{mode:0},
@@ -1454,7 +1457,14 @@ function initChart(){
   });
   _lwSeries=_lwChart.addLineSeries({color:'#58a6ff',lineWidth:2,crosshairMarkerRadius:4,
     priceFormat:{type:'price',minMove:0.0001,precision:4}});
-  new ResizeObserver(()=>{_lwChart.applyOptions({width:container.clientWidth})}).observe(container);
+  // v12.5.35: track height as well as width so the chart resizes when the
+  // block toggles visible (0→200/300 height) or when a mobile orientation
+  // change resizes the container.
+  new ResizeObserver(()=>{
+    if(container.clientWidth && container.clientHeight){
+      _lwChart.applyOptions({width:container.clientWidth, height:container.clientHeight});
+    }
+  }).observe(container);
 }
 
 function refreshChart(){
