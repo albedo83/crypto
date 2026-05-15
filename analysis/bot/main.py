@@ -108,9 +108,16 @@ async def run():
     # the exchange catches up or the user investigates.
     if bot._exchange:
         try:
+            # v12.5.31: timeout-wrap each user_state probe. Without this a hung
+            # HL endpoint at boot would block the whole startup indefinitely
+            # (the outer try/except can't catch a hang). _sdk_call raises
+            # TimeoutError after 10s; the except block at the bottom drops to
+            # "continuing startup" and the bot proceeds normally.
+            from .exchange import _sdk_call
             attempts: list[set[str]] = []
             for _i in range(2):
-                ex_state = bot._hl_info.user_state(bot._hl_address)
+                ex_state = _sdk_call(bot._hl_info.user_state, bot._hl_address,
+                                     timeout=10.0)
                 syms = set()
                 for ap in ex_state.get("assetPositions", []):
                     if abs(float(ap["position"].get("szi", 0))) > 0:

@@ -6,6 +6,7 @@ All functions are standalone (not methods). Only imported/used when HL_MODE=live
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTO
 
@@ -26,7 +27,16 @@ log = logging.getLogger("multisignal")
 # documented thread-safe for stateless GET/POST; if torn responses ever surface
 # under load, a lock can be added later — but the catastrophic-failure mode
 # of lock-based serialization is worse than the rare-race mode without it.
-_SDK_EXECUTOR = ThreadPoolExecutor(max_workers=6, thread_name_prefix="hl-sdk")
+_SDK_MAX_WORKERS = 6
+_SDK_EXECUTOR = ThreadPoolExecutor(max_workers=_SDK_MAX_WORKERS,
+                                   thread_name_prefix="hl-sdk")
+# v12.5.31: track in-flight futures so a sustained HL outage that pegs all
+# workers can be detected before the (max_workers+1)th caller blocks at
+# submit(). The set is mutated under _SDK_INFLIGHT_LOCK; done_callback removes
+# entries when the underlying thread eventually completes (could be long after
+# the calling _sdk_call already raised TimeoutError).
+_SDK_INFLIGHT: set = set()
+_SDK_INFLIGHT_LOCK = threading.Lock()
 
 
 def _sdk_call(fn, *args, timeout: float = 20.0, **kwargs):
@@ -38,9 +48,32 @@ def _sdk_call(fn, *args, timeout: float = 20.0, **kwargs):
     orders whose effect is reconciled on the next scan.
     """
     fut = _SDK_EXECUTOR.submit(fn, *args, **kwargs)
+    with _SDK_INFLIGHT_LOCK:
+        _SDK_INFLIGHT.add(fut)
+        inflight_n = len(_SDK_INFLIGHT)
+
+    def _cleanup(f):
+        with _SDK_INFLIGHT_LOCK:
+            _SDK_INFLIGHT.discard(f)
+    fut.add_done_callback(_cleanup)
+
+    # v12.5.31: warn when the executor is close to saturation. At max_workers
+    # in-flight, the next _sdk_call will block at submit() until a worker
+    # frees, defeating the timeout cap. Log loudly so the operator knows HL
+    # latency is the proximate cause of any subsequent slowdown.
+    if inflight_n >= _SDK_MAX_WORKERS - 1:
+        log.warning("SDK executor saturated: %d/%d futures in-flight — "
+                    "HL latency stalling workers, next call may block at submit()",
+                    inflight_n, _SDK_MAX_WORKERS)
+
     try:
         return fut.result(timeout=timeout)
     except _FTO:
+        # Best-effort cancel: if the worker has already started executing
+        # (which it has if we hit the timeout), Future.cancel() returns False
+        # and is a no-op. The worker keeps running until HL responds; once it
+        # does, _cleanup removes the future from _SDK_INFLIGHT.
+        fut.cancel()
         raise TimeoutError(f"SDK call {fn.__name__} exceeded {timeout}s")
 
 

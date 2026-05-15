@@ -664,6 +664,16 @@ def create_app(bot) -> FastAPI:
         now = time.time()
         dq = _mutation_log.get(ip)
         if dq is None:
+            # v12.5.31: lazy prune of idle entries when adding a new IP, so
+            # _mutation_log can't grow unbounded across the bot's lifetime.
+            # Drop deques that are empty or whose newest mutation is older
+            # than 10× the rate window — those IPs are no longer rate-limited
+            # by any active record, the entry is dead memory.
+            if _mutation_log:
+                stale = [k for k, v in _mutation_log.items()
+                         if not v or now - v[-1] > _MUT_WINDOW * 10]
+                for k in stale:
+                    _mutation_log.pop(k, None)
             dq = deque(maxlen=_MUT_LIMIT_PER_MIN * 4)
             _mutation_log[ip] = dq
         while dq and now - dq[0] > _MUT_WINDOW:

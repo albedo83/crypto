@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.5.31] — 2026-05-15
+- **Infra**: boot reconcile and SDK executor hardened against sustained Hyperliquid outages.
+- **Security**: rate-limit memory accounting bounded to prevent slow growth.
+
 ## [12.5.30] — 2026-05-14
 - **Trading engine**: new regime-aware in-life exit on S8 positions.
 - **Dashboard**: P&L sign fix on the mobile card (negative P&L was displaying as positive).
