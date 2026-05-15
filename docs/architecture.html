@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — Crypto Trading Bot v12.6.0</title>
+<style>
+:root{
+  --bg:#0d1117;--card:#161b22;--card2:#1c2128;--border:#30363d;
+  --text:#c9d1d9;--muted:#7d8590;--accent:#58a6ff;
+  --green:#3fb950;--red:#f85149;--orange:#d29922;--purple:#bc8cff;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font:14px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;padding:0}
+.layout{display:grid;grid-template-columns:240px 1fr;min-height:100vh}
+nav.toc{background:var(--card);border-right:1px solid var(--border);padding:20px 16px;position:sticky;top:0;height:100vh;overflow-y:auto}
+nav.toc h2{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px}
+nav.toc a{display:block;color:var(--text);text-decoration:none;font-size:12px;padding:5px 8px;border-radius:4px;margin-bottom:2px;border-left:2px solid transparent}
+nav.toc a:hover{background:var(--card2);border-left-color:var(--accent)}
+main{padding:28px 36px;max-width:1100px}
+header{padding-bottom:18px;border-bottom:1px solid var(--border);margin-bottom:24px}
+h1{font-size:24px;font-weight:700;color:var(--text);margin-bottom:6px}
+header .sub{color:var(--muted);font-size:13px}
+header .meta{margin-top:8px;display:flex;gap:14px;font-size:11px;color:var(--muted)}
+header .meta b{color:var(--green)}
+section{margin-bottom:36px;scroll-margin-top:12px}
+section h2{font-size:18px;font-weight:600;margin-bottom:14px;color:var(--text);padding-bottom:6px;border-bottom:1px solid var(--border)}
+section h3{font-size:14px;font-weight:600;margin:18px 0 8px;color:var(--accent)}
+p{margin-bottom:10px}
+code{background:var(--card2);padding:1px 5px;border-radius:3px;font:12px Menlo,Consolas,monospace;color:var(--orange)}
+.box{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:14px 18px;margin-bottom:10px}
+.box-grid{display:grid;gap:12px;margin-bottom:14px}
+.box-grid.cols-2{grid-template-columns:1fr 1fr}
+.box-grid.cols-3{grid-template-columns:repeat(3,1fr)}
+.box-grid.cols-4{grid-template-columns:repeat(4,1fr)}
+.svc{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center}
+.svc .name{font-weight:600;font-size:13px}
+.svc.live .name{color:var(--red)}
+.svc.paper .name{color:var(--accent)}
+.svc.junior .name{color:var(--green)}
+.svc.admin .name{color:var(--purple)}
+.svc .port{font:12px Menlo,monospace;color:var(--muted);margin-top:3px}
+.svc .cap{font-size:11px;color:var(--muted);margin-top:5px}
+.diag{background:var(--card);border:1px solid var(--border);border-radius:8px;padding:18px;text-align:center;margin-bottom:14px}
+.diag svg{max-width:100%;height:auto}
+table{width:100%;border-collapse:collapse;font-size:12px;margin-bottom:12px;background:var(--card);border-radius:6px;overflow:hidden}
+th,td{padding:7px 10px;text-align:left;border-bottom:1px solid var(--border)}
+th{background:var(--card2);color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.4px;font-weight:600}
+td code{font-size:11px}
+tr:last-child td{border-bottom:0}
+.tag{display:inline-block;font:10px Menlo,monospace;padding:2px 6px;border-radius:3px;background:var(--card2);color:var(--muted);margin-right:4px}
+.tag.long{color:var(--green);background:rgba(63,185,80,0.12)}
+.tag.short{color:var(--red);background:rgba(248,81,73,0.12)}
+.tag.both{color:var(--orange);background:rgba(210,153,34,0.12)}
+.tag.new{color:var(--accent);background:rgba(88,166,255,0.12)}
+ul{padding-left:22px;margin-bottom:10px}
+ul li{margin-bottom:3px}
+pre{background:var(--card2);border:1px solid var(--border);border-radius:6px;padding:12px 14px;overflow-x:auto;font:12px Menlo,monospace;color:var(--text);margin-bottom:12px;line-height:1.5}
+.flow{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.flow-step{background:var(--card2);border:1px solid var(--border);border-radius:5px;padding:6px 11px;font-size:12px}
+.flow-arrow{color:var(--accent);font-size:18px}
+.legend{display:flex;flex-wrap:wrap;gap:14px;font-size:11px;color:var(--muted);margin:8px 0}
+.legend span{display:flex;align-items:center;gap:5px}
+.legend .dot{width:9px;height:9px;border-radius:50%;display:inline-block}
+.note{background:rgba(88,166,255,0.06);border-left:3px solid var(--accent);padding:8px 12px;font-size:12px;border-radius:0 4px 4px 0;margin:8px 0}
+.warn{background:rgba(210,153,34,0.06);border-left:3px solid var(--orange);padding:8px 12px;font-size:12px;border-radius:0 4px 4px 0;margin:8px 0}
+hr{border:0;border-top:1px solid var(--border);margin:20px 0}
+.kbd{font:11px Menlo,monospace;background:var(--card2);padding:1px 6px;border-radius:3px;border:1px solid var(--border)}
+@media(max-width:900px){.layout{grid-template-columns:1fr}nav.toc{position:static;height:auto;border-right:0;border-bottom:1px solid var(--border)}main{padding:20px}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav class="toc">
+  <h2>Architecture</h2>
+  <a href="#overview">1. Vue d'ensemble</a>
+  <a href="#services">2. Services & ports</a>
+  <a href="#modules">3. Modules Python</a>
+  <a href="#dataflow">4. Pipeline data</a>
+  <a href="#strategies">5. Stratégies (5)</a>
+  <a href="#sizing">6. Sizing & modulator</a>
+  <a href="#exits">7. Pipeline d'exits (10)</a>
+  <a href="#db">8. Schéma SQLite</a>
+  <a href="#state">9. État persistant</a>
+  <a href="#auth">10. Auth & sécurité</a>
+  <a href="#aux">11. Scripts auxiliaires</a>
+  <a href="#backtest">12. Backtest infra</a>
+  <a href="#deploy">13. Versioning & déploiement</a>
+  <a href="#tree">14. Arborescence repo</a>
+</nav>
+
+<main>
+<header>
+  <h1>Crypto Trading Bot — Architecture v12.6.0</h1>
+  <div class="sub">Bot multi-signaux sur Hyperliquid DEX. 28 altcoins, 5 stratégies, paper + live + junior en parallèle.</div>
+  <div class="meta">
+    <span>Version : <b>12.6.0</b></span>
+    <span>Date : 2026-05-15</span>
+    <span>Modules : 12 + dashboard HTML</span>
+    <span>Stratégies : 5 actives</span>
+    <span>Exits : 10 mécanismes</span>
+  </div>
+</header>
+
+<section id="overview">
+<h2>1. Vue d'ensemble</h2>
+<p>Bot de trading <b>mean-reversion + momentum</b> sur Hyperliquid (DEX, accessible depuis la France), opérant sur 28 altcoins avec 5 stratégies indépendantes (S1, S5, S8, S9, S10), 2× de levier cross-margin. Trois bots <b>partagent le même code</b> mais avec capitaux/wallets distincts (paper / live / junior) plus un panel admin agrégateur.</p>
+
+<div class="diag">
+<svg viewBox="0 0 760 280" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+  <!-- External -->
+  <rect x="20" y="10" width="160" height="42" rx="6" fill="#161b22" stroke="#30363d"/>
+  <text x="100" y="32" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">Hyperliquid REST API</text>
+  <text x="100" y="46" text-anchor="middle" fill="#7d8590" font-size="10">prices · OI · funding · candles</text>
+
+  <rect x="200" y="10" width="120" height="42" rx="6" fill="#161b22" stroke="#30363d"/>
+  <text x="260" y="32" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">Yahoo Finance</text>
+  <text x="260" y="46" text-anchor="middle" fill="#7d8590" font-size="10">DXY (48h cache)</text>
+
+  <rect x="340" y="10" width="160" height="42" rx="6" fill="#161b22" stroke="#30363d"/>
+  <text x="420" y="32" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">Hyperliquid SDK (write)</text>
+  <text x="420" y="46" text-anchor="middle" fill="#7d8590" font-size="10">market_open · market_close</text>
+
+  <rect x="520" y="10" width="120" height="42" rx="6" fill="#161b22" stroke="#30363d"/>
+  <text x="580" y="32" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">Telegram</text>
+  <text x="580" y="46" text-anchor="middle" fill="#7d8590" font-size="10">events · daily</text>
+
+  <rect x="660" y="10" width="80" height="42" rx="6" fill="#161b22" stroke="#30363d"/>
+  <text x="700" y="32" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">Anthropic</text>
+  <text x="700" y="46" text-anchor="middle" fill="#7d8590" font-size="10">daily LLM</text>
+
+  <!-- arrows down -->
+  <line x1="100" y1="52" x2="100" y2="92" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="260" y1="52" x2="260" y2="92" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="380" y1="100" x2="420" y2="60" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar)"/>
+  <line x1="430" y1="100" x2="580" y2="60" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar)"/>
+
+  <!-- Bot core -->
+  <rect x="60" y="100" width="380" height="80" rx="8" fill="#1c2128" stroke="#58a6ff" stroke-width="1.5"/>
+  <text x="250" y="125" text-anchor="middle" fill="#c9d1d9" font-size="13" font-weight="700">analysis/bot/ — single asyncio process</text>
+  <text x="250" y="145" text-anchor="middle" fill="#7d8590" font-size="11">config · models · net · features · signals · db</text>
+  <text x="250" y="162" text-anchor="middle" fill="#7d8590" font-size="11">persistence · exchange · trading · web · bot · main</text>
+
+  <!-- Services -->
+  <rect x="20" y="210" width="120" height="55" rx="6" fill="#161b22" stroke="#58a6ff"/>
+  <text x="80" y="232" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="700">Paper :8097</text>
+  <text x="80" y="248" text-anchor="middle" fill="#7d8590" font-size="11">$1000 simulé</text>
+  <text x="80" y="262" text-anchor="middle" fill="#7d8590" font-size="10">no Telegram</text>
+
+  <rect x="160" y="210" width="120" height="55" rx="6" fill="#161b22" stroke="#f85149"/>
+  <text x="220" y="232" text-anchor="middle" fill="#f85149" font-size="12" font-weight="700">Live :8098 🔴</text>
+  <text x="220" y="248" text-anchor="middle" fill="#7d8590" font-size="11">$500 réel</text>
+  <text x="220" y="262" text-anchor="middle" fill="#7d8590" font-size="10">single-key wallet</text>
+
+  <rect x="300" y="210" width="120" height="55" rx="6" fill="#161b22" stroke="#3fb950"/>
+  <text x="360" y="232" text-anchor="middle" fill="#3fb950" font-size="12" font-weight="700">Junior :8099 🔴</text>
+  <text x="360" y="248" text-anchor="middle" fill="#7d8590" font-size="11">$300 réel</text>
+  <text x="360" y="262" text-anchor="middle" fill="#7d8590" font-size="10">API agent + master</text>
+
+  <rect x="440" y="210" width="120" height="55" rx="6" fill="#161b22" stroke="#bc8cff"/>
+  <text x="500" y="232" text-anchor="middle" fill="#bc8cff" font-size="12" font-weight="700">Admin :8090</text>
+  <text x="500" y="248" text-anchor="middle" fill="#7d8590" font-size="11">aggregator</text>
+  <text x="500" y="262" text-anchor="middle" fill="#7d8590" font-size="10">admin.py (séparé)</text>
+
+  <line x1="250" y1="180" x2="80" y2="210" stroke="#58a6ff" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="250" y1="180" x2="220" y2="210" stroke="#58a6ff" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="250" y1="180" x2="360" y2="210" stroke="#58a6ff" stroke-width="1" stroke-dasharray="3,3"/>
+  <line x1="500" y1="180" x2="500" y2="210" stroke="#58a6ff" stroke-width="1" stroke-dasharray="3,3"/>
+
+  <!-- Crontab -->
+  <rect x="600" y="210" width="140" height="55" rx="6" fill="#161b22" stroke="#30363d"/>
+  <text x="670" y="232" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">Crontab</text>
+  <text x="670" y="246" text-anchor="middle" fill="#7d8590" font-size="10">@reboot start_bots.sh</text>
+  <text x="670" y="258" text-anchor="middle" fill="#7d8590" font-size="10">8h: supervisor · drift</text>
+</svg>
+</div>
+
+<div class="note">
+Tous les bots tournent <b>le même code Python</b> à partir du même repo. La distinction live/paper se fait par variables d'environnement (<code>HL_MODE</code>, <code>HL_PRIVATE_KEY</code>, <code>HL_CAPITAL</code>, <code>WEB_PORT</code>, <code>HL_OUTPUT_DIR</code>). Permet d'isoler le live de l'expérimentation et de valider tout changement sur paper avant restart live.
+</div>
+</section>
+
+<section id="services">
+<h2>2. Services & ports</h2>
+
+<div class="box-grid cols-4">
+  <div class="svc paper">
+    <div class="name">Paper</div>
+    <div class="port">:8097</div>
+    <div class="cap">$1000 simulé · HL_MODE=paper</div>
+  </div>
+  <div class="svc live">
+    <div class="name">Live 🔴</div>
+    <div class="port">:8098</div>
+    <div class="cap">$500 réel · HL_MODE=live</div>
+  </div>
+  <div class="svc junior">
+    <div class="name">Junior 🔴</div>
+    <div class="port">:8099</div>
+    <div class="cap">$300 réel · API agent</div>
+  </div>
+  <div class="svc admin">
+    <div class="name">Admin</div>
+    <div class="port">:8090</div>
+    <div class="cap">aggregator · admin.py</div>
+  </div>
+</div>
+
+<h3>Modèle wallet — différence Live vs Junior</h3>
+<table>
+<tr><th>Service</th><th>Modèle</th><th>Signer</th><th>Funds holder</th><th>SDK init</th></tr>
+<tr><td><b>Live</b></td><td>Single-key</td><td><code>HL_PRIVATE_KEY</code> = wallet</td><td>même wallet</td><td><code>Exchange(wallet)</code></td></tr>
+<tr><td><b>Junior</b></td><td>API agent</td><td><code>JUNIOR_HL_PRIVATE_KEY</code> (no funds)</td><td><code>HL_ACCOUNT_ADDRESS</code> master</td><td><code>Exchange(wallet, account_address=master)</code></td></tr>
+</table>
+
+<div class="note">
+Junior nécessite que l'agent (signer) soit <b>autorisé</b> par le master via Hyperliquid Settings → API. La clé API a une expiration configurable (6 mois par défaut). En cas de renouvellement, mettre à jour <code>JUNIOR_HL_PRIVATE_KEY</code> dans <code>.env</code> et re-autoriser le nouveau signer chez HL.
+</div>
+
+<h3>Nginx subpaths</h3>
+<table>
+<tr><th>URL externe</th><th>ROOT_PATH env</th><th>Backend</th></tr>
+<tr><td><code>/paper/</code></td><td><code>HL_ROOT_PATH=/paper</code></td><td>:8097</td></tr>
+<tr><td><code>/bot/</code></td><td><code>HL_ROOT_PATH=/bot</code></td><td>:8098 (live)</td></tr>
+<tr><td><code>/junior/</code></td><td><code>HL_ROOT_PATH=/junior</code></td><td>:8099</td></tr>
+<tr><td><code>/crypto/</code></td><td><code>ADMIN_ROOT_PATH=/crypto</code></td><td>:8090 (admin)</td></tr>
+</table>
+</section>
+
+<section id="modules">
+<h2>3. Modules Python (12)</h2>
+<p>L'intégralité du bot tient dans 12 modules dans <code>analysis/bot/</code>. Un seul process asyncio. Le module <code>analysis/reversal.py</code> est un shim de 6 lignes pour rétrocompat.</p>
+
+<div class="diag">
+<svg viewBox="0 0 760 380" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ar2" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#7d8590"/>
+    </marker>
+  </defs>
+  <!-- Foundation layer -->
+  <rect x="20" y="20" width="100" height="44" rx="5" fill="#161b22" stroke="#30363d"/>
+  <text x="70" y="40" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">config.py</text>
+  <text x="70" y="55" text-anchor="middle" fill="#7d8590" font-size="9">constants · env · sizing</text>
+
+  <rect x="140" y="20" width="100" height="44" rx="5" fill="#161b22" stroke="#30363d"/>
+  <text x="190" y="40" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">models.py</text>
+  <text x="190" y="55" text-anchor="middle" fill="#7d8590" font-size="9">dataclasses</text>
+
+  <rect x="260" y="20" width="100" height="44" rx="5" fill="#161b22" stroke="#30363d"/>
+  <text x="310" y="40" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">db.py</text>
+  <text x="310" y="55" text-anchor="middle" fill="#7d8590" font-size="9">SQLite schema</text>
+
+  <rect x="380" y="20" width="100" height="44" rx="5" fill="#161b22" stroke="#30363d"/>
+  <text x="430" y="40" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">net.py</text>
+  <text x="430" y="55" text-anchor="middle" fill="#7d8590" font-size="9">HTTP · Telegram</text>
+
+  <rect x="500" y="20" width="100" height="44" rx="5" fill="#161b22" stroke="#30363d"/>
+  <text x="550" y="40" text-anchor="middle" fill="#c9d1d9" font-size="12" font-weight="600">exchange.py</text>
+  <text x="550" y="55" text-anchor="middle" fill="#7d8590" font-size="9">HL SDK (lazy)</text>
+
+  <!-- Mid layer -->
+  <rect x="50" y="110" width="120" height="44" rx="5" fill="#161b22" stroke="#58a6ff"/>
+  <text x="110" y="130" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">features.py</text>
+  <text x="110" y="145" text-anchor="middle" fill="#7d8590" font-size="9">technicals · OI · BTC · sector</text>
+
+  <rect x="200" y="110" width="120" height="44" rx="5" fill="#161b22" stroke="#58a6ff"/>
+  <text x="260" y="130" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">signals.py</text>
+  <text x="260" y="145" text-anchor="middle" fill="#7d8590" font-size="9">S1/S5/S8/S9/S10</text>
+
+  <rect x="350" y="110" width="120" height="44" rx="5" fill="#161b22" stroke="#58a6ff"/>
+  <text x="410" y="130" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">persistence.py</text>
+  <text x="410" y="145" text-anchor="middle" fill="#7d8590" font-size="9">state.json save/load</text>
+
+  <rect x="500" y="110" width="120" height="44" rx="5" fill="#161b22" stroke="#58a6ff"/>
+  <text x="560" y="130" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">analytics.py</text>
+  <text x="560" y="145" text-anchor="middle" fill="#7d8590" font-size="9">signal_drift</text>
+
+  <rect x="640" y="110" width="100" height="44" rx="5" fill="#161b22" stroke="#58a6ff"/>
+  <text x="690" y="130" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">collector.py</text>
+  <text x="690" y="145" text-anchor="middle" fill="#7d8590" font-size="9">trade-flow logs</text>
+
+  <!-- Action layer -->
+  <rect x="120" y="200" width="180" height="50" rx="6" fill="#161b22" stroke="#d29922" stroke-width="1.5"/>
+  <text x="210" y="222" text-anchor="middle" fill="#d29922" font-size="13" font-weight="700">trading.py</text>
+  <text x="210" y="240" text-anchor="middle" fill="#7d8590" font-size="10">entries · exits · P&amp;L · close_position</text>
+
+  <rect x="340" y="200" width="180" height="50" rx="6" fill="#161b22" stroke="#d29922" stroke-width="1.5"/>
+  <text x="430" y="222" text-anchor="middle" fill="#d29922" font-size="13" font-weight="700">web.py</text>
+  <text x="430" y="240" text-anchor="middle" fill="#7d8590" font-size="10">FastAPI · /api/* · login</text>
+
+  <!-- Orchestrator -->
+  <rect x="220" y="290" width="240" height="50" rx="6" fill="#1c2128" stroke="#bc8cff" stroke-width="2"/>
+  <text x="340" y="312" text-anchor="middle" fill="#bc8cff" font-size="14" font-weight="700">bot.py — MultiSignalBot</text>
+  <text x="340" y="330" text-anchor="middle" fill="#7d8590" font-size="10">orchestrator · main_loop · scan</text>
+
+  <rect x="480" y="290" width="100" height="50" rx="6" fill="#1c2128" stroke="#bc8cff"/>
+  <text x="530" y="312" text-anchor="middle" fill="#bc8cff" font-size="13" font-weight="700">main.py</text>
+  <text x="530" y="330" text-anchor="middle" fill="#7d8590" font-size="10">entry point</text>
+
+  <!-- Arrows -->
+  <line x1="70" y1="64" x2="110" y2="110" stroke="#7d8590" stroke-width="1" marker-end="url(#ar2)"/>
+  <line x1="430" y1="64" x2="260" y2="110" stroke="#7d8590" stroke-width="1" marker-end="url(#ar2)"/>
+  <line x1="310" y1="64" x2="410" y2="110" stroke="#7d8590" stroke-width="1" marker-end="url(#ar2)"/>
+  <line x1="190" y1="64" x2="260" y2="110" stroke="#7d8590" stroke-width="1" marker-end="url(#ar2)"/>
+  <line x1="260" y1="154" x2="210" y2="200" stroke="#7d8590" stroke-width="1" marker-end="url(#ar2)"/>
+  <line x1="550" y1="64" x2="210" y2="200" stroke="#7d8590" stroke-width="1" marker-end="url(#ar2)"/>
+  <line x1="410" y1="154" x2="210" y2="200" stroke="#7d8590" stroke-width="1" marker-end="url(#ar2)"/>
+  <line x1="210" y1="250" x2="340" y2="290" stroke="#7d8590" stroke-width="1" marker-end="url(#ar2)"/>
+  <line x1="430" y1="250" x2="340" y2="290" stroke="#7d8590" stroke-width="1" marker-end="url(#ar2)"/>
+  <line x1="530" y1="290" x2="460" y2="290" stroke="#7d8590" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+  <text x="20" y="378" fill="#7d8590" font-size="10" font-style="italic">Légende : arrows = import direction. Couleurs : gris=foundation · bleu=feature/state · orange=action · violet=orchestrator.</text>
+</svg>
+</div>
+
+<h3>Rôle de chaque module</h3>
+<table>
+<tr><th>Module</th><th>Responsabilité</th></tr>
+<tr><td><code>config.py</code></td><td>Constants (VERSION, paramètres signaux, sizing, exits), env loader (.env), helpers <code>strat_size</code>, <code>get_adaptive_alpha</code></td></tr>
+<tr><td><code>models.py</code></td><td>Dataclasses <code>SymbolState</code>, <code>Position</code>, <code>Trade</code> — l'unique source de vérité du schéma en mémoire</td></tr>
+<tr><td><code>db.py</code></td><td>Schéma SQLite (tables <code>trades</code>, <code>trajectories</code>, <code>market_snapshots</code>, <code>events</code>, <code>basket_snapshots</code>), <code>log_event</code>, <code>_db_lock</code> serializing writes</td></tr>
+<tr><td><code>net.py</code></td><td><code>_http_fetch</code> retry 3× expo, fetch prices/candles/OI HL, fetch DXY Yahoo, <code>send_telegram</code></td></tr>
+<tr><td><code>exchange.py</code></td><td>Lazy import du SDK (paper = zéro dépendance), <code>init_exchange</code>, <code>execute_open</code>, <code>execute_close</code>, <code>reconcile</code>, <code>fetch_account_state</code>. Tous les appels passent par <code>_sdk_call</code> (timeout cap + saturation warning v12.5.31)</td></tr>
+<tr><td><code>features.py</code></td><td>Indicateurs techniques per-token, OI/funding/premium derivés, BTC features (z-score 6m), sector grouping, effective_n du panier ouvert</td></tr>
+<tr><td><code>signals.py</code></td><td>Détection des 5 signaux S1/S5/S8/S9/S10, squeeze pattern (S10), S9F observation-only</td></tr>
+<tr><td><code>persistence.py</code></td><td>Atomic write <code>state.json.tmp → os.replace</code>, sauvegarde positions/capital/cooldowns/feature_cache, load au démarrage avec backup .loaded</td></tr>
+<tr><td><code>analytics.py</code></td><td><code>compute_signal_drift</code> (rolling WR/avg bps/P&amp;L par strat) — exposé en <code>/api/state.signal_drift</code></td></tr>
+<tr><td><code>collector.py</code></td><td><code>TradeFlowCollector</code> async — log les snapshots horaires de marché (prix, OI, funding) en <code>market_snapshots</code></td></tr>
+<tr><td><code>trading.py</code></td><td><b>Cœur du trading</b> : <code>rank_and_enter</code> (entries avec slot reservation + macro modulator), <code>check_exits</code> (10 mécanismes d'exit), <code>close_position</code> (DB + Telegram + state)</td></tr>
+<tr><td><code>web.py</code></td><td>FastAPI app : routes <code>/api/health</code>, <code>/api/state</code>, <code>/api/signals</code>, <code>/api/trades</code>, <code>/api/pnl</code>, <code>/api/chart/&#123;sym&#125;</code>, <code>/api/close/&#123;sym&#125;</code>, <code>/api/manual_stop/&#123;sym&#125;</code>, <code>/api/pause</code>, <code>/api/resume</code>, <code>/api/reset</code>, <code>/api/capital</code>. Auth HMAC signed cookies. Dashboard HTML servi inline depuis <code>analysis/reversal.html</code></td></tr>
+<tr><td><code>bot.py</code></td><td>Classe <code>MultiSignalBot</code> — <code>main_loop</code>, <code>_scan_and_trade</code>, <code>equity_refresh_loop</code> (15s, live), <code>_compute_features</code>, lock <code>_pos_lock</code></td></tr>
+<tr><td><code>main.py</code></td><td>Entry point : <code>fcntl</code> single-instance lock, signal handlers SIGINT/SIGTERM, boot reconcile, asyncio.gather (main_loop + uvicorn + collector + equity_refresh)</td></tr>
+</table>
+</section>
+
+<section id="dataflow">
+<h2>4. Pipeline data (read path)</h2>
+
+<div class="diag">
+<svg viewBox="0 0 760 220" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <marker id="ar3" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L0,6 L8,3 z" fill="#58a6ff"/>
+    </marker>
+  </defs>
+
+  <rect x="20" y="20" width="150" height="38" rx="5" fill="#161b22" stroke="#30363d"/>
+  <text x="95" y="38" text-anchor="middle" fill="#c9d1d9" font-size="11" font-weight="600">metaAndAssetCtxs</text>
+  <text x="95" y="51" text-anchor="middle" fill="#7d8590" font-size="9">prices · OI · funding · premium (60s)</text>
+
+  <rect x="20" y="70" width="150" height="38" rx="5" fill="#161b22" stroke="#30363d"/>
+  <text x="95" y="88" text-anchor="middle" fill="#c9d1d9" font-size="11" font-weight="600">candleSnapshot</text>
+  <text x="95" y="101" text-anchor="middle" fill="#7d8590" font-size="9">4h candles · 30 syms (hourly)</text>
+
+  <rect x="20" y="120" width="150" height="38" rx="5" fill="#161b22" stroke="#30363d"/>
+  <text x="95" y="138" text-anchor="middle" fill="#c9d1d9" font-size="11" font-weight="600">Yahoo DXY</text>
+  <text x="95" y="151" text-anchor="middle" fill="#7d8590" font-size="9">cached 48h in memory</text>
+
+  <rect x="220" y="50" width="140" height="80" rx="6" fill="#1c2128" stroke="#58a6ff"/>
+  <text x="290" y="75" text-anchor="middle" fill="#58a6ff" font-size="12" font-weight="600">feature cache</text>
+  <text x="290" y="92" text-anchor="middle" fill="#7d8590" font-size="10">_feature_cache</text>
+  <text x="290" y="108" text-anchor="middle" fill="#7d8590" font-size="10">+ 2h restore on boot</text>
+
+  <rect x="410" y="20" width="140" height="38" rx="5" fill="#161b22" stroke="#58a6ff"/>
+  <text x="480" y="40" text-anchor="middle" fill="#58a6ff" font-size="11" font-weight="600">features.py</text>
+  <text x="480" y="53" text-anchor="middle" fill="#7d8590" font-size="9">drawdown · vol_z · ret_24h · OI</text>
+
+  <rect x="410" y="70" width="140" height="38" rx="5" fill="#161b22" stroke="#58a6ff"/>
+  <text x="480" y="90" text-anchor="middle" fill="#58a6ff" font-size="11" font-weight="600">BTC features</text>
+  <text x="480" y="103" text-anchor="middle" fill="#7d8590" font-size="9">btc_z (30d ret / 180d std)</text>
+
+  <rect x="410" y="120" width="140" height="38" rx="5" fill="#161b22" stroke="#58a6ff"/>
+  <text x="480" y="140" text-anchor="middle" fill="#58a6ff" font-size="11" font-weight="600">sector / cross-mkt</text>
+  <text x="480" y="153" text-anchor="middle" fill="#7d8590" font-size="9">divergence · dispersion · n_stress</text>
+
+  <rect x="590" y="70" width="150" height="60" rx="6" fill="#1c2128" stroke="#d29922" stroke-width="1.5"/>
+  <text x="665" y="92" text-anchor="middle" fill="#d29922" font-size="12" font-weight="700">signals.py</text>
+  <text x="665" y="108" text-anchor="middle" fill="#7d8590" font-size="10">detect S1/S5/S8/S9/S10</text>
+  <text x="665" y="122" text-anchor="middle" fill="#7d8590" font-size="10">→ ranked candidates</text>
+
+  <line x1="170" y1="38" x2="220" y2="80" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar3)"/>
+  <line x1="170" y1="88" x2="220" y2="90" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar3)"/>
+  <line x1="170" y1="140" x2="220" y2="100" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar3)"/>
+  <line x1="360" y1="90" x2="410" y2="40" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar3)"/>
+  <line x1="360" y1="90" x2="410" y2="90" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar3)"/>
+  <line x1="360" y1="90" x2="410" y2="140" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar3)"/>
+  <line x1="550" y1="40" x2="590" y2="90" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar3)"/>
+  <line x1="550" y1="90" x2="590" y2="100" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar3)"/>
+  <line x1="550" y1="140" x2="590" y2="110" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#ar3)"/>
+
+  <text x="20" y="200" fill="#7d8590" font-size="10" font-style="italic">Le feature cache est persisté toutes les 60s dans state.json et restauré au boot si &lt; 2h (évite blank dashboard après restart).</text>
+</svg>
+</div>
+</section>
+
+<section id="strategies">
+<h2>5. Stratégies (5 actives)</h2>
+
+<table>
+<tr><th>Strat</th><th>Type</th><th>Direction</th><th>Trigger</th><th>Hold</th><th>Stop</th><th>SIGNAL_MULT</th><th>α modulator</th></tr>
+<tr>
+  <td><b>S1</b> BTC momentum</td>
+  <td>continuation</td>
+  <td><span class="tag long">LONG only</span></td>
+  <td><code>btc_30d &gt; +2000 bps</code></td>
+  <td>72h</td>
+  <td>−1250 bps</td>
+  <td>1.125</td>
+  <td><span class="tag new">+0.5</span></td>
+</tr>
+<tr>
+  <td><b>S5</b> sector divergence</td>
+  <td>continuation</td>
+  <td><span class="tag both">LONG/SHORT</span></td>
+  <td><code>|divergence| ≥ 1000 bps</code> + <code>vol_z ≥ 1.0</code></td>
+  <td>48h</td>
+  <td>−1250 bps</td>
+  <td>3.25</td>
+  <td>SHORT: <span class="tag new">−0.5</span></td>
+</tr>
+<tr>
+  <td><b>S8</b> capitulation flush</td>
+  <td>contrarian</td>
+  <td><span class="tag long">LONG only</span></td>
+  <td><code>drawdown &lt; −3000</code> + <code>vol_z &gt; 1</code> + <code>ret_24h &lt; −50</code> + <code>btc_7d &lt; −300</code></td>
+  <td>60h</td>
+  <td>−750 bps</td>
+  <td>1.25</td>
+  <td><span class="tag new">−0.5</span></td>
+</tr>
+<tr>
+  <td><b>S9</b> fade ±20%/24h</td>
+  <td>mean reversion</td>
+  <td><span class="tag both">LONG/SHORT</span></td>
+  <td><code>|ret_24h| ≥ 2000 bps</code></td>
+  <td>48h</td>
+  <td>adaptive</td>
+  <td>2.00</td>
+  <td><span class="tag new">−0.5</span></td>
+</tr>
+<tr>
+  <td><b>S10</b> squeeze + faux breakout</td>
+  <td>contrarian</td>
+  <td><span class="tag short">SHORT only</span> (v11.3.4)</td>
+  <td>squeeze 12h + breakout 50% range + 2c réintégration</td>
+  <td>24h</td>
+  <td>−1250 bps</td>
+  <td>2.00</td>
+  <td>—</td>
+</tr>
+</table>
+
+<div class="warn">
+<b>S10</b> est restreint à <b>13 tokens whitelistés</b> (<code>S10_ALLOWED_TOKENS</code>) et au SHORT uniquement depuis v11.3.4. Trailing stop natif au-delà de MFE = +600 bps : exit à MFE−150.
+</div>
+
+<h3>Garde-fous globaux (anti-slot, anti-overlap)</h3>
+<table>
+<tr><th>Limite</th><th>Valeur</th><th>Raison</th></tr>
+<tr><td><code>MAX_POSITIONS</code></td><td>6</td><td>positions simultanées max</td></tr>
+<tr><td><code>MAX_SAME_DIRECTION</code></td><td>4</td><td>max 4 LONG ou 4 SHORT</td></tr>
+<tr><td><code>MAX_PER_SECTOR</code></td><td>2</td><td>limite concentration sectorielle</td></tr>
+<tr><td><code>MAX_MACRO_SLOTS</code></td><td>2</td><td>max trades macro (S1)</td></tr>
+<tr><td><code>MAX_TOKEN_SLOTS</code></td><td>4</td><td>max trades token-level (S5/S8/S9/S10)</td></tr>
+<tr><td><code>TRADE_BLACKLIST</code></td><td><code>{SUI, IMX, LINK}</code></td><td>tokens net-négatifs sur 28m</td></tr>
+<tr><td><code>OI_LONG_GATE_BPS</code></td><td>1000</td><td>skip LONG si OI tombé &gt; 10%/24h (longs unwinding)</td></tr>
+<tr><td><code>DISP_GATE_BPS</code></td><td>700</td><td>skip S5/S9 si dispersion 24h ≥ p98</td></tr>
+<tr><td><code>COOLDOWN_HOURS</code></td><td>24</td><td>par token après exit</td></tr>
+</table>
+</section>
+
+<section id="sizing">
+<h2>6. Sizing & modulator macro</h2>
+
+<h3>Formule complète</h3>
+<pre>size_usdt = (base_pct × capital) × SIGNAL_MULT[strat] × macro_mult × liquidity_haircut
+  where:
+    base_pct        = SIZE_PCT (0.18) + bonus si z &gt; 4 (+0.03)
+    SIGNAL_MULT     = {S1: 1.125, S5: 3.25, S8: 1.25, S9: 2.00, S10: 2.00}
+    macro_mult      = clip(1 + α(strat,dir) × btc_z,
+                            MACRO_MULT_MIN=0.3, MACRO_MULT_MAX=2.5)
+    liquidity_haircut = {S8: 0.8, autres: 1.0}
+
+  btc_z = z-score 6m du return BTC sur 30 jours
+        = (ret_30d_today − mean_180d) / std_180d</pre>
+
+<h3>α adaptatif par (strat, direction)</h3>
+<table>
+<tr><th>Strat</th><th>α global</th><th>α(strat, dir=-1)</th><th>Effet</th></tr>
+<tr><td>S1 (LONG)</td><td>+0.5</td><td>—</td><td>amplifié en bull (×1.5 typique)</td></tr>
+<tr><td>S5</td><td>0 (LONG default)</td><td>SHORT: <b>−0.5</b></td><td>S5 SHORT réduit en bull, amplifié en bear</td></tr>
+<tr><td>S8 (LONG)</td><td>−0.5</td><td>—</td><td>amplifié en bear (régime favorable à la capitulation buy)</td></tr>
+<tr><td>S9</td><td>−0.5</td><td>—</td><td>amplifié en bear pour fades extrêmes</td></tr>
+<tr><td>S10</td><td>—</td><td>—</td><td>pas de modulator (regime-unstable, v11.10.0)</td></tr>
+</table>
+
+<div class="note">
+Le modulator (v11.10.0 + v12.2.0) a été validé walk-forward 4/4 strict + null-shuffle. Coefficients α conservateurs (±0.5 vs ±1.0 optimum) pour limiter overfit. S10 et S5 LONG explicitement exclus car régime-instables.
+</div>
+
+<h3>Floor de sécurité</h3>
+<p>Si <code>size_usdt &lt; $10</code> après application du modulator → <b>skip l'entrée</b> (modulator_floor). Empêche les positions ridicules en régime fortement défavorable.</p>
+</section>
+
+<section id="exits">
+<h2>7. Pipeline d'exits (10 mécanismes)</h2>
+<p>Évalués à chaque scan (~minute). Ordre de priorité dans <code>trading.check_exits</code> :</p>
+
+<div class="flow">
+  <span class="flow-step">timeout naturel</span><span class="flow-arrow">→</span>
+  <span class="flow-step">catastrophe stop</span><span class="flow-arrow">→</span>
+  <span class="flow-step">manual stop $</span><span class="flow-arrow">→</span>
+  <span class="flow-step">S9 early exit</span><span class="flow-arrow">→</span>
+  <span class="flow-step">S10 trailing</span><span class="flow-arrow">→</span>
+  <span class="flow-step">S8 dead-in-water</span><span class="flow-arrow">→</span>
+  <span class="flow-step">S8 in-life trail</span><span class="flow-arrow">→</span>
+  <span class="flow-step">dead-timeout</span>
+</div>
+<p style="margin-top:8px;color:var(--muted);font-size:12px">+ <code>manual_close</code> via API et <code>runner_ext</code> S9 qui pousse target_exit de +12h au timeout si winner.</p>
+
+<table>
+<tr><th>#</th><th>Reason</th><th>Cible</th><th>Trigger</th><th>Version</th></tr>
+<tr><td>1</td><td><code>catastrophe_stop</code></td><td>tous</td><td><code>unrealized ≤ stop</code> (−1250 / −750 S8 / adaptive S9)</td><td>v0</td></tr>
+<tr><td>2</td><td><code>timeout</code></td><td>tous</td><td><code>now ≥ target_exit</code> (72h S1, 48h S5/S9, 60h S8, 24h S10)</td><td>v0</td></tr>
+<tr><td>3</td><td><code>dead_timeout</code></td><td>tous</td><td>à T−12h : MFE ≤ 150 ET MAE ≤ −500 ET current ≤ MAE+300</td><td>v11.7.2 → v12.5.0</td></tr>
+<tr><td>4</td><td><code>s10_trailing</code></td><td>S10</td><td>MFE ≥ 600 ET unrealized ≤ MFE−150</td><td>v11.4.0</td></tr>
+<tr><td>5</td><td><code>s9_early_exit</code></td><td>S9</td><td>hours_held ≥ 8h ET unrealized &lt; −500 bps</td><td>existant</td></tr>
+<tr><td>6</td><td><code>runner_ext</code> *</td><td>S9</td><td>à timeout, MFE ≥ 1200 ET unrealized ≥ 30% MFE → +12h hold</td><td>v11.7.32</td></tr>
+<tr><td>7</td><td><code>manual_close</code></td><td>tous</td><td>bouton ✕ dashboard ou <code>POST /api/close/&#123;sym&#125;</code></td><td>v0</td></tr>
+<tr><td>8</td><td><code>manual_stop_set</code></td><td>tous</td><td>seuil $ fixé via 🎯 dashboard, net P&amp;L ≤ stop_usdt</td><td>v12.5.10</td></tr>
+<tr><td>9</td><td><code>s8_dead_in_water</code> <span class="tag new">NEW</span></td><td>S8 LONG</td><td>hours_held ≥ 8 ET MFE ≤ 50 bps</td><td><b>v12.6.0</b></td></tr>
+<tr><td>10</td><td><code>s8_inlife</code></td><td>S8</td><td>MFE ≥ activation[regime] ET unrealized ≤ MFE − offset[regime]</td><td>v12.5.30</td></tr>
+</table>
+
+<p style="font-size:11px;color:var(--muted)"><i>* <code>runner_ext</code> n'est pas un exit en lui-même mais une extension du timeout.</i></p>
+
+<div class="note">
+<b>S8 dead-in-water vs S8 in-life trail</b> opèrent aux <b>queues opposées</b> de la distribution MFE :
+<ul>
+<li>Dead-in-water : MFE ≤ 50 bps à T+8h (la position n'a jamais respiré) → cut early</li>
+<li>In-life trail : MFE ≥ 300 (neutral) ou ≥ 1500 (bear/bull) puis retrace → lock les gains</li>
+</ul>
+Distributions strictement disjointes, aucun chevauchement possible. <code>pos.mfe_bps</code> étant monotone non-décroissant, le dead-in-water est naturellement idempotent (une fois MFE &gt; 50, la rule ne fire plus).
+</div>
+</section>
+
+<section id="db">
+<h2>8. Schéma SQLite</h2>
+<p>SQLite est <b>la source de vérité</b> pour l'historique. Les fichiers CSV ont été retirés en v11.3.1 (migration helper conservé pour rétrocompat). Fichier : <code>analysis/output[_live|_live2]/reversal_ticks.db</code>.</p>
+
+<table>
+<tr><th>Table</th><th>Contenu</th><th>Use</th></tr>
+<tr><td><code>trades</code></td><td>chaque trade fermé : entry/exit time+price, size, gross/net bps, pnl_usdt, reason, MAE/MFE, entry_*</td><td>backtest comparison, dashboard, drift monitor</td></tr>
+<tr><td><code>trajectories</code></td><td>traj 4h pendant chaque trade ouvert (unrealized_bps par heure)</td><td>sparkline dashboard, post-mortem</td></tr>
+<tr><td><code>market_snapshots</code></td><td>snapshot horaire de chaque token (price, OI, funding, premium, vol_z)</td><td>EDA features observation-only</td></tr>
+<tr><td><code>events</code></td><td>TRADE_OPEN/CLOSE, SKIP, RECONCILE, GHOST, ORPHAN, RUNNER_EXT, S9F_OBS, ETH_OBS, SUPERVISOR_REPORT, STRATEGY_REVIEW, KILL_SWITCH</td><td>audit trail, dashboard event-timeline</td></tr>
+<tr><td><code>basket_snapshots</code></td><td>effective_n, mean_corr_to_btc, max_pairwise_corr (v12.5.1+)</td><td>monitoring concentration (instrumentation only)</td></tr>
+</table>
+
+<h3>Sérialisation des écritures</h3>
+<p><code>db._db_lock</code> (threading.Lock) sérialise les writes SQLite entre scan thread, API thread, et collector thread. Lecture concurrente OK (WAL mode).</p>
+</section>
+
+<section id="state">
+<h2>9. État persistant</h2>
+
+<h3>state.json — snapshot de l'instance</h3>
+<pre>analysis/output[_live|_live2]/state.json
+  ├── capital              (DCA-tracked)
+  ├── total_pnl            (cumulative)
+  ├── wins / consecutive_losses
+  ├── peak_balance         (drawdown reference)
+  ├── last_daily_report
+  ├── paused               (bool)
+  ├── cooldowns            (dict sym→ts)
+  ├── signal_first_seen    (dict (sym, strat)→ts)
+  ├── feature_cache        (2h restore on boot)
+  └── positions            (dict sym→Position)</pre>
+
+<p>Écriture atomique : <code>.tmp</code> + <code>os.replace()</code>. Une copie <code>.loaded</code> conservée pour rollback debug. Lock <code>fcntl</code> sur <code>state.json.lock</code> empêche deux instances de partager le state.</p>
+
+<h3>Cache feature en mémoire</h3>
+<p><code>bot._feature_cache</code> persisté toutes les 60s. Si &lt; 2h au boot → restauré (dashboard non-blank). Sinon recalcul complet sur les 30 mois de candles.</p>
+</section>
+
+<section id="auth">
+<h2>10. Auth & sécurité</h2>
+
+<h3>Niveaux de protection</h3>
+<ol>
+<li><b>Hard limits exchange-side</b> : 2× cross margin, séparation spot/perps</li>
+<li><b>Bot-side hard stops</b> : catastrophe stop −1250 bps, max 6 positions, max 4 même direction, max 2 par secteur, blacklist statique</li>
+<li><b>Risk modulators</b> : modulator macro, dispersion gate, OI gate LONG, modulator floor $10, slot reservation macro/token</li>
+<li><b>Manual intervention</b> : <code>/api/close</code>, <code>/api/manual_stop</code>, <code>/api/pause</code>, <code>/api/reset</code> (paper only)</li>
+</ol>
+
+<h3>Auth dashboard</h3>
+<ul>
+<li>Login HTML form, <code>DASHBOARD_USER</code> / <code>DASHBOARD_PASS</code> dans <code>.env</code></li>
+<li>HMAC-signed stateless session cookies (SHA256 + <code>AUTH_SALT</code>), 30j expiry → survivent aux restarts</li>
+<li>Rate limit : 10 tentatives login / 5 min / IP (exponential backoff)</li>
+<li>v12.5.29 : revocation epoch côté serveur — <code>/logout</code> invalide les tokens signés avant l'epoch</li>
+<li>v12.5.29 : rate-limit per-IP sur endpoints mutating (30/min)</li>
+</ul>
+
+<h3>Hardening v12.5.29 → v12.5.31</h3>
+<ul>
+<li>Validation <code>avgPx &gt; 0</code> sur fills HL (sinon entry/exit_price=0 → P&amp;L corrompu)</li>
+<li>NaN/inf rejetés sur <code>stop_usdt</code>, <code>amount</code></li>
+<li>Boot reconcile 2-attempts (1 cache lag ne drop plus un ghost)</li>
+<li>Timeout cap sur tous les appels SDK HL via <code>_sdk_call</code> (10-20s) + saturation warning</li>
+<li>JSON body parse errors → 400 (pas 500 stacktrace)</li>
+</ul>
+
+<h3>Kill-switches disponibles</h3>
+<pre>config.py:
+  ADAPTIVE_ALPHA = {}                    # désactive modulator macro complet
+  ADAPTIVE_ALPHA_DIR = {}                # désactive override S5 SHORT
+  S8_INLIFE_PARAMS = {}                  # désactive S8 trail
+  S8_DEAD_MFE_MAX_BPS = -99999           # désactive S8 dead-in-water (v12.6.0)
+  DISP_GATE_BPS = 99999                  # désactive dispersion gate
+  S9_ADAPTIVE_STOP = False               # revient au stop fixe
+  DEAD_TIMEOUT_MFE_CAP_BPS = -99999      # désactive dead-timeout
+  RUNNER_EXT_STRATEGIES = set()          # désactive runner extension
+.env:
+  SUPERVISOR_ENABLED = 0                 # mute LLM supervisor</pre>
+</section>
+
+<section id="aux">
+<h2>11. Scripts auxiliaires (hors process bot)</h2>
+
+<table>
+<tr><th>Script</th><th>Cadence</th><th>Action</th><th>Dépendance</th></tr>
+<tr>
+  <td><code>supervisor.py</code></td>
+  <td>8h UTC / jour</td>
+  <td>Lit <code>/api/state</code>, <code>/api/trades</code>, <code>/api/health</code>, <code>/api/pnl</code>. Appelle Anthropic API (claude-haiku-4-5). Rapport Telegram structuré FR.</td>
+  <td>anthropic SDK + stdlib. Coût ~$0.50/mois (cache hit). <code>SUPERVISOR_ENABLED=0</code> kill-switch.</td>
+</tr>
+<tr>
+  <td><code>analysis/strategy_review.py</code></td>
+  <td>Lundi 8h UTC</td>
+  <td>Stat per (strat, token, dir) sur 30/90/365j. Flags STRAT_DRIFT / TOKEN_TOXIC / TOKEN_REVIVAL / LIVE_VS_BT / REGIME_SHIFT. Telegram FR + STRATEGY_REVIEW event.</td>
+  <td>stdlib uniquement. Pas de LLM. <b>Observation-only</b>, aucune action auto.</td>
+</tr>
+<tr>
+  <td><code>start_bots.sh</code></td>
+  <td>@reboot</td>
+  <td>Relance les 4 services + envoie Telegram "VPS rebooted". Source <code>.env</code>, lance paper + live + junior + admin.</td>
+  <td>bash + Python venv</td>
+</tr>
+<tr>
+  <td>Watchdog</td>
+  <td>*/5 min</td>
+  <td>Vérifie que les 4 ports répondent. Auto-restart en cas de mort silencieuse.</td>
+  <td>crontab + curl</td>
+</tr>
+</table>
+</section>
+
+<section id="backtest">
+<h2>12. Backtest infrastructure</h2>
+
+<p>Tous les backtests vivent dans <code>backtests/</code> et utilisent le même moteur <code>backtest_rolling.run_window</code>. Aucun signal/exit n'est shipé sans validation walk-forward 4/4 strict.</p>
+
+<h3>Fenêtres walk-forward</h3>
+<ul>
+<li><b>28m</b> — fenêtre longue, capture multi-régime, baseline historique</li>
+<li><b>12m</b> — médium-term, sanity OOS</li>
+<li><b>6m</b> — récent semi-out-of-sample</li>
+<li><b>3m</b> — régime courant, le plus susceptible de casser</li>
+</ul>
+
+<h3>Critère "strict 4/4"</h3>
+<p>Un changement doit gagner du P&amp;L sur <b>les 4 fenêtres simultanément</b> ET ne pas dégrader le drawdown moyen de plus de +0.5pp. Si une seule fenêtre fail → rejet.</p>
+
+<h3>Validations supplémentaires (selon ship)</h3>
+<ul>
+<li><b>Null-shuffle</b> : randomiser une dimension (e.g. btc_z), refaire la règle, vérifier z-score &gt; 3</li>
+<li><b>IS/OOS sliding</b> : train sur 18m, test sur 6m, glisser × 4 splits</li>
+<li><b>Per-window parameter stability</b> : la règle reste-t-elle optimale dans chaque fenêtre ?</li>
+<li><b>Bonferroni</b> : pour les EDA multi-tests, p &lt; 0.05/N_tests</li>
+<li><b>Bootstrap stability (clusters)</b> : ARI ≥ 0.65 sur 50 resamples</li>
+</ul>
+
+<h3>Hooks utilisés</h3>
+<p><code>inlife_exit_extra</code> (callable) — snapshot dict par (position, candle), retourne <code>(True, reason)</code> pour forcer exit. Utilisé par <code>backtest_inlife_exit</code> (S8 trail R&amp;D), <code>backtest_s5_dead_t8h</code>, <code>backtest_s8_dead_in_water</code>.</p>
+</section>
+
+<section id="deploy">
+<h2>13. Versioning & déploiement</h2>
+
+<h3>Convention</h3>
+<ul>
+<li>Format : <code>MAJOR.MINOR.PATCH</code> dans <code>config.py:VERSION</code></li>
+<li>Bump à chaque commit modifiant le runtime, validé par <code>/release</code> skill</li>
+<li>VERSION lu <b>uniquement au boot</b> → restart obligatoire pour propager</li>
+</ul>
+
+<h3>Sources de doc synchronisées à chaque ship</h3>
+<table>
+<tr><th>Fichier</th><th>Quoi</th></tr>
+<tr><td><code>analysis/bot/config.py</code></td><td>constante <code>VERSION</code></td></tr>
+<tr><td><code>CHANGELOG.md</code></td><td>1-2 bullets max par version, format <code>**&lt;area&gt;**:</code></td></tr>
+<tr><td><code>CLAUDE.md</code></td><td>référence version + feature paragraph dans "Signals in one line"</td></tr>
+<tr><td><code>docs/bot.md</code></td><td>détail technique FR (signal description + tableau Protections)</td></tr>
+<tr><td><code>docs/synthese.md</code></td><td>pédagogique FR (10 exits, paramètres, diagrammes décisionnels)</td></tr>
+</table>
+
+<h3>Règle restart (CLAUDE.md)</h3>
+<div class="warn">
+<b>JAMAIS de restart sans confirmation utilisateur explicite.</b> Bump VERSION + edit + commit librement, mais le restart (<code>fuser -k</code> + <code>start_bots.sh</code>) reste sous contrôle utilisateur. Une autorisation générique "restart les bots" couvre seulement paper + live. <b>Junior nécessite mention explicite</b> ("restart junior", "tous les 3").
+</div>
+
+<h3>Commands de référence</h3>
+<pre># Restart live only
+fuser -k 8098/tcp
+HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 \
+  HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
+  nohup .venv/bin/python3 -m analysis.reversal &gt; analysis/output_live/reversal_v10.log 2&gt;&amp;1 &amp;
+
+# Verify boot
+grep -m 1 "Multi-Signal Bot" analysis/output_live/reversal_v10.log
+curl -s -o /dev/null -w "HTTP %&#123;http_code&#125;\n" http://127.0.0.1:8098/api/health</pre>
+</section>
+
+<section id="tree">
+<h2>14. Arborescence repo</h2>
+
+<pre>/home/crypto/
+├── analysis/
+│   ├── bot/                              # 12 modules core
+│   │   ├── config.py     models.py       db.py        net.py
+│   │   ├── features.py   signals.py      persistence.py
+│   │   ├── analytics.py  collector.py    exchange.py
+│   │   ├── trading.py    web.py          bot.py       main.py
+│   ├── reversal.html                     # Dashboard (inline JS/CSS, mobile-first cards)
+│   ├── reversal.py                       # 6-line shim → analysis.bot.main
+│   ├── strategy_review.py                # Weekly drift monitor
+│   ├── output/                           # PAPER : logs + state + ticks DB
+│   └── output_live/                      # LIVE : idem
+│   └── output_live2/                     # JUNIOR : idem
+├── backtests/
+│   ├── backtest_rolling.py               # Moteur principal (4 fenêtres)
+│   ├── backtest_inlife_exit.py           # R&amp;D S8 in-life trail (v12.5.30)
+│   ├── backtest_s8_dead_in_water.py      # R&amp;D dead-in-water (v12.6.0)
+│   ├── feature_modulator_eda*.py         # EDAs per-trade features
+│   ├── basket_haircut_eda_*.py           # EDA effective_n
+│   ├── mid_trade_profiling_*.py          # EDA snapshots intermédiaires
+│   └── [résultats *.md + datasets *.json/.jsonl]
+├── docs/
+│   ├── bot.md                            # Détail technique FR
+│   ├── synthese.md                       # Pédagogique FR (référence unique)
+│   ├── backtests.md                      # Résultats rolling courants
+│   └── architecture.html                 # Ce document
+├── supervisor.py                         # Daily LLM report
+├── admin.py                              # Panel admin :8090
+├── start_bots.sh                         # @reboot launcher
+├── CLAUDE.md                             # Instructions Claude
+├── CHANGELOG.md                          # 1-2 bullets/version
+├── BACKLOG.md                            # R&amp;D différée
+└── .env                                  # Secrets (gitignored)</pre>
+</section>
+
+<hr>
+<p style="text-align:center;color:var(--muted);font-size:11px;margin-top:24px">
+Architecture générée le 2026-05-15 · v12.6.0 · cartographie complète du système.<br>
+Voir <code>docs/synthese.md</code> pour la version pédagogique détaillée et <code>CLAUDE.md</code> pour les détails techniques destination Claude.
+</p>
+</main>
+</div>
+</body>
+</html>
