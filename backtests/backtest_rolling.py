@@ -333,6 +333,109 @@ def run_window(features, data, sector_features, dxy_data,
     btc_closes = np.array([c["c"] for c in btc_candles])
     btc_by_ts = {c["t"]: i for i, c in enumerate(btc_candles)}
 
+    # basket_haircut_eda: precompute per-coin candle returns (P&L correlation
+    # source). Each coin gets a numpy array of (close[i]/close[i-1] - 1) aligned
+    # by global ts. Used by the at-open effective_n backfill (3 windows: 7d /
+    # 14d / 30d). Returns expressed in absolute units (not bps) — corrcoef is
+    # scale-invariant anyway. Length matches candles_per_coin; index 0 → NaN.
+    coin_rets: dict[str, np.ndarray] = {}
+    for coin in coins:
+        closes = np.array([c["c"] for c in data[coin]], dtype=float)
+        if len(closes) < 2:
+            coin_rets[coin] = np.array([], dtype=float)
+            continue
+        prev = closes[:-1]
+        cur = closes[1:]
+        # safe divide: 0 → 0
+        with np.errstate(divide="ignore", invalid="ignore"):
+            r = np.where(prev > 0, cur / np.where(prev > 0, prev, 1) - 1, 0.0)
+        # prepend a 0 so r[i] corresponds to candle i (return from i-1 → i)
+        coin_rets[coin] = np.concatenate([[0.0], r])
+
+    # 3-window effective_n configuration (4h candles, 6 per day)
+    EFFN_WINDOWS_D = (7, 14, 30)
+    effn_lookbacks = {d: d * 6 for d in EFFN_WINDOWS_D}  # 42 / 84 / 180
+
+    def _compute_effective_n(positions_dict: dict, ts: int) -> dict[int, float | None]:
+        """Sign-adjusted effective_n (P&L correlation) for 3 windows.
+
+        Mirrors features.compute_basket_correlation exactly:
+          - signed pairwise corr: ρ_pnl[i,j] = dir_i * dir_j * ρ_price[i,j]
+          - eff_n = n² / sum(signed_mat with diag=1), clamped to [1, n]
+          - if sum ≤ 0: eff_n = n (fully over-hedged)
+        Returns {window_days: value_or_None}. None when < 2 positions or
+        insufficient candle history for that window.
+        """
+        out: dict[int, float | None] = {d: None for d in EFFN_WINDOWS_D}
+        n = len(positions_dict)
+        if n < 1:
+            return out
+        if n == 1:
+            for d in EFFN_WINDOWS_D:
+                out[d] = 1.0
+            return out
+
+        # Resolve each position's candle index at ts
+        symbols: list[str] = []
+        dirs: list[int] = []
+        idxs: list[int] = []
+        for coin, pos in positions_dict.items():
+            ci_map = coin_by_ts.get(coin)
+            if not ci_map or ts not in ci_map:
+                continue
+            ci = ci_map[ts]
+            if ci < 1 or coin not in coin_rets or len(coin_rets[coin]) <= ci:
+                continue
+            symbols.append(coin)
+            dirs.append(pos["dir"])
+            idxs.append(ci)
+
+        if len(symbols) < 2:
+            # fall back to 1.0 / None for empty
+            if len(symbols) == 1:
+                for d in EFFN_WINDOWS_D:
+                    out[d] = 1.0
+            return out
+
+        dirs_arr = np.array(dirs, dtype=float)
+        n_eff = len(symbols)
+        for d in EFFN_WINDOWS_D:
+            lb = effn_lookbacks[d]
+            # All positions must have lb candles of history available
+            if min(idxs) < lb:
+                continue
+            # Build n × lb return matrix (last lb returns ending at ts)
+            R = np.empty((n_eff, lb), dtype=float)
+            ok = True
+            for i, (sym, ci) in enumerate(zip(symbols, idxs)):
+                row = coin_rets[sym][ci - lb + 1: ci + 1]
+                if len(row) != lb or float(np.std(row)) == 0:
+                    ok = False
+                    break
+                R[i] = row
+            if not ok:
+                continue
+            corr_mat = np.corrcoef(R)
+            if np.isnan(corr_mat).any():
+                corr_mat = np.nan_to_num(corr_mat, nan=0.0)
+            signed_mat = corr_mat * np.outer(dirs_arr, dirs_arr)
+            np.fill_diagonal(signed_mat, 1.0)
+            total = float(signed_mat.sum())
+            if total <= 0:
+                eff = float(n_eff)
+            else:
+                eff = max(1.0, min(float(n_eff), (n_eff * n_eff) / total))
+            out[d] = round(eff, 3)
+        return out
+
+    # basket_haircut_eda: per-ts time series of open-basket state. Recorded
+    # at start of each ts iteration BEFORE entries/exits fire so the value
+    # reflects positions held over the prior 4h candle. Each entry is a dict
+    # with {ts, n_positions, eff_n_7d, eff_n_14d, eff_n_30d, basket_unrealized,
+    # capital}. Written to a JSONL file when basket_haircut_eda_dump is set.
+    basket_timeseries: list[dict] = []
+    basket_dump_path = os.environ.get("BASKET_HAIRCUT_EDA_DUMP", "")
+
     # v11.10.0 adaptive macro modulator (mirrors live bot exactly).
     # Precompute btc_z per ts so the modulator can be applied at entry time.
     # Only built when no custom size_fn (caller wants the canonical behavior).
@@ -383,6 +486,31 @@ def run_window(features, data, sector_features, dxy_data,
     sorted_ts = sorted(ts for ts in all_ts if start_ts_ms <= ts <= end_ts_ms)
 
     for ts in sorted_ts:
+        # basket_haircut_eda: snapshot pre-exit basket state for risk-side EDA.
+        # Captures effective_n on 3 windows + unrealized basket P&L + capital
+        # so we can later compute "did low eff_n precede a balance drawdown?"
+        # Cheap: ≤6 positions × 3 corrcoef calls = few µs per ts.
+        if True:
+            effn_now = _compute_effective_n(positions, ts)
+            basket_unreal = 0.0
+            for _coin, _pos in positions.items():
+                _ci_map = coin_by_ts.get(_coin)
+                if _ci_map and ts in _ci_map:
+                    _ci = _ci_map[ts]
+                    _px = data[_coin][_ci]["c"]
+                    if _px > 0 and _pos["entry"] > 0:
+                        _bps = _pos["dir"] * (_px / _pos["entry"] - 1) * 1e4
+                        basket_unreal += _pos["size"] * _bps / 1e4
+            basket_timeseries.append({
+                "ts": ts,
+                "n_pos": len(positions),
+                "eff_n_7d": effn_now[7],
+                "eff_n_14d": effn_now[14],
+                "eff_n_30d": effn_now[30],
+                "basket_unreal": round(basket_unreal, 2),
+                "capital": round(capital, 2),
+            })
+
         # ── EXITS ──
         for coin in list(positions.keys()):
             pos = positions[coin]
@@ -442,6 +570,10 @@ def run_window(features, data, sector_features, dxy_data,
                     "conf_partial": pos.get("conf_partial"),
                     "session": pos.get("session"),
                     "entry_feats": pos.get("entry_feats"),
+                    "effn_at_open_7d":  pos.get("effn_at_open_7d"),
+                    "effn_at_open_14d": pos.get("effn_at_open_14d"),
+                    "effn_at_open_30d": pos.get("effn_at_open_30d"),
+                    "n_pos_at_open":    pos.get("n_pos_at_open"),
                 })
                 pos["size"] = pos["size"] - partial_size
                 pos["partial_taken"] = True
@@ -671,6 +803,10 @@ def run_window(features, data, sector_features, dxy_data,
                     "conf_partial": pos.get("conf_partial"),
                     "session": pos.get("session"),
                     "entry_feats": pos.get("entry_feats"),
+                    "effn_at_open_7d":  pos.get("effn_at_open_7d"),
+                    "effn_at_open_14d": pos.get("effn_at_open_14d"),
+                    "effn_at_open_30d": pos.get("effn_at_open_30d"),
+                    "n_pos_at_open":    pos.get("n_pos_at_open"),
                 })
                 del positions[coin]
                 cooldown[coin] = ts + 24 * 3600 * 1000
@@ -875,6 +1011,11 @@ def run_window(features, data, sector_features, dxy_data,
                 "entry_drawdown_abs": float(_dd),
             }
 
+            # basket_haircut_eda: effective_n of the existing basket BEFORE
+            # adding this entry (3 windows). This is the value a haircut rule
+            # would use to size the candidate.
+            effn_at_open = _compute_effective_n(positions, ts)
+
             positions[coin] = {
                 "dir": cand["dir"], "entry": entry, "idx": idx_f + 1,
                 "entry_t": entry_ts_ms,
@@ -884,6 +1025,10 @@ def run_window(features, data, sector_features, dxy_data,
                 "mfe": 0.0, "mae": 0.0, "mfe_held": 0,
                 "conf_partial": conf_partial, "session": session,
                 "entry_feats": entry_feats,
+                "effn_at_open_7d":  effn_at_open[7],
+                "effn_at_open_14d": effn_at_open[14],
+                "effn_at_open_30d": effn_at_open[30],
+                "n_pos_at_open":    len(positions),  # excludes self
             }
             if cand["dir"] == 1:
                 n_long += 1
@@ -919,6 +1064,10 @@ def run_window(features, data, sector_features, dxy_data,
                 "conf_partial": pos.get("conf_partial"),
                 "session": pos.get("session"),
                 "entry_feats": pos.get("entry_feats"),
+                "effn_at_open_7d":  pos.get("effn_at_open_7d"),
+                "effn_at_open_14d": pos.get("effn_at_open_14d"),
+                "effn_at_open_30d": pos.get("effn_at_open_30d"),
+                "n_pos_at_open":    pos.get("n_pos_at_open"),
             })
 
     # Summary stats
@@ -933,6 +1082,13 @@ def run_window(features, data, sector_features, dxy_data,
             s["wins"] += 1
 
     best_strat = max(by_strat.items(), key=lambda kv: kv[1]["pnl"])[0] if by_strat else "-"
+
+    # basket_haircut_eda: if dump path is set, write the per-ts basket time
+    # series as JSONL so the risk-side EDA can replay equity curve + effective_n.
+    if basket_dump_path and basket_timeseries:
+        with open(basket_dump_path, "w") as _fh:
+            for _row in basket_timeseries:
+                _fh.write(json.dumps(_row) + "\n")
 
     return {
         "start_capital": start_capital,
@@ -949,6 +1105,7 @@ def run_window(features, data, sector_features, dxy_data,
         } for k, v in by_strat.items()},
         "best_strat": best_strat,
         "trades": trades,
+        "basket_timeseries": basket_timeseries,
     }
 
 
