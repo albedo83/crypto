@@ -264,49 +264,50 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .heatmap{grid-template-columns:50px repeat(5,1fr);font-size:9px}
   .pnl-chart,.price-chart{height:200px}
   .pnl-chart canvas{width:100%!important;height:100%!important}
-  /* Open Positions — v12.5.21: mobile uses a single full-width <td> per row
-     containing a free-form .m-card div (no table-grid constraints).
-     The table headers are hidden, and only the .m-card layout drives mobile UX. */
-  [data-block="open-positions"] table.responsive{padding:0;background:transparent;border-radius:0;border-collapse:separate;border-spacing:0 10px}
-  [data-block="open-positions"] table.responsive thead{display:none}
-  [data-block="open-positions"] table.responsive tbody tr{background:transparent;border:0;box-shadow:none;padding:0;display:table-row;margin:0}
-  [data-block="open-positions"] table.responsive tbody tr::after{display:none}
-  [data-block="open-positions"] table.responsive tbody td.m-card-wrap{padding:0;border:0;background:transparent;display:table-cell}
-  /* Hide every regular <td> on mobile — only .m-card-wrap is shown */
-  [data-block="open-positions"] table.responsive tbody tr td:not(.m-card-wrap){display:none}
-  /* iOS-style card */
-  .m-card{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,0.35);display:flex;flex-direction:column;gap:12px}
-  .m-card.pos-profit{border-color:rgba(63,185,80,0.4)}
-  .m-card.pos-loss{border-color:rgba(248,81,73,0.4)}
-  .m-card .m-header{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
-  .m-card .m-sym{font-size:19px;font-weight:700;color:#c9d1d9}
-  .m-card .m-side{font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.05)}
-  .m-card .m-side.LONG{color:#3fb950}
-  .m-card .m-side.SHORT{color:#f85149}
-  .m-card .m-strat{font-size:11px;color:#7d8590}
-  .m-card .m-pnl{margin-left:auto;font-size:18px;font-weight:700;display:flex;align-items:baseline;gap:6px;flex-wrap:nowrap}
-  .m-card .m-pnl.green{color:#3fb950}.m-card .m-pnl.red{color:#f85149}
-  .m-card .m-pnl-num{display:inline-flex;align-items:baseline;gap:3px}
-  .m-card .m-emoji{font-size:16px;line-height:1;filter:none}
-  .m-card .m-bps{font-size:12px;font-weight:500;opacity:.75}
-  .m-card .m-mstop{display:inline-flex;align-items:center;background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.5);color:#d29922;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap}
-  .m-card .m-progress{width:100%}
-  .m-card .m-progress .hold-progress{width:100%;height:16px;min-width:0}
-  .m-card .m-mid{display:flex;align-items:stretch;gap:10px}
-  .m-card .m-spark{flex:0 0 44%;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:4px;padding:5px 7px;background:rgba(255,255,255,0.03);border-radius:8px;min-height:78px}
-  .m-card .m-spark svg{width:100%;flex:1 1 auto;min-height:0;display:block}
-  .m-card .m-price{font-size:12px;font-weight:600;color:#c9d1d9;text-align:center;flex:0 0 auto}
-  .m-card .m-mae{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
-  .m-card .m-mae svg{max-width:100%}
-  .m-card .m-actions{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;justify-content:center}
-  .m-card .m-btn{width:42px;height:36px;padding:0;border:0;border-radius:6px;color:#fff;font-size:14px;cursor:pointer;font-weight:600}
-  .m-card .m-btn-stop{background:#d29922}
-  .m-card .m-btn-close{background:#da3633}
-  .m-card .m-info{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;border-top:1px dashed #21262d;padding-top:8px}
-  .m-card .m-info .pill{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
-  .m-card .m-info .pill .lbl{color:#7d8590;font-size:9px;text-transform:uppercase;letter-spacing:.4px}
-  .m-card .m-info .pill b{color:#c9d1d9;font-weight:600;font-size:11px}
 }
+/* Open Positions — v12.5.36: always rendered as cards on every screen.
+   The <table> is reduced to a CSS grid of <td>s wrapping .m-card. The
+   grid uses auto-fit so wide screens get 2-3 columns; narrow screens
+   collapse to a single column automatically (minmax(400px,1fr) clamps). */
+[data-block="open-positions"] table.responsive{display:block;padding:0;background:transparent;border-radius:0;border-collapse:separate;border-spacing:0}
+[data-block="open-positions"] table.responsive thead{display:none}
+[data-block="open-positions"] table.responsive tbody{display:grid;grid-template-columns:repeat(auto-fit,minmax(400px,1fr));gap:12px}
+[data-block="open-positions"] table.responsive tbody tr{background:transparent;border:0;box-shadow:none;padding:0;margin:0;display:block}
+[data-block="open-positions"] table.responsive tbody tr::after{display:none}
+[data-block="open-positions"] table.responsive tbody td.m-card-wrap{padding:0;border:0;background:transparent;display:block}
+[data-block="open-positions"] table.responsive tbody tr td:not(.m-card-wrap){display:none}
+/* iOS-style card */
+.m-card{background:#161b22;border:1px solid #30363d;border-radius:14px;padding:14px;box-shadow:0 2px 10px rgba(0,0,0,0.35);display:flex;flex-direction:column;gap:12px}
+.m-card.pos-profit{border-color:rgba(63,185,80,0.4)}
+.m-card.pos-loss{border-color:rgba(248,81,73,0.4)}
+.m-card .m-header{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.m-card .m-sym{font-size:19px;font-weight:700;color:#c9d1d9}
+.m-card .m-side{font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.05)}
+.m-card .m-side.LONG{color:#3fb950}
+.m-card .m-side.SHORT{color:#f85149}
+.m-card .m-strat{font-size:11px;color:#7d8590}
+.m-card .m-pnl{margin-left:auto;font-size:18px;font-weight:700;display:flex;align-items:baseline;gap:6px;flex-wrap:nowrap}
+.m-card .m-pnl.green{color:#3fb950}.m-card .m-pnl.red{color:#f85149}
+.m-card .m-pnl-num{display:inline-flex;align-items:baseline;gap:3px}
+.m-card .m-emoji{font-size:16px;line-height:1;filter:none}
+.m-card .m-bps{font-size:12px;font-weight:500;opacity:.75}
+.m-card .m-mstop{display:inline-flex;align-items:center;background:rgba(210,153,34,0.15);border:1px solid rgba(210,153,34,0.5);color:#d29922;padding:1px 7px;border-radius:4px;font-size:10px;font-weight:600;white-space:nowrap}
+.m-card .m-progress{width:100%}
+.m-card .m-progress .hold-progress{width:100%;height:16px;min-width:0}
+.m-card .m-mid{display:flex;align-items:stretch;gap:10px}
+.m-card .m-spark{flex:0 0 44%;display:flex;flex-direction:column;align-items:stretch;justify-content:center;gap:4px;padding:5px 7px;background:rgba(255,255,255,0.03);border-radius:8px;min-height:78px}
+.m-card .m-spark svg{width:100%;flex:1 1 auto;min-height:0;display:block}
+.m-card .m-price{font-size:12px;font-weight:600;color:#c9d1d9;text-align:center;flex:0 0 auto}
+.m-card .m-mae{flex:1 1 0;display:flex;flex-direction:column;align-items:center;justify-content:center;min-width:0}
+.m-card .m-mae svg{max-width:100%}
+.m-card .m-actions{flex:0 0 auto;display:flex;flex-direction:column;gap:6px;justify-content:center}
+.m-card .m-btn{width:42px;height:36px;padding:0;border:0;border-radius:6px;color:#fff;font-size:14px;cursor:pointer;font-weight:600}
+.m-card .m-btn-stop{background:#d29922}
+.m-card .m-btn-close{background:#da3633}
+.m-card .m-info{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:11px;border-top:1px dashed #21262d;padding-top:8px}
+.m-card .m-info .pill{display:inline-flex;align-items:baseline;gap:4px;white-space:nowrap}
+.m-card .m-info .pill .lbl{color:#7d8590;font-size:9px;text-transform:uppercase;letter-spacing:.4px}
+.m-card .m-info .pill b{color:#c9d1d9;font-weight:600;font-size:11px}
 /* v12.5.24: removed the 420px → 1fr override that collapsed mobile cards
    into a single column. The 640px rule already sets 3 columns; narrower
    phones fall back to 2 here so the small cards stay compact but visible. */
@@ -840,10 +841,6 @@ function refresh(){
       const tr=document.createElement('tr');
       if(p.pnl_usdt>0.1)tr.className='pos-profit';
       else if(p.pnl_usdt<-0.1)tr.className='pos-loss';
-      const sideClass=p.direction==='LONG'?'green':'red';
-      const trailExtra=p.trailing_active?`<div class="trailing-info stop-meta">▼ trail @ ${p.trailing_floor_bps>=0?'+':''}${p.trailing_floor_bps}</div>`:'';
-      const mstopStr=p.manual_stop_usdt!=null?`<div class="stop-meta mstop-line" style="font-size:10px;color:#d29922">🎯 manual stop @ $${p.manual_stop_usdt.toFixed(2)} (${p.manual_stop_bps>=0?'+':''}${p.manual_stop_bps} bps)</div>`:'';
-      const stopStr=p.stop_bps!==undefined?`<div class="dim stop-meta" style="font-size:10px">stop ${p.stop_bps} | mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</div>${trailExtra}${mstopStr}`:mstopStr;
       // v11.7.21: position strip subsumes stopBar (shows stop + MAE + current + MFE + trailing)
       // v12.5.17: restored positionStrip (MAE/MFE dots) — the user wanted it back
       // as part of the mobile card design. Falls back to stopBar when not applicable.
@@ -853,9 +850,7 @@ function refresh(){
       const pathViz=sparkline(p.trajectory, p.entry_price, p.direction==='LONG'?1:-1);
       // v12.3.0: historical-pattern win probability (from /api/state)
       // v12.3.1: smiley + colored %.  v12.3.2: dim when "fresh" (low confidence).
-      // v12.5.32: mobileEmoji extracted so the mobile card can stick the glyph
-      // next to the P&L (the WR% column doesn't exist on mobile).
-      let wpStr = '<span class="dim">—</span>';
+      // v12.5.32: mobileEmoji extracted so the card sticks the glyph next to the P&L.
       let mobileEmoji = '';
       let mobileEmojiTitle = '';
       if (p.win_prob && p.win_prob.wr_pct !== undefined) {
@@ -865,73 +860,52 @@ function refresh(){
         // Fresh (< 2h) always shows ⌛ regardless of P&L; mature + profit hides
         // the smiley as noise; mature + loss shows the smiley + %.
         if (p.win_prob.mature === false) {
-          wpStr = `<span class="dim" style="font-size:11px" title="${tooltip}"><span style="font-size:14px">⌛</span> ${w}%</span>`;
           mobileEmoji = '⌛';
           mobileEmojiTitle = tooltip;
         } else if (p.unrealized_bps > 0) {
-          wpStr = `<span class="dim" title="WR ${w}% (hidden — position in profit)">—</span>`;
+          // Mature + in profit: hide the WR indicator entirely.
         } else {
-          let col, smiley;
-          if (w >= 65)      { col = '#3fb950'; smiley = '😀'; }
-          else if (w >= 55) { col = '#3fb950'; smiley = '🙂'; }
-          else if (w >= 45) { col = '#d29922'; smiley = '😐'; }
-          else if (w >= 35) { col = '#d29922'; smiley = '😕'; }
-          else if (w >= 25) { col = '#f85149'; smiley = '😟'; }
-          else              { col = '#f85149'; smiley = '😱'; }
-          wpStr = `<span style="color:${col};font-weight:600" title="${tooltip}"><span style="font-size:14px">${smiley}</span> ${w}%</span>`;
-          mobileEmoji = smiley;
+          if      (w >= 65) mobileEmoji = '😀';
+          else if (w >= 55) mobileEmoji = '🙂';
+          else if (w >= 45) mobileEmoji = '😐';
+          else if (w >= 35) mobileEmoji = '😕';
+          else if (w >= 25) mobileEmoji = '😟';
+          else              mobileEmoji = '😱';
           mobileEmojiTitle = tooltip;
         }
       }
-      // v12.5.21: on mobile, render a single full-width <td> with a free-form
-      // .m-card div instead of fighting the table's column constraints.
-      const isMobile=window.matchMedia('(max-width:640px)').matches;
-      if(isMobile){
-        const pnlSign=p.pnl_usdt>=0?'+':'-';
-        const mstopBadge=p.manual_stop_usdt!=null?`<span class="m-mstop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:'';
-        tr.innerHTML=`<td class="m-card-wrap" colspan="13"><div class="m-card ${p.pnl_usdt>=0?'pos-profit':'pos-loss'}">
-          <div class="m-header">
-            <span class="m-sym">${p.symbol}</span>
-            <span class="m-side ${p.direction}">${p.direction}</span>
-            <span class="m-strat">${p.strategy||'?'}</span>
-            <span class="m-pnl ${cls(p.pnl_usdt)}"><span class="m-pnl-num">${pnlSign}$${Math.abs(p.pnl_usdt).toFixed(2)}${mobileEmoji?`<span class="m-emoji" title="${mobileEmojiTitle}">${mobileEmoji}</span>`:''}</span><span class="m-bps">${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}</span>
+      // v12.5.36: Open Positions rendered as cards on every screen, laid out
+      // in a responsive CSS grid (1 col on narrow, 2-3+ on wider). The old
+      // 13-column desktop table cell branch was removed.
+      const pnlSign=p.pnl_usdt>=0?'+':'-';
+      const mstopBadge=p.manual_stop_usdt!=null?`<span class="m-mstop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:'';
+      tr.innerHTML=`<td class="m-card-wrap" colspan="13"><div class="m-card ${p.pnl_usdt>=0?'pos-profit':'pos-loss'}">
+        <div class="m-header">
+          <span class="m-sym">${p.symbol}</span>
+          <span class="m-side ${p.direction}">${p.direction}</span>
+          <span class="m-strat">${p.strategy||'?'}</span>
+          <span class="m-pnl ${cls(p.pnl_usdt)}"><span class="m-pnl-num">${pnlSign}$${Math.abs(p.pnl_usdt).toFixed(2)}${mobileEmoji?`<span class="m-emoji" title="${mobileEmojiTitle}">${mobileEmoji}</span>`:''}</span><span class="m-bps">${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}</span>
+        </div>
+        <div class="m-progress">${holdViz}</div>
+        <div class="m-mid">
+          <div class="m-spark">${pathViz}<div class="m-price">$${p.current_price.toFixed(p.current_price>10?2:4)}</div></div>
+          <div class="m-mae">${stopViz}</div>
+          <div class="m-actions">
+            <button class="m-btn m-btn-stop" onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop">🎯</button>
+            <button class="m-btn m-btn-close" onclick="closePos('${p.symbol}')" title="Close position">✕</button>
           </div>
-          <div class="m-progress">${holdViz}</div>
-          <div class="m-mid">
-            <div class="m-spark">${pathViz}<div class="m-price">$${p.current_price.toFixed(p.current_price>10?2:4)}</div></div>
-            <div class="m-mae">${stopViz}</div>
-            <div class="m-actions">
-              <button class="m-btn m-btn-stop" onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop">🎯</button>
-              <button class="m-btn m-btn-close" onclick="closePos('${p.symbol}')" title="Close position">✕</button>
-            </div>
-          </div>
-          <div class="m-info">
-            <span class="pill"><span class="lbl">pos</span><b>$${p.size_usdt.toFixed(0)}</b></span>
-            <span class="pill"><span class="lbl">mgn</span><b>$${(p.size_usdt/2).toFixed(0)}</b></span>
-            <span class="pill"><span class="lbl">entry</span><b>$${p.entry_price.toFixed(p.entry_price>10?2:4)}</b></span>
-            <span class="pill"><span class="lbl">held</span><b>${p.hold_hours.toFixed(1)}h</b></span>
-            <span class="pill"><span class="lbl">rest</span><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b></span>
-            <span class="pill"><span class="lbl">stop</span><b>${p.stop_bps}</b></span>
-            <span class="pill"><span class="lbl">mae</span><b>${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</b></span>
-            <span class="pill"><span class="lbl">mfe</span><b>${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}</b></span>
-          </div>
-        </div></td>`;
-      } else {
-        tr.innerHTML=`
-          <td data-label="Symbol" class="pos-symbol"><b>${p.symbol}</b></td>
-          <td data-label="Strat" class="dim pos-strat">${p.strategy||'?'}</td>
-          <td data-label="Side" class="${sideClass} pos-side">${p.direction}</td>
-          <td data-label="WR est" class="pos-wp" style="font-size:11px">${wpStr}</td>
-          <td data-label="P&L" class="${cls(p.pnl_usdt)} pos-pnl">$${fmt(p.pnl_usdt)}<span class="bps-inline"> ${fmt(p.unrealized_bps,0)}bps</span>${p.manual_stop_usdt!=null?`<span class="mstop-badge" title="Active manual stop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:''}</td>
-          <td data-label="Position" class="pos-detail">$${p.size_usdt.toFixed(0)}</td>
-          <td data-label="Margin" class="dim pos-detail">$${(p.size_usdt/2).toFixed(0)}</td>
-          <td data-label="Entry" class="pos-detail">$${p.entry_price.toFixed(p.entry_price>10?2:4)}</td>
-          <td data-label="Current" class="pos-detail">$${p.current_price.toFixed(p.current_price>10?2:4)}</td>
-          <td data-label="Unrealized" class="${cls(p.unrealized_bps)} pos-unrealized"><span class="bps-main">${fmt(p.unrealized_bps,1)}bps</span>${stopViz}${stopStr}</td>
-          <td data-label="Remaining" class="pos-remaining">${holdViz}<div class="info-line"><span class="info-pill"><span class="lbl">held</span><b>${p.hold_hours.toFixed(1)}h</b></span><span class="info-pill"><span class="lbl">rest</span><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b></span><span class="info-pill"><span class="lbl">stop</span><b>${p.stop_bps>=0?'+':''}${p.stop_bps}</b></span><span class="info-pill"><span class="lbl">mae</span><b>${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</b></span><span class="info-pill"><span class="lbl">mfe</span><b>${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}</b></span></div></td>
-          <td data-label="Path (price)" class="pos-spark">${pathViz}<div class="dim spark-price" style="font-size:9px;margin-top:2px;text-align:center;letter-spacing:.2px">$${p.current_price.toFixed(p.current_price>10?2:4)}</div></td>
-          <td data-label="" class="pos-close"><button onclick="setManualStop('${p.symbol}',${p.pnl_usdt},${p.manual_stop_usdt!=null?p.manual_stop_usdt:'null'})" title="Set manual stop @ $X" style="background:#d29922;color:#fff;border:none;padding:3px 6px;border-radius:4px;cursor:pointer;font-size:12px;margin-right:3px">🎯</button><button onclick="closePos('${p.symbol}')" title="Close position" style="background:#da3633;color:#fff;border:none;padding:3px 8px;border-radius:4px;cursor:pointer;font-size:12px">✕</button></td>`;
-      }
+        </div>
+        <div class="m-info">
+          <span class="pill"><span class="lbl">pos</span><b>$${p.size_usdt.toFixed(0)}</b></span>
+          <span class="pill"><span class="lbl">mgn</span><b>$${(p.size_usdt/2).toFixed(0)}</b></span>
+          <span class="pill"><span class="lbl">entry</span><b>$${p.entry_price.toFixed(p.entry_price>10?2:4)}</b></span>
+          <span class="pill"><span class="lbl">held</span><b>${p.hold_hours.toFixed(1)}h</b></span>
+          <span class="pill"><span class="lbl">rest</span><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b></span>
+          <span class="pill"><span class="lbl">stop</span><b>${p.stop_bps}</b></span>
+          <span class="pill"><span class="lbl">mae</span><b>${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</b></span>
+          <span class="pill"><span class="lbl">mfe</span><b>${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}</b></span>
+        </div>
+      </div></td>`;
       pb.appendChild(tr);
     });
     if(!pb.dataset.boundExpand){

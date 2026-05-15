@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.5.36] — 2026-05-15
+- **Dashboard**: Open Positions rendered as cards on every screen size, laid out in a responsive grid (1 column on narrow, 2-3+ columns on wider screens). The 13-column desktop table view was retired.
+
 ## [12.5.35] — 2026-05-15
 - **Dashboard**: price-chart now resizes its canvas to the container height — fixes mobile clipping the lowest values when the canvas overflowed the 200px container.
 
