@@ -27,7 +27,7 @@ from analysis.bot.config import (
     SIZE_PCT, SIZE_BONUS, STRAT_Z, SIGNAL_MULT, LIQUIDITY_HAIRCUT,
     LEVERAGE, COST_BPS, TAKER_FEE_BPS, FUNDING_DRAG_BPS,
     MAX_POSITIONS, MAX_SAME_DIRECTION, MAX_PER_SECTOR,
-    MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS, MACRO_STRATEGIES, TOKEN_SECTOR,
+    MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS, MACRO_STRATEGIES, TOKEN_SECTOR, SECTORS,
     STOP_LOSS_BPS, STOP_LOSS_S8, S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8, HOLD_HOURS_S9, HOLD_HOURS_S10,
     S5_DIV_THRESHOLD, S5_VOL_Z_MIN,
@@ -441,6 +441,7 @@ def run_window(features, data, sector_features, dxy_data,
                     "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
                     "conf_partial": pos.get("conf_partial"),
                     "session": pos.get("session"),
+                    "entry_feats": pos.get("entry_feats"),
                 })
                 pos["size"] = pos["size"] - partial_size
                 pos["partial_taken"] = True
@@ -669,6 +670,7 @@ def run_window(features, data, sector_features, dxy_data,
                     "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
                     "conf_partial": pos.get("conf_partial"),
                     "session": pos.get("session"),
+                    "entry_feats": pos.get("entry_feats"),
                 })
                 del positions[coin]
                 cooldown[coin] = ts + 24 * 3600 * 1000
@@ -834,6 +836,45 @@ def run_window(features, data, sector_features, dxy_data,
                        "EU"   if _h < 14 else
                        "US"   if _h < 21 else "Night")
 
+            # EDA hook round 2: 10 additional continuous features at entry.
+            # Mirrors analysis/bot/bot.py:245-253 for shock/clean/lead, plus
+            # raw candle features and cross-sectional context. All derivable
+            # from 4h candle data (no live-only inputs).
+            _r24 = abs(f.get("ret_6h", 0))   # ret_6h on 4h = 24h return
+            _dd  = abs(f.get("drawdown", 0))
+            _entry_shock = (_r24 / _dd) if _dd > 100 else 0.0
+            _rg = f.get("range_pct", 0)
+            _entry_clean = (_rg / _r24) if _r24 > 50 else 0.0
+            _sect_coin = TOKEN_SECTOR.get(coin)
+            _peer_rets: list[float] = []
+            if _sect_coin:
+                for _p in SECTORS.get(_sect_coin, []):
+                    if _p == coin:
+                        continue
+                    _pf = feat_by_ts.get(ts, {}).get(_p)
+                    if _pf:
+                        _peer_rets.append(abs(_pf.get("ret_42h", 0)))
+            _peer_avg = float(np.mean(_peer_rets)) if _peer_rets else 0.0
+            _entry_lead = (abs(f.get("ret_42h", 0)) / _peer_avg) if _peer_avg > 100 else 0.0
+            # Cross-sectional context for this ts
+            _ts_feats = feat_by_ts.get(ts, {})
+            _all_r24 = [_pf.get("ret_6h", 0) for _pf in _ts_feats.values()]
+            _all_r7d = [_pf.get("ret_42h", 0) for _pf in _ts_feats.values()]
+            _disp_24h = float(np.std(_all_r24)) if _all_r24 else 0.0
+            _disp_7d  = float(np.std(_all_r7d)) if _all_r7d else 0.0
+            entry_feats = {
+                "entry_shock":        float(_entry_shock),
+                "entry_clean":        float(_entry_clean),
+                "entry_lead":         float(_entry_lead),
+                "entry_vol_z":        float(f.get("vol_z", 0)),
+                "entry_range_pct":    float(_rg),
+                "entry_disp_24h":     _disp_24h,
+                "entry_disp_7d":      _disp_7d,
+                "entry_n_stress":     int(n_stress_by_ts.get(ts, 0)),
+                "entry_ret24h_abs":   float(_r24),
+                "entry_drawdown_abs": float(_dd),
+            }
+
             positions[coin] = {
                 "dir": cand["dir"], "entry": entry, "idx": idx_f + 1,
                 "entry_t": entry_ts_ms,
@@ -842,6 +883,7 @@ def run_window(features, data, sector_features, dxy_data,
                 "stop": cand.get("stop", 0),
                 "mfe": 0.0, "mae": 0.0, "mfe_held": 0,
                 "conf_partial": conf_partial, "session": session,
+                "entry_feats": entry_feats,
             }
             if cand["dir"] == 1:
                 n_long += 1
@@ -876,6 +918,7 @@ def run_window(features, data, sector_features, dxy_data,
                 "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
                 "conf_partial": pos.get("conf_partial"),
                 "session": pos.get("session"),
+                "entry_feats": pos.get("entry_feats"),
             })
 
     # Summary stats
