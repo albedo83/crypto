@@ -1,6 +1,6 @@
 # Synthèse complète du bot
 
-Document de référence unique. État au 2026-05-11, **bot v12.5.1**.
+Document de référence unique. État au 2026-05-15, **bot v12.5.36**.
 
 Lecture recommandée dans l'ordre. Sections indépendantes — utilise la table des matières pour piocher.
 
@@ -415,7 +415,7 @@ Au boot, le bot a besoin de **210 jours de candles BTC** pour calculer btc_z (30
 
 ## 6. Les exits — comment le bot ferme une position
 
-7 mécanismes différents, par ordre de fréquence en live :
+9 mécanismes différents, par ordre de fréquence en live :
 
 ### 1. Catastrophe stop loss (-1250 bps)
 
@@ -476,6 +476,40 @@ Si unrealized < -500 bps après 8h de hold → exit immédiat (S9_EARLY_EXIT_BPS
 
 Bouton "Close" sur le dashboard → `/api/close/{symbol}` → market close immédiat. Reason=`manual_close`.
 
+### 8. Stop manuel par position (v12.5.10)
+
+Le user fixe un seuil $ via le bouton 🎯 du dashboard → `POST /api/manual_stop/{symbol}` (`{"stop_usdt": X}`). Le bot ferme la position dès que le P&L net (après `COST_BPS`) descend à ou sous ce seuil. Reason=`manual_stop_set`.
+
+Vérifié dans `check_exits` juste après la catastrophe et avant les exits stratégie-spécifiques. L'API rejette une valeur strictement entre la catastrophe et le P&L courant (rejet "redundant" ou "self-triggering"). Persisté dans `state.json` → survit aux restarts. Stratégie-agnostique : override utilisateur, n'impacte aucun backtest.
+
+Clear : `POST /api/manual_stop/{symbol}` avec `{"clear": true}`.
+
+### 9. S8 in-life MFE trail (v12.5.30, régime-conditionné)
+
+Trail spécifique à S8, conditionné par le **régime BTC** (`btc_z`). Pour une position S8 ouverte :
+
+```
+bucket = "bear"     si btc_z < −S8_INLIFE_Z_THRESHOLD (= 0.5)
+       = "neutral"  si |btc_z| ≤ 0.5
+       = "bull"     si btc_z > +0.5
+
+(activation, offset) = S8_INLIFE_PARAMS[bucket]
+  bear    → (1500, 100)   # MFE ≥ +15%, exit à MFE−1%
+  neutral → ( 300, 300)   # MFE ≥ +3%,  exit à MFE−3%
+  bull    → (1500, 100)
+
+Si pos.mfe_bps ≥ activation ET unrealized ≤ pos.mfe_bps − offset
+  → exit avec reason="s8_inlife"
+```
+
+Mécaniquement consistant avec le modulator (S8 α=−0.5 = bear-favored) : en régime bear, S8 a le plus de upside slippage à perdre, on serre. En neutral, on trail plus tôt mais plus large. En bull, S8 fire peu et le trail est essentiellement inactif (contribution +34pp avg en backtest vs +94 169pp pour bear).
+
+**Validation R&D** : walk-forward strict 4/4 (28m / 12m / 6m / 3m), ΔPnL avg +111 209pp, null-shuffle z=+10.52 (12/13 randomisations du `btc_z` détruisent l'edge), cross-validation par 2 mécaniques indépendantes (percentile empirique + ML logit/GBM rediscovering MFE-trail). Source : `backtests/inlife_exit_results.md`.
+
+**S5** non résolu — testé par les 3 familles, aucune n'a passé strict 4/4 (S5 winners bimodaux). Reste manuel.
+
+**Kill-switch** : `S8_INLIFE_PARAMS = {}` dans `config.py` court-circuite tout (no-op gracieux).
+
 ### Vue d'ensemble
 
 ```
@@ -483,8 +517,10 @@ Position ouverte
     │
     ├─ Check toutes les minutes:
     │   ├─ Stop catastrophe (-1250 ou -750 ou adaptatif S9) ?
+    │   ├─ Manual stop $ fixé par user (v12.5.10) ?
     │   ├─ S10 trailing actif ?
     │   ├─ S9 early exit conditions ?
+    │   ├─ S8 in-life MFE trail (v12.5.30, régime-conditionné) ?
     │   └─ Update MAE/MFE
     │
     ├─ À T-12h avant timeout:
@@ -495,8 +531,9 @@ Position ouverte
     │       ├─ Oui → extend de 12h
     │       └─ Non → timeout naturel
     │
-    └─ User clique "Close":
-        └─ manual_close immédiat
+    └─ User clique "Close" ou "🎯":
+        ├─ Close → manual_close immédiat
+        └─ 🎯 → manual_stop_set (seuil $ persisté)
 ```
 
 ---
@@ -664,9 +701,12 @@ Niveau 3 — Bot-side risk modulators:
 
 Niveau 4 — Manual intervention:
   - /api/close/{symbol} pour fermer immédiat
+  - /api/manual_stop/{symbol} pour fixer un seuil $ (v12.5.10)
   - /api/pause pour stopper nouveaux trades
   - /api/reset (paper seulement, drop tout)
 ```
+
+**Hardening pass (v12.5.29 → v12.5.31)** : validation `avgPx > 0` sur les fills HL (sinon `entry/exit_price=0` → P&L corrompu), validation NaN/inf sur les inputs API (`stop_usdt`, `amount`), boot reconcile à 2 attempts (1 cache lag ne drop plus un ghost), session revocation epoch côté serveur (`/logout` invalide les cookies stolen), rate-limit per-IP sur endpoints mutating (30/min), timeout cap sur tous les appels SDK HL (`_sdk_call` 10-20s + saturation warning à `max_workers−1`).
 
 ### Kill-switches disponibles
 
@@ -749,6 +789,13 @@ v12.5.3       : Refactor — analytics.py extracted, signal_skip_reason shared, 
 v12.5.4       : WR alarme gate on currently-profitable positions (faux positifs DOGE/APT)
 v12.5.5       : WR estimator fix — skip MAE penalty when recovered, tier-1 min raised 3 → 5
 v12.5.6       : Dashboard — Path column = courbe de prix, smiley caché si en profit
+v12.5.10      : Manual per-position stop (bouton 🎯, persisté state.json)
+v12.5.27-28   : Dashboard "Si je ferme tout" (liquidation value) + tech-EN labels
+v12.5.29      : Hardening pass — fills validation, NaN guards, 2-attempt boot reconcile, web rate-limit, SDK timeout cap
+v12.5.30      : S8 in-life MFE trail (régime-conditionné) — null-shuffle z=+10.52, walk-forward 4/4
+v12.5.31      : Boot reconcile timeout wrap + SDK saturation warning + mut-log prune
+v12.5.32-35   : Dashboard polish (couleurs sobres, smiley mobile, sparkline plein, price-chart Y margins + mobile clipping fix)
+v12.5.36      : Open Positions rendues en cards sur tous les écrans (grid responsive)
 ```
 
 ### Backtests cette semaine (mai 2026) — résumé
@@ -842,7 +889,7 @@ Le strict 4/4 + sliding walk-forward OOS sont les défenses. Mais ils sont **con
 
 ### Version
 
-**v12.5.6** — déployée sur paper / live / junior (admin reste sur ancienne version, sans impact).
+**v12.5.36** — déployée sur paper / live / junior (admin reste sur ancienne version, sans impact).
 
 ### Capitaux
 
@@ -885,6 +932,14 @@ DEAD_TIMEOUT_LEAD_HOURS = 12.0
 DEAD_TIMEOUT_MFE_CAP_BPS = 150.0
 DEAD_TIMEOUT_MAE_FLOOR_BPS = -500.0
 DEAD_TIMEOUT_SLACK_BPS = 300.0
+
+# S8 in-life trail régime-conditionné (v12.5.30)
+S8_INLIFE_Z_THRESHOLD = 0.5
+S8_INLIFE_PARAMS = {
+    "bear":    (1500, 100),   # MFE ≥ +15%, trail à MFE−1%
+    "neutral": ( 300, 300),   # MFE ≥ +3%,  trail à MFE−3%
+    "bull":    (1500, 100),
+}
 
 # Hold times
 HOLD_HOURS_DEFAULT = 72  # S1
@@ -954,18 +1009,29 @@ Equity (HL)  $XXX  +$XX (+X%) on $cap         Total P&L  +$XX
 
 ### Card "Open positions"
 
+Depuis v12.5.36, chaque position est rendue en **card**, sur tous les écrans, dans un **grid responsive** (1 colonne sur mobile, 2-3+ sur desktop selon largeur). Le tableau 13-colonnes a été retiré.
+
+Anatomie d'une card :
+
 ```
-Symbol | Strat | Side | WR est. | P&L | Position | Margin | Entry | Current | Unrealized/stop | Remaining/held | Path | Close
+┌──────────────────────────────────────────────────┐
+│ SYM  LONG  S8                +$12.34 😀 +145 bps  │ ← header
+│ ▓▓▓▓▓▓▓▓▓░░░░░░░░ 18h elapsed / 60h total       │ ← hold-progress
+│ ┌─sparkline (prix)─┐ ┌─MAE/MFE─┐ ┌─🎯─┐         │
+│ │      ╱╲          │ │  •━━●━━ │ │ ✕ │         │ ← m-mid
+│ │ ╱╲╱     ╲        │ └─────────┘ └────┘         │
+│ │ $0.4521          │                            │
+│ └──────────────────┘                            │
+│ pos $250  mgn $125  entry $0.448  held 18h  ... │ ← pills
+└──────────────────────────────────────────────────┘
 ```
 
-- **WR est.** : smiley (14px, +30% v12.5.6) + % (😀🙂😐😕😟😱⌛). Caché ("—" dim) si la position est currently in profit — voir section 7 v12.5.6.
-- **P&L** : $ + bps unrealized
-- **Position** : notional total ($)
-- **Margin** : notional / leverage
-- **Unrealized** : bps + barre de progression vers stop (visuel)
-- **Remaining** : hold time restant + held actuel
-- **Path (price)** : sparkline de la **courbe de prix** sur les trajectory points (v12.5.6 — était P&L bps avant). Formule de reconstruction côté JS : `price = entry × (1 + ur_bps / (direction × 1e4))`. Ligne pointillée grise = prix d'entrée, ligne pointillée colorée = prix actuel.
-- **Close** : bouton manual_close
+- **P&L** : ±$X.XX collé au **smiley** (😀🙂😐😕😟😱⌛, v12.5.32) + bps unrealized + badge 🎯 si manual stop actif. Smiley caché si la position est currently in profit.
+- **hold-progress** : palette sobre slate-blue → ambre → rouge sourd (v12.5.32). Label "X elapsed / Y total" centré.
+- **Sparkline (prix)** : courbe de prix sur les trajectory points. Ligne pointillée grise = entry, ligne pointillée colorée = current. v12.5.33 : viewBox + `preserveAspectRatio="none"` + `vector-effect="non-scaling-stroke"` pour remplir la zone sans déformer les traits.
+- **MAE/MFE strip** : ●━━ avec bornes stop/MAE/current/MFE/trailing.
+- **Boutons** : 🎯 (manual stop, v12.5.10) et ✕ (manual_close).
+- **Pills** : pos / mgn / entry / held / rest / stop / mae / mfe — toute l'info de niveau 2.
 
 ### Card "Strats stats"
 
@@ -985,7 +1051,7 @@ Compare la P&L live à ce qu'attendu par le backtest depuis le déploiement. Le 
 
 ### Card "Recent trades + closed P&L"
 
-Liste des derniers trades fermés avec reason (timeout, dead_timeout, catastrophe_stop, manual_close, runner_ext, s9_early_exit, trail_stop).
+Liste des 20 derniers trades fermés avec reason (`timeout`, `dead_timeout`, `catastrophe_stop`, `manual_close`, `manual_stop_set`, `runner_ext`, `s9_early_exit`, `trail_stop`, `s8_inlife`). Colonnes : Time / Sym / St / Side / **P&L** / Gross / Net / Hold / Exit (P&L promu juste après Side en v12.5.32). Fond vert/rouge subtil selon win/loss (v12.5.33).
 
 ---
 
@@ -1006,6 +1072,8 @@ Liste des derniers trades fermés avec reason (timeout, dead_timeout, catastroph
 | **dispersion gate** | skip S5/S9 si cross-sectional std des returns p98+ |
 | **OI gate LONG** | skip LONG si OI tombé >10% en 24h (longs unwinding) |
 | **catastrophe stop** | stop loss universel -1250 bps (ou -750 pour S8) |
+| **manual stop** | seuil $ fixé manuellement par le user via le bouton 🎯 du dashboard (v12.5.10) |
+| **s8_inlife** | trail spécifique à S8 conditionné par le régime BTC (v12.5.30) — exit quand MFE retrace de l'offset par bucket bear/neutral/bull |
 | **slot effect** | retirer un trade libère un slot pris par un autre signal — souvent fausse économie |
 | **compounding** | capital = initial + P&L cumulé, donc positions scalent avec gains/pertes |
 | **drift monitor** | script hebdo qui scanne pour dérives statistiques |
@@ -1021,4 +1089,4 @@ Liste des derniers trades fermés avec reason (timeout, dead_timeout, catastroph
 
 ---
 
-*Doc écrit le 2026-05-11. Mettre à jour à chaque commit majeur. Pour le détail technique destination Claude voir `CLAUDE.md`. Pour l'historique versions voir `CHANGELOG.md`. Pour les résultats backtests à jour voir `docs/backtests.md`.*
+*Doc écrit le 2026-05-11, mis à jour le 2026-05-15 (v12.5.36). Mettre à jour à chaque commit majeur. Pour le détail technique destination Claude voir `CLAUDE.md`. Pour l'historique versions voir `CHANGELOG.md`. Pour les résultats backtests à jour voir `docs/backtests.md`.*
