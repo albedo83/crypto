@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.6.3"
+VERSION = "12.7.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -60,6 +60,9 @@ TRADE_SYMBOLS = [
     "SOL", "INJ", "CRV", "LDO", "STX", "GMX",
     "IMX", "SAND", "GALA", "MINA",
     "TON",  # v11.9.0: universe expansion (4/4 walk-forward 12m/6m/3m/1m, +944pp sum, ΔDD 0)
+    # v12.7.0: 6 curated tokens, walk-forward 2/2 pass on 6m+12m, avg DD +1.73pp.
+    # L1-major: BCH/DOT/ADA. Privacy: XMR. DeFi: ENA/UNI. Source: universe_expansion_results.md.
+    "BCH", "DOT", "ADA", "XMR", "ENA", "UNI",
 ]
 REFERENCE = ["BTC", "ETH"]
 ALL_SYMBOLS = TRADE_SYMBOLS + REFERENCE
@@ -88,12 +91,19 @@ TRADE_BLACKLIST: set[str] = {"SUI", "IMX", "LINK"}
 # token-level pattern that warrants further intervention.
 
 # ── Sectors (for S5 divergence) ─────────────────────────────────────
+# v12.7.0: 6 new tokens added across 4 sectors (L1, L1-major, Privacy, DeFi).
+# L1-major and Privacy are new sectors created to absorb BTC-correlated blue
+# chips without saturating the existing L1 sector. Walk-forward 2/2 pass on
+# 6m+12m, avg DD degradation +1.73pp (under +2pp gate). See
+# backtests/universe_expansion_results.md.
 SECTORS = {
-    "L1":     ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI", "TON"],
-    "DeFi":   ["AAVE", "MKR", "CRV", "SNX", "PENDLE", "COMP", "DYDX", "LDO", "GMX"],
-    "Gaming": ["GALA", "IMX", "SAND"],
-    "Infra":  ["LINK", "PYTH", "STX", "INJ", "ARB", "OP"],
-    "Meme":   ["DOGE", "WLD", "BLUR", "MINA"],
+    "L1":       ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI", "TON"],
+    "L1-major": ["BCH", "DOT", "ADA"],
+    "Privacy":  ["XMR"],
+    "DeFi":     ["AAVE", "MKR", "CRV", "SNX", "PENDLE", "COMP", "DYDX", "LDO", "GMX", "UNI", "ENA"],
+    "Gaming":   ["GALA", "IMX", "SAND"],
+    "Infra":    ["LINK", "PYTH", "STX", "INJ", "ARB", "OP"],
+    "Meme":     ["DOGE", "WLD", "BLUR", "MINA"],
 }
 TOKEN_SECTOR: dict[str, str] = {}
 for _sect, _toks in SECTORS.items():

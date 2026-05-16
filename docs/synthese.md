@@ -1,6 +1,6 @@
 # Synthèse complète du bot
 
-Document de référence unique. État au 2026-05-16, **bot v12.6.3**.
+Document de référence unique. État au 2026-05-16, **bot v12.7.0**.
 
 Lecture recommandée dans l'ordre. Sections indépendantes — utilise la table des matières pour piocher.
 
@@ -28,7 +28,7 @@ Lecture recommandée dans l'ordre. Sections indépendantes — utilise la table 
 
 ### En une phrase
 
-Bot de trading **mean-reversion + momentum** sur Hyperliquid (DEX, accessible depuis la France), opérant sur **28 altcoins** avec 5 stratégies indépendantes, **2x de levier**, paper/live/junior en parallèle.
+Bot de trading **mean-reversion + momentum** sur Hyperliquid (DEX, accessible depuis la France), opérant sur **35 altcoins** (v12.7.0 : 29 base + 6 ajouts curés) avec 5 stratégies indépendantes, **2x de levier**, paper/live/junior en parallèle.
 
 ### Les 3 bots en parallèle
 
@@ -92,7 +92,7 @@ Live (HL_MODE=live):
 ### Cycle de scan (toutes les ~heures par défaut)
 
 ```
-┌─ Fetch candles 4h pour 29 tokens (BTC inclus)
+┌─ Fetch candles 4h pour 35 tokens (BTC/ETH refs en sus)
 │
 ├─ Calculer features:
 │   - btc_z (z-score 6m du return BTC 30j)
@@ -910,7 +910,7 @@ Le strict 4/4 + sliding walk-forward OOS sont les défenses. Mais ils sont **con
 
 ### Version
 
-**v12.6.3** — déployée sur paper / live / junior (admin reste sur ancienne version, sans impact).
+**v12.7.0** — déployée sur paper / live / junior (admin reste sur ancienne version, sans impact).
 
 ### Capitaux
 
@@ -997,8 +997,8 @@ RUNNER_EXT_HOURS = 12
 RUNNER_EXT_MIN_MFE_BPS = 1200
 RUNNER_EXT_MIN_CUR_TO_MFE = 0.3
 
-# Tokens (28 trading + 2 reference)
-TRADE_SYMBOLS = [29 tokens including TON]
+# Tokens (35 trading + 2 reference)
+TRADE_SYMBOLS = [35 tokens: 29 base + v12.7.0 expansion BCH/DOT/ADA/XMR/ENA/UNI]
 REFERENCE = [BTC, ETH]
 S10_ALLOWED_TOKENS = {AAVE, APT, ARB, BLUR, COMP, CRV, INJ, MINA, OP, PYTH, SEI, SNX, WLD}
 ```
@@ -1115,4 +1115,4 @@ Liste des 20 derniers trades fermés avec reason (`timeout`, `dead_timeout`, `ca
 
 ---
 
-*Doc écrit le 2026-05-11, mis à jour le 2026-05-16 (v12.6.3). Mettre à jour à chaque commit majeur. Pour le détail technique destination Claude voir `CLAUDE.md`. Pour l'historique versions voir `CHANGELOG.md`. Pour les résultats backtests à jour voir `docs/backtests.md`.*
+*Doc écrit le 2026-05-11, mis à jour le 2026-05-16 (v12.7.0). Mettre à jour à chaque commit majeur. Pour le détail technique destination Claude voir `CLAUDE.md`. Pour l'historique versions voir `CHANGELOG.md`. Pour les résultats backtests à jour voir `docs/backtests.md`.*

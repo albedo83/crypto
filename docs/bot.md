@@ -42,8 +42,10 @@ Le bot suit le momentum BTC→alts (S1), suit les breakouts sectoriels (S5), ach
 
 | Secteur | Tokens |
 |---|---|
-| L1 | SOL, AVAX, SUI, APT, NEAR, SEI |
-| DeFi | AAVE, MKR, CRV, SNX, PENDLE, COMP, DYDX, LDO, GMX |
+| L1 | SOL, AVAX, SUI, APT, NEAR, SEI, TON |
+| L1-major (v12.7.0) | BCH, DOT, ADA |
+| Privacy (v12.7.0) | XMR |
+| DeFi | AAVE, MKR, CRV, SNX, PENDLE, COMP, DYDX, LDO, GMX, UNI, ENA |
 | Gaming | GALA, IMX, SAND |
 | Infra | LINK, PYTH, STX, INJ, ARB, OP |
 | Meme | DOGE, WLD, BLUR, MINA |

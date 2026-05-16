@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.7.0] — 2026-05-16
+- **Trading engine**: universe expanded to 35 tokens (+6 curated additions). 2 new sectors created.
+
 ## [12.6.3] — 2026-05-16
 - **Trading engine**: macro-slot allocation raised after walk-forward 4/4 strict sweep.
 
