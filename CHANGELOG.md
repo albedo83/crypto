@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.6.1] — 2026-05-16
+- **Infra**: equity realign tool to align `_total_pnl` to exchange truth and silence stale drift alerts.
+
 ## [12.6.0] — 2026-05-15
 - **Trading engine**: new dead-in-water exit on amorphous S8 positions.
 

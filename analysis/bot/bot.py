@@ -215,7 +215,8 @@ class MultiSignalBot:
             self._last_daily_report, self._paused,
             self._consecutive_losses,
             self._cooldowns, self._signal_first_seen, self._feature_cache,
-            capital=self._capital)
+            capital=self._capital,
+            pnl_realign_offset=getattr(self, "_pnl_realign_offset", 0.0))
 
     def _build_token_signals(self, now, btc_f: dict, cross_ctx: dict) -> list:
         """Per-token signal detection loop. Returns the list of fired token-level

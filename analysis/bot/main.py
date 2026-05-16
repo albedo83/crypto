@@ -70,18 +70,30 @@ async def run():
         if bot.positions or bot._total_pnl:
             log.info("Restored: %d positions, P&L $%.2f", len(bot.positions), bot._total_pnl)
 
-    # Startup sanity check: sum of *all* trades should match stored _total_pnl.
+    # v12.6.1 — `_pnl_realign_offset` accumulates manual realigns made via
+    # `analysis/equity_realign.py` (one-shot tool that aligns `_total_pnl` to
+    # the exchange truth — used to absorb the residue of pre-v12.5.25 P&L
+    # over-recording on winners). The offset is the signed delta applied at
+    # realign time; bot._total_pnl has already been corrected before save.
+    # Persisted so subsequent restarts know to ignore the expected gap.
+    bot._pnl_realign_offset = state.get("_pnl_realign_offset", 0.0) if state else 0.0
+    if bot._pnl_realign_offset:
+        log.info("Restored _pnl_realign_offset: $%+.2f", bot._pnl_realign_offset)
+
+    # Startup sanity check: sum of *all* trades should match stored _total_pnl
+    # plus any accumulated realign offset.
     # close_position credits _total_pnl on every close (bot, manual_stop, reset)
     # so the sum must include all of them — filtering by is_bot_trade was the
     # earlier mistake that produced false drift warnings after any manual close.
     # Mismatch indicates a crash between close_position's DB commit and the
     # subsequent _save_state() write. Non-fatal but logged for audit.
     trades_sum = sum(t.pnl_usdt for t in bot.trades)
-    drift = trades_sum - bot._total_pnl
+    drift = trades_sum - bot._total_pnl + bot._pnl_realign_offset
     if abs(drift) > 1.0:
-        log.warning("STARTUP P&L DRIFT: stored=$%.2f, trades_sum=$%.2f (Δ$%.2f) — "
-                    "possible crash during close_position between DB commit and state save",
-                    bot._total_pnl, trades_sum, drift)
+        log.warning("STARTUP P&L DRIFT: stored=$%.2f, trades_sum=$%.2f, "
+                    "realign_offset=$%+.2f (Δ$%.2f) — possible crash during "
+                    "close_position between DB commit and state save",
+                    bot._total_pnl, trades_sum, bot._pnl_realign_offset, drift)
 
     def _sig(sig, frame):
         log.info("Shutdown signal")

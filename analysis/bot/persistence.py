@@ -128,7 +128,8 @@ def save_state(state_file: str, positions: dict, pos_lock,
                last_daily_report: float, paused: bool,
                consecutive_losses: int,
                cooldowns: dict, signal_first_seen: dict,
-               feature_cache: dict, capital: float = 0) -> None:
+               feature_cache: dict, capital: float = 0,
+               pnl_realign_offset: float = 0.0) -> None:
     """Atomically persist bot state (write to .tmp then os.replace)."""
     output_dir = os.path.dirname(state_file)
     os.makedirs(output_dir, exist_ok=True)
@@ -159,6 +160,7 @@ def save_state(state_file: str, positions: dict, pos_lock,
                               for fk, fv in v.items()} for k, v in feature_cache.items() if v},
         "feature_cache_ts": time.time(),
         "positions": pos_snapshot,
+        "_pnl_realign_offset": round(pnl_realign_offset, 4),
     }
     tmp = state_file + ".tmp"
     try:
