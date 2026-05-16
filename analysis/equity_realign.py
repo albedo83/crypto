@@ -196,9 +196,9 @@ def main() -> None:
     args = parser.parse_args()
 
     output_rel, port, key_env, master_addr = BOTS[args.bot]
-    output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                              "..", output_rel.split("/", 1)[1] if "/" in output_rel else output_rel)
-    output_dir = os.path.abspath(output_dir)
+    # __file__ is analysis/equity_realign.py → project root is its parent dir.
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    output_dir = os.path.abspath(os.path.join(project_root, output_rel))
 
     if port_in_use(port) and not args.force_running:
         sys.exit(f"ERROR: port {port} is in use — stop the {args.bot} bot first "
