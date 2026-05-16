@@ -910,7 +910,7 @@ Le strict 4/4 + sliding walk-forward OOS sont les défenses. Mais ils sont **con
 
 ### Version
 
-**v12.6.1** — déployée sur paper / live / junior (admin reste sur ancienne version, sans impact).
+**v12.6.2** — déployée sur paper / live / junior (admin reste sur ancienne version, sans impact).
 
 ### Capitaux
 
@@ -1115,4 +1115,4 @@ Liste des 20 derniers trades fermés avec reason (`timeout`, `dead_timeout`, `ca
 
 ---
 
-*Doc écrit le 2026-05-11, mis à jour le 2026-05-16 (v12.6.1). Mettre à jour à chaque commit majeur. Pour le détail technique destination Claude voir `CLAUDE.md`. Pour l'historique versions voir `CHANGELOG.md`. Pour les résultats backtests à jour voir `docs/backtests.md`.*
+*Doc écrit le 2026-05-11, mis à jour le 2026-05-16 (v12.6.2). Mettre à jour à chaque commit majeur. Pour le détail technique destination Claude voir `CLAUDE.md`. Pour l'historique versions voir `CHANGELOG.md`. Pour les résultats backtests à jour voir `docs/backtests.md`.*

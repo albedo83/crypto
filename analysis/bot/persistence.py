@@ -198,6 +198,8 @@ def load_state(state_file: str, states: dict) -> dict:
         result["consecutive_losses"] = data.get("consecutive_losses", 0)
         result["cooldowns"] = data.get("cooldowns", {})
         result["signal_first_seen"] = data.get("signal_first_seen", {})
+        # v12.6.1: accumulated realign offset (see analysis/equity_realign.py).
+        result["_pnl_realign_offset"] = data.get("_pnl_realign_offset", 0.0)
         # Restore feature cache if recent enough (avoids blank dashboard on restart)
         fc_ts = data.get("feature_cache_ts", 0)
         if time.time() - fc_ts < 7200:  # < 2h old
