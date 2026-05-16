@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.6.2"
+VERSION = "12.6.3"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -233,7 +233,13 @@ MAX_POSITIONS = 6
 MAX_SAME_DIRECTION = 4
 MAX_PER_SECTOR = 2
 # Slot reservation (backtest_slot_reservation.py: DD -32% vs -44%)
-MAX_MACRO_SLOTS = 2
+# v12.6.3: 2 → 3 after walk-forward 4/4 strict sweep on {2,3,4,5} — slots=3
+# beats baseline on all 4 windows simultaneously with avg ΔDD = 0.00pp. The
+# extra macro slot captures S1 LONG signals that were previously skipped on
+# `max_macro` (250 such SKIPs in the live 51d audit window). slots=4-5 fail
+# 4/4 strict (over-fills correlated positions in bull rallies, 6m/3m regress).
+# Source: backtests/max_macro_sweep_results.md.
+MAX_MACRO_SLOTS = 3
 MAX_TOKEN_SLOTS = 4       # was 3, +157% P&L with 4
 MACRO_STRATEGIES = {"S1"}
 

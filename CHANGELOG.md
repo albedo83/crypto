@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.6.3] — 2026-05-16
+- **Trading engine**: macro-slot allocation raised after walk-forward 4/4 strict sweep.
+
 ## [12.6.2] — 2026-05-16
 - **Infra**: hotfix — `load_state` now exposes the persisted realign offset to startup so the drift check no longer spurious-warns post-realign.
 

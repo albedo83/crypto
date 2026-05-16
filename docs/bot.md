@@ -113,7 +113,7 @@ S5 a été testé sur les 3 familles (A.1 global, A.2 régime, B percentile, C M
 | **S10 trailing stop** | MFE > 600 bps → plancher a MFE − 150 bps | Verrouille les gains S10. Walk-forward 4/4. S10 rendait 70% de son MFE avant. |
 | **Frais** | Live : **10 bps round-trip** fixe. Backtest : **14 bps** = 10 + 4 slippage moyen. | Calibrés depuis 80 fills live Hyperliquid en v11.3.4 : taker 4.50 bps/leg = 9 round-trip, funding ~0.5 bps/trade → 1 par sécurité. Slippage live = 0 (déjà dans `avgPx` de la réponse SDK). Backtest ajoute 4 bps car il utilise les closes 4h. |
 | **Cooldown** | 24h par token apres exit | Evite de re-entrer immediatement. |
-| **Slot reservation** | Max 2 macro (S1) + 4 token (S5/S8/S9/S10) | Token slots elargis a 4 (+157% P&L vs 3). |
+| **Slot reservation** | Max 3 macro (S1) + 3 token (S5/S8/S9/S10) | Token slots elargis a 4 (+157% P&L vs 3). |
 
 P&L : `size_usdt` est le **notionnel** (deja leveraged). `pnl = notionnel × mouvement_prix`. Pas de multiplication par le levier en plus — c'etait le bug v11.3.0.
 
@@ -127,7 +127,7 @@ P&L : `size_usdt` est le **notionnel** (deja leveraged). `pnl = notionnel × mou
 | **Max 6 positions** | Absolu | Surexposition |
 | **Max 4 meme direction** | 4 LONG ou 4 SHORT | Pari directionnel total |
 | **Max 2 par secteur** | 2 par groupe | Concentration sectorielle |
-| **Slot reservation** | 2 macro / 4 token | Macro limite, token elargi |
+| **Slot reservation** | 3 macro / 3 token | Macro limite, token elargi |
 | **Stop loss** | -12.5% / -7.5% (S8) / adaptatif (S9) | Crash extreme sur un trade |
 | **S9 early exit** | Coupe S9 si -500 bps apres 8h | Perte qui s'enkyste sur un S9 |
 | **S10 trailing stop** | MFE > +600 bps → plancher MFE − 150 | Verrouille les gains S10 (rendait 70% du MFE) |
@@ -203,11 +203,11 @@ Hyperliquid REST API (toutes les 60s, avec retry 3x backoff)
     analysis/bot/  (12 modules, processus asyncio unique)
     │
     ├── 5 signaux (S1, S5, S8, S9, S10) + S9-fast observation
-    │     Slot reservation : 2 macro / 4 token
+    │     Slot reservation : 3 macro / 3 token
     │     Tri par z-score, puis force du signal
     │
     ├── Position manager
-    │     6 max / 4 dir / 2 sect / 2 macro / 4 token
+    │     6 max / 4 dir / 2 sect / 3 macro / 3 token
     │     Stop -12.5% (S8: -7.5%, S9: adaptatif max(-1250,-500-ret/8))
     │     S9 early exit a -500 bps apres 8h
     │     (kill-switch, streak, quarantine, expo cap tous desactives v11.3.0)
