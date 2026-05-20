@@ -41,6 +41,7 @@ class Position:
     target_exit: datetime
     mae_bps: float = 0.0    # Max Adverse Excursion (worst unrealized during trade)
     mfe_bps: float = 0.0    # Max Favorable Excursion (best unrealized during trade)
+    mfe_at_h: float = 0.0   # v12.7.1: hours_held when mfe_bps was last updated (used by traj_cut to measure time-since-MFE)
     trajectory: list = field(default_factory=list)  # [(hours_since_entry, unrealized_bps), ...] capped at 200
     stop_bps: float = 0.0       # per-position stop loss (0 = use default STOP_LOSS_BPS)
     # Structured entry context (for post-hoc OI analysis — populated at entry, copied to Trade at close)

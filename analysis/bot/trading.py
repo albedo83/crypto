@@ -26,7 +26,10 @@ from .config import (COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTI
                      RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
                      OI_LONG_GATE_BPS, TRADE_BLACKLIST, strat_size,
                      get_adaptive_alpha, MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX,
-                     DISP_GATE_BPS, DISP_GATE_STRATEGIES)
+                     DISP_GATE_BPS, DISP_GATE_STRATEGIES,
+                     TRAJ_CUT_STRATEGIES, TRAJ_CUT_BTC_Z_THRESHOLD,
+                     TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H, TRAJ_CUT_TIME_SINCE_MFE_MIN_H,
+                     TRAJ_CUT_AT_MAE_SLACK_BPS, TRAJ_CUT_MIN_LOSS_BPS)
 from .analytics import compute_signal_drift
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
@@ -168,9 +171,13 @@ def check_exits(bot) -> int:
                 continue  # closed between snapshot and here
             if unrealized < pos.mae_bps:
                 pos.mae_bps = unrealized
+            hours_held = (now - pos.entry_time).total_seconds() / 3600
             if unrealized > pos.mfe_bps:
                 pos.mfe_bps = unrealized
-            hours_held = (now - pos.entry_time).total_seconds() / 3600
+                # v12.7.1: track when MFE was last set (used by traj_cut to
+                # measure time-since-MFE). Default 0 means MFE was set at
+                # entry, so time_since_mfe == hours_held until the first peak.
+                pos.mfe_at_h = hours_held
             last_h = pos.trajectory[-1][0] if pos.trajectory else -1
             if hours_held - last_h >= 0.95:
                 if len(pos.trajectory) < 200:
@@ -278,6 +285,32 @@ def check_exits(bot) -> int:
                 if unrealized <= trailing_bps:
                     exit_reason = "s8_inlife"
                     exit_price = entry_price * (1 + direction * trailing_bps / 1e4)
+        # v12.7.1 — Trajectory cut (regime-conditioned, S5 only by default).
+        # Codifies the user's manual_close intuition: cut a position whose
+        # curve is in steep decline from MFE, currently pinned near MAE,
+        # meaningfully losing, AND we're in a bear macro regime where these
+        # patterns historically materialize into catastrophe rather than
+        # recovery. Walk-forward 4/4 strict on R1 (btc_z < -0.5) via
+        # `backtest_trajectory_cut_v2.py`. Null-shuffle confirms the regime
+        # filter is the thing doing the work (real edge above null
+        # distribution, p<0.08 on 13 shuffles, all nulls below real).
+        # Without the regime gate, the rule fails walk-forward 1/4 (cuts
+        # too many recoverable positions in choppy/bull markets).
+        # Kill-switch: empty TRAJ_CUT_STRATEGIES in config.py.
+        if (not exit_reason
+                and strategy in TRAJ_CUT_STRATEGIES
+                and bot._btc_z is not None
+                and bot._btc_z < TRAJ_CUT_BTC_Z_THRESHOLD
+                and unrealized <= TRAJ_CUT_MIN_LOSS_BPS
+                and (unrealized - pos.mae_bps) <= TRAJ_CUT_AT_MAE_SLACK_BPS):
+            t_since_mfe = hours_held - pos.mfe_at_h
+            if t_since_mfe >= TRAJ_CUT_TIME_SINCE_MFE_MIN_H:
+                decline_rate = (pos.mfe_bps - unrealized) / max(t_since_mfe, 1.0)
+                if decline_rate >= TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H:
+                    exit_reason = "traj_cut"
+                    # exit_price stays at st.price (live mark) — the rule
+                    # fires on observed price evolution, not a synthetic
+                    # stop level.
         # Dead-timeout early exit (v11.7.2, walk-forward 4/4 validated).
         # Checked last so stops/trailing take precedence.
         if (not exit_reason

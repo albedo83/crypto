@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.7.0"
+VERSION = "12.7.1"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -293,6 +293,38 @@ DEAD_TIMEOUT_LEAD_HOURS = 12.0
 DEAD_TIMEOUT_MFE_CAP_BPS = 150.0
 DEAD_TIMEOUT_MAE_FLOOR_BPS = -500.0
 DEAD_TIMEOUT_SLACK_BPS = 300.0
+
+# ── Trajectory cut (v12.7.1) — regime-conditioned mid-trade exit ──────
+# Codifies the user's manual_close intuition: cut a position whose
+# trajectory is in steep decline from MFE, currently pinned near MAE,
+# meaningfully losing — AND we are in a bear macro regime where these
+# patterns historically materialize into catastrophe_stop rather than
+# rebound.
+#
+# Rule: exit if ALL of these hold:
+#   - strategy in TRAJ_CUT_STRATEGIES
+#   - hours_held - mfe_at_h >= TRAJ_CUT_TIME_SINCE_MFE_MIN_H
+#   - unrealized_bps <= TRAJ_CUT_MIN_LOSS_BPS
+#   - unrealized_bps - mae_bps <= TRAJ_CUT_AT_MAE_SLACK_BPS  (near MAE)
+#   - (mfe_bps - unrealized_bps) / max(t_since_mfe, 1) >= TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H
+#   - bot._btc_z < TRAJ_CUT_BTC_Z_THRESHOLD  (bear regime)
+#
+# Discovery: live April-May 2026 — user's manual_close on 6 trades saved
+# 3 catastrophe_stops (+$28 vs counterfactual). Hypothesis "automate the
+# pattern" tested 2026-05-20. v1 unconditioned (backtest_trajectory_cut.py)
+# failed walk-forward 1/4 PnL — cut too many recoverable positions on
+# recent windows. v2 regime-conditioned (backtest_trajectory_cut_v2.py)
+# PASSES strict 4/4 on R1 (z < -0.5):
+#   28m: +177 043 pp / 12m: +1 440 / 6m: +20 / 3m: +16  (ΔDD avg +2.15pp = DD AMÉLIORÉE)
+# 36 fires over 28m, all in bear regime. S5 only (where the live
+# catastrophes hit).
+# Kill-switch: set TRAJ_CUT_STRATEGIES = set() — rule then no-ops.
+TRAJ_CUT_STRATEGIES: set[str] = {"S5"}
+TRAJ_CUT_BTC_Z_THRESHOLD = -0.5      # bear-strict gate
+TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H = 100.0
+TRAJ_CUT_TIME_SINCE_MFE_MIN_H = 4.0
+TRAJ_CUT_AT_MAE_SLACK_BPS = 100.0
+TRAJ_CUT_MIN_LOSS_BPS = -200.0
 
 # ── OI Gate (backtest_external_gates.py, backtest_oi_gate_validate.py) ──
 # Skip LONG entries when token OI has fallen >10% in 24h: longs are unwinding,
