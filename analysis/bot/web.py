@@ -342,6 +342,9 @@ def build_state_response(bot) -> dict:
         "paused": bot._paused, "running": bot.running,
         "degraded": list(bot._degraded), "loss_streak": bot._consecutive_losses,
         "balance": round(balance, 2), "capital": bot._capital,
+        # Capital cap exposed for the DCA dashboard widget. Only Junior bot
+        # has a hard cap (JUNIOR_CAPITAL_CAP); Live/Paper have no limit.
+        "capital_cap": (JUNIOR_CAPITAL_CAP if BOT_LABEL == "JUNIOR" and JUNIOR_CAPITAL_CAP > 0 else None),
         "equity": round(equity, 2),  # v12.5.13 = balance + sum_unrealized (deterministic)
         "hl_equity": round(hl_equity, 2) if hl_equity is not None else None,
         "exchange_account": bot._exchange_account,  # real exchange balance (live only)

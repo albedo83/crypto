@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.7.2] — 2026-05-25
+- **Dashboard**: capital display next to DCA button — shows `$current / $max` on Junior (capped) and `$current` on Live/Paper (uncapped). New `capital_cap` field exposed in `/api/state`.
+
 ## [12.7.1] — 2026-05-20
 - **Trajectory cut — regime-conditioned mid-trade exit** (S5 only). Codifies the user's manual_close intuition: cut a position whose curve is in steep decline from MFE, currently pinned near MAE, meaningfully losing, AND we're in a bear macro regime (`btc_z_30d < -0.5`). Discovery: live April-May 2026 user's manual_close on 6 trades saved 3 catastrophe_stops (+$28 vs counterfactual). v1 unconditioned variant failed walk-forward 1/4 — cut too many recoverable positions in choppy/bull. v2 regime-conditioned R1 PASSES strict 4/4 on `backtest_trajectory_cut_v2.py`: 28m +177 043pp, 12m +1 440pp, 6m +20pp, 3m +16pp, ΔDD avg +2.15pp DD improvement. 36 fires over 28m, all in bear regime. Null-shuffle on 13 trials: 0/13 random shuffles beat real (p<0.08, GENUINE). Rule placed in `trading.check_exits` between `s8_inlife` and `dead_timeout`. New exit reason: `traj_cut`. New `Position.mfe_at_h` field tracks when MFE was last set (persisted; default 0 = MFE at entry). Kill-switch: empty `TRAJ_CUT_STRATEGIES = set()` in `config.py`. Source: `backtests/backtest_trajectory_cut.py` (v1 failed), `backtests/backtest_trajectory_cut_v2.py` (R1/R2 GREEN), `backtests/backtest_trajectory_cut_r2_stability.py` (null-shuffle GENUINE).
 

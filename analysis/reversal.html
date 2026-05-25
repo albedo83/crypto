@@ -351,6 +351,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <div class="header-actions" style="margin-left:auto;display:flex;gap:6px;align-items:center">
     <button class="btn-small" onclick="showChangelog()">Release notes</button>
     <button class="btn-small" onclick="showBacktests()">Backtests</button>
+    <span class="info" id="cap-display" style="font-size:11px;color:#8b949e"></span>
     <button class="btn-small" onclick="addCapital()" style="background:#238636;color:#fff;border-color:#2ea043">+ DCA</button>
   </div>
 </div>
@@ -833,6 +834,13 @@ function refresh(){
     document.getElementById('uptime').textContent=upText;
     document.getElementById('params').textContent=
       'Hold: '+s.params.hold_h+'h | Stop: '+s.params.stop_bps+'bps | Cost: '+s.params.cost_bps+'bps | Max: '+s.params.max_pos+'pos';
+    // Capital / cap display next to DCA button. Junior shows "$cap / $max",
+    // Live/Paper show "$cap" (no hard cap).
+    const capEl=document.getElementById('cap-display');
+    if(capEl){
+      const cap=(s.capital||0).toFixed(0);
+      capEl.textContent=(s.capital_cap!=null)?('$'+cap+' / $'+s.capital_cap.toFixed(0)):('$'+cap);
+    }
 
     // Positions table
     const pb=document.getElementById('pos-body');
