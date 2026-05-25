@@ -290,6 +290,7 @@ async def api_bots():
                     "direction": p.get("direction"),
                     "strategy": p.get("strategy"),
                     "pnl_usdt": p.get("pnl_usdt", 0),
+                    "size_usdt": p.get("size_usdt", 0),  # v12.7.4: needed for closeFeesEst on admin
                     "unrealized_bps": p.get("unrealized_bps", 0),
                     "remaining": p.get("remaining", ""),
                     "remaining_hours": p.get("remaining_hours", 0),

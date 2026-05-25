@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.7.4] — 2026-05-25
+- **Admin**: aligned equity and P&L calculations with the per-bot dashboard. Equity now subtracts the estimated close-side fees (~9 bps × open notional) and P&L card uses `ea.equity − capital` (= realized + unrealized) instead of realized-only `total_pnl`. Eliminates the prior $7-ish equity gap and the misleading "+0%" P&L row.
+
 ## [12.7.3] — 2026-05-25
 - **Trading engine**: Junior capital cap raised from $300 to $500 — DCA window now wider on the sub-account.
 

@@ -233,15 +233,21 @@ function renderBots(bots){
   grid.innerHTML=bots.map(b=>{
     const online=b.online;
     const status=b.paused?'paused':(b.status||'offline');
-    const pnl=b.total_pnl||0;
     const balance=b.balance||0;
     const capital=b.capital||0;
-    const pnlPct=capital>0?(pnl/capital*100):0;
     const wr=b.win_rate?Math.round(b.win_rate*100):0;
     const dd=b.drawdown_pct||0;
     const ddClass=dd<-1?'red':(dd<0?'':'green');
     const ea=b.exchange_account;
-    const equity=ea?ea.equity:balance;
+    // v12.7.4: align with live dashboard formulas.
+    // - Equity = ea.equity minus estimated close-side fees (~9 bps × open notional)
+    //   = "if I close everything now". Falls back to balance when ea is absent.
+    // - P&L = realized + unrealized = ea.equity - capital (when ea available).
+    //   Otherwise the realized-only total_pnl is the best estimate.
+    const closeFeesEst=(b.positions||[]).reduce((a,p)=>a+(p.size_usdt||0)*0.0009,0);
+    const equity=ea?(ea.equity-closeFeesEst):balance;
+    const pnl=ea?(ea.equity-capital):(b.total_pnl||0);
+    const pnlPct=capital>0?(pnl/capital*100):0;
     const stateBadge=online?(b.paused?'<span class="badge paused">paused</span>':'<span class="badge running">running</span>'):'';
     const borderStyle=online&&b.bot_label_color?`style="border-top-color:${b.bot_label_color}"`:'';
     const sigs=online&&b.active_signals&&b.active_signals.length?b.active_signals.map(s=>`<span>${s}</span>`).join(' &middot; '):'<i>No active signals</i>';
