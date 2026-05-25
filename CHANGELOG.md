@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.7.3] — 2026-05-25
+- **Trading engine**: Junior capital cap raised from $300 to $500 — DCA window now wider on the sub-account.
+
 ## [12.7.2] — 2026-05-25
 - **Dashboard**: capital display next to DCA button — shows `$current / $max` on Junior (capped) and `$current` on Live/Paper (uncapped). New `capital_cap` field exposed in `/api/state`.
 

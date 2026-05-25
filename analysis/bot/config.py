@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.7.2"
+VERSION = "12.7.3"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -238,7 +238,7 @@ MACRO_MULT_MAX = 2.5            # final multiplier ceiling
 CAPITAL_USDT = float(os.environ.get("HL_CAPITAL", "1000"))
 # Hard cap on Junior's capital (DCA refused above this). Applies only when
 # BOT_LABEL == "JUNIOR"; Live and Paper are unaffected. Set to 0 to disable.
-JUNIOR_CAPITAL_CAP = 300.0
+JUNIOR_CAPITAL_CAP = 500.0
 MAX_POSITIONS = 6
 MAX_SAME_DIRECTION = 4
 MAX_PER_SECTOR = 2
