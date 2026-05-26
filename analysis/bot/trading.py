@@ -30,7 +30,6 @@ from .config import (COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTI
                      TRAJ_CUT_STRATEGIES, TRAJ_CUT_BTC_Z_THRESHOLD,
                      TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H, TRAJ_CUT_TIME_SINCE_MFE_MIN_H,
                      TRAJ_CUT_AT_MAE_SLACK_BPS, TRAJ_CUT_MIN_LOSS_BPS)
-from .analytics import compute_signal_drift
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
 from .exchange import execute_open, execute_close, fetch_position_funding
@@ -557,7 +556,6 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
 
     entries = 0
     seen_symbols: set = set()       # one entry per symbol per scan
-    drift = compute_signal_drift(bot.trades)  # compute once, not per candidate
     for sig in signals:
         sym = sig["symbol"]
         side = "LONG" if sig["direction"] == 1 else "SHORT"

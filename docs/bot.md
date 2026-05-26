@@ -138,7 +138,7 @@ P&L : `size_usdt` est le **notionnel** (deja leveraged). `pnl = notionnel × mou
 | **OI gate LONG** (v11.4.9) | Skip LONG si `Δ(OI,24h) < -10%` | Entrer LONG pendant que les longs se débouclent |
 | **Trade blacklist** (v11.4.10) | Skip tout trade sur `{SUI, IMX, LINK}` | Tokens structurellement net-négatifs |
 | **Dead-timeout early exit** (v11.7.2) | Sortie anticipée à T−12h si `MFE ≤ +150 bps` ET `MAE ≤ −1000 bps` ET `current ≤ MAE + 300 bps` | Cristalliser la perte d'un trade sans pouls au lieu d'attendre le timeout à la MAE |
-| **Manual per-position stop** (v12.5.10) | Optionnel, set via `POST /api/manual_stop/{symbol}` ou bouton 🎯 du dashboard. Le bot ferme dès que `unrealized ≤ manual_stop_bps`. Évalué après stop catastrophe, avant exits stratégie-spécifique. | Verrouiller manuellement les gains d'un trade outlier (ex. +$45 unrealized, set stop à +$40). N'affecte pas la stratégie globale — override manuel. |
+| **Manual per-position stop** (v12.5.10) | Optionnel, set via `POST /api/manual_stop/{symbol}` ou bouton 🎯 du dashboard. Le bot ferme dès que le net unrealized en dollars descend jusqu'à `manual_stop_usdt`. Évalué après stop catastrophe, avant exits stratégie-spécifique. | Verrouiller manuellement les gains d'un trade outlier (ex. +$45 unrealized, set stop à +$40). N'affecte pas la stratégie globale — override manuel. |
 | **Cooldown** | 24h par token apres exit | Re-entree impulsive |
 | **Reconciliation** | Chaque scan horaire, bot vs exchange | Position orpheline ou fantome |
 | **Telegram** | Entry, exit, erreur, reboot, resume quotidien | On sait toujours ce qui se passe |

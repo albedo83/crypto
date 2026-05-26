@@ -145,7 +145,6 @@ def save_state(state_file: str, positions: dict, pos_lock,
             "entry_oi_delta": p.entry_oi_delta, "entry_crowding": p.entry_crowding,
             "entry_confluence": p.entry_confluence, "entry_session": p.entry_session,
             "extended": p.extended,
-            "manual_stop_bps": p.manual_stop_bps,
             "manual_stop_usdt": p.manual_stop_usdt,
         } for p in positions.values()]
     data = {
@@ -192,7 +191,11 @@ def load_state(state_file: str, states: dict) -> dict:
         result["total_pnl"] = data.get("total_pnl", 0)
         result["wins"] = data.get("wins", 0)
         total_pnl = result["total_pnl"]
-        result["peak_balance"] = max(data.get("peak_balance", 0), CAPITAL_USDT + total_pnl)
+        # Floor against the saved capital, not the env CAPITAL_USDT. After a
+        # withdrawal that rebased peak below the env default, using CAPITAL_USDT
+        # would re-inflate peak and surface a phantom drawdown at boot.
+        capital_for_floor = data.get("capital", CAPITAL_USDT)
+        result["peak_balance"] = max(data.get("peak_balance", 0), capital_for_floor + total_pnl)
         result["last_daily_report"] = data.get("last_daily_report", 0)
         result["paused"] = data.get("paused", False)
         result["consecutive_losses"] = data.get("consecutive_losses", 0)
@@ -231,7 +234,6 @@ def load_state(state_file: str, states: dict) -> dict:
                     entry_confluence=p.get("entry_confluence", 0),
                     entry_session=p.get("entry_session", ""),
                     extended=p.get("extended", False),
-                    manual_stop_bps=p.get("manual_stop_bps"),
                     manual_stop_usdt=p.get("manual_stop_usdt"),
                 )
             except (KeyError, ValueError, TypeError) as e:

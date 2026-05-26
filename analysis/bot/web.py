@@ -239,13 +239,8 @@ def build_state_response(bot) -> dict:
             "trailing_floor_bps": round(pos.mfe_bps - S10_TRAILING_OFFSET, 0)
                                    if pos.strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER else None,
             "win_prob": win_prob,
-            # v12.5.25: manual_stop_usdt is the source of truth (dollar floor).
-            # manual_stop_bps stays exposed for back-compat in case any reader
-            # depends on it.
             "manual_stop_usdt": round(pos.manual_stop_usdt, 2)
                                 if pos.manual_stop_usdt is not None else None,
-            "manual_stop_bps": round(pos.manual_stop_usdt / pos.size_usdt * 1e4, 0)
-                               if pos.manual_stop_usdt is not None and pos.size_usdt > 0 else None,
         })
     # OI delta 24h per token (for dashboard gauge + gate visualization)
     oi_deltas = {}
@@ -608,6 +603,12 @@ def create_app(bot) -> FastAPI:
     # AUTH_SALT adds entropy so a leaked cookie does not allow offline password
     # brute-force (attacker would need the salt too, which lives only in .env).
     # If the salt changes, all existing sessions become invalid.
+    # If USER is set but PASS is empty, _SECRET would degenerate to b"" and
+    # compare_digest("", "") would accept any login with an empty password —
+    # complete auth bypass. Refuse to start the app in that misconfiguration.
+    if DASHBOARD_USER and not DASHBOARD_PASS:
+        raise RuntimeError("DASHBOARD_USER is set but DASHBOARD_PASS is empty — "
+                           "refusing to start (auth would accept any password)")
     _SECRET = (hashlib.sha256((DASHBOARD_PASS + AUTH_SALT).encode()).digest()
                if DASHBOARD_PASS else b"")
     _SESSION_MAX_AGE = 30 * 86400
@@ -1019,7 +1020,6 @@ def create_app(bot) -> FastAPI:
 
         if body.get("clear"):
             with bot._pos_lock:
-                pos.manual_stop_bps = None
                 pos.manual_stop_usdt = None
             bot._save_state()
             log.info("MANUAL_STOP %s: cleared", sym)
@@ -1071,11 +1071,9 @@ def create_app(bot) -> FastAPI:
                 f"stop ${stop_usdt:.2f} ({trigger_gross_bps:+.0f} bps gross) is at "
                 f"or below the catastrophe stop {cata_stop:+.0f} bps — redundant. "
                 f"Pick a higher dollar value.")}, status_code=400)
-        stop_bps = trigger_gross_bps  # stored for legacy back-compat field
-
+        stop_bps = trigger_gross_bps  # local only — for log + response display
         with bot._pos_lock:
-            pos.manual_stop_bps = stop_bps
-            pos.manual_stop_usdt = stop_usdt   # v12.5.25 source of truth
+            pos.manual_stop_usdt = stop_usdt
         bot._save_state()
         log.info("MANUAL_STOP %s: set at $%.2f (≈%.0f bps), current %+.0f bps",
                  sym, stop_usdt, stop_bps, current_bps)
@@ -1123,6 +1121,11 @@ def create_app(bot) -> FastAPI:
                            f"allowed capital. Maximum deposit right now: ${room:.0f}.")
                 return JSONResponse({"error": msg, "max_dca": max(room, 0.0)},
                                     status_code=400)
+
+        if amount < 0 and bot._capital + amount < 0:
+            return JSONResponse({"error": (
+                f"Withdrawal ${-amount:.0f} exceeds current capital ${bot._capital:.0f}. "
+                f"Maximum withdrawal: ${bot._capital:.0f}.")}, status_code=400)
 
         old_capital = bot._capital
         with bot._pos_lock:
