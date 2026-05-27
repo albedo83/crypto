@@ -9,7 +9,7 @@ import time
 import urllib.request
 
 from .config import (ALL_SYMBOLS, TG_BOT_TOKEN, TG_CHAT_ID, TG_CATEGORIES,
-                     EXECUTION_MODE, BOT_LABEL)
+                     EXECUTION_MODE, BOT_LABEL, BOT_PUBLIC_URL)
 
 _TG_ALLOWED: set[str] | None = (
     None if TG_CATEGORIES.strip() == "*"
@@ -18,6 +18,13 @@ _TG_ALLOWED: set[str] | None = (
 # Prefix every Telegram message with the bot label so multiple instances
 # sharing a Telegram chat stay distinguishable (e.g. Junior1 vs Junior2).
 _TG_PREFIX = f"[{BOT_LABEL}] " if BOT_LABEL else ""
+# v12.7.8: append the public dashboard URL to every Telegram message so the
+# user can tap straight from the notification. URL is the bare base path —
+# no auth token, no query param, no secret. Landing page = /login, mobile
+# autofills password. Security: same surface as posting the URL publicly
+# (which the domain already is); password remains the only gatekeeper.
+# Telegram auto-detects bare URLs and renders them tappable.
+_TG_SUFFIX = f"\n👉 {BOT_PUBLIC_URL}/" if BOT_PUBLIC_URL else ""
 
 log = logging.getLogger("multisignal")
 
@@ -134,7 +141,11 @@ def send_telegram(msg: str, category: str = "other") -> None:
 
     def _do_send():
         try:
-            payload = json.dumps({"chat_id": TG_CHAT_ID, "text": _TG_PREFIX + msg}).encode()
+            # Dedup: skip suffix if msg already mentions the URL (e.g. bot.py
+            # used to append it explicitly before v12.7.8 centralized it here).
+            suffix = _TG_SUFFIX if (BOT_PUBLIC_URL and BOT_PUBLIC_URL not in msg) else ""
+            text = _TG_PREFIX + msg + suffix
+            payload = json.dumps({"chat_id": TG_CHAT_ID, "text": text}).encode()
             req = urllib.request.Request(
                 f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage",
                 data=payload, headers={"Content-Type": "application/json"})

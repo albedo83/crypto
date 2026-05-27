@@ -25,7 +25,7 @@ from .config import (
     GIVEBACK_ALERT_CUR_MAX_BPS, GIVEBACK_ALERT_TIME_SINCE_MFE_MIN_H,
     LOCK_FLOOR_ALERT_STRATEGIES, LOCK_FLOOR_ALERT_MIN_USD,
     LOCK_FLOOR_ALERT_MIN_BPS, LOCK_FLOOR_ALERT_MIN_HOLD_H,
-    LOCK_FLOOR_ALERT_BUFFER_USD, BOT_PUBLIC_URL,
+    LOCK_FLOOR_ALERT_BUFFER_USD,
 )
 from .models import SymbolState, Position, Trade
 from . import analytics, features, signals, db as db_mod, net, persistence, trading, web
@@ -204,8 +204,7 @@ class MultiSignalBot:
                    f"{t_since_mfe:.1f}h ago, now ${cur_pnl:+.2f} "
                    f"({ur_bps:+.0f}bps) — retraced {retracement_pct:.0f}%. "
                    f"MAE ${mae_pnl:.2f}. Consider manual_close.")
-            if BOT_PUBLIC_URL:
-                msg += f"\n👉 {BOT_PUBLIC_URL}/"
+            # URL appended by net.send_telegram (v12.7.8 centralized)
             net.send_telegram(msg, category="trade")
             db_mod.log_event(self._db, "GIVEBACK_ALERT", sym, {
                 "strategy": pos.strategy, "dir": side,
@@ -262,8 +261,7 @@ class MultiSignalBot:
                    f"unrealized ${cur_pnl:+.2f} ({ur_bps:+.0f}bps) after "
                    f"{hold_h:.1f}h. Consider manual_stop @ ${suggested:.0f} "
                    f"to protect ~${suggested:.0f} of the gain.")
-            if BOT_PUBLIC_URL:
-                msg += f"\n👉 {BOT_PUBLIC_URL}/"
+            # URL appended by net.send_telegram (v12.7.8 centralized)
             net.send_telegram(msg, category="trade")
             db_mod.log_event(self._db, "LOCK_FLOOR_ALERT", sym, {
                 "strategy": pos.strategy, "dir": side,

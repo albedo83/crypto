@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.7.8] — 2026-05-27
+- **Dashboard URL appended to ALL Telegram messages** (centralized in `net.send_telegram`), not just GIVEBACK/LOCK_FLOOR. Every notification (OPEN, CLOSE, daily summary, reconcile alert, capital adjusted, login attempts, drift, etc.) now includes `👉 https://echonym.fr/bot/` (live) or `👉 https://echonym.fr/junior/` (junior) — tap from notification → dashboard, mobile autofills password. Dedup if msg already contains the URL (v12.7.7 explicit appends in `bot.py` removed).
+- **Security audit** : URL is base path only (no auth token, no query param, no secret). Landing = `/login`, all mutations are POST (auth-required). Same attack surface as posting the domain publicly. Telegram link-preview bot fetches the login page (no leak). Password remains the only gatekeeper.
+
 ## [12.7.7] — 2026-05-27
 - **Telegram alerts now include a tappable dashboard URL**. New env var `BOT_PUBLIC_URL` (e.g., `https://echonym.fr/bot` for live, `https://echonym.fr/junior` for junior) is appended to GIVEBACK and LOCK_FLOOR alert messages: tap from notification → jumps to dashboard (login page, mobile autofills password). Empty `BOT_PUBLIC_URL` = no URL appended (back-compat). Configured per instance in `start_bots.sh`.
 
