@@ -286,6 +286,13 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 .m-card .m-side.LONG{color:#3fb950}
 .m-card .m-side.SHORT{color:#f85149}
 .m-card .m-strat{font-size:11px;color:#7d8590}
+/* v12.7.13 — position status badge (at-a-glance category) */
+.m-card .m-status{font-size:10px;font-weight:700;padding:2px 7px;border-radius:4px;letter-spacing:0.5px;border:1px solid transparent;white-space:nowrap}
+.m-card .m-status.danger{color:#f85149;background:rgba(248,81,73,0.12);border-color:rgba(248,81,73,0.5)}
+.m-card .m-status.decide{color:#d29922;background:rgba(210,153,34,0.15);border-color:rgba(210,153,34,0.5)}
+.m-card .m-status.wait{color:#7d8590;background:rgba(125,133,144,0.10);border-color:rgba(125,133,144,0.35)}
+.m-card .m-status.profit{color:#3fb950;background:rgba(63,185,80,0.10);border-color:rgba(63,185,80,0.40)}
+.m-card .m-status.early{color:#58a6ff;background:rgba(88,166,255,0.10);border-color:rgba(88,166,255,0.40)}
 .m-card .m-pnl{margin-left:auto;font-size:18px;font-weight:700;display:flex;align-items:baseline;gap:6px;flex-wrap:nowrap}
 .m-card .m-pnl.green{color:#3fb950}.m-card .m-pnl.red{color:#f85149}
 .m-card .m-pnl-num{display:inline-flex;align-items:baseline;gap:3px}
@@ -887,11 +894,14 @@ function refresh(){
       // 13-column desktop table cell branch was removed.
       const pnlSign=p.pnl_usdt>=0?'+':'-';
       const mstopBadge=p.manual_stop_usdt!=null?`<span class="m-mstop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:'';
+      // v12.7.13: status badge (at-a-glance category: danger/decide/wait/profit/early)
+      const statusBadge = p.status ? `<span class="m-status ${p.status.key}" title="${p.status.tip}">${p.status.icon} ${p.status.label}</span>` : '';
       tr.innerHTML=`<td class="m-card-wrap" colspan="13"><div class="m-card ${p.pnl_usdt>=0?'pos-profit':'pos-loss'}">
         <div class="m-header">
           <span class="m-sym">${p.symbol}</span>
           <span class="m-side ${p.direction}">${p.direction}</span>
           <span class="m-strat">${p.strategy||'?'}</span>
+          ${statusBadge}
           <span class="m-pnl ${cls(p.pnl_usdt)}"><span class="m-pnl-num">${pnlSign}$${Math.abs(p.pnl_usdt).toFixed(2)}${mobileEmoji?`<span class="m-emoji" title="${mobileEmojiTitle}">${mobileEmoji}</span>`:''}</span><span class="m-bps">${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}</span>
         </div>
         <div class="m-progress">${holdViz}</div>

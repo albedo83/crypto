@@ -220,6 +220,38 @@ def build_state_response(bot) -> dict:
                                       hold_target_h=hold_h + max(rem, 0),
                                       pre_filtered=True,
                                       current_ur_bps=ur)
+        # v12.7.13: position status badge — at-a-glance category for the user.
+        # Priority order, only one returned:
+        #   danger  — within 200bps of catastrophe stop (urgent action)
+        #   decide  — actionable: GIVEBACK pattern / LOCK_FLOOR opportunity / pinned-at-MAE
+        #   wait    — modest red, statistically +EV to hold (empirical 57% recover)
+        #   profit  — green
+        #   early   — < 1h held, too soon to classify
+        status = None
+        cur_pnl_usdt = pos.size_usdt * ur / 1e4
+        at_mae = (ur - pos.mae_bps) <= 50
+        t_since_mfe = max(0, hold_h - pos.mfe_at_h)
+        if ur <= effective_stop + 200:
+            status = {"key": "danger", "icon": "🚨", "label": "DANGER",
+                      "tip": f"Within 200 bps of catastrophe stop ({int(effective_stop)} bps)"}
+        elif pos.mfe_bps >= 500 and ur <= -100 and t_since_mfe >= 4:
+            status = {"key": "decide", "icon": "⚡", "label": "DECIDE",
+                      "tip": f"Giveback pattern: MFE peaked {int(pos.mfe_bps)}→{int(ur)} bps, {t_since_mfe:.1f}h ago"}
+        elif (cur_pnl_usdt >= 20 or ur >= 600) and hold_h >= 4 and pos.manual_stop_usdt is None:
+            status = {"key": "decide", "icon": "⚡", "label": "DECIDE",
+                      "tip": f"Lock-floor opportunity: ${cur_pnl_usdt:+.1f} unrealized, no manual_stop set"}
+        elif at_mae and hold_h >= 4 and ur <= -200:
+            status = {"key": "decide", "icon": "⚡", "label": "DECIDE",
+                      "tip": f"Pinned at MAE ({int(pos.mae_bps)} bps) for {hold_h:.1f}h"}
+        elif hold_h < 1:
+            status = {"key": "early", "icon": "🕐", "label": "EARLY",
+                      "tip": f"Held {hold_h:.1f}h — too early to classify"}
+        elif ur > 0:
+            status = {"key": "profit", "icon": "🟢", "label": "PROFIT",
+                      "tip": f"In profit ({int(ur)} bps)"}
+        else:
+            status = {"key": "wait", "icon": "⌛", "label": "WAIT",
+                      "tip": f"Modest red ({int(ur)} bps), not at MAE — empirical 57% recover from this zone"}
         positions.append({
             "symbol": sym, "direction": "LONG" if pos.direction == 1 else "SHORT",
             "strategy": pos.strategy, "entry_price": pos.entry_price,
@@ -241,6 +273,7 @@ def build_state_response(bot) -> dict:
             "win_prob": win_prob,
             "manual_stop_usdt": round(pos.manual_stop_usdt, 2)
                                 if pos.manual_stop_usdt is not None else None,
+            "status": status,  # v12.7.13: one-glance category badge
         })
     # OI delta 24h per token (for dashboard gauge + gate visualization)
     oi_deltas = {}

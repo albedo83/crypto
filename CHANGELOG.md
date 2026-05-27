@@ -1,5 +1,14 @@
 # Changelog
 
+## [12.7.13] — 2026-05-27
+- **Position status badge** in dashboard cards — at-a-glance category for each open position. 5 tiers (priority order, one per position):
+  - 🚨 **DANGER** — within 200 bps of catastrophe stop, urgent action
+  - ⚡ **DECIDE** — actionable: GIVEBACK pattern fired / LOCK_FLOOR opportunity / pinned at MAE ≥ 4h. User decision recommended.
+  - ⌛ **WAIT** — modest red, not at MAE, statistically +EV to hold (empirical 57% recover from -200/-500 bps zone)
+  - 🟢 **PROFIT** — in profit, normal
+  - 🕐 **EARLY** — < 1h held, too early to classify
+  - Tooltip on hover explains the trigger condition. Computed in `web.py:build_state_response`, rendered in `reversal.html` m-header next to strategy.
+
 ## [12.7.12] — 2026-05-27
 - **Dashboard button extended to all reconcile alerts**. Ghost / orphan / disputed / direction-mismatch / size-mismatch — all now carry the 📊 Dashboard button (`actionable=True`). Boot reconcile alerts (`main.py`) + hourly reconcile alerts (`exchange.py:reconcile`) covered. The 🔧 auto-sync alert stays informational (no user action needed — bot already corrected size_usdt).
 
