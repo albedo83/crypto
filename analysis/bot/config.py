@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.7.5"
+VERSION = "12.7.6"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -325,6 +325,66 @@ TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H = 100.0
 TRAJ_CUT_TIME_SINCE_MFE_MIN_H = 4.0
 TRAJ_CUT_AT_MAE_SLACK_BPS = 100.0
 TRAJ_CUT_MIN_LOSS_BPS = -200.0
+
+# ── Giveback alert (v12.7.2) — Telegram-only, NO trading action ───────
+# Notifies the user when an open position is showing the "giveback through
+# middle" pattern (had real upside, now in the red, sustained — the NEAR /
+# WLD / GALA / LDO pattern from April-May 2026 where manual_close saved
+# 3 catastrophe_stops out of 5 cuts).
+#
+# Mechanical exit on this pattern fails walk-forward across 4 R&Ds
+# (backtest_s5_trailing, backtest_giveback, backtest_early_mfe_exit,
+# backtest_s5_trail_bear) — the runners that need to keep running are
+# statistically identical to the rollers at the moment of decision.
+# But the USER's pattern recognition (live April-May 2026: +$28 net on 6
+# manual_close) outperforms the mechanical baseline.
+#
+# Strategy: bot detects + alerts; user decides + acts. Hybrid alpha.
+#
+# Trigger: ALL of
+#   - strategy in GIVEBACK_ALERT_STRATEGIES
+#   - pos.mfe_bps >= GIVEBACK_ALERT_MFE_MIN_BPS    (had real upside)
+#   - unrealized_bps <= GIVEBACK_ALERT_CUR_MAX_BPS (now in the red)
+#   - hours_held - pos.mfe_at_h >= GIVEBACK_ALERT_TIME_SINCE_MFE_MIN_H
+#
+# Dedup: once per position (cleared automatically on close). Same pattern
+# as the WR_ALERT mechanism (bot.py:_check_wr_alerts). No DB event spam,
+# Telegram only. Kill-switch: empty GIVEBACK_ALERT_STRATEGIES.
+GIVEBACK_ALERT_STRATEGIES: set[str] = {"S5"}
+GIVEBACK_ALERT_MFE_MIN_BPS = 500.0
+GIVEBACK_ALERT_CUR_MAX_BPS = -100.0
+GIVEBACK_ALERT_TIME_SINCE_MFE_MIN_H = 4.0
+
+# ── Lock-floor alert (v12.7.2) — Telegram-only, NO trading action ─────
+# Notifies the user when an open position has accumulated SUBSTANTIAL
+# unrealized profit and might warrant a proactive manual_stop_usdt to
+# lock most of it. Pure suggestion — user decides + acts via 🎯 button
+# or /api/manual_stop endpoint.
+#
+# Rationale: S5/S10 winners can give back significant gains (the
+# "giveback through middle" pattern). The user has no automatic trailing
+# (4 R&Ds rejected). manual_stop_usdt is a flat floor that pre-empts the
+# giveback without trailing's runner-amputation issue. The bot can't
+# decide where to set it (would be a trailing); but it CAN flag when the
+# decision becomes worth making.
+#
+# Trigger: ALL of
+#   - strategy in LOCK_FLOOR_ALERT_STRATEGIES
+#   - hours_held >= LOCK_FLOOR_ALERT_MIN_HOLD_H (settled, not entry blip)
+#   - manual_stop_usdt not already set (no duplicate suggestion)
+#   - EITHER  unrealized_pnl >= LOCK_FLOOR_ALERT_MIN_USD  (substantial $)
+#       OR    unrealized_bps >= LOCK_FLOOR_ALERT_MIN_BPS  (substantial %)
+#
+# Suggested floor in the message = round(max(0, current_pnl - $5), 2)
+# (i.e., lock break-even on small profits, or "current - $5 buffer" on
+# bigger profits). User can pick differently.
+#
+# Dedup: once per position. Kill-switch: empty STRATEGIES set.
+LOCK_FLOOR_ALERT_STRATEGIES: set[str] = {"S5", "S10", "S8", "S9", "S1"}
+LOCK_FLOOR_ALERT_MIN_USD = 20.0
+LOCK_FLOOR_ALERT_MIN_BPS = 600.0
+LOCK_FLOOR_ALERT_MIN_HOLD_H = 4.0
+LOCK_FLOOR_ALERT_BUFFER_USD = 5.0   # suggested floor = current_pnl - this
 
 # ── OI Gate (backtest_external_gates.py, backtest_oi_gate_validate.py) ──
 # Skip LONG entries when token OI has fallen >10% in 24h: longs are unwinding,

@@ -1,0 +1,2640 @@
+{
+  "version": "s5_trail_bear_v1",
+  "timestamp": "2026-05-27T06:35:53.079606+00:00",
+  "regime_threshold_z": -0.5,
+  "baseline": {
+    "28m": {
+      "pnl_pct": 467285.5548972577,
+      "max_dd_pct": -70.76807107124941,
+      "n_trades": 1127,
+      "n_cut": 0,
+      "exit_dist": {
+        "timeout": 840,
+        "stop": 140,
+        "dead_timeout": 97,
+        "s10_trailing": 39,
+        "s9_early_exit": 7,
+        "mtm_final": 4
+      }
+    },
+    "12m": {
+      "pnl_pct": 9146.294421870924,
+      "max_dd_pct": -41.40600569447665,
+      "n_trades": 466,
+      "n_cut": 0,
+      "exit_dist": {
+        "timeout": 355,
+        "dead_timeout": 47,
+        "stop": 45,
+        "s10_trailing": 13,
+        "mtm_final": 4,
+        "s9_early_exit": 2
+      }
+    },
+    "6m": {
+      "pnl_pct": 1035.8178350004264,
+      "max_dd_pct": -39.0962029336543,
+      "n_trades": 238,
+      "n_cut": 0,
+      "exit_dist": {
+        "timeout": 186,
+        "dead_timeout": 25,
+        "stop": 19,
+        "mtm_final": 4,
+        "s10_trailing": 3,
+        "s9_early_exit": 1
+      }
+    },
+    "3m": {
+      "pnl_pct": 59.617762432733734,
+      "max_dd_pct": -16.827512046617535,
+      "n_trades": 129,
+      "n_cut": 0,
+      "exit_dist": {
+        "timeout": 101,
+        "dead_timeout": 17,
+        "stop": 6,
+        "mtm_final": 4,
+        "s9_early_exit": 1
+      }
+    }
+  },
+  "variants": {
+    "T600_O150": {
+      "params": {
+        "trigger_bps": 600,
+        "offset_bps": 150
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 181458.09003377706,
+          "max_dd_pct": -73.78688715273725,
+          "n_trades": 1103,
+          "n_cut": 87,
+          "exit_dist": {
+            "timeout": 735,
+            "stop": 145,
+            "dead_timeout": 88,
+            "s5_trail_bear": 87,
+            "s10_trailing": 37,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3436.4307029491315,
+          "max_dd_pct": -47.6588913779059,
+          "n_trades": 413,
+          "n_cut": 24,
+          "exit_dist": {
+            "timeout": 291,
+            "stop": 41,
+            "dead_timeout": 41,
+            "s5_trail_bear": 24,
+            "s10_trailing": 10,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 720.727548578827,
+          "max_dd_pct": -39.09628511548418,
+          "n_trades": 240,
+          "n_cut": 9,
+          "exit_dist": {
+            "timeout": 177,
+            "dead_timeout": 26,
+            "stop": 20,
+            "s5_trail_bear": 9,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -2.3179459866867447,
+        "deltas": {
+          "28m": {
+            "d_pnl": -285827.46486348065,
+            "d_dd": -3.0188160814878415
+          },
+          "12m": {
+            "d_pnl": -5709.863718921792,
+            "d_dd": -6.252885683429255
+          },
+          "6m": {
+            "d_pnl": -315.09028642159933,
+            "d_dd": -8.218182988173339e-05
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 120
+      }
+    },
+    "T600_O200": {
+      "params": {
+        "trigger_bps": 600,
+        "offset_bps": 200
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 84568.75135479987,
+          "max_dd_pct": -73.78689869698071,
+          "n_trades": 1104,
+          "n_cut": 84,
+          "exit_dist": {
+            "timeout": 737,
+            "stop": 147,
+            "dead_timeout": 88,
+            "s5_trail_bear": 84,
+            "s10_trailing": 37,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3354.299207471431,
+          "max_dd_pct": -47.6588913779059,
+          "n_trades": 414,
+          "n_cut": 24,
+          "exit_dist": {
+            "timeout": 292,
+            "stop": 41,
+            "dead_timeout": 41,
+            "s5_trail_bear": 24,
+            "s10_trailing": 10,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 701.1270435683008,
+          "max_dd_pct": -39.09628511548418,
+          "n_trades": 241,
+          "n_cut": 9,
+          "exit_dist": {
+            "timeout": 178,
+            "dead_timeout": 26,
+            "stop": 20,
+            "s5_trail_bear": 9,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -2.3179488727476105,
+        "deltas": {
+          "28m": {
+            "d_pnl": -382716.80354245787,
+            "d_dd": -3.018827625731305
+          },
+          "12m": {
+            "d_pnl": -5791.995214399492,
+            "d_dd": -6.252885683429255
+          },
+          "6m": {
+            "d_pnl": -334.6907914321256,
+            "d_dd": -8.218182988173339e-05
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 117
+      }
+    },
+    "T600_O300": {
+      "params": {
+        "trigger_bps": 600,
+        "offset_bps": 300
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 52917.50915406349,
+          "max_dd_pct": -74.2366153116606,
+          "n_trades": 1100,
+          "n_cut": 71,
+          "exit_dist": {
+            "timeout": 742,
+            "stop": 149,
+            "dead_timeout": 90,
+            "s5_trail_bear": 71,
+            "s10_trailing": 37,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 2430.116579842696,
+          "max_dd_pct": -47.98151380661512,
+          "n_trades": 414,
+          "n_cut": 21,
+          "exit_dist": {
+            "timeout": 294,
+            "stop": 42,
+            "dead_timeout": 41,
+            "s5_trail_bear": 21,
+            "s10_trailing": 10,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 684.4125622767838,
+          "max_dd_pct": -39.096310327999426,
+          "n_trades": 241,
+          "n_cut": 9,
+          "exit_dist": {
+            "timeout": 178,
+            "dead_timeout": 26,
+            "stop": 20,
+            "s5_trail_bear": 9,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -2.511039936723698,
+        "deltas": {
+          "28m": {
+            "d_pnl": -414368.04574319423,
+            "d_dd": -3.468544240411191
+          },
+          "12m": {
+            "d_pnl": -6716.177842028228,
+            "d_dd": -6.575508112138472
+          },
+          "6m": {
+            "d_pnl": -351.4052727236426,
+            "d_dd": -0.00010739434512885282
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 101
+      }
+    },
+    "T600_O500": {
+      "params": {
+        "trigger_bps": 600,
+        "offset_bps": 500
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 98038.1598893997,
+          "max_dd_pct": -75.47633657184205,
+          "n_trades": 1092,
+          "n_cut": 61,
+          "exit_dist": {
+            "timeout": 750,
+            "stop": 143,
+            "dead_timeout": 89,
+            "s5_trail_bear": 61,
+            "s10_trailing": 38,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 4472.77576596134,
+          "max_dd_pct": -46.498016205471316,
+          "n_trades": 414,
+          "n_cut": 20,
+          "exit_dist": {
+            "timeout": 297,
+            "stop": 41,
+            "dead_timeout": 39,
+            "s5_trail_bear": 20,
+            "s10_trailing": 11,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 818.4409660914762,
+          "max_dd_pct": -39.09624696884055,
+          "n_trades": 241,
+          "n_cut": 8,
+          "exit_dist": {
+            "timeout": 180,
+            "dead_timeout": 25,
+            "stop": 20,
+            "s5_trail_bear": 8,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -2.4500800116933927,
+        "deltas": {
+          "28m": {
+            "d_pnl": -369247.395007858,
+            "d_dd": -4.7082655005926455
+          },
+          "12m": {
+            "d_pnl": -4673.518655909584,
+            "d_dd": -5.092010510994669
+          },
+          "6m": {
+            "d_pnl": -217.3768689089502,
+            "d_dd": -4.403518625650804e-05
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 89
+      }
+    },
+    "T800_O150": {
+      "params": {
+        "trigger_bps": 800,
+        "offset_bps": 150
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 205888.7917183455,
+          "max_dd_pct": -74.37861506809153,
+          "n_trades": 1150,
+          "n_cut": 63,
+          "exit_dist": {
+            "timeout": 793,
+            "stop": 150,
+            "dead_timeout": 93,
+            "s5_trail_bear": 63,
+            "s10_trailing": 40,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 2000.1905997921008,
+          "max_dd_pct": -53.382271480739455,
+          "n_trades": 471,
+          "n_cut": 16,
+          "exit_dist": {
+            "timeout": 341,
+            "stop": 50,
+            "dead_timeout": 45,
+            "s5_trail_bear": 16,
+            "s10_trailing": 13,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 724.5212737982633,
+          "max_dd_pct": -39.09635527780371,
+          "n_trades": 240,
+          "n_cut": 6,
+          "exit_dist": {
+            "timeout": 181,
+            "dead_timeout": 25,
+            "stop": 20,
+            "s5_trail_bear": 6,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -3.8967405318135864,
+        "deltas": {
+          "28m": {
+            "d_pnl": -261396.7631789122,
+            "d_dd": -3.610543996842125
+          },
+          "12m": {
+            "d_pnl": -7146.103822078823,
+            "d_dd": -11.976265786262807
+          },
+          "6m": {
+            "d_pnl": -311.29656120216305,
+            "d_dd": -0.00015234414941289742
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 85
+      }
+    },
+    "T800_O200": {
+      "params": {
+        "trigger_bps": 800,
+        "offset_bps": 200
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 148359.84637728267,
+          "max_dd_pct": -74.37862249152947,
+          "n_trades": 1149,
+          "n_cut": 58,
+          "exit_dist": {
+            "timeout": 797,
+            "stop": 150,
+            "dead_timeout": 93,
+            "s5_trail_bear": 58,
+            "s10_trailing": 40,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 1981.0726636855184,
+          "max_dd_pct": -53.382271480739455,
+          "n_trades": 472,
+          "n_cut": 16,
+          "exit_dist": {
+            "timeout": 342,
+            "stop": 50,
+            "dead_timeout": 45,
+            "s5_trail_bear": 16,
+            "s10_trailing": 13,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 719.8957259162496,
+          "max_dd_pct": -39.09635527780371,
+          "n_trades": 241,
+          "n_cut": 6,
+          "exit_dist": {
+            "timeout": 182,
+            "dead_timeout": 25,
+            "stop": 20,
+            "s5_trail_bear": 6,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -3.8967423876730702,
+        "deltas": {
+          "28m": {
+            "d_pnl": -318925.7085199751,
+            "d_dd": -3.6105514202800606
+          },
+          "12m": {
+            "d_pnl": -7165.221758185406,
+            "d_dd": -11.976265786262807
+          },
+          "6m": {
+            "d_pnl": -315.9221090841768,
+            "d_dd": -0.00015234414941289742
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 80
+      }
+    },
+    "T800_O300": {
+      "params": {
+        "trigger_bps": 800,
+        "offset_bps": 300
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 94998.26342548271,
+          "max_dd_pct": -74.66405688224292,
+          "n_trades": 1149,
+          "n_cut": 52,
+          "exit_dist": {
+            "timeout": 800,
+            "stop": 153,
+            "dead_timeout": 93,
+            "s5_trail_bear": 52,
+            "s10_trailing": 40,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 1884.76572338107,
+          "max_dd_pct": -53.481420926225866,
+          "n_trades": 472,
+          "n_cut": 14,
+          "exit_dist": {
+            "timeout": 344,
+            "stop": 50,
+            "dead_timeout": 45,
+            "s5_trail_bear": 14,
+            "s10_trailing": 13,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 702.7901809740799,
+          "max_dd_pct": -39.096395037913176,
+          "n_trades": 241,
+          "n_cut": 6,
+          "exit_dist": {
+            "timeout": 182,
+            "dead_timeout": 25,
+            "stop": 20,
+            "s5_trail_bear": 6,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -3.9928982867504015,
+        "deltas": {
+          "28m": {
+            "d_pnl": -372287.291471775,
+            "d_dd": -3.8959858109935084
+          },
+          "12m": {
+            "d_pnl": -7261.528698489854,
+            "d_dd": -12.075415231749218
+          },
+          "6m": {
+            "d_pnl": -333.02765402634645,
+            "d_dd": -0.00019210425887905558
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 72
+      }
+    },
+    "T800_O500": {
+      "params": {
+        "trigger_bps": 800,
+        "offset_bps": 500
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 95496.63356816115,
+          "max_dd_pct": -75.76785791868221,
+          "n_trades": 1146,
+          "n_cut": 43,
+          "exit_dist": {
+            "timeout": 806,
+            "stop": 151,
+            "dead_timeout": 95,
+            "s5_trail_bear": 43,
+            "s10_trailing": 40,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 2400.165669988729,
+          "max_dd_pct": -48.646695545340506,
+          "n_trades": 472,
+          "n_cut": 13,
+          "exit_dist": {
+            "timeout": 345,
+            "stop": 50,
+            "dead_timeout": 45,
+            "s5_trail_bear": 13,
+            "s10_trailing": 13,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 816.0605312665834,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 241,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 183,
+            "dead_timeout": 25,
+            "stop": 20,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -3.060119174574165,
+        "deltas": {
+          "28m": {
+            "d_pnl": -371788.92132909654,
+            "d_dd": -4.9997868474328016
+          },
+          "12m": {
+            "d_pnl": -6746.128751882195,
+            "d_dd": -7.240689850863859
+          },
+          "6m": {
+            "d_pnl": -219.75730373384295,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 61
+      }
+    },
+    "T1000_O150": {
+      "params": {
+        "trigger_bps": 1000,
+        "offset_bps": 150
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 115861.4017553693,
+          "max_dd_pct": -74.13097136464019,
+          "n_trades": 1144,
+          "n_cut": 44,
+          "exit_dist": {
+            "timeout": 804,
+            "stop": 151,
+            "dead_timeout": 94,
+            "s5_trail_bear": 44,
+            "s10_trailing": 40,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 2863.8657540747276,
+          "max_dd_pct": -48.42418800959787,
+          "n_trades": 469,
+          "n_cut": 12,
+          "exit_dist": {
+            "timeout": 345,
+            "stop": 48,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 12,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 990.6031692578792,
+          "max_dd_pct": -39.09635527780371,
+          "n_trades": 239,
+          "n_cut": 6,
+          "exit_dist": {
+            "timeout": 181,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 6,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -2.595308738165354,
+        "deltas": {
+          "28m": {
+            "d_pnl": -351424.15314188844,
+            "d_dd": -3.36290029339078
+          },
+          "12m": {
+            "d_pnl": -6282.428667796195,
+            "d_dd": -7.018182315121223
+          },
+          "6m": {
+            "d_pnl": -45.21466574254714,
+            "d_dd": -0.00015234414941289742
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 62
+      }
+    },
+    "T1000_O200": {
+      "params": {
+        "trigger_bps": 1000,
+        "offset_bps": 200
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 93792.10044883814,
+          "max_dd_pct": -74.50684869201443,
+          "n_trades": 1143,
+          "n_cut": 41,
+          "exit_dist": {
+            "timeout": 807,
+            "stop": 150,
+            "dead_timeout": 94,
+            "s5_trail_bear": 41,
+            "s10_trailing": 40,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 2596.951435376197,
+          "max_dd_pct": -48.42418800959787,
+          "n_trades": 470,
+          "n_cut": 12,
+          "exit_dist": {
+            "timeout": 346,
+            "stop": 48,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 12,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 892.3866069552151,
+          "max_dd_pct": -39.09635527780371,
+          "n_trades": 240,
+          "n_cut": 6,
+          "exit_dist": {
+            "timeout": 182,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 6,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -2.689278070008914,
+        "deltas": {
+          "28m": {
+            "d_pnl": -373493.45444841956,
+            "d_dd": -3.7387776207650205
+          },
+          "12m": {
+            "d_pnl": -6549.342986494727,
+            "d_dd": -7.018182315121223
+          },
+          "6m": {
+            "d_pnl": -143.43122804521124,
+            "d_dd": -0.00015234414941289742
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 59
+      }
+    },
+    "T1000_O300": {
+      "params": {
+        "trigger_bps": 1000,
+        "offset_bps": 300
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 119324.26850550991,
+          "max_dd_pct": -74.50691192497546,
+          "n_trades": 1141,
+          "n_cut": 41,
+          "exit_dist": {
+            "timeout": 808,
+            "stop": 147,
+            "dead_timeout": 94,
+            "s5_trail_bear": 41,
+            "s10_trailing": 40,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 2595.2359249760593,
+          "max_dd_pct": -47.35952287490886,
+          "n_trades": 470,
+          "n_cut": 12,
+          "exit_dist": {
+            "timeout": 346,
+            "stop": 48,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 12,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 871.6863889157084,
+          "max_dd_pct": -39.096395037913176,
+          "n_trades": 240,
+          "n_cut": 6,
+          "exit_dist": {
+            "timeout": 182,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 6,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -2.423137534604285,
+        "deltas": {
+          "28m": {
+            "d_pnl": -347961.28639174777,
+            "d_dd": -3.738840853726046
+          },
+          "12m": {
+            "d_pnl": -6551.058496894864,
+            "d_dd": -5.953517180432215
+          },
+          "6m": {
+            "d_pnl": -164.13144608471794,
+            "d_dd": -0.00019210425887905558
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 59
+      }
+    },
+    "T1000_O500": {
+      "params": {
+        "trigger_bps": 1000,
+        "offset_bps": 500
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 100567.28232752906,
+          "max_dd_pct": -72.0114635977255,
+          "n_trades": 1141,
+          "n_cut": 33,
+          "exit_dist": {
+            "timeout": 813,
+            "stop": 149,
+            "dead_timeout": 95,
+            "s10_trailing": 40,
+            "s5_trail_bear": 33,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 2985.5510374179908,
+          "max_dd_pct": -47.35952287490886,
+          "n_trades": 470,
+          "n_cut": 11,
+          "exit_dist": {
+            "timeout": 347,
+            "stop": 48,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 11,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1012.4093909117322,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 183,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.7992274267270751,
+        "deltas": {
+          "28m": {
+            "d_pnl": -366718.27256972867,
+            "d_dd": -1.243392526476086
+          },
+          "12m": {
+            "d_pnl": -6160.743384452933,
+            "d_dd": -5.953517180432215
+          },
+          "6m": {
+            "d_pnl": -23.408444088694182,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 49
+      }
+    },
+    "T1000_O800": {
+      "params": {
+        "trigger_bps": 1000,
+        "offset_bps": 800
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 138692.24998620505,
+          "max_dd_pct": -71.41760705911514,
+          "n_trades": 1137,
+          "n_cut": 19,
+          "exit_dist": {
+            "timeout": 827,
+            "stop": 144,
+            "dead_timeout": 96,
+            "s10_trailing": 40,
+            "s5_trail_bear": 19,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3283.1881334667005,
+          "max_dd_pct": -47.55567333880491,
+          "n_trades": 469,
+          "n_cut": 6,
+          "exit_dist": {
+            "timeout": 351,
+            "stop": 47,
+            "dead_timeout": 46,
+            "s10_trailing": 13,
+            "s5_trail_bear": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 913.2915828154903,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 239,
+          "n_cut": 2,
+          "exit_dist": {
+            "timeout": 184,
+            "dead_timeout": 26,
+            "stop": 19,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s5_trail_bear": 2,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.6998009080484984,
+        "deltas": {
+          "28m": {
+            "d_pnl": -328593.3049110527,
+            "d_dd": -0.6495359878657325
+          },
+          "12m": {
+            "d_pnl": -5863.106288404223,
+            "d_dd": -6.149667644328261
+          },
+          "6m": {
+            "d_pnl": -122.52625218493608,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 27
+      }
+    },
+    "T1200_O150": {
+      "params": {
+        "trigger_bps": 1200,
+        "offset_bps": 150
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 159744.75470052197,
+          "max_dd_pct": -74.04057210638003,
+          "n_trades": 1140,
+          "n_cut": 39,
+          "exit_dist": {
+            "timeout": 808,
+            "stop": 147,
+            "dead_timeout": 96,
+            "s10_trailing": 39,
+            "s5_trail_bear": 39,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3472.094959217995,
+          "max_dd_pct": -48.42418800959787,
+          "n_trades": 469,
+          "n_cut": 10,
+          "exit_dist": {
+            "timeout": 347,
+            "stop": 48,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 10,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1163.7780466468053,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 239,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 182,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 1,
+        "avg_dd": -2.57267083756296,
+        "deltas": {
+          "28m": {
+            "d_pnl": -307540.80019673577,
+            "d_dd": -3.2725010351306167
+          },
+          "12m": {
+            "d_pnl": -5674.199462652929,
+            "d_dd": -7.018182315121223
+          },
+          "6m": {
+            "d_pnl": 127.96021164637887,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 54
+      }
+    },
+    "T1200_O200": {
+      "params": {
+        "trigger_bps": 1200,
+        "offset_bps": 200
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 169912.27085108607,
+          "max_dd_pct": -74.04062566568595,
+          "n_trades": 1141,
+          "n_cut": 38,
+          "exit_dist": {
+            "timeout": 811,
+            "stop": 146,
+            "dead_timeout": 96,
+            "s10_trailing": 39,
+            "s5_trail_bear": 38,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3150.404522979429,
+          "max_dd_pct": -48.42418800959787,
+          "n_trades": 470,
+          "n_cut": 10,
+          "exit_dist": {
+            "timeout": 348,
+            "stop": 48,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 10,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1049.9663265351749,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 183,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 1,
+        "avg_dd": -2.5726842273894412,
+        "deltas": {
+          "28m": {
+            "d_pnl": -297373.28404617164,
+            "d_dd": -3.272554594436542
+          },
+          "12m": {
+            "d_pnl": -5995.889898891494,
+            "d_dd": -7.018182315121223
+          },
+          "6m": {
+            "d_pnl": 14.148491534748473,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 53
+      }
+    },
+    "T1200_O300": {
+      "params": {
+        "trigger_bps": 1200,
+        "offset_bps": 300
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 161169.66112443488,
+          "max_dd_pct": -73.00013010789648,
+          "n_trades": 1141,
+          "n_cut": 36,
+          "exit_dist": {
+            "timeout": 812,
+            "stop": 147,
+            "dead_timeout": 96,
+            "s10_trailing": 39,
+            "s5_trail_bear": 36,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3182.4489180591654,
+          "max_dd_pct": -47.35952287490886,
+          "n_trades": 470,
+          "n_cut": 10,
+          "exit_dist": {
+            "timeout": 348,
+            "stop": 48,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 10,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1037.8136097684257,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 183,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 1,
+        "avg_dd": -2.046394054269822,
+        "deltas": {
+          "28m": {
+            "d_pnl": -306115.8937728228,
+            "d_dd": -2.2320590366470725
+          },
+          "12m": {
+            "d_pnl": -5963.845503811758,
+            "d_dd": -5.953517180432215
+          },
+          "6m": {
+            "d_pnl": 1.9957747679993645,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 51
+      }
+    },
+    "T1200_O500": {
+      "params": {
+        "trigger_bps": 1200,
+        "offset_bps": 500
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 130023.613297788,
+          "max_dd_pct": -72.01145533293933,
+          "n_trades": 1139,
+          "n_cut": 29,
+          "exit_dist": {
+            "timeout": 817,
+            "stop": 146,
+            "dead_timeout": 97,
+            "s10_trailing": 39,
+            "s5_trail_bear": 29,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3109.1576483368244,
+          "max_dd_pct": -47.35952287490886,
+          "n_trades": 470,
+          "n_cut": 10,
+          "exit_dist": {
+            "timeout": 348,
+            "stop": 48,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 10,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1012.4093909117322,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 183,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.799225360530535,
+        "deltas": {
+          "28m": {
+            "d_pnl": -337261.9415994697,
+            "d_dd": -1.2433842616899256
+          },
+          "12m": {
+            "d_pnl": -6037.136773534099,
+            "d_dd": -5.953517180432215
+          },
+          "6m": {
+            "d_pnl": -23.408444088694182,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 44
+      }
+    },
+    "T1200_O800": {
+      "params": {
+        "trigger_bps": 1200,
+        "offset_bps": 800
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 138674.009640302,
+          "max_dd_pct": -70.7680935966009,
+          "n_trades": 1135,
+          "n_cut": 16,
+          "exit_dist": {
+            "timeout": 829,
+            "stop": 144,
+            "dead_timeout": 96,
+            "s10_trailing": 39,
+            "s5_trail_bear": 16,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3234.6959721565327,
+          "max_dd_pct": -47.55567333880491,
+          "n_trades": 469,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 352,
+            "stop": 47,
+            "dead_timeout": 46,
+            "s10_trailing": 13,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 913.2915828154903,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 239,
+          "n_cut": 2,
+          "exit_dist": {
+            "timeout": 184,
+            "dead_timeout": 26,
+            "stop": 19,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s5_trail_bear": 2,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.5374225424199395,
+        "deltas": {
+          "28m": {
+            "d_pnl": -328611.54525695567,
+            "d_dd": -2.252535149693813e-05
+          },
+          "12m": {
+            "d_pnl": -5911.598449714391,
+            "d_dd": -6.149667644328261
+          },
+          "6m": {
+            "d_pnl": -122.52625218493608,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 23
+      }
+    },
+    "T1500_O150": {
+      "params": {
+        "trigger_bps": 1500,
+        "offset_bps": 150
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 293918.7161299407,
+          "max_dd_pct": -73.00012372388389,
+          "n_trades": 1135,
+          "n_cut": 27,
+          "exit_dist": {
+            "timeout": 820,
+            "stop": 144,
+            "dead_timeout": 94,
+            "s10_trailing": 39,
+            "s5_trail_bear": 27,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 4303.822069302677,
+          "max_dd_pct": -48.424177452728756,
+          "n_trades": 468,
+          "n_cut": 9,
+          "exit_dist": {
+            "timeout": 348,
+            "stop": 47,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 9,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1163.7780466468053,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 239,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 182,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 1,
+        "avg_dd": -2.312556102721647,
+        "deltas": {
+          "28m": {
+            "d_pnl": -173366.838767317,
+            "d_dd": -2.2320526526344793
+          },
+          "12m": {
+            "d_pnl": -4842.472352568247,
+            "d_dd": -7.018171758252109
+          },
+          "6m": {
+            "d_pnl": 127.96021164637887,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 41
+      }
+    },
+    "T1500_O200": {
+      "params": {
+        "trigger_bps": 1500,
+        "offset_bps": 200
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 266539.8614659811,
+          "max_dd_pct": -73.00012372388389,
+          "n_trades": 1136,
+          "n_cut": 27,
+          "exit_dist": {
+            "timeout": 821,
+            "stop": 144,
+            "dead_timeout": 94,
+            "s10_trailing": 39,
+            "s5_trail_bear": 27,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3905.12343870126,
+          "max_dd_pct": -48.42412253916411,
+          "n_trades": 469,
+          "n_cut": 9,
+          "exit_dist": {
+            "timeout": 349,
+            "stop": 47,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 9,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1049.9663265351749,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 183,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 1,
+        "avg_dd": -2.3125423743304854,
+        "deltas": {
+          "28m": {
+            "d_pnl": -200745.6934312766,
+            "d_dd": -2.2320526526344793
+          },
+          "12m": {
+            "d_pnl": -5241.1709831696635,
+            "d_dd": -7.018116844687462
+          },
+          "6m": {
+            "d_pnl": 14.148491534748473,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 41
+      }
+    },
+    "T1500_O300": {
+      "params": {
+        "trigger_bps": 1500,
+        "offset_bps": 300
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 241367.46651707304,
+          "max_dd_pct": -73.0000652693941,
+          "n_trades": 1137,
+          "n_cut": 27,
+          "exit_dist": {
+            "timeout": 820,
+            "stop": 145,
+            "dead_timeout": 95,
+            "s10_trailing": 39,
+            "s5_trail_bear": 27,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3941.7567034710933,
+          "max_dd_pct": -47.35952457278155,
+          "n_trades": 469,
+          "n_cut": 9,
+          "exit_dist": {
+            "timeout": 349,
+            "stop": 47,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 9,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1037.8136097684257,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 183,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 1,
+        "avg_dd": -2.046378269112399,
+        "deltas": {
+          "28m": {
+            "d_pnl": -225918.08838018466,
+            "d_dd": -2.2319941981446902
+          },
+          "12m": {
+            "d_pnl": -5204.53771839983,
+            "d_dd": -5.953518878304905
+          },
+          "6m": {
+            "d_pnl": 1.9957747679993645,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 41
+      }
+    },
+    "T1500_O500": {
+      "params": {
+        "trigger_bps": 1500,
+        "offset_bps": 500
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 188516.2246433614,
+          "max_dd_pct": -72.0114834939204,
+          "n_trades": 1135,
+          "n_cut": 20,
+          "exit_dist": {
+            "timeout": 825,
+            "stop": 144,
+            "dead_timeout": 96,
+            "s10_trailing": 39,
+            "s5_trail_bear": 20,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3793.9860458498165,
+          "max_dd_pct": -47.35974503427528,
+          "n_trades": 469,
+          "n_cut": 8,
+          "exit_dist": {
+            "timeout": 350,
+            "stop": 47,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 8,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1012.4093909117322,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 183,
+            "dead_timeout": 25,
+            "stop": 19,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.799287940617404,
+        "deltas": {
+          "28m": {
+            "d_pnl": -278769.3302538963,
+            "d_dd": -1.2434124226709855
+          },
+          "12m": {
+            "d_pnl": -5352.308376021107,
+            "d_dd": -5.953739339798631
+          },
+          "6m": {
+            "d_pnl": -23.408444088694182,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 33
+      }
+    },
+    "T1500_O800": {
+      "params": {
+        "trigger_bps": 1500,
+        "offset_bps": 800
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 180855.40646004578,
+          "max_dd_pct": -70.76808352194789,
+          "n_trades": 1133,
+          "n_cut": 13,
+          "exit_dist": {
+            "timeout": 831,
+            "stop": 144,
+            "dead_timeout": 95,
+            "s10_trailing": 39,
+            "s5_trail_bear": 13,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3434.262778995186,
+          "max_dd_pct": -47.55575569411572,
+          "n_trades": 468,
+          "n_cut": 4,
+          "exit_dist": {
+            "timeout": 352,
+            "stop": 47,
+            "dead_timeout": 46,
+            "s10_trailing": 13,
+            "s5_trail_bear": 4,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 913.2915828154903,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 239,
+          "n_cut": 2,
+          "exit_dist": {
+            "timeout": 184,
+            "dead_timeout": 26,
+            "stop": 19,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s5_trail_bear": 2,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.537440612584387,
+        "deltas": {
+          "28m": {
+            "d_pnl": -286430.14843721193,
+            "d_dd": -1.2450698477550759e-05
+          },
+          "12m": {
+            "d_pnl": -5712.031642875738,
+            "d_dd": -6.14974999963907
+          },
+          "6m": {
+            "d_pnl": -122.52625218493608,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 19
+      }
+    },
+    "T2000_O150": {
+      "params": {
+        "trigger_bps": 2000,
+        "offset_bps": 150
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 212005.88023294875,
+          "max_dd_pct": -71.70617732733763,
+          "n_trades": 1131,
+          "n_cut": 18,
+          "exit_dist": {
+            "timeout": 824,
+            "stop": 143,
+            "dead_timeout": 96,
+            "s10_trailing": 39,
+            "s5_trail_bear": 18,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3652.640577262907,
+          "max_dd_pct": -48.424181712834496,
+          "n_trades": 469,
+          "n_cut": 8,
+          "exit_dist": {
+            "timeout": 348,
+            "stop": 48,
+            "dead_timeout": 46,
+            "s10_trailing": 13,
+            "s5_trail_bear": 8,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 978.089283040415,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 181,
+            "dead_timeout": 26,
+            "stop": 20,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.9890705686115169,
+        "deltas": {
+          "28m": {
+            "d_pnl": -255279.67466430896,
+            "d_dd": -0.9381062560882185
+          },
+          "12m": {
+            "d_pnl": -5493.653844608017,
+            "d_dd": -7.018176018357849
+          },
+          "6m": {
+            "d_pnl": -57.72855196001137,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 31
+      }
+    },
+    "T2000_O200": {
+      "params": {
+        "trigger_bps": 2000,
+        "offset_bps": 200
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 207385.45187411478,
+          "max_dd_pct": -71.70617732733763,
+          "n_trades": 1131,
+          "n_cut": 18,
+          "exit_dist": {
+            "timeout": 824,
+            "stop": 143,
+            "dead_timeout": 96,
+            "s10_trailing": 39,
+            "s5_trail_bear": 18,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3581.347205361274,
+          "max_dd_pct": -48.424181712834496,
+          "n_trades": 469,
+          "n_cut": 8,
+          "exit_dist": {
+            "timeout": 348,
+            "stop": 48,
+            "dead_timeout": 46,
+            "s10_trailing": 13,
+            "s5_trail_bear": 8,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 957.6071027440962,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 181,
+            "dead_timeout": 26,
+            "stop": 20,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.9890705686115169,
+        "deltas": {
+          "28m": {
+            "d_pnl": -259900.10302314293,
+            "d_dd": -0.9381062560882185
+          },
+          "12m": {
+            "d_pnl": -5564.9472165096495,
+            "d_dd": -7.018176018357849
+          },
+          "6m": {
+            "d_pnl": -78.21073225633018,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 31
+      }
+    },
+    "T2000_O300": {
+      "params": {
+        "trigger_bps": 2000,
+        "offset_bps": 300
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 195839.97045394647,
+          "max_dd_pct": -71.70617732733763,
+          "n_trades": 1131,
+          "n_cut": 17,
+          "exit_dist": {
+            "timeout": 825,
+            "stop": 143,
+            "dead_timeout": 96,
+            "s10_trailing": 39,
+            "s5_trail_bear": 17,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3657.3332666941965,
+          "max_dd_pct": -47.35952457278155,
+          "n_trades": 469,
+          "n_cut": 8,
+          "exit_dist": {
+            "timeout": 348,
+            "stop": 48,
+            "dead_timeout": 46,
+            "s10_trailing": 13,
+            "s5_trail_bear": 8,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 957.6071027440962,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 181,
+            "dead_timeout": 26,
+            "stop": 20,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.722906283598281,
+        "deltas": {
+          "28m": {
+            "d_pnl": -271445.5844433112,
+            "d_dd": -0.9381062560882185
+          },
+          "12m": {
+            "d_pnl": -5488.961155176727,
+            "d_dd": -5.953518878304905
+          },
+          "6m": {
+            "d_pnl": -78.21073225633018,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 30
+      }
+    },
+    "T2000_O500": {
+      "params": {
+        "trigger_bps": 2000,
+        "offset_bps": 500
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 140361.0177478476,
+          "max_dd_pct": -70.76810187869081,
+          "n_trades": 1132,
+          "n_cut": 13,
+          "exit_dist": {
+            "timeout": 828,
+            "stop": 145,
+            "dead_timeout": 96,
+            "s10_trailing": 39,
+            "s5_trail_bear": 13,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 3602.550094938162,
+          "max_dd_pct": -47.35974503427528,
+          "n_trades": 469,
+          "n_cut": 7,
+          "exit_dist": {
+            "timeout": 349,
+            "stop": 48,
+            "dead_timeout": 46,
+            "s10_trailing": 13,
+            "s5_trail_bear": 7,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 957.5858102333651,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 240,
+          "n_cut": 5,
+          "exit_dist": {
+            "timeout": 181,
+            "dead_timeout": 26,
+            "stop": 20,
+            "s5_trail_bear": 5,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 0,
+        "avg_dd": -1.488442536810009,
+        "deltas": {
+          "28m": {
+            "d_pnl": -326924.5371494101,
+            "d_dd": -3.080744140504521e-05
+          },
+          "12m": {
+            "d_pnl": -5543.744326932761,
+            "d_dd": -5.953739339798631
+          },
+          "6m": {
+            "d_pnl": -78.23202476706126,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 25
+      }
+    },
+    "T2000_O800": {
+      "params": {
+        "trigger_bps": 2000,
+        "offset_bps": 800
+      },
+      "res": {
+        "28m": {
+          "pnl_pct": 154805.08310067453,
+          "max_dd_pct": -70.76813045729672,
+          "n_trades": 1130,
+          "n_cut": 9,
+          "exit_dist": {
+            "timeout": 832,
+            "stop": 144,
+            "dead_timeout": 95,
+            "s10_trailing": 39,
+            "s5_trail_bear": 9,
+            "s9_early_exit": 7,
+            "mtm_final": 4
+          }
+        },
+        "12m": {
+          "pnl_pct": 4014.453355954773,
+          "max_dd_pct": -47.55575569411572,
+          "n_trades": 467,
+          "n_cut": 4,
+          "exit_dist": {
+            "timeout": 352,
+            "stop": 47,
+            "dead_timeout": 45,
+            "s10_trailing": 13,
+            "s5_trail_bear": 4,
+            "mtm_final": 4,
+            "s9_early_exit": 2
+          }
+        },
+        "6m": {
+          "pnl_pct": 1079.636489845647,
+          "max_dd_pct": -39.0962029336543,
+          "n_trades": 238,
+          "n_cut": 2,
+          "exit_dist": {
+            "timeout": 184,
+            "dead_timeout": 25,
+            "stop": 19,
+            "mtm_final": 4,
+            "s10_trailing": 3,
+            "s5_trail_bear": 2,
+            "s9_early_exit": 1
+          }
+        },
+        "3m": {
+          "pnl_pct": 59.617762432733734,
+          "max_dd_pct": -16.827512046617535,
+          "n_trades": 129,
+          "n_cut": 0,
+          "exit_dist": {
+            "timeout": 101,
+            "dead_timeout": 17,
+            "stop": 6,
+            "mtm_final": 4,
+            "s9_early_exit": 1
+          }
+        }
+      },
+      "verdict": {
+        "verdict": "RED",
+        "pass_pnl": 1,
+        "avg_dd": -1.5374523464215955,
+        "deltas": {
+          "28m": {
+            "d_pnl": -312480.47179658315,
+            "d_dd": -5.9386047311704715e-05
+          },
+          "12m": {
+            "d_pnl": -5131.841065916151,
+            "d_dd": -6.14974999963907
+          },
+          "6m": {
+            "d_pnl": 43.818654845220635,
+            "d_dd": 0.0
+          },
+          "3m": {
+            "d_pnl": 0.0,
+            "d_dd": 0.0
+          }
+        }
+      },
+      "fires": {
+        "bear": 15
+      }
+    }
+  }
+}

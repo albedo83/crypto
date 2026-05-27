@@ -1,5 +1,11 @@
 # Changelog
 
+## [12.7.6] — 2026-05-27
+- **Telegram alerts on open positions** — informational, no trading action. Two new alert types in `bot.py` (mirroring the `_check_wr_alerts` pattern from v12.4.0):
+  - **GIVEBACK_ALERT** (S5 by default): fires once per position when `mfe_bps >= 500` AND `cur_bps <= -100` AND `time_since_mfe >= 4h`. Catches the NEAR/WLD/GALA/LDO pattern (April-May 2026 live, user manual_close +$28 net vs counterfactual). 4 R&Ds rejected mechanical exits on this pattern walk-forward (`backtest_s5_trailing`, `backtest_giveback`, `backtest_early_mfe_exit`, `backtest_s5_trail_bear`) — runners statistically identical to rollers at decision moment. Bot detects + alerts; user decides + acts.
+  - **LOCK_FLOOR_ALERT** (all strategies): fires once per position when substantial unrealized profit accumulated (`unrealized_pnl >= $20` OR `unrealized_bps >= 600`), held ≥ 4h, no `manual_stop_usdt` already set. Suggests a concrete floor value (`cur_pnl - $5 buffer`) the user can apply via dashboard 🎯 or `POST /api/manual_stop/{sym}`. Pre-empts giveback without trailing's runner-amputation issue. Suppressed if user already set a manual_stop.
+  - Both alerts dedup per position (set cleared on close). DB events `GIVEBACK_ALERT` / `LOCK_FLOOR_ALERT` for audit. Kill-switches: empty `GIVEBACK_ALERT_STRATEGIES` / `LOCK_FLOOR_ALERT_STRATEGIES` in `config.py`.
+
 ## [12.7.5] — 2026-05-26
 - **Security**: refuse to start when admin password is empty; reject DCA withdrawal exceeding current capital.
 - **Trading engine**: more accurate drawdown baseline after capital adjustments; internal cleanup.

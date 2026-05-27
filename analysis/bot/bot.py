@@ -21,6 +21,11 @@ from .config import (
     TRADE_SYMBOLS, ALL_SYMBOLS, SCAN_INTERVAL, TICKS_DB, STATE_FILE,
     DISP_GATE_BPS, DISP_GATE_STRATEGIES,
     MACRO_LOOKBACK_DAYS, MACRO_Z_WINDOW_DAYS,
+    GIVEBACK_ALERT_STRATEGIES, GIVEBACK_ALERT_MFE_MIN_BPS,
+    GIVEBACK_ALERT_CUR_MAX_BPS, GIVEBACK_ALERT_TIME_SINCE_MFE_MIN_H,
+    LOCK_FLOOR_ALERT_STRATEGIES, LOCK_FLOOR_ALERT_MIN_USD,
+    LOCK_FLOOR_ALERT_MIN_BPS, LOCK_FLOOR_ALERT_MIN_HOLD_H,
+    LOCK_FLOOR_ALERT_BUFFER_USD,
 )
 from .models import SymbolState, Position, Trade
 from . import analytics, features, signals, db as db_mod, net, persistence, trading, web
@@ -61,6 +66,8 @@ class MultiSignalBot:
         self._drift_alerted: bool = False  # one-shot alert for bot vs exchange P&L drift
         self._btc_z: float | None = None  # rolling z-score of BTC ret_30d (adaptive modulator)
         self._wr_alerted: set[str] = set()  # v12.4.0 — symbols already alerted on WR drop
+        self._giveback_alerted: set[str] = set()  # v12.7.2 — symbols already alerted on giveback pattern
+        self._lock_floor_alerted: set[str] = set()  # v12.7.2 — symbols already alerted on lock-floor opportunity
         self._basket_metrics: dict | None = None  # observation-only basket correlation
 
         # SQLite tick database
@@ -149,6 +156,119 @@ class MultiSignalBot:
                 "hold_h": round(hold_h, 1),
             })
             self._wr_alerted.add(sym)
+
+    def _check_giveback_alerts(self) -> None:
+        """v12.7.2 — Telegram alert when an open position shows the
+        "giveback through middle" pattern (had real upside, now in the red,
+        sustained). NO trading action — purely informational.
+
+        Mechanical exits on this pattern fail walk-forward across 4 R&Ds.
+        But the user's manual_close on this pattern wins (+$28 net over 6
+        trades in April-May 2026). This alert helps the user spot the
+        moment without having to watch the screen.
+
+        Dedup: once per position, cleared automatically on close.
+        """
+        if not GIVEBACK_ALERT_STRATEGIES:
+            return
+        with self._pos_lock:
+            self._giveback_alerted &= set(self.positions.keys())
+            positions = list(self.positions.items())
+        if not positions:
+            return
+        now = datetime.now(timezone.utc)
+        for sym, pos in positions:
+            if sym in self._giveback_alerted:
+                continue
+            if pos.strategy not in GIVEBACK_ALERT_STRATEGIES:
+                continue
+            st = self.states.get(sym)
+            if not st or st.price <= 0 or pos.entry_price <= 0:
+                continue
+            ur_bps = pos.direction * (st.price / pos.entry_price - 1) * 1e4
+            if pos.mfe_bps < GIVEBACK_ALERT_MFE_MIN_BPS:
+                continue
+            if ur_bps > GIVEBACK_ALERT_CUR_MAX_BPS:
+                continue
+            hold_h = (now - pos.entry_time).total_seconds() / 3600
+            t_since_mfe = hold_h - pos.mfe_at_h
+            if t_since_mfe < GIVEBACK_ALERT_TIME_SINCE_MFE_MIN_H:
+                continue
+            cur_pnl = pos.size_usdt * ur_bps / 1e4
+            mae_pnl = pos.size_usdt * pos.mae_bps / 1e4
+            mfe_pnl = pos.size_usdt * pos.mfe_bps / 1e4
+            side = "LONG" if pos.direction == 1 else "SHORT"
+            retracement_pct = (pos.mfe_bps - ur_bps) / pos.mfe_bps * 100 if pos.mfe_bps > 0 else 0
+            msg = (f"🪤 GIVEBACK {sym} {pos.strategy} {side}: "
+                   f"MFE peaked ${mfe_pnl:+.2f} ({pos.mfe_bps:+.0f}bps) "
+                   f"{t_since_mfe:.1f}h ago, now ${cur_pnl:+.2f} "
+                   f"({ur_bps:+.0f}bps) — retraced {retracement_pct:.0f}%. "
+                   f"MAE ${mae_pnl:.2f}. Consider manual_close.")
+            net.send_telegram(msg, category="trade")
+            db_mod.log_event(self._db, "GIVEBACK_ALERT", sym, {
+                "strategy": pos.strategy, "dir": side,
+                "mfe_bps": round(pos.mfe_bps, 1),
+                "cur_bps": round(ur_bps, 1),
+                "t_since_mfe_h": round(t_since_mfe, 1),
+                "cur_pnl": round(cur_pnl, 2),
+                "mfe_pnl": round(mfe_pnl, 2),
+            })
+            self._giveback_alerted.add(sym)
+
+    def _check_lock_floor_alerts(self) -> None:
+        """v12.7.2 — Telegram alert when an open position has accumulated
+        substantial unrealized profit, suggesting the user might want to
+        set a manual_stop_usdt floor proactively. NO trading action.
+
+        Suggested floor = current_pnl - LOCK_FLOOR_ALERT_BUFFER_USD
+        (typically $5 buffer). User can pick differently via the dashboard
+        🎯 button or POST /api/manual_stop/{symbol}.
+
+        Dedup: once per position. Resets if user clears manual_stop_usdt.
+        """
+        if not LOCK_FLOOR_ALERT_STRATEGIES:
+            return
+        with self._pos_lock:
+            self._lock_floor_alerted &= set(self.positions.keys())
+            positions = list(self.positions.items())
+        if not positions:
+            return
+        now = datetime.now(timezone.utc)
+        for sym, pos in positions:
+            if sym in self._lock_floor_alerted:
+                continue
+            if pos.strategy not in LOCK_FLOOR_ALERT_STRATEGIES:
+                continue
+            # Skip if user already set a manual_stop — they're aware
+            if pos.manual_stop_usdt is not None:
+                continue
+            st = self.states.get(sym)
+            if not st or st.price <= 0 or pos.entry_price <= 0:
+                continue
+            hold_h = (now - pos.entry_time).total_seconds() / 3600
+            if hold_h < LOCK_FLOOR_ALERT_MIN_HOLD_H:
+                continue
+            ur_bps = pos.direction * (st.price / pos.entry_price - 1) * 1e4
+            cur_pnl = pos.size_usdt * ur_bps / 1e4
+            # Substantial profit: $ floor OR bps floor
+            if cur_pnl < LOCK_FLOOR_ALERT_MIN_USD and ur_bps < LOCK_FLOOR_ALERT_MIN_BPS:
+                continue
+            side = "LONG" if pos.direction == 1 else "SHORT"
+            # Suggested floor — round down to $1 for clean number
+            suggested = max(0.0, round(cur_pnl - LOCK_FLOOR_ALERT_BUFFER_USD))
+            msg = (f"🎯 LOCK_FLOOR {sym} {pos.strategy} {side}: "
+                   f"unrealized ${cur_pnl:+.2f} ({ur_bps:+.0f}bps) after "
+                   f"{hold_h:.1f}h. Consider manual_stop @ ${suggested:.0f} "
+                   f"to protect ~${suggested:.0f} of the gain.")
+            net.send_telegram(msg, category="trade")
+            db_mod.log_event(self._db, "LOCK_FLOOR_ALERT", sym, {
+                "strategy": pos.strategy, "dir": side,
+                "cur_bps": round(ur_bps, 1),
+                "cur_pnl": round(cur_pnl, 2),
+                "suggested_floor": suggested,
+                "hold_h": round(hold_h, 1),
+            })
+            self._lock_floor_alerted.add(sym)
 
     def _compute_oi_features(self, sym: str) -> dict:
         st = self.states.get(sym)
@@ -361,6 +481,15 @@ class MultiSignalBot:
             self._check_wr_alerts()
         except Exception as e:
             log.warning("WR alert check failed: %s", e)
+        # v12.7.2 — giveback + lock-floor alerts (Telegram only, no trading action)
+        try:
+            self._check_giveback_alerts()
+        except Exception as e:
+            log.warning("Giveback alert check failed: %s", e)
+        try:
+            self._check_lock_floor_alerts()
+        except Exception as e:
+            log.warning("Lock-floor alert check failed: %s", e)
         return n_new
 
     async def equity_refresh_loop(self):
