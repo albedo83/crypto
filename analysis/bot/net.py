@@ -18,13 +18,15 @@ _TG_ALLOWED: set[str] | None = (
 # Prefix every Telegram message with the bot label so multiple instances
 # sharing a Telegram chat stay distinguishable (e.g. Junior1 vs Junior2).
 _TG_PREFIX = f"[{BOT_LABEL}] " if BOT_LABEL else ""
-# v12.7.8: append the public dashboard URL to every Telegram message so the
-# user can tap straight from the notification. URL is the bare base path —
-# no auth token, no query param, no secret. Landing page = /login, mobile
-# autofills password. Security: same surface as posting the URL publicly
-# (which the domain already is); password remains the only gatekeeper.
-# Telegram auto-detects bare URLs and renders them tappable.
-_TG_SUFFIX = f"\n👉 {BOT_PUBLIC_URL}/" if BOT_PUBLIC_URL else ""
+# v12.7.9: attach an inline-keyboard "📊 Dashboard" button to every Telegram
+# message — opens BOT_PUBLIC_URL/ when tapped. Replaces the v12.7.8 plain-text
+# suffix to keep the message body clean (no URL clutter).
+# Security: URL in `url` field of inline button can only OPEN a URL — Telegram
+# refuses inline buttons that would perform any action. Same exposure as v12.7.8.
+_TG_BUTTON = (
+    {"inline_keyboard": [[{"text": "📊 Dashboard", "url": f"{BOT_PUBLIC_URL}/"}]]}
+    if BOT_PUBLIC_URL else None
+)
 
 log = logging.getLogger("multisignal")
 
@@ -141,11 +143,10 @@ def send_telegram(msg: str, category: str = "other") -> None:
 
     def _do_send():
         try:
-            # Dedup: skip suffix if msg already mentions the URL (e.g. bot.py
-            # used to append it explicitly before v12.7.8 centralized it here).
-            suffix = _TG_SUFFIX if (BOT_PUBLIC_URL and BOT_PUBLIC_URL not in msg) else ""
-            text = _TG_PREFIX + msg + suffix
-            payload = json.dumps({"chat_id": TG_CHAT_ID, "text": text}).encode()
+            body_dict = {"chat_id": TG_CHAT_ID, "text": _TG_PREFIX + msg}
+            if _TG_BUTTON is not None:
+                body_dict["reply_markup"] = _TG_BUTTON
+            payload = json.dumps(body_dict).encode()
             req = urllib.request.Request(
                 f"https://api.telegram.org/bot{TG_BOT_TOKEN}/sendMessage",
                 data=payload, headers={"Content-Type": "application/json"})
