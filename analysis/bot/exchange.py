@@ -422,11 +422,11 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
         if orphans:
             log.warning("RECONCILE: orphan positions on exchange: %s", orphans)
             send_telegram_fn(f"⚠️ Orphan on exchange (not in bot): {orphans}",
-                             category="reconcile")
+                             category="reconcile", actionable=True)
         if ghosts:
             log.warning("RECONCILE: ghost positions in bot (not on exchange): %s", ghosts)
             send_telegram_fn(f"⚠️ Ghost in bot (not on exchange): {ghosts}",
-                             category="reconcile")
+                             category="reconcile", actionable=True)
 
         for sym in common:
             ex = exchange_positions[sym]
@@ -438,7 +438,7 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
                 send_telegram_fn(
                     f"🚨 DIRECTION MISMATCH {sym}: bot={'LONG' if bot_pos.direction==1 else 'SHORT'} "
                     f"exch={'LONG' if exch_dir==1 else 'SHORT'}",
-                    category="reconcile")
+                    category="reconcile", actionable=True)
                 continue
             # Compare coin quantities (invariant under price moves)
             if bot_pos.entry_price > 0:
@@ -476,7 +476,7 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
                         send_telegram_fn(
                             f"⚠️ Size mismatch {sym}: bot={bot_coin_qty:.4f} "
                             f"exch={exch_coin_qty:.4f} coins (ratio {ratio:.2f})",
-                            category="reconcile")
+                            category="reconcile", actionable=True)
 
         if not orphans and not ghosts:
             log.debug("Reconcile OK: %d positions match", len(bot_syms))

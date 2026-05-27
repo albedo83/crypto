@@ -157,7 +157,8 @@ async def run():
                 _log_ev(bot._db, "DISPUTED", None, {"symbols": sorted(disputed)})
                 send_telegram(
                     f"⚠️ Boot reconcile: disputed positions (kept, transient "
-                    f"HL response): {sorted(disputed)}", category="reconcile")
+                    f"HL response): {sorted(disputed)}", category="reconcile",
+                    actionable=True)
             if ghosts:
                 log.warning("BOOT RECONCILE: dropped %d ghost positions: %s",
                             len(ghosts), sorted(ghosts))
@@ -166,7 +167,7 @@ async def run():
                 send_telegram(
                     f"⚠️ Boot reconcile: ghost positions dropped "
                     f"(closed on exchange while offline): {sorted(ghosts)}",
-                    category="reconcile")
+                    category="reconcile", actionable=True)
                 bot._save_state()
             if orphans:
                 log.warning("BOOT RECONCILE: %d orphan positions on exchange: %s",
@@ -176,7 +177,7 @@ async def run():
                 send_telegram(
                     f"⚠️ Boot reconcile: orphan positions on exchange "
                     f"(not in bot): {sorted(orphans)}",
-                    category="reconcile")
+                    category="reconcile", actionable=True)
             if not ghosts and not orphans and not disputed:
                 log.info("Boot reconcile: %d positions match exchange (2/2 confirms)",
                          len(bot.positions))

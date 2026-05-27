@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.7.12] — 2026-05-27
+- **Dashboard button extended to all reconcile alerts**. Ghost / orphan / disputed / direction-mismatch / size-mismatch — all now carry the 📊 Dashboard button (`actionable=True`). Boot reconcile alerts (`main.py`) + hourly reconcile alerts (`exchange.py:reconcile`) covered. The 🔧 auto-sync alert stays informational (no user action needed — bot already corrected size_usdt).
+
 ## [12.7.11] — 2026-05-27
 - **Dashboard button restored on actionable alerts**. v12.7.10 scoped to "daily" only was too restrictive — alerts that prompt user decision (GIVEBACK, LOCK_FLOOR, WR_ALERT, equity drift, PNL_DISCREPANCY, close/open failed) now carry the 📊 Dashboard button again. New `actionable=True` parameter on `send_telegram` attaches the button regardless of category. Informational messages (OPEN, CLOSE, daily summary already has button via category) stay clean. Tagged actionable: 3 alert types in `bot.py` (giveback, lock_floor, wr_alert) + 1 in `bot.py` (equity drift) + 3 in `trading.py` (PNL_DISCREPANCY, close failed, open failed).
 
