@@ -23,6 +23,7 @@ echo "Paper bot started (PID: $!)"
 
 # Live bot (:8098) — served behind nginx at /bot/
 HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
+    BOT_PUBLIC_URL=https://echonym.fr/bot \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 echo "Live bot started (PID: $!)"
 
@@ -38,6 +39,7 @@ TG_BOT_TOKEN="$JUNIOR_TG_BOT_TOKEN" TG_CHAT_ID="$JUNIOR_TG_CHAT_ID" \
     HL_ACCOUNT_ADDRESS=0xb65d5e52f229B1dAA6534034d7805A82dB7956Fe \
     BOT_LABEL="JUNIOR" BOT_LABEL_COLOR="#3fb950" \
     HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 HL_ROOT_PATH=/junior \
+    BOT_PUBLIC_URL=https://echonym.fr/junior \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
 echo "Junior bot started (PID: $!)"
 

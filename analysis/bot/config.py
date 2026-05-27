@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.7.6"
+VERSION = "12.7.7"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -36,6 +36,11 @@ EXECUTION_MODE = os.environ.get("HL_MODE", "paper")
 # (PAPER/LIVE). Override via env for named instances (e.g. Junior).
 BOT_LABEL = os.environ.get("BOT_LABEL", "")
 BOT_LABEL_COLOR = os.environ.get("BOT_LABEL_COLOR", "")
+# v12.7.7: public dashboard URL for this bot instance, appended to actionable
+# Telegram alerts (GIVEBACK, LOCK_FLOOR) so the user can tap straight from
+# the notification. Empty = no URL appended (back-compat). Set per instance
+# in start_bots.sh (live=https://echonym.fr/bot, junior=https://echonym.fr/junior).
+BOT_PUBLIC_URL = os.environ.get("BOT_PUBLIC_URL", "").rstrip("/")
 HL_PRIVATE_KEY = os.environ.get("HL_PRIVATE_KEY", "")
 HL_ACCOUNT_ADDRESS = os.environ.get("HL_ACCOUNT_ADDRESS", "")
 TG_BOT_TOKEN = os.environ.get("TG_BOT_TOKEN", "")

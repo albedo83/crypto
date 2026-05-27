@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.7.7] — 2026-05-27
+- **Telegram alerts now include a tappable dashboard URL**. New env var `BOT_PUBLIC_URL` (e.g., `https://echonym.fr/bot` for live, `https://echonym.fr/junior` for junior) is appended to GIVEBACK and LOCK_FLOOR alert messages: tap from notification → jumps to dashboard (login page, mobile autofills password). Empty `BOT_PUBLIC_URL` = no URL appended (back-compat). Configured per instance in `start_bots.sh`.
+
 ## [12.7.6] — 2026-05-27
 - **Telegram alerts on open positions** — informational, no trading action. Two new alert types in `bot.py` (mirroring the `_check_wr_alerts` pattern from v12.4.0):
   - **GIVEBACK_ALERT** (S5 by default): fires once per position when `mfe_bps >= 500` AND `cur_bps <= -100` AND `time_since_mfe >= 4h`. Catches the NEAR/WLD/GALA/LDO pattern (April-May 2026 live, user manual_close +$28 net vs counterfactual). 4 R&Ds rejected mechanical exits on this pattern walk-forward (`backtest_s5_trailing`, `backtest_giveback`, `backtest_early_mfe_exit`, `backtest_s5_trail_bear`) — runners statistically identical to rollers at decision moment. Bot detects + alerts; user decides + acts.
