@@ -18,15 +18,17 @@ _TG_ALLOWED: set[str] | None = (
 # Prefix every Telegram message with the bot label so multiple instances
 # sharing a Telegram chat stay distinguishable (e.g. Junior1 vs Junior2).
 _TG_PREFIX = f"[{BOT_LABEL}] " if BOT_LABEL else ""
-# v12.7.9: attach an inline-keyboard "📊 Dashboard" button to every Telegram
-# message — opens BOT_PUBLIC_URL/ when tapped. Replaces the v12.7.8 plain-text
-# suffix to keep the message body clean (no URL clutter).
+# v12.7.10: attach the "📊 Dashboard" button ONLY to category=="daily" messages
+# (the daily summary). Adding it to every alert (trade, reconcile, security…)
+# was too noisy. Trade alerts stay clean; user opens dashboard from the daily
+# digest, or types the URL manually if needed.
 # Security: URL in `url` field of inline button can only OPEN a URL — Telegram
-# refuses inline buttons that would perform any action. Same exposure as v12.7.8.
+# refuses inline buttons that would perform any action. Same exposure as before.
 _TG_BUTTON = (
     {"inline_keyboard": [[{"text": "📊 Dashboard", "url": f"{BOT_PUBLIC_URL}/"}]]}
     if BOT_PUBLIC_URL else None
 )
+_TG_BUTTON_CATEGORIES = {"daily"}
 
 log = logging.getLogger("multisignal")
 
@@ -144,7 +146,7 @@ def send_telegram(msg: str, category: str = "other") -> None:
     def _do_send():
         try:
             body_dict = {"chat_id": TG_CHAT_ID, "text": _TG_PREFIX + msg}
-            if _TG_BUTTON is not None:
+            if _TG_BUTTON is not None and category in _TG_BUTTON_CATEGORIES:
                 body_dict["reply_markup"] = _TG_BUTTON
             payload = json.dumps(body_dict).encode()
             req = urllib.request.Request(

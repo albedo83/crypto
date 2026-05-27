@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.7.10] — 2026-05-27
+- **Dashboard button scoped to daily summary only** (category="daily"). v12.7.9 attached it to every Telegram message — too noisy. Trade alerts (OPEN/CLOSE), reconcile alerts, security alerts, etc. stay clean. Daily digest keeps the tappable button as it's the natural moment to check the dashboard.
+
 ## [12.7.9] — 2026-05-27
 - **Telegram URL is now an inline-keyboard button** (`📊 Dashboard`) instead of plain-text URL appended to the body. Message text stays clean, button below opens the dashboard in one tap. Same URL, same security (`url` field of inline button can only OPEN a URL — Telegram refuses any action). Uses Bot API `reply_markup` field — no `parse_mode` change, so existing message content (underscores, asterisks, special chars in symbols) remains safe.
 
