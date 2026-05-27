@@ -132,11 +132,15 @@ def fetch_candles(symbol: str, states: dict, days: int = 45) -> None:
         log.warning("Candle fetch %s: %s", symbol, e)
 
 
-def send_telegram(msg: str, category: str = "other") -> None:
+def send_telegram(msg: str, category: str = "other", actionable: bool = False) -> None:
     """Send alert via Telegram Bot API. Fire-and-forget in a daemon thread.
 
     `category` filters against TG_CATEGORIES env var (default "*" = all).
     Known categories: trade, daily, reconcile, security, admin, system.
+
+    `actionable=True` attaches the "📊 Dashboard" button regardless of category
+    — for messages that prompt user action (GIVEBACK, LOCK_FLOOR, WR_ALERT,
+    catastrophe alerts, drift warnings). v12.7.11.
     """
     if not TG_BOT_TOKEN or not TG_CHAT_ID or EXECUTION_MODE == "paper":
         return
@@ -146,7 +150,8 @@ def send_telegram(msg: str, category: str = "other") -> None:
     def _do_send():
         try:
             body_dict = {"chat_id": TG_CHAT_ID, "text": _TG_PREFIX + msg}
-            if _TG_BUTTON is not None and category in _TG_BUTTON_CATEGORIES:
+            if _TG_BUTTON is not None and (
+                    actionable or category in _TG_BUTTON_CATEGORIES):
                 body_dict["reply_markup"] = _TG_BUTTON
             payload = json.dumps(body_dict).encode()
             req = urllib.request.Request(

@@ -383,7 +383,7 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
                 bot._failed_closes.add(sym)
             log_event(bot._db, "CLOSE_FAILED", sym, {"reason": reason, "error": str(e)[:200]})
             log.error("EXEC CLOSE FAILED %s: %s — keeping position, will retry next scan", sym, e)
-            send_telegram(f"\u274c Close failed {sym}: {e} \u2014 will retry", category="trade")
+            send_telegram(f"\u274c Close failed {sym}: {e} \u2014 will retry", category="trade", actionable=True)
             return  # don't pop — position stays tracked, retried next scan
 
     # Live only: fetch actual funding paid on this token during the trade.
@@ -511,7 +511,7 @@ def _close_position_inner(sym: str, exit_price: float, now: datetime, reason: st
         send_telegram(
             f"⚠️ PNL_DISCREPANCY {sym}: recorded ${pnl:.2f} vs expected ${expected_pnl:.2f} "
             f"(Δ${discrepancy:+.2f}) — check trading.close_position",
-            category="reconcile")
+            category="reconcile", actionable=True)
 
     n = len(bot.trades)
     balance = bot._capital + bot._total_pnl
@@ -677,7 +677,7 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                     category="trade")
             except Exception as e:
                 log.error("EXEC OPEN FAILED %s %s: %s", sym, sig["strategy"], e)
-                send_telegram(f"\u274c Open failed {sym} {sig['strategy']}: {e}", category="trade")
+                send_telegram(f"\u274c Open failed {sym} {sig['strategy']}: {e}", category="trade", actionable=True)
                 continue
 
         ctx = sig.get("ctx", {})

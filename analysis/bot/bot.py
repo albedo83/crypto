@@ -148,7 +148,7 @@ class MultiSignalBot:
                    f"(base {wp['base_wr_pct']}%, n={wp['n']} {wp['scope']})\n"
                    f"  pnl=${cur_pnl:+.2f} | MAE={int(pos.mae_bps)} | held {hold_h:.1f}h\n"
                    f"  Consider manual close.")
-            net.send_telegram(msg, category="trade")
+            net.send_telegram(msg, category="trade", actionable=True)
             db_mod.log_event(self._db, "WR_ALERT", sym, {
                 "strategy": pos.strategy, "dir": side,
                 "wr_pct": wp["wr_pct"], "base_wr_pct": wp["base_wr_pct"],
@@ -204,8 +204,7 @@ class MultiSignalBot:
                    f"{t_since_mfe:.1f}h ago, now ${cur_pnl:+.2f} "
                    f"({ur_bps:+.0f}bps) — retraced {retracement_pct:.0f}%. "
                    f"MAE ${mae_pnl:.2f}. Consider manual_close.")
-            # URL appended by net.send_telegram (v12.7.8 centralized)
-            net.send_telegram(msg, category="trade")
+            net.send_telegram(msg, category="trade", actionable=True)
             db_mod.log_event(self._db, "GIVEBACK_ALERT", sym, {
                 "strategy": pos.strategy, "dir": side,
                 "mfe_bps": round(pos.mfe_bps, 1),
@@ -261,8 +260,7 @@ class MultiSignalBot:
                    f"unrealized ${cur_pnl:+.2f} ({ur_bps:+.0f}bps) after "
                    f"{hold_h:.1f}h. Consider manual_stop @ ${suggested:.0f} "
                    f"to protect ~${suggested:.0f} of the gain.")
-            # URL appended by net.send_telegram (v12.7.8 centralized)
-            net.send_telegram(msg, category="trade")
+            net.send_telegram(msg, category="trade", actionable=True)
             db_mod.log_event(self._db, "LOCK_FLOOR_ALERT", sym, {
                 "strategy": pos.strategy, "dir": side,
                 "cur_bps": round(ur_bps, 1),
@@ -556,7 +554,7 @@ class MultiSignalBot:
                             net.send_telegram(
                                 f"⚠️ Equity drift: bot ${bot_realized:.2f} vs exchange "
                                 f"${exch_realized:.2f} (Δ${drift:+.2f}) — check fees/funding",
-                                category="reconcile")
+                                category="reconcile", actionable=True)
                             self._drift_alerted = True
                         elif abs(drift) < 2.0:
                             self._drift_alerted = False  # reset when back in line

@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.7.11] — 2026-05-27
+- **Dashboard button restored on actionable alerts**. v12.7.10 scoped to "daily" only was too restrictive — alerts that prompt user decision (GIVEBACK, LOCK_FLOOR, WR_ALERT, equity drift, PNL_DISCREPANCY, close/open failed) now carry the 📊 Dashboard button again. New `actionable=True` parameter on `send_telegram` attaches the button regardless of category. Informational messages (OPEN, CLOSE, daily summary already has button via category) stay clean. Tagged actionable: 3 alert types in `bot.py` (giveback, lock_floor, wr_alert) + 1 in `bot.py` (equity drift) + 3 in `trading.py` (PNL_DISCREPANCY, close failed, open failed).
+
 ## [12.7.10] — 2026-05-27
 - **Dashboard button scoped to daily summary only** (category="daily"). v12.7.9 attached it to every Telegram message — too noisy. Trade alerts (OPEN/CLOSE), reconcile alerts, security alerts, etc. stay clean. Daily digest keeps the tappable button as it's the natural moment to check the dashboard.
 
