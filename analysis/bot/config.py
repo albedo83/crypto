@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.7.13"
+VERSION = "12.7.14"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -411,6 +411,20 @@ OI_GATE_MIN_HISTORY_HOURS = 23  # require at least 23h of OI history to activate
 # the last 12 months → ~6 entries skipped per year. Kill-switch: set to 99999.
 DISP_GATE_BPS = 700.0
 DISP_GATE_STRATEGIES: frozenset[str] = frozenset({"S5", "S9"})
+
+# v12.7.14 regime alert (observation-only Telegram, no trading impact).
+# Fires when cross-sectional 7d dispersion is elevated AND the recent
+# WR on the targeted (strategy, direction) bucket is degraded. Driven
+# by 2026-05 EDA showing S5 LONG losers concentrated above disp_7d=700
+# in current regime. The hard-gate and soft-haircut variants both
+# failed walk-forward — alert remains the only viable response.
+# Kill-switch: set REGIME_ALERT_DISP_7D_BPS = 99999.
+REGIME_ALERT_DISP_7D_BPS = 700.0
+REGIME_ALERT_WR_PCT = 35.0
+REGIME_ALERT_LOOKBACK = 10
+REGIME_ALERT_COOLDOWN_H = 24
+REGIME_ALERT_STRATEGY = "S5"
+REGIME_ALERT_DIRECTION = 1  # 1=LONG, -1=SHORT
 
 # v11.7.32 runner extension — when an S9 position reaches its natural timeout
 # while still showing strong upside (high MFE retained), extend the hold by

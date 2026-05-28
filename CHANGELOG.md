@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.7.14] — 2026-05-28
+- **Telegram**: regime alert when cross-sectional 7d dispersion is elevated and recent win-rate on a tracked (strategy, direction) bucket is degraded. Observation-only, 24h cooldown.
+
 ## [12.7.13] — 2026-05-27
 - **Position status badge** in dashboard cards — at-a-glance category for each open position. 5 tiers (priority order, one per position):
   - 🚨 **DANGER** — within 200 bps of catastrophe stop, urgent action

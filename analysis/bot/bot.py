@@ -26,6 +26,8 @@ from .config import (
     LOCK_FLOOR_ALERT_STRATEGIES, LOCK_FLOOR_ALERT_MIN_USD,
     LOCK_FLOOR_ALERT_MIN_BPS, LOCK_FLOOR_ALERT_MIN_HOLD_H,
     LOCK_FLOOR_ALERT_BUFFER_USD,
+    REGIME_ALERT_DISP_7D_BPS, REGIME_ALERT_WR_PCT, REGIME_ALERT_LOOKBACK,
+    REGIME_ALERT_COOLDOWN_H, REGIME_ALERT_STRATEGY, REGIME_ALERT_DIRECTION,
 )
 from .models import SymbolState, Position, Trade
 from . import analytics, features, signals, db as db_mod, net, persistence, trading, web
@@ -68,6 +70,7 @@ class MultiSignalBot:
         self._wr_alerted: set[str] = set()  # v12.4.0 — symbols already alerted on WR drop
         self._giveback_alerted: set[str] = set()  # v12.7.2 — symbols already alerted on giveback pattern
         self._lock_floor_alerted: set[str] = set()  # v12.7.2 — symbols already alerted on lock-floor opportunity
+        self._regime_alert_last_ts: float = 0.0  # v12.7.14 — cooldown ts for regime alert (in-memory only)
         self._basket_metrics: dict | None = None  # observation-only basket correlation
 
         # SQLite tick database
@@ -269,6 +272,58 @@ class MultiSignalBot:
                 "hold_h": round(hold_h, 1),
             })
             self._lock_floor_alerted.add(sym)
+
+    def _check_regime_alert(self, cross_ctx: dict) -> None:
+        """v12.7.14 — observation-only Telegram when (a) cross-sectional 7d
+        dispersion crosses REGIME_ALERT_DISP_7D_BPS AND (b) the last N
+        closed (strategy, direction) trades show WR below
+        REGIME_ALERT_WR_PCT. No trading action — purely informational so
+        the user can decide to pause the (S5, LONG) bucket manually.
+
+        Motivated by 2026-05 EDA showing S5 LONG losers concentrated above
+        disp_7d=700 in current regime. Both hard-gate and soft-haircut
+        walk-forward FAIL (regime-local signal, anti-robust). Alert lets
+        the user catch regime shift without acting on a non-validated rule.
+
+        Cooldown REGIME_ALERT_COOLDOWN_H hours, in-memory only (restart
+        clears it — acceptable given restart cadence).
+        """
+        if REGIME_ALERT_DISP_7D_BPS >= 99000:
+            return  # kill-switch
+        disp_7d = cross_ctx.get("disp_7d")
+        if disp_7d is None or disp_7d < REGIME_ALERT_DISP_7D_BPS:
+            return
+        # Cooldown
+        now_ts = time.time()
+        if now_ts - self._regime_alert_last_ts < REGIME_ALERT_COOLDOWN_H * 3600:
+            return
+        # Rolling WR on last N (strategy, direction) closed trades
+        side_str = "LONG" if REGIME_ALERT_DIRECTION == 1 else "SHORT"
+        recent = [t for t in reversed(self.trades)
+                  if t.strategy == REGIME_ALERT_STRATEGY and t.direction == side_str]
+        recent = recent[:REGIME_ALERT_LOOKBACK]
+        if len(recent) < REGIME_ALERT_LOOKBACK:
+            return  # not enough data
+        wins = sum(1 for t in recent if t.pnl_usdt > 0)
+        wr_pct = wins / len(recent) * 100
+        if wr_pct >= REGIME_ALERT_WR_PCT:
+            return
+        sum_pnl = sum(t.pnl_usdt for t in recent)
+        msg = (f"🌪️ Regime alert: {REGIME_ALERT_STRATEGY} {side_str} struggling\n"
+               f"  disp_7d={disp_7d:.0f} bps (≥{REGIME_ALERT_DISP_7D_BPS:.0f}) "
+               f"+ recent WR={wr_pct:.0f}% on last {len(recent)} "
+               f"({sum_pnl:+.2f} $)\n"
+               f"  Consider pausing {REGIME_ALERT_STRATEGY} {side_str} manually "
+               f"if pattern persists. Cooldown {REGIME_ALERT_COOLDOWN_H}h.")
+        net.send_telegram(msg, category="trade", actionable=True)
+        db_mod.log_event(self._db, "REGIME_ALERT", None, {
+            "strategy": REGIME_ALERT_STRATEGY, "dir": side_str,
+            "disp_7d": round(disp_7d, 0),
+            "wr_pct": round(wr_pct, 0),
+            "n_recent": len(recent),
+            "sum_pnl": round(sum_pnl, 2),
+        })
+        self._regime_alert_last_ts = now_ts
 
     def _compute_oi_features(self, sym: str) -> dict:
         st = self.states.get(sym)
@@ -490,6 +545,11 @@ class MultiSignalBot:
             self._check_lock_floor_alerts()
         except Exception as e:
             log.warning("Lock-floor alert check failed: %s", e)
+        # v12.7.14 — regime alert (disp_7d + recent WR); observation-only Telegram
+        try:
+            self._check_regime_alert(cross_ctx)
+        except Exception as e:
+            log.warning("Regime alert check failed: %s", e)
         return n_new
 
     async def equity_refresh_loop(self):
