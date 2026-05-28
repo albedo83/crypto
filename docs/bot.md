@@ -359,7 +359,7 @@ Format : `Hypothese — Backtest source → Verdict court`.
 - **OI gate LONG** (v11.4.9) — seul gate externe parmi 12 testes
 - **Trade blacklist SUI/IMX/LINK** (v11.4.10)
 - **Dead-timeout early exit D2** (v11.7.2)
-- **Dispersion gate S5+S9** (v11.7.28) — `DISP_GATE_BPS=700`, `DISP_GATE_STRATEGIES={S5,S9}`
+- ~~**Dispersion gate S5+S9** (v11.7.28)~~ — **retraité v12.8.0** (`DISP_GATE_BPS=99999`). 2×2 backtest matrix (`backtests/discovery_bias_2x2.py`) montre Pareto-dominance par `traj_cut` v12.7.1 seul ; live + paper events DB confirment 0 SKIP `disp_gate` sur 52j. Kill-switch ré-active si dispersion revient.
 - **S9 runner extension** (v11.7.32) — `RUNNER_EXT_HOURS=12`, `MIN_MFE_BPS=1200`, `MIN_CUR_TO_MFE=0.3`
 
 ### Trade blacklist (v11.4.10)

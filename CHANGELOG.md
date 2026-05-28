@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.8.0] — 2026-05-28
+- **Trading engine**: retrait du filtre d'entrée mean-reversion devenu redondant avec le mécanisme de cut introduit en v12.7.1.
+
 ## [12.7.14] — 2026-05-28
 - **Telegram**: regime alert when cross-sectional 7d dispersion is elevated and recent win-rate on a tracked (strategy, direction) bucket is degraded. Observation-only, 24h cooldown.
 

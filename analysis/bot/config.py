@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.7.14"
+VERSION = "12.8.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -408,8 +408,14 @@ OI_GATE_MIN_HISTORY_HOURS = 23  # require at least 23h of OI history to activate
 # because their setup is tied to single-token mechanics, not cross-sectional
 # stability. Walk-forward validated 4/4 (28m/12m/6m/3m) with zero DD penalty
 # in `backtests/backtest_dispersion_filter.py`. Fires ~1.4% of 4h candles in
-# the last 12 months → ~6 entries skipped per year. Kill-switch: set to 99999.
-DISP_GATE_BPS = 700.0
+# the last 12 months → ~6 entries skipped per year.
+# v12.8.0: RETIRED. 2×2 matrix (`backtests/discovery_bias_2x2.py`) shows the
+# gate is now Pareto-dominated by traj_cut v12.7.1: traj_cut alone beats
+# (traj_cut + disp_gate) by +345 005pp on 28m and +11 340pp on 12m, with DD
+# also slightly better. 6m/3m are no-ops (gate dormant in current regime;
+# live + paper events DB show 0 SKIP disp_gate over 52 days). Kept as
+# kill-switch (DISP_GATE_BPS = 99999.0); to re-enable set back to 700.0.
+DISP_GATE_BPS = 99999.0
 DISP_GATE_STRATEGIES: frozenset[str] = frozenset({"S5", "S9"})
 
 # v12.7.14 regime alert (observation-only Telegram, no trading impact).
