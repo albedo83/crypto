@@ -523,7 +523,31 @@ class MultiSignalBot:
         because the signal died before the next 4h close (mean adverse drift
         −105 bps). Exits, reconcile, MAE/MFE, and feature refresh keep their
         hourly cadence via SCAN_INTERVAL. Source: backtests/intracandle_signal_test.py.
+
+        v12.9.5: alerts (WR / giveback / lock-floor / regime) are evaluated at
+        every hourly scan, BEFORE the entry gate. Previously (v12.9.0–v12.9.4)
+        they were placed after the gate, adding 0-3h latency to time-critical
+        Telegram patterns. Identified by code-review v12.9.4.
         """
+        cross_ctx = signals.compute_cross_context(self._feature_cache)
+        # v12.9.5 — alerts always run at hourly cadence (not gated).
+        try:
+            self._check_wr_alerts()
+        except Exception as e:
+            log.warning("WR alert check failed: %s", e)
+        try:
+            self._check_giveback_alerts()
+        except Exception as e:
+            log.warning("Giveback alert check failed: %s", e)
+        try:
+            self._check_lock_floor_alerts()
+        except Exception as e:
+            log.warning("Lock-floor alert check failed: %s", e)
+        try:
+            self._check_regime_alert(cross_ctx)
+        except Exception as e:
+            log.warning("Regime alert check failed: %s", e)
+
         # 4h candle alignment gate — entries fire at most once per 4h period.
         now_ts = int(time.time())
         CANDLE_PERIOD_SEC = 14400  # 4h × 3600
@@ -531,6 +555,7 @@ class MultiSignalBot:
         if self._last_entry_scan_4h_close >= last_4h_close:
             return 0  # already evaluated entries for this 4h candle
         self._last_entry_scan_4h_close = last_4h_close
+
         now = datetime.now(timezone.utc)
         btc_f = self._compute_btc_features()
         btc = self.states.get("BTC")
@@ -549,31 +574,11 @@ class MultiSignalBot:
         dxy_7d = features.fetch_dxy(self._degraded, features.DXY_CACHE)
         self._dxy_cache = (dxy_7d, time.time())
 
-        cross_ctx = signals.compute_cross_context(self._feature_cache)
         all_signals = self._build_token_signals(now, btc_f, cross_ctx)
         self._log_eth_observations(btc_f)
 
         signals.track_signal_age(all_signals, self._signal_first_seen, time.time())
         n_new = trading.rank_and_enter(all_signals, now, self)
-        # v12.4.0 — check open positions for WR alarm and emit Telegram alert
-        try:
-            self._check_wr_alerts()
-        except Exception as e:
-            log.warning("WR alert check failed: %s", e)
-        # v12.7.2 — giveback + lock-floor alerts (Telegram only, no trading action)
-        try:
-            self._check_giveback_alerts()
-        except Exception as e:
-            log.warning("Giveback alert check failed: %s", e)
-        try:
-            self._check_lock_floor_alerts()
-        except Exception as e:
-            log.warning("Lock-floor alert check failed: %s", e)
-        # v12.7.14 — regime alert (disp_7d + recent WR); observation-only Telegram
-        try:
-            self._check_regime_alert(cross_ctx)
-        except Exception as e:
-            log.warning("Regime alert check failed: %s", e)
         return n_new
 
     async def equity_refresh_loop(self):
