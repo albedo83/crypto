@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.9.4] — 2026-05-30
+- **Dashboard**: rollback du regroupement v12.9.3, retour aux 10 cards plus lisibles.
+
 ## [12.9.3] — 2026-05-30
 - **Dashboard**: 10 cards header consolidées en 5 pour gagner de la place sur mobile (P&L combinée, Activité combinée, Santé regroupe fees + S10).
 
