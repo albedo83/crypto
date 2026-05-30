@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.9.0] — 2026-05-30
+- **Trading engine**: alignement des entrées sur la cadence naturelle de la stratégie pour mirror le backtest.
+
 ## [12.8.0] — 2026-05-28
 - **Trading engine**: retrait du filtre d'entrée mean-reversion devenu redondant avec le mécanisme de cut introduit en v12.7.1.
 

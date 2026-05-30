@@ -80,6 +80,10 @@ async def run():
     if bot._pnl_realign_offset:
         log.info("Restored _pnl_realign_offset: $%+.2f", bot._pnl_realign_offset)
 
+    # v12.9.0 — last 4h candle close timestamp for which an entry-scan ran.
+    # Prevents duplicate entries within the same 4h period across restarts.
+    bot._last_entry_scan_4h_close = int(state.get("_last_entry_scan_4h_close", 0)) if state else 0
+
     # Startup sanity check: sum of *all* trades should match stored _total_pnl
     # plus any accumulated realign offset.
     # close_position credits _total_pnl on every close (bot, manual_stop, reset)

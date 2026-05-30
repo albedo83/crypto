@@ -129,7 +129,8 @@ def save_state(state_file: str, positions: dict, pos_lock,
                consecutive_losses: int,
                cooldowns: dict, signal_first_seen: dict,
                feature_cache: dict, capital: float = 0,
-               pnl_realign_offset: float = 0.0) -> None:
+               pnl_realign_offset: float = 0.0,
+               last_entry_scan_4h_close: int = 0) -> None:
     """Atomically persist bot state (write to .tmp then os.replace)."""
     output_dir = os.path.dirname(state_file)
     os.makedirs(output_dir, exist_ok=True)
@@ -160,6 +161,7 @@ def save_state(state_file: str, positions: dict, pos_lock,
         "feature_cache_ts": time.time(),
         "positions": pos_snapshot,
         "_pnl_realign_offset": round(pnl_realign_offset, 4),
+        "_last_entry_scan_4h_close": int(last_entry_scan_4h_close),
     }
     tmp = state_file + ".tmp"
     try:
@@ -203,6 +205,9 @@ def load_state(state_file: str, states: dict) -> dict:
         result["signal_first_seen"] = data.get("signal_first_seen", {})
         # v12.6.1: accumulated realign offset (see analysis/equity_realign.py).
         result["_pnl_realign_offset"] = data.get("_pnl_realign_offset", 0.0)
+        # v12.9.0: 4h candle close timestamp of the last entry-scan, to
+        # prevent duplicate entries within the same 4h period across restarts.
+        result["_last_entry_scan_4h_close"] = int(data.get("_last_entry_scan_4h_close", 0))
         # Restore feature cache if recent enough (avoids blank dashboard on restart)
         fc_ts = data.get("feature_cache_ts", 0)
         if time.time() - fc_ts < 7200:  # < 2h old

@@ -283,6 +283,16 @@ Resultats rolling simules avec les parametres actuels : voir `docs/backtests.md`
 
 ## Recherche (26 backtests)
 
+### Alignement entrees sur candle close 4h (v12.9.0)
+
+Audit 65j live (2026-03-26 -> 2026-05-30) sur le bot live : 75/119 trades fired intra-candle (offset moyen 143 min apres la candle close 4h precedente, cumul -$257). Le mecanisme : signaux mean-reversion qui meurent intra-candle (mean adverse drift -105 bps entry->candle_close vs -7 bps sur trades matched BT).
+
+Diagnostic process : (1) slippage mesure en premier via `backtests/measure_live_slippage.py` → mean RT +0.15 bps, BT model BACKTEST_SLIPPAGE_BPS=4.0 correctement calibre, donc PAS la cause ; (2) config drift teste via `backtests/btlive_config_drift_test.py` (disp_gate ON/OFF, traj_cut ON/OFF, +6 tokens v12.7.0) → aucune des features n'a triggered sur la fenetre 65j → PAS la cause ; (3) intra-candle signal test via `backtests/intracandle_signal_test.py` → 100% des 75 trades live-only ont un drift adverse systematique vers le candle close suivant → CAUSE identifiee.
+
+Fix : `bot._scan_and_trade` gate les entrees sur les boundaries 4h via `_last_entry_scan_4h_close` (persiste dans `state.json`). Exits, MAE/MFE, reconcile, feature refresh restent horaires (SCAN_INTERVAL=3600). Le BT engine opere deja a granularite candle close → live mirror BT.
+
+Effet estime : reduction du gap btlive de ~$316 vers la composante structurelle (path divergence + funding ~$50-100). Validation walk-forward implicite : le BT existant operait deja a candle close, ses 4/4 strict pass docs/backtests.md represente le comportement v12.9.0.
+
 ### Methode de validation
 
 Chaque signal doit passer : (1) train/test split, (2) Monte Carlo z > 2.0, (3) portfolio integration, (4) walk-forward > 50%.

@@ -72,6 +72,9 @@ class MultiSignalBot:
         self._lock_floor_alerted: set[str] = set()  # v12.7.2 — symbols already alerted on lock-floor opportunity
         self._regime_alert_last_ts: float = 0.0  # v12.7.14 — cooldown ts for regime alert (in-memory only)
         self._basket_metrics: dict | None = None  # observation-only basket correlation
+        # v12.9.0: gate entry-signal scans to 4h candle close boundaries to
+        # match the BT engine's granularity. See _scan_and_trade for details.
+        self._last_entry_scan_4h_close: int = 0
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -391,7 +394,8 @@ class MultiSignalBot:
             self._consecutive_losses,
             self._cooldowns, self._signal_first_seen, self._feature_cache,
             capital=self._capital,
-            pnl_realign_offset=getattr(self, "_pnl_realign_offset", 0.0))
+            pnl_realign_offset=getattr(self, "_pnl_realign_offset", 0.0),
+            last_entry_scan_4h_close=self._last_entry_scan_4h_close)
 
     def _build_token_signals(self, now, btc_f: dict, cross_ctx: dict) -> list:
         """Per-token signal detection loop. Returns the list of fired token-level
@@ -506,7 +510,21 @@ class MultiSignalBot:
         Thin orchestrator: refresh macro context, build candidates, hand off
         to trading.rank_and_enter, then surface WR alerts. The heavy lifting
         lives in _build_token_signals and rank_and_enter.
+
+        v12.9.0: entries are gated to 4h candle close boundaries (mirrors
+        the backtest engine's scan granularity). Audit on 65d live deployment
+        showed 75/119 entries fired intra-candle with cumulative −$257 PnL
+        because the signal died before the next 4h close (mean adverse drift
+        −105 bps). Exits, reconcile, MAE/MFE, and feature refresh keep their
+        hourly cadence via SCAN_INTERVAL. Source: backtests/intracandle_signal_test.py.
         """
+        # 4h candle alignment gate — entries fire at most once per 4h period.
+        now_ts = int(time.time())
+        CANDLE_PERIOD_SEC = 14400  # 4h × 3600
+        last_4h_close = (now_ts // CANDLE_PERIOD_SEC) * CANDLE_PERIOD_SEC
+        if self._last_entry_scan_4h_close >= last_4h_close:
+            return 0  # already evaluated entries for this 4h candle
+        self._last_entry_scan_4h_close = last_4h_close
         now = datetime.now(timezone.utc)
         btc_f = self._compute_btc_features()
         btc = self.states.get("BTC")
