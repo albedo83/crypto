@@ -75,6 +75,11 @@ class MultiSignalBot:
         # v12.9.0: gate entry-signal scans to 4h candle close boundaries to
         # match the BT engine's granularity. See _scan_and_trade for details.
         self._last_entry_scan_4h_close: int = 0
+        # v12.9.2: optional fees-tracking start ts (seconds since epoch).
+        # 0 = use the default 90d rolling window (v11.3.7 behavior).
+        # Set to a unix ts (e.g. via a soft reset) to scope the "Exchange fees"
+        # dashboard card to a custom period.
+        self._fees_track_start_ts: float = 0.0
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -395,7 +400,8 @@ class MultiSignalBot:
             self._cooldowns, self._signal_first_seen, self._feature_cache,
             capital=self._capital,
             pnl_realign_offset=getattr(self, "_pnl_realign_offset", 0.0),
-            last_entry_scan_4h_close=self._last_entry_scan_4h_close)
+            last_entry_scan_4h_close=self._last_entry_scan_4h_close,
+            fees_track_start_ts=self._fees_track_start_ts)
 
     def _build_token_signals(self, now, btc_f: dict, cross_ctx: dict) -> list:
         """Per-token signal detection loop. Returns the list of fired token-level
@@ -607,7 +613,8 @@ class MultiSignalBot:
                 # Fetch real exchange balance (live mode)
                 if self._exchange:
                     from .exchange import fetch_account_state
-                    acct = await asyncio.to_thread(fetch_account_state, self._hl_info, self._hl_address)
+                    fees_start = int(self._fees_track_start_ts * 1000) if self._fees_track_start_ts else None
+                    acct = await asyncio.to_thread(fetch_account_state, self._hl_info, self._hl_address, fees_start)
                     if acct:
                         self._exchange_account = acct
                         # Alert on significant drift between bot accounting and real equity.

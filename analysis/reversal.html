@@ -983,8 +983,14 @@ function refresh(){
       const taker=ea.taker_fees||0;
       const fund=ea.funding_paid||0;
       const totalFees=taker+Math.abs(Math.min(fund,0));
+      const periodDays=Math.max(1, ea.fees_period_days||90);
+      const avgPerDay=totalFees/periodDays;
+      const startMs=ea.fees_period_start_ms;
+      const startStr=startMs ? new Date(startMs).toISOString().slice(0,10) : 'last 90d';
       document.getElementById('fees-total').textContent='$'+fmt(-totalFees);
-      document.getElementById('fees-detail').textContent='Taker: $'+fmt(-taker)+' | Funding: $'+fmt(fund);
+      document.getElementById('fees-detail').textContent=
+        'Taker: $'+fmt(-taker)+' | Funding: $'+fmt(fund)+
+        ' | $'+fmt(-avgPerDay)+'/day | Since '+startStr;
       feesCard.style.display='';
     }else{feesCard.style.display='none';}
 

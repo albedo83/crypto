@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.9.2] — 2026-05-30
+- **Dashboard**: badge fees configurable depuis une date custom + moyenne par jour.
+
 ## [12.9.1] — 2026-05-30
 - **Infra**: timeout SDK relevé pour absorber les lenteurs intermittentes du compte exchange.
 

@@ -84,6 +84,16 @@ async def run():
     # Prevents duplicate entries within the same 4h period across restarts.
     bot._last_entry_scan_4h_close = int(state.get("_last_entry_scan_4h_close", 0)) if state else 0
 
+    # v12.9.2 — optional fees tracking window start (seconds since epoch).
+    # 0 = use default 90d window. Set to a unix ts after a soft reset to scope
+    # the dashboard "Exchange fees" card to a custom period.
+    bot._fees_track_start_ts = float(state.get("_fees_track_start_ts", 0)) if state else 0.0
+    if bot._fees_track_start_ts:
+        import datetime as _dt
+        _d = _dt.datetime.fromtimestamp(bot._fees_track_start_ts, _dt.timezone.utc)
+        log.info("Fees tracking scoped since %s (%.1f days)", _d.strftime("%Y-%m-%d %H:%M UTC"),
+                 (_dt.datetime.now(_dt.timezone.utc) - _d).total_seconds() / 86400)
+
     # Startup sanity check: sum of *all* trades should match stored _total_pnl
     # plus any accumulated realign offset.
     # close_position credits _total_pnl on every close (bot, manual_stop, reset)

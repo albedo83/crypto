@@ -130,7 +130,8 @@ def save_state(state_file: str, positions: dict, pos_lock,
                cooldowns: dict, signal_first_seen: dict,
                feature_cache: dict, capital: float = 0,
                pnl_realign_offset: float = 0.0,
-               last_entry_scan_4h_close: int = 0) -> None:
+               last_entry_scan_4h_close: int = 0,
+               fees_track_start_ts: float = 0.0) -> None:
     """Atomically persist bot state (write to .tmp then os.replace)."""
     output_dir = os.path.dirname(state_file)
     os.makedirs(output_dir, exist_ok=True)
@@ -162,6 +163,7 @@ def save_state(state_file: str, positions: dict, pos_lock,
         "positions": pos_snapshot,
         "_pnl_realign_offset": round(pnl_realign_offset, 4),
         "_last_entry_scan_4h_close": int(last_entry_scan_4h_close),
+        "_fees_track_start_ts": round(fees_track_start_ts, 0),
     }
     tmp = state_file + ".tmp"
     try:
@@ -208,6 +210,9 @@ def load_state(state_file: str, states: dict) -> dict:
         # v12.9.0: 4h candle close timestamp of the last entry-scan, to
         # prevent duplicate entries within the same 4h period across restarts.
         result["_last_entry_scan_4h_close"] = int(data.get("_last_entry_scan_4h_close", 0))
+        # v12.9.2: optional fees tracking window start (seconds since epoch).
+        # 0 means use the default 90d rolling window in fetch_account_state.
+        result["_fees_track_start_ts"] = float(data.get("_fees_track_start_ts", 0))
         # Restore feature cache if recent enough (avoids blank dashboard on restart)
         fc_ts = data.get("feature_cache_ts", 0)
         if time.time() - fc_ts < 7200:  # < 2h old

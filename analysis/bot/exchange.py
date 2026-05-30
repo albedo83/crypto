@@ -323,8 +323,12 @@ def fetch_equity_only(hl_info, address: str) -> dict | None:
         return None
 
 
-def fetch_account_state(hl_info, address: str) -> dict | None:
-    """Fetch real account state from Hyperliquid. Returns equity, unrealized, available, fees."""
+def fetch_account_state(hl_info, address: str, fees_start_ms: int | None = None) -> dict | None:
+    """Fetch real account state from Hyperliquid. Returns equity, unrealized, available, fees.
+
+    fees_start_ms : optional override for the fees/funding window start (in ms).
+    If None, defaults to the last 90 days (v11.3.7 behavior).
+    """
     if not hl_info:
         return None
     try:
@@ -362,8 +366,12 @@ def fetch_account_state(hl_info, address: str) -> dict | None:
 
         # Fees: taker fees from fills, funding from funding history
         import time as _time
-        start_ms = int((_time.time() - 90 * 86400) * 1000)
         end_ms = int(_time.time() * 1000)
+        default_start_ms = int((_time.time() - 90 * 86400) * 1000)
+        start_ms = fees_start_ms if (fees_start_ms and fees_start_ms > 0) else default_start_ms
+        # Clamp to ≥ 90 days back for HL API safety (very old queries can be slow)
+        start_ms = max(start_ms, default_start_ms - 365 * 86400 * 1000)
+        period_days = max(0.0, (end_ms - start_ms) / 86400000)
         try:
             fills = _sdk_call(hl_info.user_fills_by_time, address, start_ms, end_ms,
                               timeout=15.0)
@@ -386,6 +394,8 @@ def fetch_account_state(hl_info, address: str) -> dict | None:
             "taker_fees": round(taker_fees, 2),
             "funding_paid": round(funding_paid, 2),
             "closed_pnl": round(closed_pnl, 2),
+            "fees_period_days": round(period_days, 1),
+            "fees_period_start_ms": start_ms,
         }
     except Exception as e:
         log.warning("Account state fetch failed: %s", e)
