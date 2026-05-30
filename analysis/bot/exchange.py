@@ -294,8 +294,8 @@ def fetch_equity_only(hl_info, address: str) -> dict | None:
     if not hl_info:
         return None
     try:
-        state = _sdk_call(hl_info.user_state, address, timeout=10.0)
-        spot = _sdk_call(hl_info.spot_user_state, address, timeout=10.0)
+        state = _sdk_call(hl_info.user_state, address, timeout=60.0)
+        spot = _sdk_call(hl_info.spot_user_state, address, timeout=60.0)
         spot_usdc = 0.0
         spot_hold = 0.0
         for b in spot.get("balances", []):
@@ -328,8 +328,8 @@ def fetch_account_state(hl_info, address: str) -> dict | None:
     if not hl_info:
         return None
     try:
-        state = _sdk_call(hl_info.user_state, address, timeout=10.0)
-        spot = _sdk_call(hl_info.spot_user_state, address, timeout=10.0)
+        state = _sdk_call(hl_info.user_state, address, timeout=60.0)
+        spot = _sdk_call(hl_info.spot_user_state, address, timeout=60.0)
 
         # Spot USDC: total includes the cross-margin "hold" (collateral
         # earmarked for perps); we capture both to avoid double-counting.
@@ -405,7 +405,7 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
     if not hl_info:
         return
     try:
-        state = _sdk_call(hl_info.user_state, address, timeout=10.0)
+        state = _sdk_call(hl_info.user_state, address, timeout=60.0)
         exchange_positions: dict[str, dict] = {}
         for pos in state.get("assetPositions", []):
             p = pos["position"]

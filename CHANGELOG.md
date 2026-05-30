@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.9.1] — 2026-05-30
+- **Infra**: timeout SDK relevé pour absorber les lenteurs intermittentes du compte exchange.
+
 ## [12.9.0] — 2026-05-30
 - **Trading engine**: alignement des entrées sur la cadence naturelle de la stratégie pour mirror le backtest.
 
