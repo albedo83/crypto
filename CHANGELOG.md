@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.9.7] — 2026-05-30
+- **Infra**: alignement de l'univers backtest sur l'univers live (rattrapage v12.7.0 — 7 tokens manquaient au BT).
+
 ## [12.9.6] — 2026-05-30
 - **Infra**: blindage du boot live contre les anomalies de metadata exchange.
 

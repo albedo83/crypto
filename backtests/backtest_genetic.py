@@ -24,12 +24,19 @@ import numpy as np
 DATA_DIR = os.path.join(os.path.dirname(__file__), "output", "pairs_data")
 
 # Tokens with 3-year history
+# Must mirror config.py:TRADE_SYMBOLS — see v12.9.7 audit (was 28 vs 35 mismatch).
+# Updated 2026-05-30 to add TON (pre-existing gap) + ADA, BCH, DOT, ENA, UNI,
+# XMR (v12.7.0 universe expansion). Without this sync, every backtest run
+# since v12.7.0 was simulating 28 tokens while live traded 35 → systematic
+# divergence on the 7 missing tokens.
 TOKENS = [
     "ARB", "OP", "AVAX", "SUI", "APT", "SEI", "NEAR",
     "AAVE", "MKR", "COMP", "SNX", "PENDLE", "DYDX",
     "DOGE", "WLD", "BLUR", "LINK", "PYTH",
     "SOL", "INJ", "CRV", "LDO", "STX", "GMX",
     "IMX", "SAND", "GALA", "MINA",
+    # v12.7.0 universe expansion (2026-05-16) + TON pre-existing gap
+    "ADA", "BCH", "DOT", "ENA", "TON", "UNI", "XMR",
 ]
 
 REF_TOKENS = ["BTC", "ETH"]  # Not traded, used for features
