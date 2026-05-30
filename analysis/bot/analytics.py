@@ -31,12 +31,21 @@ def compute_signal_drift(trades, perf_track_start_ts: float = 0.0) -> dict:
     scope the "Strategy Performance" dashboard to the new tracking window
     while keeping the full DB history for audit / R&D.
     """
+    # v12.10.1 fix : Trade.entry_time is an ISO string (see models.Trade),
+    # not a datetime. Parse once for filtering. Trade.entry_time examples :
+    # "2026-05-30T20:23:18.779212+00:00".
+    from datetime import datetime as _dt
     by_strat: dict[str, list] = defaultdict(list)
     for t in trades:
         if not is_bot_trade(t):
             continue
-        if perf_track_start_ts > 0 and t.entry_time.timestamp() < perf_track_start_ts:
-            continue
+        if perf_track_start_ts > 0:
+            try:
+                ts = _dt.fromisoformat(t.entry_time).timestamp()
+            except (ValueError, AttributeError):
+                ts = 0  # malformed — include (better visible than dropped)
+            if ts > 0 and ts < perf_track_start_ts:
+                continue
         by_strat[t.strategy].append(t)
     result = {}
     for strat, strat_trades in by_strat.items():

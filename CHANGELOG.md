@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.2] — 2026-05-30
+- **Dashboard**: hotfix v12.10.1 — crash sur /api/state quand un scope perf-tracking est actif (sérialisation entry_time corrigée).
+
 ## [12.10.1] — 2026-05-30
 - **Dashboard**: badge Strategy Performance scopable depuis une date custom (mirror du pattern fees window).
 
