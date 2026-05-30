@@ -18,17 +18,26 @@ def is_bot_trade(t) -> bool:
     return t.reason not in ("manual_stop", "reset")
 
 
-def compute_signal_drift(trades) -> dict:
+def compute_signal_drift(trades, perf_track_start_ts: float = 0.0) -> dict:
     """Per-strategy stats — lifetime AND rolling 20 trades.
 
     Lifetime = all bot trades ever for this strategy (structural edge).
     Recent 20 = last 20 (short-term health). `trend` compares first 10 vs last
     10 within the recent 20: +1 improving, -1 degrading, 0 stable/insufficient.
+
+    v12.10.1: if `perf_track_start_ts` > 0 (seconds since epoch), trades
+    with `entry_time < start` are excluded from both lifetime and recent.
+    Mirrors `_fees_track_start_ts` semantic — used after a soft reset to
+    scope the "Strategy Performance" dashboard to the new tracking window
+    while keeping the full DB history for audit / R&D.
     """
     by_strat: dict[str, list] = defaultdict(list)
     for t in trades:
-        if is_bot_trade(t):
-            by_strat[t.strategy].append(t)
+        if not is_bot_trade(t):
+            continue
+        if perf_track_start_ts > 0 and t.entry_time.timestamp() < perf_track_start_ts:
+            continue
+        by_strat[t.strategy].append(t)
     result = {}
     for strat, strat_trades in by_strat.items():
         if not strat_trades:

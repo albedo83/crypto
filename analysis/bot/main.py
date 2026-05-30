@@ -94,6 +94,16 @@ async def run():
         log.info("Fees tracking scoped since %s (%.1f days)", _d.strftime("%Y-%m-%d %H:%M UTC"),
                  (_dt.datetime.now(_dt.timezone.utc) - _d).total_seconds() / 86400)
 
+    # v12.10.1 — optional perf tracking window start (seconds since epoch).
+    # 0 = lifetime. Set to a unix ts after a soft reset to scope the
+    # dashboard Strategy Performance section to trades with entry_time >= start.
+    bot._perf_track_start_ts = float(state.get("_perf_track_start_ts", 0)) if state else 0.0
+    if bot._perf_track_start_ts:
+        import datetime as _dt
+        _d = _dt.datetime.fromtimestamp(bot._perf_track_start_ts, _dt.timezone.utc)
+        log.info("Strategy perf scoped since %s (%.1f days)", _d.strftime("%Y-%m-%d %H:%M UTC"),
+                 (_dt.datetime.now(_dt.timezone.utc) - _d).total_seconds() / 86400)
+
     # Startup sanity check: sum of *all* trades should match stored _total_pnl
     # plus any accumulated realign offset.
     # close_position credits _total_pnl on every close (bot, manual_stop, reset)

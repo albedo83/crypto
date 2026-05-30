@@ -80,6 +80,12 @@ class MultiSignalBot:
         # Set to a unix ts (e.g. via a soft reset) to scope the "Exchange fees"
         # dashboard card to a custom period.
         self._fees_track_start_ts: float = 0.0
+        # v12.10.1: optional strategy-performance tracking start ts.
+        # 0 = lifetime (all bot trades). Set to a unix ts to scope the
+        # "Strategy Performance" dashboard section (compute_signal_drift)
+        # to trades with entry_time >= start. Used after a soft reset to
+        # show fresh perf tracking while keeping DB history for audit.
+        self._perf_track_start_ts: float = 0.0
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -401,7 +407,8 @@ class MultiSignalBot:
             capital=self._capital,
             pnl_realign_offset=getattr(self, "_pnl_realign_offset", 0.0),
             last_entry_scan_4h_close=self._last_entry_scan_4h_close,
-            fees_track_start_ts=self._fees_track_start_ts)
+            fees_track_start_ts=self._fees_track_start_ts,
+            perf_track_start_ts=self._perf_track_start_ts)
 
     def _build_token_signals(self, now, btc_f: dict, cross_ctx: dict) -> list:
         """Per-token signal detection loop. Returns the list of fired token-level

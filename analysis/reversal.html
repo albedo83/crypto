@@ -435,7 +435,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 </div>
 
 <div class="section" data-block="strategy-performance" hidden>
-  <h2>Strategy Performance <span class="dim" style="font-size:12px;font-weight:400">— lifetime + recent 20 with trend arrow</span></h2>
+  <h2>Strategy Performance <span class="dim" style="font-size:12px;font-weight:400" id="strat-perf-scope">— lifetime + recent 20 with trend arrow</span></h2>
   <table id="strat-table"><thead><tr>
     <th rowspan="2">Signal</th>
     <th colspan="4" style="text-align:center;border-bottom:1px solid #30363d">Lifetime</th>
@@ -1013,6 +1013,17 @@ function refresh(){
     document.getElementById('card-s10').title=s10h.message||'';
 
     // Strategy P&L breakdown — lifetime + recent 20 with trend arrow
+    // v12.10.1: scope label if perf_track_start_ts is set (post soft-reset)
+    const perfStart=s.perf_track_start_ts||0;
+    const scopeEl=document.getElementById('strat-perf-scope');
+    if(scopeEl){
+      if(perfStart>0){
+        const d=new Date(perfStart*1000).toISOString().slice(0,10);
+        scopeEl.textContent='— since '+d+' (scope after soft-reset) | recent 20 with trend arrow';
+      }else{
+        scopeEl.textContent='— lifetime + recent 20 with trend arrow';
+      }
+    }
     const drift=s.signal_drift||{};
     const sdEl=document.getElementById('strat-drift');
     if(sdEl){

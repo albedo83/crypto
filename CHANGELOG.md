@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.1] — 2026-05-30
+- **Dashboard**: badge Strategy Performance scopable depuis une date custom (mirror du pattern fees window).
+
 ## [12.10.0] — 2026-05-30
 - **Infra**: clôture de la série v12.9 (gate 4h, alerts hors gate, SDK patch, fees window, BT universe align).
 
