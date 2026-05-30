@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.3] — 2026-05-30
+- **Trading engine**: scan déclenché ~1-2 min après chaque candle close pour aligner le timing d'entrée sur le backtest (élimine le délai moyen ~30 min).
+
 ## [12.10.2] — 2026-05-30
 - **Dashboard**: hotfix v12.10.1 — crash sur /api/state quand un scope perf-tracking est actif (sérialisation entry_time corrigée).
 
