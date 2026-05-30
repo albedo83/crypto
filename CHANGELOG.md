@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.0] — 2026-05-30
+- **Infra**: clôture de la série v12.9 (gate 4h, alerts hors gate, SDK patch, fees window, BT universe align).
+
 ## [12.9.7] — 2026-05-30
 - **Infra**: alignement de l'univers backtest sur l'univers live (rattrapage v12.7.0 — 7 tokens manquaient au BT).
 
