@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.9.6] — 2026-05-30
+- **Infra**: blindage du boot live contre les anomalies de metadata exchange.
+
 ## [12.9.5] — 2026-05-30
 - **Telegram**: alertes giveback / lock-floor / WR / régime à nouveau évaluées chaque scan horaire (était gated par erreur sur la cadence 4h depuis v12.9.0).
 

@@ -77,6 +77,75 @@ def _sdk_call(fn, *args, timeout: float = 20.0, **kwargs):
         raise TimeoutError(f"SDK call {fn.__name__} exceeded {timeout}s")
 
 
+_SDK_PATCHES_APPLIED = False
+
+
+def _apply_hyperliquid_sdk_patches() -> None:
+    """Idempotent runtime patches on top of the upstream hyperliquid SDK.
+
+    Issue (observed 2026-05-30): HL `spotMeta` occasionally returns
+    `universe` entries whose `tokens` indices exceed `len(spot_meta["tokens"])`
+    — e.g. `@367` referencing index 479 while `len(tokens)==464`. The SDK's
+    `Info.__init__` indexes into `spot_meta["tokens"][base]` with no bounds
+    check and crashes on `IndexError`, which prevents `Exchange()` from
+    being created and takes down live + junior bots at boot.
+
+    Our bot trades perps only, so spot mappings have zero functional impact.
+    This patch wraps `Info.__init__` to fetch + sanitize `spot_meta` (when
+    not provided by the caller) before delegating to the original. Filters
+    out universe entries whose token indices are out of range.
+
+    Persisted in our code (not a venv-local patch) so a
+    `pip install --force-reinstall hyperliquid-python-sdk` does not bring
+    back the crash.
+    """
+    global _SDK_PATCHES_APPLIED
+    if _SDK_PATCHES_APPLIED:
+        return
+    try:
+        from hyperliquid import info as _hl_info
+    except ImportError:
+        return  # SDK not installed (paper mode)
+
+    _orig_init = _hl_info.Info.__init__
+
+    def _patched_init(self, base_url=None, skip_ws=False, meta=None,
+                      spot_meta=None, perp_dexs=None, timeout=None):
+        # Sanitize spot_meta : either the one passed in, or one we fetch.
+        if spot_meta is None:
+            try:
+                import requests
+                api_url = base_url or "https://api.hyperliquid.xyz"
+                r = requests.post(f"{api_url}/info",
+                                  json={"type": "spotMeta"}, timeout=10)
+                if r.status_code == 200:
+                    spot_meta = r.json()
+            except Exception:
+                spot_meta = None  # fall through to original SDK fetch path
+        if spot_meta and isinstance(spot_meta, dict) \
+                and "universe" in spot_meta and "tokens" in spot_meta:
+            ntok = len(spot_meta["tokens"])
+            original_len = len(spot_meta["universe"])
+            cleaned = dict(spot_meta)
+            cleaned["universe"] = [
+                u for u in spot_meta["universe"]
+                if all(isinstance(t, int) and 0 <= t < ntok
+                       for t in u.get("tokens", []))
+            ]
+            dropped = original_len - len(cleaned["universe"])
+            if dropped:
+                log.warning("Hyperliquid SDK patch: dropped %d spot_meta "
+                            "universe entries with out-of-range token indices",
+                            dropped)
+            spot_meta = cleaned
+        return _orig_init(self, base_url, skip_ws, meta, spot_meta,
+                          perp_dexs, timeout)
+
+    _hl_info.Info.__init__ = _patched_init
+    _SDK_PATCHES_APPLIED = True
+    log.info("Hyperliquid SDK patches applied (spot_meta sanitization)")
+
+
 def init_exchange(private_key: str, account_address: str = "") -> tuple:
     """Initialize Hyperliquid SDK for live trading.
 
@@ -90,6 +159,7 @@ def init_exchange(private_key: str, account_address: str = "") -> tuple:
 
     Returns (exchange, hl_info, address, sz_decimals).
     """
+    _apply_hyperliquid_sdk_patches()
     from eth_account import Account
     from hyperliquid.exchange import Exchange
     from hyperliquid.info import Info as HLInfo
