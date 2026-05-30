@@ -22,6 +22,13 @@ body{background:#0d1117;color:#e6edf3;font-family:'JetBrains Mono',monospace;fon
 .countdown .time{color:#58a6ff;font-weight:700}
 .cards{display:flex;gap:10px;flex-wrap:wrap;padding:14px 20px}
 .card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:10px 14px;min-width:120px;flex:1;transition:border-color 0.3s}
+/* v12.9.3 — Santé card layout (2 sub-items side by side) */
+.card-health{flex:2;display:flex;flex-direction:column}
+.card-health .health-row{display:flex;gap:14px;align-items:flex-start}
+.card-health .health-item{flex:1;min-width:0}
+.card-health .health-item .label{font-size:10px;color:#7d8590;text-transform:uppercase;letter-spacing:1px}
+.card-health .health-item .value{font-size:18px;font-weight:700;margin-top:2px}
+.card-health .health-item .sub{font-size:11px;color:#7d8590;margin-top:2px}
 .card.flash{border-color:#58a6ff}
 .card .label{font-size:10px;color:#7d8590;text-transform:uppercase;letter-spacing:1px}
 .card .value{font-size:20px;font-weight:700;margin-top:4px}
@@ -245,6 +252,12 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   .card .sub{font-size:9px;margin-top:1px}
   .card.card-util{display:none}  /* hidden on mobile per user — not useful */
   .card .value{font-size:15px}
+  /* v12.9.3 — Santé card spans 2 cols on 3-col grid (row 2 = Activité + Santé) */
+  .card-health{grid-column:span 2}
+  .card-health .health-row{gap:8px}
+  .card-health .health-item .label{font-size:9px}
+  .card-health .health-item .value{font-size:13px;font-weight:600;margin-top:1px}
+  .card-health .health-item .sub{font-size:9px}
   .section{padding:10px 12px}
   .section h2{font-size:12px}
   body{font-size:12px}
@@ -318,7 +331,9 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 /* v12.5.24: removed the 420px → 1fr override that collapsed mobile cards
    into a single column. The 640px rule already sets 3 columns; narrower
    phones fall back to 2 here so the small cards stay compact but visible. */
-@media(max-width:380px){.cards{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:380px){.cards{grid-template-columns:repeat(2,1fr)}
+  /* v12.9.3 — Santé spans both cols on narrow mobile (its own row) */
+  .card-health{grid-column:span 2}}
 </style>
 </head>
 <body>
@@ -403,20 +418,52 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 </div>
 
 <div class="cards">
-  <div class="card" id="card-balance" title="Estimated liquidation value: if all open positions close at current price, this is the USDC you keep (after estimated close-side taker fees ~9 bps)"><div class="label">Liquidation value</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
-  <div class="card" id="card-dd" title="Drawdown depuis le pic — % de baisse de la balance par rapport à son sommet historique"><div class="label">Drawdown</div><div class="value" id="dd-pct">--</div><div class="sub dim" id="dd-peak">--</div><div class="dd-bar" style="height:3px;background:#30363d;border-radius:2px;margin-top:4px;overflow:hidden"><div id="dd-bar-fill" style="height:100%;width:0%;background:#3fb950;transition:width .3s,background .3s"></div></div></div>
-  <div class="card"><div class="label">Total P&L</div><div class="value" id="pnl-amt">$0</div><div class="sub" id="pnl-pct">0%</div><div class="sub dim" id="pnl-fees"></div></div>
-  <div class="card" id="card-pnl"><div class="label">Unrealized</div><div class="value" id="unrealized">--</div><div class="sub dim" id="available"></div></div>
-  <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
-  <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">--</div></div>
-  <div class="card" id="card-total"><div class="label">Total (real+unreal)</div><div class="value" id="today-pnl">$0.00</div></div>
-  <div class="card card-util"><div class="label">Utilization</div><div class="value" id="util-pct">0%</div></div>
-  <div class="card" id="card-fees"><div class="label">Exchange fees</div><div class="value red" id="fees-total">--</div><div class="sub dim" id="fees-detail">--</div></div>
-  <div class="card" id="card-s10" title="S10 rolling P&L over last 30d — walk-forward filter health">
-    <div class="label">S10 30d <span id="s10-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:4px;vertical-align:middle"></span></div>
-    <div class="value" id="s10-pnl">$--</div>
-    <div class="sub dim" id="s10-detail">--</div>
+  <!-- v12.9.3: 10 cards consolidated to 5 (mobile-density refactor) -->
+  <!-- 1. Liquidation value -->
+  <div class="card" id="card-balance" title="Estimated liquidation value: if all open positions close at current price, this is the USDC you keep (after estimated close-side taker fees ~9 bps)">
+    <div class="label">Liquidation value</div>
+    <div class="value" id="balance">$--</div>
+    <div class="sub dim" id="capital"></div>
   </div>
+  <!-- 2. Drawdown -->
+  <div class="card" id="card-dd" title="Drawdown depuis le pic — % de baisse de la balance par rapport à son sommet historique">
+    <div class="label">Drawdown</div>
+    <div class="value" id="dd-pct">--</div>
+    <div class="sub dim" id="dd-peak">--</div>
+    <div class="dd-bar" style="height:3px;background:#30363d;border-radius:2px;margin-top:4px;overflow:hidden"><div id="dd-bar-fill" style="height:100%;width:0%;background:#3fb950;transition:width .3s,background .3s"></div></div>
+  </div>
+  <!-- 3. P&L (merged: Total real+unreal as main, realized / unrealized as subs) -->
+  <div class="card" id="card-pnl" title="Total P&L = realized + unrealized. R = cumul des trades fermés, U = mark-to-market des positions ouvertes">
+    <div class="label">P&L (R+U)</div>
+    <div class="value" id="today-pnl">$0.00</div>
+    <div class="sub"><span class="dim">R</span> <span id="pnl-amt">$0</span> <span class="dim">·</span> <span id="pnl-pct">0%</span></div>
+    <div class="sub dim"><span class="dim">U</span> <span id="unrealized">--</span> <span id="available"></span> <span id="pnl-fees"></span></div>
+  </div>
+  <!-- 4. Activité (merged: Positions + Trades) -->
+  <div class="card" id="card-activity" title="Positions ouvertes + activité de trade cumulée">
+    <div class="label">Activité</div>
+    <div class="value blue" id="pos-count">0/6</div>
+    <div class="sub" id="pos-detail">0L / 0S</div>
+    <div class="sub dim"><span id="trades-count">0</span> trades · <span id="win-rate">--</span></div>
+  </div>
+  <!-- 5. Santé (merged: Exchange fees + S10 30d, 2-col layout) -->
+  <div class="card card-health" id="card-health">
+    <div class="health-row">
+      <div class="health-item" id="card-fees">
+        <div class="label">Exchange fees</div>
+        <div class="value red" id="fees-total">--</div>
+        <div class="sub dim" id="fees-detail">--</div>
+      </div>
+      <div class="health-item" id="card-s10" title="S10 rolling P&L over last 30d — walk-forward filter health">
+        <div class="label">S10 30d <span id="s10-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:4px;vertical-align:middle"></span></div>
+        <div class="value" id="s10-pnl">$--</div>
+        <div class="sub dim" id="s10-detail">--</div>
+      </div>
+    </div>
+  </div>
+  <!-- Utilization removed (was already hidden on mobile; superseded by Positions sub-line on desktop) -->
+  <!-- Util value still computed in JS for backward compat / future use; rendered hidden -->
+  <span id="util-pct" style="display:none">0%</span>
 </div>
 
 <!-- v11.7.21: compact scan preview — what the bot would do on the next scan, always visible -->
