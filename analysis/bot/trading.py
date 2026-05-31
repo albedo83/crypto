@@ -584,9 +584,11 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
 
         if sig["direction"] == 1 and n_longs >= MAX_SAME_DIRECTION:
             log.debug("SKIP %s %s %s: max_direction", sig["strategy"], side, sym)
+            log_event(bot._db, "SKIP", sym, {"strategy": sig["strategy"], "dir": side, "reason": "max_direction"})
             continue
         if sig["direction"] == -1 and n_shorts >= MAX_SAME_DIRECTION:
             log.debug("SKIP %s %s %s: max_direction", sig["strategy"], side, sym)
+            log_event(bot._db, "SKIP", sym, {"strategy": sig["strategy"], "dir": side, "reason": "max_direction"})
             continue
 
         # Slot reservation: macro vs token-level signals (counters tracked locally)
@@ -603,6 +605,9 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
         sym_sector = TOKEN_SECTOR.get(sym)
         if sym_sector and sector_counts.get(sym_sector, 0) >= MAX_PER_SECTOR:
             log.debug("SKIP %s %s %s: max_sector (%s)", sig["strategy"], side, sym, sym_sector)
+            log_event(bot._db, "SKIP", sym,
+                       {"strategy": sig["strategy"], "dir": side,
+                        "reason": "max_sector", "sector": sym_sector})
             continue
 
         st = bot.states[sym]

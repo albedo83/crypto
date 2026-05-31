@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.8] — 2026-05-31
+- **Trading engine**: SKIP events max_direction + max_sector désormais loggés en DB (audit complet).
+
 ## [12.10.7] — 2026-05-31
 - **Dashboard**: timer "Next 4h" déplacé sur sa propre ligne (fix overflow scan-strip mobile).
 
