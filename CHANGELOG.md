@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.10] — 2026-05-31
+- **Dashboard**: symbole de position cliquable → page CoinMarketCap dans nouvel onglet.
+
 ## [12.10.9] — 2026-05-31
 - **Admin**: page architecture isolée accessible depuis le header admin (forces, faiblesses, modules, dataflow).
 

@@ -284,6 +284,12 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 .m-card.pos-loss{border-color:rgba(248,81,73,0.4)}
 .m-card .m-header{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
 .m-card .m-sym{font-size:19px;font-weight:700;color:#c9d1d9}
+/* v12.10.10 — clickable symbol → CoinMarketCap detail page */
+.m-card .m-sym-link{display:inline-flex;align-items:center;gap:3px;text-decoration:none;color:inherit;padding:1px 4px;border-radius:4px}
+.m-card .m-sym-link:hover{background:rgba(88,166,255,0.12)}
+.m-card .m-sym-link:hover .m-sym{color:#79c0ff}
+.m-card .m-sym-icon{font-size:11px;color:#7d8590;opacity:0.7}
+.m-card .m-sym-link:hover .m-sym-icon{opacity:1;color:#79c0ff}
 .m-card .m-side{font-size:11px;font-weight:600;padding:2px 7px;border-radius:4px;background:rgba(255,255,255,0.05)}
 .m-card .m-side.LONG{color:#3fb950}
 .m-card .m-side.SHORT{color:#f85149}
@@ -902,7 +908,7 @@ function refresh(){
       const statusBadge = p.status ? `<span class="m-status ${p.status.key}" title="${p.status.tip}">${p.status.icon} ${p.status.label}</span>` : '';
       tr.innerHTML=`<td class="m-card-wrap" colspan="13"><div class="m-card ${p.pnl_usdt>=0?'pos-profit':'pos-loss'}">
         <div class="m-header">
-          <span class="m-sym">${p.symbol}</span>
+          <a class="m-sym-link" href="https://coinmarketcap.com/currencies/${p.symbol.toLowerCase()}/" target="_blank" rel="noopener noreferrer" title="${p.symbol} sur CoinMarketCap (nouvel onglet)"><span class="m-sym">${p.symbol}</span><span class="m-sym-icon">↗</span></a>
           <span class="m-side ${p.direction}">${p.direction}</span>
           <span class="m-strat">${p.strategy||'?'}</span>
           ${statusBadge}
