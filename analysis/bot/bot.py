@@ -417,8 +417,22 @@ class MultiSignalBot:
         trading.rank_and_enter — this only builds token-level candidates.
         """
         all_signals: list = []
+        # v12.10.4 — log scan-stage skips (cooldown + already-in-position)
+        # for observability. Previously these were silent `continue`s that made
+        # it impossible to explain "why didn't the bot take WLD ?" from the DB.
+        # Only fires once per 4h-boundary scan (gated by v12.9.0), so ~6 events
+        # per skipped symbol per day max.
         for sym in TRADE_SYMBOLS:
-            if sym in self.positions or (sym in self._cooldowns and time.time() < self._cooldowns[sym]):
+            if sym in self.positions:
+                db_mod.log_event(self._db, "SKIP", sym,
+                                  {"reason": "already_in_position"})
+                continue
+            if sym in self._cooldowns and time.time() < self._cooldowns[sym]:
+                db_mod.log_event(self._db, "SKIP", sym, {
+                    "reason": "cooldown",
+                    "expires_at": int(self._cooldowns[sym]),
+                    "remaining_h": round((self._cooldowns[sym] - time.time()) / 3600, 2),
+                })
                 continue
             f = self._feature_cache.get(sym) or self._compute_features(sym)
             if not f:

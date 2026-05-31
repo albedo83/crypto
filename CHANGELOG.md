@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.4] — 2026-05-31
+- **Trading engine**: skips cooldown + already-in-position désormais loggés en SKIP events pour audit.
+
 ## [12.10.3] — 2026-05-30
 - **Trading engine**: scan déclenché ~1-2 min après chaque candle close pour aligner le timing d'entrée sur le backtest (élimine le délai moyen ~30 min).
 
