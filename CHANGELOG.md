@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.7] — 2026-05-31
+- **Dashboard**: timer "Next 4h" déplacé sur sa propre ligne (fix overflow scan-strip mobile).
+
 ## [12.10.6] — 2026-05-31
 - **Dashboard**: P&L curve + Status header WR/trades scopés au tracking window (rattrape l'oubli v12.10.1).
 
