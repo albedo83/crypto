@@ -18,6 +18,26 @@ def is_bot_trade(t) -> bool:
     return t.reason not in ("manual_stop", "reset")
 
 
+def filter_by_perf_scope(trades, perf_track_start_ts: float = 0.0) -> list:
+    """Return trades with entry_time >= perf_track_start_ts (unix seconds).
+    No-op (returns list copy) if start_ts <= 0. v12.10.6 helper shared by
+    compute_signal_drift, build_pnl_curve, build_state_response — to keep
+    all "lifetime" dashboard widgets consistently scoped after a soft reset.
+    """
+    if perf_track_start_ts <= 0:
+        return list(trades)
+    from datetime import datetime as _dt
+    out = []
+    for t in trades:
+        try:
+            ts = _dt.fromisoformat(t.entry_time).timestamp()
+        except (ValueError, AttributeError):
+            ts = 0
+        if ts == 0 or ts >= perf_track_start_ts:
+            out.append(t)
+    return out
+
+
 def compute_signal_drift(trades, perf_track_start_ts: float = 0.0) -> dict:
     """Per-strategy stats — lifetime AND rolling 20 trades.
 

@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.6] — 2026-05-31
+- **Dashboard**: P&L curve + Status header WR/trades scopés au tracking window (rattrape l'oubli v12.10.1).
+
 ## [12.10.5] — 2026-05-31
 - **Dashboard**: indicateur "Next 4h" dans la scan-strip (UTC + local + countdown) — timing de la prochaine évaluation d'entrées.
 

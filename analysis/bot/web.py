@@ -39,7 +39,7 @@ def _mode_color() -> str:
 log = logging.getLogger("multisignal")
 
 # DRY: shared helpers live in trading.py
-from .analytics import (is_bot_trade, compute_signal_drift, compute_s10_health,
+from .analytics import (is_bot_trade, compute_signal_drift, compute_s10_health, filter_by_perf_scope,
                          estimate_win_prob, filter_recent_trades)
 from .trading import signal_skip_reason
 from .net import send_telegram
@@ -136,7 +136,9 @@ def build_daily_summary(bot) -> str:
 def build_state_response(bot) -> dict:
     """Full dashboard state dict."""
     now = datetime.now(timezone.utc)
-    bt = [t for t in bot.trades if is_bot_trade(t)]
+    # v12.10.6: scope lifetime widgets by perf_track_start_ts (mirror v12.10.1)
+    _perf_start = getattr(bot, "_perf_track_start_ts", 0.0)
+    bt = [t for t in filter_by_perf_scope(bot.trades, _perf_start) if is_bot_trade(t)]
     n_bot, wins = len(bt), sum(1 for t in bt if t.pnl_usdt > 0)
     balance = bot._capital + bot._total_pnl
     # v12.5.13: deterministic equity = balance + sum of unrealized at current
@@ -492,17 +494,22 @@ def build_trades_list(trades, limit: int = 50) -> list:
     tl = list(trades)
     return [t.__dict__ for t in tl[-limit:][::-1]]
 
-def build_pnl_curve(trades, capital: float) -> list:
+def build_pnl_curve(trades, capital: float, perf_track_start_ts: float = 0.0) -> list:
     """Cumulative P&L curve for the dashboard chart.
 
     `balance` uses the *initial* CAPITAL_USDT constant as baseline rather than
     the live bot._capital — this keeps historical balance points consistent
     after DCA injections. DCA itself shifts the current reference, not the
     historical curve.
+
+    v12.10.6 : when `perf_track_start_ts > 0` (post soft-reset), filter to
+    trades with entry_time >= start. Cumulative restarts at 0 from the reset
+    point, consistent with the scoped signal_drift + Status header widgets.
     """
     _ = capital  # accepted for backwards compat but unused; baseline is CAPITAL_USDT
+    scoped = filter_by_perf_scope(trades, perf_track_start_ts)
     cum, pts = 0.0, []
-    for t in trades:
+    for t in scoped:
         cum += t.pnl_usdt
         pts.append({"time": t.exit_time, "cum_pnl": round(cum, 2),
                     "balance": round(CAPITAL_USDT + cum, 2)})
@@ -988,7 +995,7 @@ def create_app(bot) -> FastAPI:
     @app.get("/api/trades")
     async def api_trades(limit: int = 50): return JSONResponse(build_trades_list(bot.trades, limit))
     @app.get("/api/pnl")
-    async def api_pnl(): return JSONResponse(build_pnl_curve(bot.trades, bot._capital))
+    async def api_pnl(): return JSONResponse(build_pnl_curve(bot.trades, bot._capital, getattr(bot, "_perf_track_start_ts", 0.0)))
 
     @app.get("/api/events")
     def api_events(limit: int = 30):
