@@ -1187,10 +1187,21 @@ function refresh(){
       }
     }
     // v11.7.21: compact scan strip — pills above Open Positions, always visible
+    // v12.10.5: prepend "Next 4h" timer (UTC + local + minutes remaining).
+    //   Entry signals are gated by v12.9.0 to candle close boundaries 00/04/08/12/16/20 UTC.
+    //   The boundary-triggered scan (v12.10.3) fires within ~60-120s after the close.
+    const _now4h = Date.now();
+    const _next4hMs = Math.ceil(_now4h / (4*3600*1000)) * (4*3600*1000);
+    const _next4hDt = new Date(_next4hMs);
+    const _minRem = Math.round((_next4hMs - _now4h) / 60000);
+    const _utc = String(_next4hDt.getUTCHours()).padStart(2,'0') + ':' + String(_next4hDt.getUTCMinutes()).padStart(2,'0');
+    const _local = String(_next4hDt.getHours()).padStart(2,'0') + ':' + String(_next4hDt.getMinutes()).padStart(2,'0');
+    const next4hHtml = `<span class="dim" style="font-size:10px;white-space:nowrap" title="Prochain candle close 4h — déclenchera l'évaluation des entrées (gate v12.9.0)">⏱ Next 4h: ${_utc} UTC / ${_local} local · in ${_minRem}min</span>`;
+
     const ss=document.getElementById('scan-strip');
     if(ss){
       if(!items.length){
-        ss.innerHTML='<span class="scan-strip-label">Scan preview</span><span class="dim" style="font-size:11px">no signal firing now</span>';
+        ss.innerHTML=`<span class="scan-strip-label">Scan preview</span><span class="dim" style="font-size:11px">no signal firing now</span><span style="margin-left:auto;flex-shrink:0">${next4hHtml}</span>`;
       } else {
         // Group by status for headline counts
         const counts={};items.forEach(i=>{counts[i.status]=(counts[i.status]||0)+1});
@@ -1207,7 +1218,7 @@ function refresh(){
           const arrow = i.direction==='LONG' ? '▲' : '▼';
           return `<span class="scan-pill ${cls}" title="${i.strategy} ${i.direction} ${i.symbol} — ${i.status}"><b>${i.symbol}</b><span class="sp-strat">${i.strategy}</span><span class="sp-dir" style="color:${dirCol}">${arrow}</span><span class="sp-status">${i.status==='would enter'?'enter':i.status}</span></span>`;
         }).join('');
-        ss.innerHTML=`<span class="scan-strip-label">Scan preview</span>${pills}<span style="margin-left:auto;flex-shrink:0">${summary}</span>`;
+        ss.innerHTML=`<span class="scan-strip-label">Scan preview</span>${pills}<span style="margin-left:auto;flex-shrink:0;display:flex;gap:8px;align-items:center">${summary} · ${next4hHtml}</span>`;
       }
     }
 

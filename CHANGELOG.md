@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.5] — 2026-05-31
+- **Dashboard**: indicateur "Next 4h" dans la scan-strip (UTC + local + countdown) — timing de la prochaine évaluation d'entrées.
+
 ## [12.10.4] — 2026-05-31
 - **Trading engine**: skips cooldown + already-in-position désormais loggés en SKIP events pour audit.
 
