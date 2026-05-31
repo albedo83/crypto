@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.11] — 2026-05-31
+- **Dashboard**: lien symbole position vers Hyperliquid trade page (au lieu de CoinMarketCap).
+
 ## [12.10.10] — 2026-05-31
 - **Dashboard**: symbole de position cliquable → page CoinMarketCap dans nouvel onglet.
 

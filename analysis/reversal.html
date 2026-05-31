@@ -908,7 +908,7 @@ function refresh(){
       const statusBadge = p.status ? `<span class="m-status ${p.status.key}" title="${p.status.tip}">${p.status.icon} ${p.status.label}</span>` : '';
       tr.innerHTML=`<td class="m-card-wrap" colspan="13"><div class="m-card ${p.pnl_usdt>=0?'pos-profit':'pos-loss'}">
         <div class="m-header">
-          <a class="m-sym-link" href="https://coinmarketcap.com/currencies/${p.symbol.toLowerCase()}/" target="_blank" rel="noopener noreferrer" title="${p.symbol} sur CoinMarketCap (nouvel onglet)"><span class="m-sym">${p.symbol}</span><span class="m-sym-icon">↗</span></a>
+          <a class="m-sym-link" href="https://app.hyperliquid.xyz/trade/${p.symbol}" target="_blank" rel="noopener noreferrer" title="${p.symbol} sur Hyperliquid (nouvel onglet)"><span class="m-sym">${p.symbol}</span><span class="m-sym-icon">↗</span></a>
           <span class="m-side ${p.direction}">${p.direction}</span>
           <span class="m-strat">${p.strategy||'?'}</span>
           ${statusBadge}
