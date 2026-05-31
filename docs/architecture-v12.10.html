@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Architecture — Crypto Trading Bot v12.10.8</title>
+<style>
+:root {
+  --bg: #0d1117; --card: #161b22; --card2: #1c2128; --border: #30363d;
+  --text: #c9d1d9; --muted: #7d8590; --accent: #58a6ff; --accent2: #79c0ff;
+  --green: #3fb950; --yellow: #d29922; --red: #f85149; --orange: #ff8e1c;
+  --strong: #e6edf3; --code-bg: #0d1117;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--bg); color: var(--text); line-height: 1.55; font-size: 14px;
+}
+.layout { display: flex; min-height: 100vh; }
+.sidebar {
+  width: 240px; background: var(--card); border-right: 1px solid var(--border);
+  padding: 18px 14px; position: sticky; top: 0; height: 100vh; overflow-y: auto;
+  flex-shrink: 0;
+}
+.sidebar h1 { font-size: 14px; margin: 0 0 4px; color: var(--strong); }
+.sidebar .sub { font-size: 11px; color: var(--muted); margin-bottom: 18px; }
+.sidebar nav a {
+  display: block; padding: 6px 8px; color: var(--text); text-decoration: none;
+  font-size: 12px; border-radius: 4px; margin-bottom: 2px;
+}
+.sidebar nav a:hover { background: var(--card2); color: var(--accent2); }
+.sidebar nav .sec-label {
+  font-size: 9px; color: var(--muted); text-transform: uppercase;
+  letter-spacing: 0.5px; padding: 10px 8px 4px;
+}
+main { flex: 1; padding: 28px 36px; max-width: 1100px; }
+h2 {
+  color: var(--strong); border-bottom: 1px solid var(--border); padding-bottom: 8px;
+  margin-top: 38px; font-size: 22px;
+}
+h3 { color: var(--accent2); margin-top: 26px; font-size: 16px; }
+h4 { color: var(--strong); margin-top: 18px; font-size: 14px; text-transform: uppercase; letter-spacing: .5px; }
+p { margin: 8px 0; }
+code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px;
+  font-family: 'SFMono-Regular', Consolas, monospace; font-size: 12px; color: var(--accent2); }
+pre { background: var(--code-bg); padding: 12px 14px; border-radius: 6px;
+  border: 1px solid var(--border); overflow-x: auto; font-size: 12px; line-height: 1.5; }
+pre code { background: none; color: var(--text); padding: 0; }
+.card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 14px 18px; margin: 12px 0;
+}
+.grid { display: grid; gap: 14px; }
+.grid-2 { grid-template-columns: 1fr 1fr; }
+.grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+@media (max-width: 900px) {
+  .layout { flex-direction: column; }
+  .sidebar { width: 100%; position: relative; height: auto; }
+  main { padding: 18px 20px; }
+  .grid-2, .grid-3 { grid-template-columns: 1fr; }
+}
+table {
+  width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px;
+  background: var(--card);
+}
+th, td { padding: 8px 12px; text-align: left; border: 1px solid var(--border); }
+th { background: var(--card2); color: var(--strong); font-weight: 600; }
+td code { font-size: 11.5px; }
+.pill {
+  display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 11px;
+  font-weight: 600; margin-right: 4px;
+}
+.pill-green { background: #1a4731; color: var(--green); }
+.pill-red { background: #4a1f1f; color: var(--red); }
+.pill-yellow { background: #4a3a17; color: var(--yellow); }
+.pill-blue { background: #1f3a4a; color: var(--accent2); }
+.pill-grey { background: var(--card2); color: var(--muted); }
+.strength { border-left: 3px solid var(--green); padding-left: 14px; margin: 14px 0; }
+.weakness { border-left: 3px solid var(--red); padding-left: 14px; margin: 14px 0; }
+.callout {
+  background: var(--card2); border-left: 3px solid var(--accent); padding: 10px 14px;
+  margin: 14px 0; border-radius: 0 4px 4px 0; font-size: 13px;
+}
+.callout.warn { border-left-color: var(--yellow); }
+.callout.danger { border-left-color: var(--red); }
+details { background: var(--card); border: 1px solid var(--border); border-radius: 6px; margin: 8px 0; }
+details summary {
+  padding: 10px 14px; cursor: pointer; font-weight: 600; color: var(--accent2);
+  user-select: none;
+}
+details summary:hover { background: var(--card2); }
+details[open] summary { border-bottom: 1px solid var(--border); }
+details .content { padding: 8px 18px 14px; }
+.dataflow {
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; margin: 14px 0; font-family: 'SFMono-Regular', monospace;
+  font-size: 11px; line-height: 1.6; white-space: pre; overflow-x: auto;
+  color: var(--text);
+}
+.tab-bar {
+  display: flex; gap: 4px; border-bottom: 1px solid var(--border); margin: 14px 0 0;
+}
+.tab-btn {
+  padding: 8px 14px; background: none; border: 1px solid transparent; border-bottom: 0;
+  color: var(--muted); cursor: pointer; font-size: 13px; border-radius: 4px 4px 0 0;
+  font-family: inherit;
+}
+.tab-btn.active {
+  background: var(--card); border-color: var(--border); color: var(--accent2);
+  font-weight: 600;
+}
+.tab-content { display: none; padding: 14px 0; }
+.tab-content.active { display: block; }
+.kpi {
+  display: inline-block; padding: 6px 12px; background: var(--card2);
+  border-radius: 4px; margin: 4px 6px 4px 0; font-size: 12px;
+}
+.kpi b { color: var(--accent2); }
+.footer { color: var(--muted); font-size: 11px; padding: 30px 0 0; text-align: center; }
+hr { border: none; border-top: 1px solid var(--border); margin: 28px 0; }
+.legend { font-size: 11px; color: var(--muted); }
+ul, ol { margin: 6px 0; padding-left: 22px; }
+li { margin: 3px 0; }
+</style>
+</head>
+<body>
+<div class="layout">
+
+<aside class="sidebar">
+  <h1>Architecture v12.10.8</h1>
+  <div class="sub">Crypto bot Hyperliquid · 2026-05-31</div>
+  <nav>
+    <div class="sec-label">Vue d'ensemble</div>
+    <a href="#vision">Vision & but</a>
+    <a href="#modules">Modules</a>
+    <a href="#dataflow">Flux de données</a>
+
+    <div class="sec-label">Stratégies & règles</div>
+    <a href="#strategies">5 stratégies actives</a>
+    <a href="#modulator">Modulator macro</a>
+    <a href="#exits">Mécaniques d'exit</a>
+    <a href="#riskmgmt">Risk management</a>
+
+    <div class="sec-label">Infrastructure</div>
+    <a href="#persistence">Persistence</a>
+    <a href="#alignment">Live ↔ Backtest</a>
+    <a href="#observability">Observabilité</a>
+    <a href="#security">Sécurité & auth</a>
+
+    <div class="sec-label">Analyse</div>
+    <a href="#strengths">Forces</a>
+    <a href="#weaknesses">Faiblesses</a>
+    <a href="#roadmap">Roadmap</a>
+  </nav>
+</aside>
+
+<main>
+
+<h2 id="vision" style="margin-top: 4px">Vision & but</h2>
+<div class="card">
+  <p><b>Bot multi-stratégies sur Hyperliquid (DEX accessible depuis la France)</b>, opérant sur 35 altcoins en perps cross 2× leverage. Combine 5 stratégies orthogonales détectant des inefficiences court-terme (4-72h) sur le marché alt.</p>
+  <p>3 instances : <span class="pill pill-blue">Paper $1000</span> <span class="pill pill-red">Live $641 réel</span> <span class="pill pill-yellow">Junior $300 (HL agent wallet)</span>. Toutes alimentées par le même code, runtime indépendant.</p>
+  <p><b>Principe de design</b> : conviction modérée (~6 positions max), pas de leverage agressif, exits multiples redondants, audit complet en SQLite, alerts Telegram, dashboard temps réel.</p>
+  <div class="kpi"><b>1500+</b> règles testées</div>
+  <div class="kpi"><b>5</b> stratégies survivantes walk-forward</div>
+  <div class="kpi"><b>0</b> retours d'overfit en 13 mois</div>
+  <div class="kpi"><b>v12.10.8</b> after ~250 versions</div>
+</div>
+
+<h2 id="modules">Architecture modulaire (12 modules)</h2>
+<div class="card">
+  <p>Conscient effort pour limiter la complexité par fichier. Aucun module ne dépasse 700 lignes.</p>
+  <table>
+    <tr><th>Module</th><th>Responsabilité</th><th>Taille</th></tr>
+    <tr><td><code>main.py</code></td><td>Entry point, signal handlers, uvicorn launch, boot reconcile</td><td>~230</td></tr>
+    <tr><td><code>bot.py</code></td><td>Orchestrator <code>MultiSignalBot</code> : main loop, scan timing, alerts</td><td>~700</td></tr>
+    <tr><td><code>config.py</code></td><td>Constantes, env, sizing, thresholds, version</td><td>~470</td></tr>
+    <tr><td><code>models.py</code></td><td>Dataclasses : <code>SymbolState</code>, <code>Position</code>, <code>Trade</code></td><td>~80</td></tr>
+    <tr><td><code>signals.py</code></td><td>Détection S1/S5/S8/S9/S10 + squeeze + cross-context dispersion</td><td>~290</td></tr>
+    <tr><td><code>features.py</code></td><td>Features techniques (vol_z, ret_24h, drawdown), OI, crowding, BTC z-score, DXY, basket correlation</td><td>~330</td></tr>
+    <tr><td><code>trading.py</code></td><td>Entries (<code>rank_and_enter</code>) + exits (<code>check_exits</code>) + close_position</td><td>~700</td></tr>
+    <tr><td><code>exchange.py</code></td><td>Hyperliquid SDK : open/close/reconcile, equity fetch, runtime SDK patch</td><td>~470</td></tr>
+    <tr><td><code>persistence.py</code></td><td>save/load state.json atomique, file lock, position restore</td><td>~260</td></tr>
+    <tr><td><code>db.py</code></td><td>SQLite : trades, trajectories, market_snapshots, events</td><td>~250</td></tr>
+    <tr><td><code>web.py</code></td><td>FastAPI : dashboard HTML, /api/state, /api/close, /api/pause, /api/reset, login HMAC</td><td>~1200</td></tr>
+    <tr><td><code>net.py</code></td><td>HTTP retry, fetch_candles, Telegram send</td><td>~240</td></tr>
+    <tr><td><code>analytics.py</code></td><td>compute_signal_drift, s10_health, filter_by_perf_scope</td><td>~150</td></tr>
+  </table>
+  <p class="legend">Plus <code>reversal.html</code> (~2200 lignes — dashboard SPA) + <code>reversal.py</code> (shim 6 lignes pour backward-compat).</p>
+</div>
+
+<h2 id="dataflow">Flux de données</h2>
+<div class="dataflow">Hyperliquid REST API (read)
+    ├── metaAndAssetCtxs (prices + OI + funding + premium, every 60s)
+    ├── candleSnapshot (4h candles, every hour, 35 symbols)
+    └── Yahoo Finance (DXY, every 6h, cached 48h)
+            │
+            ▼
+    analysis/bot/ (12 modules, single asyncio process)
+    ├── main loop (60s tick)
+    │     ├── 60s : exits / MAE/MFE / equity refresh
+    │     ├── 1h  : reconcile / features cache / Telegram alerts (v12.9.5+)
+    │     └── 4h boundary +60s : entry signal evaluation (v12.9.0 + v12.10.3)
+    │            │
+    │            ▼
+    │       rank_and_enter → order placement
+    │            │
+    ▼            ▼
+SQLite DB     Hyperliquid SDK (write, live mode only)
+  events,     ├── market_open / market_close (taker orders)
+  trades,     ├── update_leverage (2x cross all symbols, at boot)
+  trajectories└── user_state (reconciliation)
+            │
+            ▼
+       state.json (atomic write, fcntl lock)
+            │
+            ▼
+       FastAPI dashboard :8097 / :8098 / :8099
+            │
+            ▼
+       Telegram alerts (security, daily, giveback, lock_floor, regime)
+</div>
+
+<h2 id="strategies">5 stratégies actives</h2>
+<p>Toutes ont passé walk-forward strict 4/4 (28m / 12m / 6m / 3m). Ranking par z-score : <code>S9 (8.71) > S8 (6.99) > S1 (6.42) > S5 (3.67) > S10 (3.66)</code>.</p>
+
+<div class="tab-bar">
+  <button class="tab-btn active" onclick="showTab('s1')">S1 — BTC momentum</button>
+  <button class="tab-btn" onclick="showTab('s5')">S5 — Sector divergence</button>
+  <button class="tab-btn" onclick="showTab('s8')">S8 — Capitulation</button>
+  <button class="tab-btn" onclick="showTab('s9')">S9 — Extreme fade</button>
+  <button class="tab-btn" onclick="showTab('s10')">S10 — Squeeze</button>
+</div>
+
+<div id="tab-s1" class="tab-content active">
+  <h4>S1 — BTC momentum → LONG alts</h4>
+  <p>Quand BTC affiche une tendance haussière forte sur 30j (BTC30d > +2000 bps), longue des alts. Macro strategy, slots limités à <code>MAX_MACRO_SLOTS=3</code>.</p>
+  <p><b>Modulator v11.10.0</b> : taille ajustée par <code>1 + α × btc_z</code> avec α=+0.5 (amplifie en bull, neutre en bear).</p>
+  <p class="legend">Dormant depuis ~12 mois (BTC30d négatif structurellement). Réactivation attendue lors d'un futur bull market.</p>
+</div>
+
+<div id="tab-s5" class="tab-content">
+  <h4>S5 — Sector divergence (LONG ou SHORT)</h4>
+  <p>Détecte les tokens qui divergent fortement de leur secteur (Infra, DeFi, Meme, AI, etc.) avec un vol_z élevé. Fade la divergence : si le token surperforme le secteur → SHORT ; si sous-performe → LONG.</p>
+  <p><b>Adaptive modulator</b> : <code>α=+0.5</code> sur LONG (bear-favored), <code>α=-0.5</code> sur SHORT (bear-favored). Tableau directionnel <code>ADAPTIVE_ALPHA_DIR={(S5,-1):-0.5}</code> v12.2.0.</p>
+  <p><b>Mécaniques mid-trade</b> :</p>
+  <ul>
+    <li><code>traj_cut</code> v12.7.1 — coupe quand trajectoire désespérée en bear (régime-conditionné)</li>
+    <li><code>dead_timeout</code> — coupe à T-12h si pinné MAE</li>
+  </ul>
+  <p>Stratégie la plus actuellement active. Bimodalité documentée (winners long-tail vs catastrophes), modulator + traj_cut filtrent les catastrophes.</p>
+</div>
+
+<div id="tab-s8" class="tab-content">
+  <h4>S8 — Capitulation flush → LONG</h4>
+  <p>Détecte les conditions multi-critères de capitulation : drawdown extrême + vol_z élevé + ret_24h négatif + btc_7d négatif. Achète le bottom des flush events.</p>
+  <p><b>Mécaniques mid-trade</b> :</p>
+  <ul>
+    <li><code>s8_inlife_trail</code> v12.5.30 — MFE-conditioned trail, 3 buckets par btc_z (bear : trail tight à 1500/100, neutral : 300/300, bull : 1500/100). Null-shuffle z=+10.52.</li>
+    <li><code>s8_dead_in_water</code> v12.6.0 — coupe à T+8h si MFE ≤ 50 (signature "rebond mort-né")</li>
+  </ul>
+  <p>Stop loss spécifique : <code>STOP_LOSS_S8=-750 bps</code> (vs <code>STOP_LOSS_BPS=-1250</code> par défaut).</p>
+</div>
+
+<div id="tab-s9" class="tab-content">
+  <h4>S9 — Extreme move fade (±20% / 24h)</h4>
+  <p>Quand un token bouge de plus de 20% en 24h, fade ce mouvement (mean reversion sur les overshoots extrêmes).</p>
+  <p><b>Modulator</b> α=-0.5 (bear-favored — funding extrême corrèle avec bear regime).</p>
+  <p><b>Protections</b> :</p>
+  <ul>
+    <li><code>S9_EARLY_EXIT</code> — coupe à T+8h si current ≤ -500 bps</li>
+    <li><code>S9_ADAPTIVE_STOP</code> — stop calculé selon volatilité du token</li>
+    <li><code>runner_extension</code> v11.7.32 — extend hold +12h si MFE ≥ 1200 et current/MFE ≥ 0.3 (capture la continuation)</li>
+  </ul>
+</div>
+
+<div id="tab-s10" class="tab-content">
+  <h4>S10 — Squeeze + faux breakout fade</h4>
+  <p>Pattern technique en 3 étapes :</p>
+  <ol>
+    <li>Squeeze : 3 bougies 4h avec <code>vol_ratio ≤ 0.9</code></li>
+    <li>Faux breakout : 4e bougie sort de ≥ 0,5× du range</li>
+    <li>Réintégration : retour dans la zone de squeeze sous 2 bougies</li>
+  </ol>
+  <p>Fade le breakout (fade-the-fakeout). <b>SHORT-only</b> (LONGs blacklisted : 45% WR sur 28m). Whitelist 13 tokens : AAVE, APT, ARB, BLUR, COMP, CRV, INJ, MINA, OP, PYTH, SEI, SNX, WLD.</p>
+  <p><b>Trailing stop</b> v11.4.0 : exit à MFE−150 bps quand MFE > 600 bps.</p>
+</div>
+
+<h2 id="modulator">Modulator macro (v11.10.0+)</h2>
+<div class="card">
+  <p>Adjusts <b>position size</b> by <code>1 + α × btc_z</code> where <code>btc_z</code> = rolling 6-month z-score of BTC's 30-day return.</p>
+  <table>
+    <tr><th>Stratégie</th><th>α global</th><th>α directionnel</th><th>Effet</th></tr>
+    <tr><td>S1</td><td>+0.5</td><td>—</td><td>Amplifie en bull (BTC momentum)</td></tr>
+    <tr><td>S8</td><td>-0.5</td><td>—</td><td>Amplifie en bear (capitulation favor bear)</td></tr>
+    <tr><td>S9</td><td>-0.5</td><td>—</td><td>Amplifie en bear (extreme moves favor bear)</td></tr>
+    <tr><td>S5 LONG</td><td>0</td><td>—</td><td>Stable (sliding OOS instable)</td></tr>
+    <tr><td>S5 SHORT</td><td>—</td><td>-0.5 (v12.2.0)</td><td>Réduit en bull (évite SEI-type catastrophes)</td></tr>
+    <tr><td>S10</td><td>0</td><td>—</td><td>Stable</td></tr>
+  </table>
+  <p>Multiplier clip <code>[0.3, 2.5]</code>, btc_z clip <code>±2.5</code>.</p>
+</div>
+
+<h2 id="exits">Mécaniques d'exit</h2>
+<p>Exits chained en cascade dans <code>trading.check_exits</code> (~10 mécaniques actives), checked toutes les heures sur prix locaux (pas dépendant de HL response).</p>
+<details>
+  <summary>Ordre des checks (priorité descendante)</summary>
+  <div class="content">
+    <ol>
+      <li><code>catastrophe_stop</code> — <code>-1250 bps</code> (default) / <code>-750 bps</code> (S8). Hard cap, protection ultime.</li>
+      <li><code>manual_stop_set</code> — stop manuel dollar via dashboard 🎯 button</li>
+      <li><code>s9_adaptive_stop</code> — stop volatility-aware pour S9</li>
+      <li><code>s9_early_exit</code> — T+8h, current ≤ -500</li>
+      <li><code>runner_extension</code> — extend hold S9 si MFE ≥ 1200 et current/MFE ≥ 0.3</li>
+      <li><code>s10_trailing</code> — MFE - 150 bps si MFE ≥ 600</li>
+      <li><code>s8_inlife_trail</code> — bucket par btc_z, MFE trail</li>
+      <li><code>s8_dead_in_water</code> — T+8h, MFE ≤ 50 (S8 only)</li>
+      <li><code>traj_cut</code> — trajectoire désespérée S5 en bear (régime-conditioned)</li>
+      <li><code>dead_timeout</code> — T-12h, MFE ≤ 150, MAE ≤ -500, current ≤ MAE+300</li>
+      <li><code>timeout</code> — hold expiré (S5 48h, S8 60h, défaut 72h, S9 48h, S10 24h)</li>
+      <li><code>mtm_final</code> — fin de backtest window (BT only)</li>
+    </ol>
+  </div>
+</details>
+
+<h2 id="riskmgmt">Risk management — slot caps</h2>
+<table>
+  <tr><th>Cap</th><th>Valeur</th><th>Description</th></tr>
+  <tr><td><code>MAX_POSITIONS</code></td><td>6</td><td>Total positions ouvertes simultanées</td></tr>
+  <tr><td><code>MAX_TOKEN_SLOTS</code></td><td>4</td><td>Positions non-macro (S5/S8/S9/S10)</td></tr>
+  <tr><td><code>MAX_MACRO_SLOTS</code></td><td>3</td><td>Positions macro (S1)</td></tr>
+  <tr><td><code>MAX_SAME_DIRECTION</code></td><td>4</td><td>Positions LONG ou SHORT simultanées</td></tr>
+  <tr><td><code>MAX_PER_SECTOR</code></td><td>2</td><td>Positions par secteur (Infra, DeFi, Meme, AI, L1-major, L1-emerging, Privacy)</td></tr>
+  <tr><td><code>LEVERAGE</code></td><td>2.0</td><td>Cross-margin sur tous les symbols (3× testé = ruin)</td></tr>
+  <tr><td><code>SIZE_PCT</code></td><td>0.18 + 0.03 z-weighted</td><td>Base sizing 18% du capital, bonus 3% selon z-score signal</td></tr>
+  <tr><td><code>COOLDOWN_HOURS</code></td><td>24</td><td>Re-entry impossible sur même token pendant 24h post-close</td></tr>
+  <tr><td><code>TRADE_BLACKLIST</code></td><td>{SUI, IMX, LINK}</td><td>Tokens structurellement net-négatifs sur walk-forward</td></tr>
+</table>
+
+<h2 id="persistence">Persistence & state</h2>
+<div class="card">
+  <h4>state.json (atomic write avec fcntl lock)</h4>
+  <p>Fichier unique par bot. Tout l'état runtime nécessaire pour survivre un restart sans perte :</p>
+  <ul>
+    <li><code>capital</code>, <code>total_pnl</code>, <code>wins</code>, <code>peak_balance</code></li>
+    <li><code>positions</code> (avec entry_price/time, MAE/MFE, trajectory, manual_stop_usdt, extended flag)</li>
+    <li><code>paused</code>, <code>consecutive_losses</code>, <code>cooldowns</code>, <code>signal_first_seen</code></li>
+    <li><code>feature_cache</code> (restauré si < 2h)</li>
+    <li><code>_pnl_realign_offset</code> — pour rectifier post-realign sans noyer le drift check (v12.6.1)</li>
+    <li><code>_last_entry_scan_4h_close</code> — pour le gate v12.9.0 (évite double-fire post-restart)</li>
+    <li><code>_fees_track_start_ts</code> — scope fenêtre fees dashboard (v12.9.2)</li>
+    <li><code>_perf_track_start_ts</code> — scope fenêtre strategy perf dashboard (v12.10.1)</li>
+  </ul>
+  <h4>SQLite (3 DBs séparées : paper / live / junior)</h4>
+  <table>
+    <tr><th>Table</th><th>Contenu</th></tr>
+    <tr><td><code>trades</code></td><td>Tous les trades fermés, avec funding réel par-trade (v11.7.5), entry_oi_delta, crowding, confluence, session</td></tr>
+    <tr><td><code>trajectories</code></td><td>Snapshot MAE/MFE par bougie pour analyse post-hoc</td></tr>
+    <tr><td><code>market_snapshots</code></td><td>OI / funding / premium par token, snapshot horaire</td></tr>
+    <tr><td><code>events</code></td><td>SKIP, OPEN, CLOSE, S9F_OBS, WR_ALERT, GIVEBACK_ALERT, LOCK_FLOOR_ALERT, REGIME_ALERT, SUPERVISOR_REPORT, STRATEGY_REVIEW</td></tr>
+    <tr><td><code>ticks</code></td><td>Snapshots de prix toutes les 60s</td></tr>
+  </table>
+</div>
+
+<h2 id="alignment">Live ↔ Backtest alignment</h2>
+<p>Une obsession récente du projet : le bot live doit produire les <b>mêmes trades</b> que le BT engine sur les mêmes données. Audits multiples ont identifié et corrigé les divergences majeures.</p>
+
+<table>
+  <tr><th>Version</th><th>Fix</th><th>Effet</th></tr>
+  <tr><td>v12.9.0</td><td>Gate entrées sur 4h candle close (au lieu d'hourly)</td><td>Élimine 75/119 trades intra-candle perdants sur 65j live (cum −$257)</td></tr>
+  <tr><td>v12.9.7</td><td>BT engine TOKENS aligné sur live TRADE_SYMBOLS (28→35)</td><td>Backtest simulait 28 tokens, live tradait 35. Fix le rattrapage v12.7.0.</td></tr>
+  <tr><td>v12.10.3</td><td>Boundary scan déclenché 60s après le 4h close</td><td>Délai d'entrée 0-59 min → 60-120s. Convergence quasi-parfaite BT↔live.</td></tr>
+</table>
+
+<div class="callout">
+  <b>Divergences résiduelles structurelles</b> (irréductibles) : slippage live (~0.15 bps RT mean, dans la marge BT 4 bps), path divergence (compounding différent même avec mêmes règles), interventions manuelles (manual_close, manual_stop_set — invisible en BT).
+</div>
+
+<h2 id="observability">Observabilité — multi-canal</h2>
+<div class="grid grid-2">
+  <div class="card">
+    <h4>Dashboard temps réel</h4>
+    <ul>
+      <li>3 instances :8097/:8098/:8099 + admin :8090</li>
+      <li>10 cards header (Balance, DD, P&L, Unrealized, Positions, Trades, Total RU, Util, Fees, S10)</li>
+      <li>Scan preview (signaux fire-ant + status)</li>
+      <li><b>Next 4h timer (v12.10.7)</b> UTC + local + countdown</li>
+      <li>Strategy Performance (lifetime + recent 20 + trend, scopable depuis date custom v12.10.1)</li>
+      <li>P&L curve, trade history, price chart, équity reconcile</li>
+      <li>Manual close 🎯, manual stop $$, pause, reset</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Telegram (Bot Token + chat ID)</h4>
+    <ul>
+      <li>OPEN / CLOSE par trade (live + paper)</li>
+      <li>Daily report 09:00 UTC (P&L jour, balance, WR, open positions)</li>
+      <li><b>Alerts time-critical</b> (v12.9.5 hors gate 4h) : WR_ALERT, GIVEBACK_ALERT, LOCK_FLOOR_ALERT, REGIME_ALERT</li>
+      <li>Security : login OK / failed attempts, equity drift</li>
+      <li>Boot reconcile ghosts/orphans</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Supervisor LLM (daily 08:00 UTC)</h4>
+    <ul>
+      <li><code>analysis/strategy_review.py</code> ne dépend pas d'Anthropic</li>
+      <li><code>supervisor.py</code> appelle Claude Haiku 4.5 avec context (CLAUDE.md, docs, /api/state)</li>
+      <li>Output JSON strict → message Telegram en français</li>
+      <li>Coût : ~$0.50/mois (cache hit ratio élevé)</li>
+    </ul>
+  </div>
+  <div class="card">
+    <h4>Drift monitor (weekly Monday 08:00 UTC)</h4>
+    <ul>
+      <li><code>analysis/strategy_review.py</code> stdlib only (no LLM)</li>
+      <li>Per-(strategy, token, direction) stats sur 30/90/365 jours</li>
+      <li>5 catégories d'alertes : STRAT_DRIFT, TOKEN_TOXIC, TOKEN_REVIVAL, LIVE_VS_BT, REGIME_SHIFT</li>
+      <li>Observation-only — ne modifie rien</li>
+    </ul>
+  </div>
+</div>
+
+<h3>Audit DB events — la query universelle</h3>
+<p>Depuis v12.10.8, les <b>8/8 raisons SKIP</b> sont loggées en DB. Pour répondre à "pourquoi le bot n'a pas pris X ?" :</p>
+<pre><code>sqlite3 analysis/output_live/reversal_ticks.db "
+  SELECT datetime(ts,'unixepoch') as t, symbol,
+         json_extract(data,'$.strategy') as strat,
+         json_extract(data,'$.reason') as reason
+  FROM events
+  WHERE event='SKIP' AND ts > strftime('%s','now')-86400
+  ORDER BY ts DESC LIMIT 50;
+"</code></pre>
+
+<h2 id="security">Sécurité & wallet model</h2>
+<div class="card">
+  <h4>Dashboard auth</h4>
+  <ul>
+    <li>Form login + HMAC-signed stateless cookies (30j expiry)</li>
+    <li>Rate limit : 10 tentatives / 5min / IP</li>
+    <li>AUTH_SALT pour empêcher offline replay d'un cookie volé</li>
+    <li>Server-side revocation epoch (v12.5.29) : /logout invalide tous les anciens cookies</li>
+    <li>Telegram alert sur LOGIN OK + failed (sauf interne 127.0.0.1)</li>
+  </ul>
+  <h4>HL wallet model</h4>
+  <ul>
+    <li><b>Live</b> : <code>HL_PRIVATE_KEY</code> = wallet single-key (signe ET détient les fonds)</li>
+    <li><b>Junior</b> : API agent wallet model. <code>JUNIOR_HL_PRIVATE_KEY</code> signe, mais <code>HL_ACCOUNT_ADDRESS</code> (master wallet hardcodé dans <code>start_bots.sh</code>) détient les fonds. Junior agent doit être autorisé par master via HL Settings → API (expirations configurables, défaut 6 mois).</li>
+    <li><b>Paper</b> : 0 SDK dependency, simulations en mémoire</li>
+  </ul>
+  <h4>SDK runtime patch (v12.9.6)</h4>
+  <p>HL <code>spotMeta</code> contient parfois des entries cassées (<code>@367 → tokens=[479, ...]</code> hors range). <code>exchange.py:_apply_hyperliquid_sdk_patches</code> wrappe <code>Info.__init__</code> au boot pour fetcher + sanitizer <code>spot_meta</code> avant délégation au SDK. Idempotent, persisté dans notre code (immune à <code>pip --force-reinstall</code>).</p>
+</div>
+
+<h2 id="strengths">Forces du bot</h2>
+
+<div class="strength">
+  <h4>1. Diversification stratégique orthogonale</h4>
+  <p>5 stratégies aux mécaniques mécaniquement différentes (momentum macro, mean-reversion sector, capitulation flush, extreme fade, squeeze pattern). Survivent au walk-forward indépendamment. Très peu de corrélation entre leurs déclencheurs → portfolio diversifié sans surface commune d'overfit.</p>
+</div>
+
+<div class="strength">
+  <h4>2. Discipline anti-overfit rigoureuse</h4>
+  <p>Toute règle shipped a passé : (1) split train/test, (2) Monte Carlo z > 2.0, (3) integration portfolio, (4) walk-forward strict 4/4 sur 28m / 12m / 6m / 3m, (5) null-shuffle confirmation. Beaucoup de candidats rejetés via cette pipeline (cf. <code>docs/bot.md</code> section "Recherche" — 26 backtests, registre anti-reprise).</p>
+</div>
+
+<div class="strength">
+  <h4>3. Audit trail complet</h4>
+  <p>Tous les événements significatifs sont loggés en SQLite (OPEN, CLOSE, SKIP avec 8/8 raisons, alerts, supervisor reports). Reproductibilité totale via les snapshots horaires des features et OI. Les R&D futures peuvent rejouer chaque décision.</p>
+</div>
+
+<div class="strength">
+  <h4>4. Live ↔ Backtest convergence forte (v12.10+)</h4>
+  <p>Audit btlive sur 65j a quantifié et corrigé les sources de divergence. Le gate 4h (v12.9.0) + boundary scan (v12.10.3) + universe align (v12.9.7) ramènent l'écart attendu à ~$50-100 sur 65j vs $316 historique.</p>
+</div>
+
+<div class="strength">
+  <h4>5. Risk management multi-couche</h4>
+  <p>Stops catastrophe ultimes (-12.5%), slot caps (positions/direction/macro/token/sector), cooldown 24h post-close, blacklist tokens net-négatifs, OI gate pour LONGs, dead-timeout pour pinned losers, traj_cut pour S5 catastrophes bear-régime. Aucun chemin unique vers la ruine.</p>
+</div>
+
+<div class="strength">
+  <h4>6. Observabilité multi-canal</h4>
+  <p>Dashboard temps réel + Telegram alerts time-critical + Supervisor LLM quotidien + Drift monitor hebdomadaire. Le bot ne peut pas dériver sans qu'on le sache rapidement.</p>
+</div>
+
+<div class="strength">
+  <h4>7. Adaptive modulator macro (v11.10.0)</h4>
+  <p>Sizing ajusté par btc_z (régime). Amplifie S1 en bull, S8/S9 en bear. Validé par null-shuffle (z=+10.52 sur S8 in-life). Permet au bot de s'auto-ajuster aux cycles macro sans intervention.</p>
+</div>
+
+<h2 id="weaknesses">Faiblesses & risques</h2>
+
+<div class="weakness">
+  <h4>1. Dépendance Hyperliquid (single point of failure)</h4>
+  <p>Tout repose sur HL : pas de diversification d'exchange. Si HL est down (observé ce matin : SDK timeouts intermittents) ou geofencing change, le bot est paralysé. v12.9.6 SDK patch atténue les incidents data, v12.9.1 timeout bump 60s atténue la slowness, mais le risque structurel demeure.</p>
+</div>
+
+<div class="weakness">
+  <h4>2. Capital trop bas pour optimum strat (~$15k seuil slippage)</h4>
+  <p>Le BT modélise 4 bps slippage RT. À $15k+ par bot sur tokens thin, le slippage réel dépasse. Memoire <code>project_slippage_ceiling</code> : "Backtest surestime les ROI au-delà de ~$15k capital (slippage alts thin non modélisé)". Live $641, Junior $300 sont en-dessous → BT prédiction fiable. Mais croissance future devra introduire un slippage modeling plus fin.</p>
+</div>
+
+<div class="weakness">
+  <h4>3. Bimodalité S5 LONG non résolue</h4>
+  <p>S5 winners long-tail vs losers catastrophiques. Multiples tentatives de mid-trade cut (dead_t8h, disp_inlife, cluster split) ont toutes échoué en walk-forward strict. Seul <code>traj_cut</code> (bear-régime only) survit. En bull/choppy, les S5 catastrophes restent non-prévenues. Cf. memoires <code>project_s5_cluster_split</code>, <code>project_s5_disp_inlife_2026_05</code>.</p>
+</div>
+
+<div class="weakness">
+  <h4>4. Plateau d'optimisation atteint (mai 2026)</h4>
+  <p>3 EDAs négatifs le même jour ont confirmé que la surface "entry-features × thresholds × haircuts" est empiriquement épuisée. Mémoire <code>project_optimization_plateau_2026_05</code>. Pistes futures = nouvelle source de signal (mid-trade features non encore loggées : OI delta, funding flip, BTC delta intra-position) ou nouvelle stratégie S11+. Risque : plus de marge facile d'amélioration.</p>
+</div>
+
+<div class="weakness">
+  <h4>5. Drift de config entre live et backtests historiques</h4>
+  <p>Le bot évolue rapidement (250+ versions). Les anciens trades live ont été pris sous d'anciennes configs (disp_gate ON, traj_cut absent, etc.). Les BTs régen aujourd'hui ne reflètent PAS exactement ce que le live d'hier a fait. La <b>seule mesure fiable</b> de la performance est le live qui tourne actuellement sous la config courante. Memoire <code>feedback_premise_gate_before_sweep</code>.</p>
+</div>
+
+<div class="weakness">
+  <h4>6. Path-dependence intrinsèque live vs BT</h4>
+  <p>Même règles, même data, même config : live et BT divergent dès qu'un premier trade a un timing/sizing légèrement différent. Slot remplissage diverge → trade suivant diverge → cascade. Audit btlive : ~$50-100 résiduel sur 65j malgré v12.10+ alignment. Irréductible.</p>
+</div>
+
+<div class="weakness">
+  <h4>7. Données OI court historique pour 7 tokens v12.7.0</h4>
+  <p>ADA, BCH, DOT, ENA, TON, UNI, XMR : ~2 semaines d'OI history seulement (capturée via live <code>market_snapshots</code> depuis v12.7.0 ship). Sur backtests historiques (12m+), l'OI gate v11.4.9 ne peut pas filtrer les LONGs adverses sur ces tokens → drift de PnL négatif visible. Le live n'est pas affecté (collecte continue), mais comparaison historique faussée.</p>
+</div>
+
+<div class="weakness">
+  <h4>8. Régime-dependence non encore modélisée explicitement</h4>
+  <p>Quelques règles sont régime-conditionned (modulator α × btc_z, traj_cut bear, S8 in-life par bucket). Mais beaucoup d'autres assument régime stable. Un shift macro brutal (e.g. 2024-Q4 bull → 2025-Q1 crash) peut surprendre les stratégies non-régime-aware. Le supervisor LLM observe, mais ne corrige pas. Memoire <code>project_regime_filter_walkforward_2026_05</code> : 19 tentatives de regime filter ont toutes échoué walk-forward strict.</p>
+</div>
+
+<h2 id="roadmap">Roadmap & backlog</h2>
+<div class="card">
+  <h4>Court terme (1-3 mois)</h4>
+  <ul>
+    <li><b>Re-test btlive dans 30j</b> sous v12.10+ pour confirmer la convergence ↔ BT (~$50-100 attendu)</li>
+    <li><b>Modélisation slippage variable</b> dans BT selon liquidité / size — pour anticiper ROI à $15k+ capital</li>
+    <li><b>Mid-trade snapshot enrichis</b> : logger OI delta intra-trade, funding flip, BTC delta — feed pour R&D futures</li>
+  </ul>
+  <h4>Moyen terme (3-6 mois)</h4>
+  <ul>
+    <li><b>Token rotation auto-screening</b> — actuellement 35 tokens hardcodés. Scoring périodique par volume/spread/historical edge.</li>
+    <li><b>DD reduction sans tuer compounding</b> — sizing dynamique par régime, levier variable, regime filter explicite (≠ modulator)</li>
+    <li><b>Re-tests features re-shippables</b> à 2026-08-11+ : WE skip S5 LONG, modulator 2D, funding amplifier S8, target vol sizing — tous à 3/4 strict, attente fenêtre 3m glissante</li>
+  </ul>
+  <h4>Long terme (6+ mois)</h4>
+  <ul>
+    <li><b>Maker post-only workflow</b> à $15k+ capital (gain ~$5/mois ratio thèse, à re-considérer à scale)</li>
+    <li><b>ML WR estimator (XGBoost / logit)</b> — rejeté à 87 trades, re-considérer à 300+ trades fermés (~mi-2027)</li>
+    <li><b>S11+</b> exploration nouvelle classe de signal (orderflow ? funding rate persistence ? cross-exchange basis ?)</li>
+  </ul>
+</div>
+
+<hr>
+
+<div class="footer">
+  Document généré pour <b>v12.10.8</b> · 2026-05-31 ·
+  Référence canonique : <code>CLAUDE.md</code> + <code>docs/bot.md</code> + <code>docs/backtests.md</code> +
+  <code>CHANGELOG.md</code>.
+  <br>
+  Pour l'historique : voir <code>docs/architecture.html</code> (v12.6.0, mai 2026).
+</div>
+
+</main>
+</div>
+
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.target.classList.add('active');
+}
+</script>
+</body>
+</html>

@@ -224,6 +224,26 @@ async def index():
         _html_cache = Path(HTML_PATH).read_text()
     return _html_cache
 
+
+# v12.10.9 — serve the architecture documentation as an isolated page
+# (linked from admin header). Single self-contained HTML file, embedded CSS+JS.
+_ARCH_PATH = Path(__file__).parent / "docs" / "architecture-v12.10.html"
+_arch_cache: str | None = None
+
+@app.get("/architecture", response_class=HTMLResponse)
+async def architecture():
+    """Standalone architecture documentation for the current version."""
+    global _arch_cache
+    if _arch_cache is None:
+        try:
+            _arch_cache = _ARCH_PATH.read_text()
+        except FileNotFoundError:
+            return HTMLResponse(
+                "<h1>Architecture doc not found</h1>"
+                f"<p>Expected at <code>{_ARCH_PATH}</code></p>",
+                status_code=404)
+    return _arch_cache
+
 @app.get("/api/auth-token")
 async def api_auth_token(port: int = 0):
     """Generate a signed token for bot auto-login.

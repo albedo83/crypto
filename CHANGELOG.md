@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.9] — 2026-05-31
+- **Admin**: page architecture isolée accessible depuis le header admin (forces, faiblesses, modules, dataflow).
+
 ## [12.10.8] — 2026-05-31
 - **Trading engine**: SKIP events max_direction + max_sector désormais loggés en DB (audit complet).
 
