@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.12] — 2026-05-31
+- **Infra**: btlive baseline live recalé sur 2026-05-31 / $641 (post soft-reset, comparaison fair).
+
 ## [12.10.11] — 2026-05-31
 - **Dashboard**: lien symbole position vers Hyperliquid trade page (au lieu de CoinMarketCap).
 

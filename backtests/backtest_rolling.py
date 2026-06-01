@@ -1227,12 +1227,20 @@ def run_window(features, data, sector_features, dxy_data,
 
 # ── Rolling runner & report writer ─────────────────────────────────────
 
-# Bot deployment dates — what would the strategy have produced from the
-# day each bot started, with current parameters? Direct comparison to live
-# realized P&L. Update if a bot is reset/redeployed (date of first entry).
+# Bot reference dates — what would the strategy have produced from this
+# date with current parameters? Direct comparison to live realized P&L.
+# Update when a bot is reset/redeployed (date of first entry, OR date of
+# soft/hard reset → it becomes the new fair-comparison baseline).
+#
+# v12.10.12 (2026-05-31): live baseline moved from 2026-03-26 (original
+# deployment) to 2026-05-31 (post-soft-reset). The pre-reset period had
+# substantial config drift (disp_gate retired v12.8.0, entry gate v12.9.0,
+# universe align v12.9.7) making BT regen incomparable to those old live
+# trades. Starting fresh from 2026-05-31 with capital $641 (actual HL
+# equity at soft reset time) makes BT vs live directly comparable.
 BOT_DEPLOYMENTS = [
     ("paper",  "2026-03-25"),
-    ("live",   "2026-03-26"),
+    ("live",   "2026-05-31"),   # v12.10.12 — reset baseline
     ("junior", "2026-04-29"),
 ]
 

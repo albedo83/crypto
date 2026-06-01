@@ -319,7 +319,8 @@ def main():
     if bot_key not in deploy_map:
         sys.exit(f"No deployment date for {bot_key} in BOT_DEPLOYMENTS")
     start_dt = dt.datetime.fromisoformat(deploy_map[bot_key]).replace(tzinfo=dt.timezone.utc)
-    default_caps = {"paper": 1000.0, "live": 500.0, "junior": 300.0}
+    # v12.10.12 — live default = $641 (post-soft-reset baseline 2026-05-31)
+    default_caps = {"paper": 1000.0, "live": 641.0, "junior": 300.0}
     start_cap = args.start_cap if args.start_cap else default_caps[bot_key]
     print(f"  Period start: {start_dt.date()} (deployment date)")
     print(f"  Starting capital: ${start_cap:.0f}")
