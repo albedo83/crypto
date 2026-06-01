@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.10.12] — 2026-06-01
+- **Trading engine**: marge supplémentaire avant scan boundary 4h (HL data plus stable, moins de divergences avec backtest).
+
 ## [12.10.11] — 2026-05-31
 - **Dashboard**: lien symbole position vers Hyperliquid trade page (au lieu de CoinMarketCap).
 

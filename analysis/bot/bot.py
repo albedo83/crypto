@@ -670,16 +670,19 @@ class MultiSignalBot:
                         elif abs(drift) < 2.0:
                             self._drift_alerted = False  # reset when back in line
 
-                # v12.10.3 — trigger a full scan loop within ~60-120s after
-                # each 4h candle close to reduce live↔BT entry latency.
-                # Without this, entries fire whenever the hourly scan happens
-                # to land after the close (0-59 min jitter). With this, entries
-                # fire within 1-2 min of the candle close — close to BT timing.
+                # v12.10.3 — trigger a full scan loop within 3 min after each
+                # 4h candle close to reduce live↔BT entry latency. Without
+                # this, entries fire whenever the hourly scan happens to land
+                # after the close (0-59 min jitter). With this, entries fire
+                # within 3 min of the candle close — close to BT timing.
+                # v12.10.12: grace bumped 60s → 180s so HL candle data + OI/
+                # funding snapshots have more time to settle before the scan
+                # evaluates signals at threshold-frontier conditions.
                 # See backtests/intracandle_signal_test.py for the motivation.
                 _now_t = time.time()
                 _last_4h = (int(_now_t) // 14400) * 14400  # most recent 4h boundary
                 _post_4h_close = (
-                    _now_t - _last_4h >= 60          # 60s grace for HL candle settle
+                    _now_t - _last_4h >= 180         # 180s grace for HL data settle
                     and self._last_entry_scan_4h_close < _last_4h  # not yet scanned
                 )
                 if now - self._last_scan >= SCAN_INTERVAL or _post_4h_close:
