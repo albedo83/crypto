@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.10.12"
+VERSION = "12.11.3"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -165,6 +165,26 @@ S8_INLIFE_PARAMS = {
     "bull":    (1500, 100),  # btc_z > +threshold
 }
 S8_INLIFE_Z_THRESHOLD = 0.5
+
+# ── Proportional MFE trail (v12.11.0) — regime-conditioned on S9 ──────
+# Locks a fraction of every bps of MFE above an arm threshold:
+#   stop = arm + (mfe - arm) * lock_ratio
+# Tight near the arm, more permissive as MFE grows. Mirrors v12.5.30 S8 in-life
+# pattern but uses proportional offset instead of fixed.
+# Per (strategy, regime) → (arm_bps, lock_ratio) or None (= disabled).
+# Walk-forward strict 4/4 on backtests/backtest_prop_trail_regime_walkforward.py
+# (S9 bull-only, sum ΔPnL +$1385 across 4 splits, avg ΔDD +4.16pp = DD improved).
+# Discovery: backtests/optimize_prop_trail.py (offline trajectory-based optim,
+# 280-config grid per bucket × 18 buckets).
+# Kill-switch: set PROP_TRAIL_PARAMS = {} → trail never fires.
+PROP_TRAIL_PARAMS: dict[str, dict[str, tuple[int, float] | None]] = {
+    "S9": {
+        "bear":    None,
+        "neutral": None,
+        "bull":    (100, 0.65),
+    },
+}
+PROP_TRAIL_Z_THRESHOLD = 0.5
 
 # ── S8 dead-in-water exit (v12.6.0, walk-forward 3/3-with-cuts + 1/4 null)
 # At T+8h after entry, if a S8 LONG has never crossed even +0.5% MFE, the

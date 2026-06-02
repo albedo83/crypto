@@ -927,11 +927,13 @@ function refresh(){
           <span class="pill"><span class="lbl">pos</span><b>$${p.size_usdt.toFixed(0)}</b></span>
           <span class="pill"><span class="lbl">mgn</span><b>$${(p.size_usdt/2).toFixed(0)}</b></span>
           <span class="pill"><span class="lbl">entry</span><b>$${p.entry_price.toFixed(p.entry_price>10?2:4)}</b></span>
+          <span class="pill" title="${p.entry_time||''}"><span class="lbl">open</span><b>${p.entry_time?(()=>{const dt=new Date(p.entry_time);const iso=dt.toISOString();return iso.slice(5,10).replace('-','/')+' '+iso.slice(11,16)+'Z'})():'?'}</b></span>
           <span class="pill"><span class="lbl">held</span><b>${p.hold_hours.toFixed(1)}h</b></span>
           <span class="pill"><span class="lbl">rest</span><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b></span>
           <span class="pill"><span class="lbl">stop</span><b>${p.stop_bps}</b></span>
           <span class="pill"><span class="lbl">mae</span><b>${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</b></span>
           <span class="pill"><span class="lbl">mfe</span><b>${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}</b></span>
+          ${p.prop_trail_active?`<span class="pill" style="background:#1f6feb22;border:1px solid #1f6feb55" title="Trailing stop régime-conditionné armé (${p.prop_trail_regime}) — exit si unrealized ≤ ${p.prop_trail_stop_bps} bps"><span class="lbl">🪝 trail</span><b>${p.prop_trail_stop_bps>=0?'+':''}${p.prop_trail_stop_bps}</b></span>`:p.prop_trail_regime?`<span class="pill" style="opacity:0.5" title="prop_trail régime: ${p.prop_trail_regime}"><span class="lbl">🪝 trail</span><b>${p.prop_trail_regime}</b></span>`:''}
         </div>
       </div></td>`;
       pb.appendChild(tr);

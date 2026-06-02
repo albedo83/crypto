@@ -1,5 +1,17 @@
 # Changelog
 
+## [12.11.3] — 2026-06-02
+- **Dashboard**: indicateur visuel "trail" sur chaque position lorsqu'un trailing stop régime-conditionné est armé.
+
+## [12.11.2] — 2026-06-02
+- **Trading engine**: synchronisation features live ↔ backtest (calcul des signaux sur la candle juste fermée, plus sur la candle en cours).
+
+## [12.11.1] — 2026-06-02
+- **Dashboard**: ajout de l'heure d'ouverture (MM/DD HH:MM UTC) sur chaque position ouverte.
+
+## [12.11.0] — 2026-06-01
+- **Trading engine**: trailing stop dynamique régime-conditionné sur une stratégie sélectionnée (verrouille une fraction du gain au-delà d'un seuil ; validé walk-forward strict).
+
 ## [12.10.12] — 2026-06-01
 - **Trading engine**: marge supplémentaire avant scan boundary 4h (HL data plus stable, moins de divergences avec backtest).
 

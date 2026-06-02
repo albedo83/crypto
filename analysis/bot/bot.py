@@ -102,11 +102,26 @@ class MultiSignalBot:
 
     # ── Feature wrappers (called by web.py response builders) ──
 
+    @staticmethod
+    def _closed_candles(candles_iter) -> list:
+        """Return only fully-closed 4h candles (drops the in-progress one).
+
+        v12.11.2: BT computes features at candle close exact; live had been
+        using the in-progress candle's current price as closes[-1], which
+        drifted from BT's reference price by up to 3 minutes of price action.
+        Filtering keeps live and BT signal-state semantics identical.
+        """
+        now_ms = int(time.time() * 1000)
+        return [c for c in candles_iter if c["t"] + 14400000 <= now_ms]
+
     def _compute_features(self, sym: str) -> dict | None:
         st = self.states.get(sym)
         if not st or len(st.candles_4h) < 50:
             return None
-        return features.compute_features(list(st.candles_4h))
+        candles = self._closed_candles(st.candles_4h)
+        if len(candles) < 50:
+            return None
+        return features.compute_features(candles)
 
     def _get_cached_features(self, sym: str) -> dict | None:
         return self._feature_cache.get(sym)
@@ -365,7 +380,11 @@ class MultiSignalBot:
             return None
         f = self._feature_cache.get(sym)
         vr = f.get("vol_ratio", 2) if f else 2
-        return signals.detect_squeeze(list(st.candles_4h), vr)
+        # v12.11.2: closed-only candles for BT-equivalent semantics
+        candles = self._closed_candles(st.candles_4h)
+        if len(candles) < 8:
+            return None
+        return signals.detect_squeeze(candles, vr)
 
     def _close_position(self, sym, exit_price, now, reason):
         """Wrapper for web.py pause/reset handlers."""
@@ -581,11 +600,14 @@ class MultiSignalBot:
         btc_f = self._compute_btc_features()
         btc = self.states.get("BTC")
         if btc and len(btc.candles_4h) >= 200:
-            self._btc_z = features.compute_btc_z(
-                list(btc.candles_4h),
-                lookback_days=MACRO_LOOKBACK_DAYS,
-                z_window_days=MACRO_Z_WINDOW_DAYS,
-            )
+            # v12.11.2: drop in-progress candle for BT-equivalent semantics
+            btc_closed = self._closed_candles(btc.candles_4h)
+            if len(btc_closed) >= 200:
+                self._btc_z = features.compute_btc_z(
+                    btc_closed,
+                    lookback_days=MACRO_LOOKBACK_DAYS,
+                    z_window_days=MACRO_Z_WINDOW_DAYS,
+                )
         # Basket correlation (observation-only)
         with self._pos_lock:
             pos_for_basket = dict(self.positions)

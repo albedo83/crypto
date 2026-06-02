@@ -29,7 +29,8 @@ from .config import (COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTI
                      DISP_GATE_BPS, DISP_GATE_STRATEGIES,
                      TRAJ_CUT_STRATEGIES, TRAJ_CUT_BTC_Z_THRESHOLD,
                      TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H, TRAJ_CUT_TIME_SINCE_MFE_MIN_H,
-                     TRAJ_CUT_AT_MAE_SLACK_BPS, TRAJ_CUT_MIN_LOSS_BPS)
+                     TRAJ_CUT_AT_MAE_SLACK_BPS, TRAJ_CUT_MIN_LOSS_BPS,
+                     PROP_TRAIL_PARAMS, PROP_TRAIL_Z_THRESHOLD)
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
 from .exchange import execute_open, execute_close, fetch_position_funding
@@ -284,6 +285,27 @@ def check_exits(bot) -> int:
                 if unrealized <= trailing_bps:
                     exit_reason = "s8_inlife"
                     exit_price = entry_price * (1 + direction * trailing_bps / 1e4)
+        # v12.11.0 — Proportional trail (regime-conditioned, S9 bull-only by default).
+        # stop = arm + (mfe - arm) * lock. Tight at arm, more permissive at high MFE.
+        # Walk-forward strict 4/4 via backtests/backtest_prop_trail_regime_walkforward.py
+        # Kill-switch: empty PROP_TRAIL_PARAMS = {} in config.py.
+        if (not exit_reason and strategy in PROP_TRAIL_PARAMS
+                and bot._btc_z is not None):
+            z = bot._btc_z
+            if z < -PROP_TRAIL_Z_THRESHOLD:
+                bucket = "bear"
+            elif z > PROP_TRAIL_Z_THRESHOLD:
+                bucket = "bull"
+            else:
+                bucket = "neutral"
+            regime_cfg = PROP_TRAIL_PARAMS[strategy].get(bucket)
+            if regime_cfg is not None:
+                arm_bps, lock_ratio = regime_cfg
+                if pos.mfe_bps >= arm_bps:
+                    stop_bps = arm_bps + (pos.mfe_bps - arm_bps) * lock_ratio
+                    if unrealized <= stop_bps:
+                        exit_reason = "prop_trail"
+                        exit_price = entry_price * (1 + direction * stop_bps / 1e4)
         # v12.7.1 — Trajectory cut (regime-conditioned, S5 only by default).
         # Codifies the user's manual_close intuition: cut a position whose
         # curve is in steep decline from MFE, currently pinned near MAE,

@@ -163,6 +163,12 @@ BACKTEST_SLIPPAGE_BPS = 4.0
 # now computes real funding cost per trade from historical funding rates (v11.7.6).
 COST = TAKER_FEE_BPS + BACKTEST_SLIPPAGE_BPS  # applied once at close
 
+# Notional cap per trade (override via BACKTEST_MAX_NOTIONAL env var).
+# Live HL orderbook depth on thin alts caps realistic trade size; without this
+# cap the compound simulation reports ROIs that aren't reachable in production.
+# Set to 0 (or negative) to disable.
+BACKTEST_MAX_NOTIONAL = float(os.environ.get("BACKTEST_MAX_NOTIONAL", "15000"))
+
 
 # ── Data loading ───────────────────────────────────────────────────────
 
@@ -219,13 +225,17 @@ def detect_squeeze(candles, idx, vol_ratio, candle_scale: int = 1):
 
 
 def strat_size(strat: str, capital: float) -> float:
-    """Match analysis.bot.config.strat_size() exactly."""
+    """Match analysis.bot.config.strat_size() exactly, plus a backtest-only
+    notional cap (BACKTEST_MAX_NOTIONAL env var; models live orderbook depth)."""
     z = STRAT_Z.get(strat, 3.0)
     w = max(0.5, min(2.0, z / 4.0))
     pct = SIZE_PCT + (SIZE_BONUS if z > 4.0 else 0)
     haircut = LIQUIDITY_HAIRCUT.get(strat, 1.0)
     mult = SIGNAL_MULT.get(strat, 1.0)
-    return round(max(10, capital * pct * w * haircut * mult), 2)
+    raw = max(10, capital * pct * w * haircut * mult)
+    if BACKTEST_MAX_NOTIONAL > 0:
+        raw = min(raw, BACKTEST_MAX_NOTIONAL)
+    return round(raw, 2)
 
 
 # ── Backtest engine ────────────────────────────────────────────────────
@@ -252,6 +262,10 @@ def run_window(features, data, sector_features, dxy_data,
                apply_adaptive_modulator: bool = False,
                inlife_exit_extra=None,
                basket_haircut_fn=None,
+               proportional_trail: dict | None = None,
+               trajectory_dump_path: str | None = None,
+               cooldown_hours: float = 24.0,
+               cooldown_by_strat: dict | None = None,
                mid_trade_dump_path: str | None = None,
                mid_trade_checkpoints_h: tuple[int, ...] = (4, 8, 12, 24)) -> dict:
     """Run the portfolio backtest on a time window.
@@ -450,7 +464,14 @@ def run_window(features, data, sector_features, dxy_data,
     cpd = max(1, 24 // max(1, interval_hours))  # candles per day
     n_lb = MACRO_LOOKBACK_DAYS * cpd
     n_zw = MACRO_Z_WINDOW_DAYS * cpd
-    if apply_adaptive_modulator and size_fn is None and len(btc_closes) >= n_lb + 30:
+    # Build btc_z_map when adaptive modulator, trajectory dump, or regime-aware
+    # proportional trail is active. Needed any time the engine reads btc_z at a tick.
+    _need_btc_z = (
+        apply_adaptive_modulator
+        or trajectory_dump_path is not None
+        or (proportional_trail is not None and "by_regime" in proportional_trail)
+    )
+    if _need_btc_z and size_fn is None and len(btc_closes) >= n_lb + 30:
         # Compute ret_lb at every candle, then rolling z-score using only past
         rets_history: list[float] = []
         for i in range(n_lb, len(btc_closes)):
@@ -560,10 +581,19 @@ def run_window(features, data, sector_features, dxy_data,
             # so the value reflects the candle just closed.
             # s5_dead_t8h_walkforward: also enable when inlife_exit_extra is
             # active, so the hook can read time_in_pain_pct in its snapshot.
-            if mid_trade_dump_path is not None or inlife_exit_extra is not None:
+            if mid_trade_dump_path is not None or inlife_exit_extra is not None or trajectory_dump_path is not None:
                 cur_bps_pain = pos["dir"] * (current / pos["entry"] - 1) * 1e4
                 if cur_bps_pain < 0:
                     pos["pain_candles"] = pos.get("pain_candles", 0) + 1
+            # Trajectory dump: record per-candle ur_bps + mfe + mae + btc_z
+            if trajectory_dump_path is not None:
+                pos["trajectory"].append({
+                    "held": held,
+                    "ur_bps": float(cur_bps_pain),
+                    "mfe_bps": float(pos.get("mfe", 0.0)),
+                    "mae_bps": float(pos.get("mae", 0.0)),
+                    "btc_z": float(btc_z_map.get(ts, 0.0)) if btc_z_map else 0.0,
+                })
             if mid_trade_dump_path is not None:
                 # Snapshot when held matches one of the checkpoints exactly
                 if held in mid_trade_checkpoints:
@@ -793,6 +823,38 @@ def run_window(features, data, sector_features, dxy_data,
                     if ur_bps <= mfe - trailing_extra["offset_bps"]:
                         exit_reason = f"{trailing_extra['strategy'].lower()}_trailing"
 
+            # Optional proportional trailing stop: stop = arm + (mfe-arm) * lock_ratio
+            # Two formats supported:
+            #   1. Flat: {"strategy": "S9", "arm_bps": 800, "lock_ratio": 0.667}
+            #   2. Regime-aware: {"strategy": "S9", "by_regime": {"bear": {"arm_bps": X,
+            #         "lock_ratio": Y}, "neutral": {...}, "bull": None}, "z_threshold": 0.5}
+            #      Regime is determined by btc_z at the current tick. `None` = disabled.
+            if (not exit_reason and proportional_trail is not None
+                    and pos["strat"] == proportional_trail["strategy"]):
+                arm_lock = None
+                if "by_regime" in proportional_trail:
+                    z_th = proportional_trail.get("z_threshold", 0.5)
+                    z = btc_z_map.get(ts, 0.0) if btc_z_map else 0.0
+                    if z < -z_th:
+                        regime_key = "bear"
+                    elif z > z_th:
+                        regime_key = "bull"
+                    else:
+                        regime_key = "neutral"
+                    regime_cfg = proportional_trail["by_regime"].get(regime_key)
+                    if regime_cfg is not None:
+                        arm_lock = (regime_cfg["arm_bps"], regime_cfg["lock_ratio"])
+                else:
+                    arm_lock = (proportional_trail["arm_bps"], proportional_trail["lock_ratio"])
+                if arm_lock is not None:
+                    arm, lock = arm_lock
+                    mfe = pos.get("mfe", 0)
+                    if mfe >= arm:
+                        stop_bps = arm + (mfe - arm) * lock
+                        ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                        if ur_bps <= stop_bps:
+                            exit_reason = f"{proportional_trail['strategy'].lower()}_prop_trail"
+
             # Optional early-MFE-absence exit (sweep parameter): if after N
             # candles the trade has never shown meaningful upside (MFE < min),
             # exit. Different from D2 (which fires at T-K before timeout) and
@@ -876,9 +938,15 @@ def run_window(features, data, sector_features, dxy_data,
                     "effn_at_open_30d": pos.get("effn_at_open_30d"),
                     "n_pos_at_open":    pos.get("n_pos_at_open"),
                     "trade_id":         pos.get("trade_id"),
+                    "trajectory":       pos.get("trajectory"),
                 })
+                # Cooldown: per-strat override if cooldown_by_strat is set,
+                # else global cooldown_hours. Set to 0 to disable.
+                _cd_h = cooldown_by_strat.get(pos["strat"], cooldown_hours) \
+                        if cooldown_by_strat is not None else cooldown_hours
                 del positions[coin]
-                cooldown[coin] = ts + 24 * 3600 * 1000
+                if _cd_h > 0:
+                    cooldown[coin] = ts + int(_cd_h * 3600 * 1000)
 
         # ── ENTRIES ──
         n_long = sum(1 for p in positions.values() if p["dir"] == 1)
@@ -1014,7 +1082,7 @@ def run_window(features, data, sector_features, dxy_data,
             # Signature: size_fn(cand, feature_dict, n_positions) -> multiplier
             if size_fn is not None:
                 size *= size_fn(cand, f, len(positions))
-            elif btc_z_map:
+            elif btc_z_map and apply_adaptive_modulator:
                 # v11.10.0 + v12.2.0 default adaptive modulator (mirrors live).
                 # Uses get_adaptive_alpha() to honor direction-specific overrides.
                 alpha = get_adaptive_alpha(cand["strat"], cand["dir"])
@@ -1115,6 +1183,7 @@ def run_window(features, data, sector_features, dxy_data,
                 "trade_id":         _trade_id,
                 "sector_div_at_entry": _sector_div_at_entry,
                 "pain_candles":     0,
+                "trajectory":       [] if trajectory_dump_path is not None else None,
             }
             if cand["dir"] == 1:
                 n_long += 1
@@ -1155,6 +1224,7 @@ def run_window(features, data, sector_features, dxy_data,
                 "effn_at_open_30d": pos.get("effn_at_open_30d"),
                 "n_pos_at_open":    pos.get("n_pos_at_open"),
                 "trade_id":         pos.get("trade_id"),
+                "trajectory":       pos.get("trajectory"),
             })
 
     # Summary stats
@@ -1206,6 +1276,17 @@ def run_window(features, data, sector_features, dxy_data,
                 _snap.update(_out)
                 _fh.write(json.dumps(_snap) + "\n")
 
+    # Trajectory dump: write {trade_id: trajectory} JSON for offline analysis.
+    # Only includes trades with a recorded trajectory (final closes, not partial).
+    if trajectory_dump_path is not None:
+        _trajectories = {
+            str(t["trade_id"]): t.get("trajectory", [])
+            for t in trades
+            if t.get("trajectory") is not None
+        }
+        with open(trajectory_dump_path, "w") as _fh:
+            json.dump(_trajectories, _fh)
+
     return {
         "start_capital": start_capital,
         "end_capital": capital,
@@ -1255,8 +1336,8 @@ def rolling_windows(end_dt: datetime) -> list[tuple[str, datetime]]:
         ("3 mois", end_dt - relativedelta(months=3)),
         ("1 mois", end_dt - relativedelta(months=1)),
     ]
-    # Monthly start points for the last 6 calendar months
-    for i in range(6, 0, -1):
+    # Monthly start points for the last 24 calendar months
+    for i in range(24, 0, -1):
         month_start = (end_dt.replace(day=1) - relativedelta(months=i - 1))
         if month_start < end_dt:
             windows.append((f"depuis {month_start.strftime('%Y-%m-%d')}", month_start))
@@ -1306,6 +1387,15 @@ def build_report(results: list[dict], end_dt: datetime, version: str,
         "de slippage moyen que le backtest doit modéliser puisqu'il utilise "
         "les closes 4h au lieu de l'avgPx réel. Le live bot lui n'applique "
         f"que {COST_BPS:.0f} bps car le slippage est déjà dans l'avgPx.",
+        "",
+        (
+            f"**Notional cap** : ${BACKTEST_MAX_NOTIONAL:,.0f} par trade "
+            "(override via `BACKTEST_MAX_NOTIONAL` env, 0 = désactivé). "
+            "Modélise la profondeur d'orderbook HL : sans ce cap les ancres "
+            "longues compoundent au-delà de la taille réellement exécutable."
+            if BACKTEST_MAX_NOTIONAL > 0
+            else "**Notional cap** : désactivé (BACKTEST_MAX_NOTIONAL=0)."
+        ),
         "",
         "Ce fichier est **régénéré automatiquement** par "
         "`python3 -m backtests.backtest_rolling`. Relancer après tout changement "

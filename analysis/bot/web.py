@@ -15,6 +15,7 @@ from .config import (
     MAX_POSITIONS, SCAN_INTERVAL,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS, STOP_LOSS_S8,
     OI_LONG_GATE_BPS, TRADE_BLACKLIST, S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
+    PROP_TRAIL_PARAMS, PROP_TRAIL_Z_THRESHOLD,
     MACRO_STRATEGIES, MAX_SAME_DIRECTION, MAX_PER_SECTOR, MAX_MACRO_SLOTS,
     MAX_TOKEN_SLOTS, COOLDOWN_HOURS,
     S5_DIV_THRESHOLD, S5_VOL_Z_MIN,
@@ -195,12 +196,36 @@ def build_state_response(bot) -> dict:
     # The estimate_win_prob signature accepts pre_filtered=True to skip its
     # internal cutoff filter (which would otherwise run len(positions) times).
     recent_trades = filter_recent_trades(list(bot.trades))
+
+    def _prop_trail_state(strategy: str, mfe_bps: float) -> dict:
+        """v12.11.0: report the regime-conditioned prop_trail status for the dashboard.
+        Returns {active, stop_bps, regime}.
+        """
+        if strategy not in PROP_TRAIL_PARAMS or bot._btc_z is None:
+            return {"active": False, "stop_bps": None, "regime": None}
+        z = bot._btc_z
+        if z < -PROP_TRAIL_Z_THRESHOLD:
+            bucket = "bear"
+        elif z > PROP_TRAIL_Z_THRESHOLD:
+            bucket = "bull"
+        else:
+            bucket = "neutral"
+        cfg = PROP_TRAIL_PARAMS[strategy].get(bucket)
+        if cfg is None:
+            return {"active": False, "stop_bps": None, "regime": f"{bucket} (off)"}
+        arm, lock = cfg
+        if mfe_bps < arm:
+            return {"active": False, "stop_bps": None, "regime": f"{bucket} (arm@{arm})"}
+        stop = round(arm + (mfe_bps - arm) * lock, 0)
+        return {"active": True, "stop_bps": stop, "regime": bucket}
+
     for sym, pos in pos_snapshot.items():
         st = bot.states.get(sym)
         px = st.price if st else pos.entry_price
         # size_usdt is notional (passed to execute_open as sz = size_usdt/price)
         # so unrealized = direction * price_change_pct * size_usdt (no extra leverage)
         ur = pos.direction * (px / pos.entry_price - 1) * 1e4 if pos.entry_price > 0 else 0
+        pt = _prop_trail_state(pos.strategy, pos.mfe_bps)
         rem = max(0, (pos.target_exit - now).total_seconds() / 3600)
         hold_h = round((now - pos.entry_time).total_seconds() / 3600, 1)
         # Effective stop: S8 uses STOP_LOSS_S8, S9 has per-position adaptive stop
@@ -260,6 +285,7 @@ def build_state_response(bot) -> dict:
             "current_price": px, "size_usdt": pos.size_usdt,
             "signal_info": pos.signal_info, "unrealized_bps": round(ur, 1),
             "pnl_usdt": round(pos.size_usdt * ur / 1e4, 2),
+            "entry_time": pos.entry_time.isoformat(),
             "hold_hours": hold_h,
             "remaining_hours": round(rem, 1),
             "remaining": f"{int(rem)}h{int((rem % 1) * 60):02d}m",
@@ -272,6 +298,10 @@ def build_state_response(bot) -> dict:
             "trailing_active": bool(pos.strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER),
             "trailing_floor_bps": round(pos.mfe_bps - S10_TRAILING_OFFSET, 0)
                                    if pos.strategy == "S10" and pos.mfe_bps >= S10_TRAILING_TRIGGER else None,
+            # v12.11.0 prop_trail (régime-conditionné): expose armed state + stop level
+            "prop_trail_active": pt["active"],
+            "prop_trail_stop_bps": pt["stop_bps"],
+            "prop_trail_regime": pt["regime"],
             "win_prob": win_prob,
             "manual_stop_usdt": round(pos.manual_stop_usdt, 2)
                                 if pos.manual_stop_usdt is not None else None,
