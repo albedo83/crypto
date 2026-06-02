@@ -71,7 +71,11 @@ def update_token(coin: str, full: bool = False) -> dict:
     now_ms = int(time.time() * 1000)
     if existing:
         last_ts = max(int(c["t"]) for c in existing)
-        start_ms = last_ts + INTERVAL_MS
+        # Re-fetch the last 4 candles (16h) so recent ones get their volumes
+        # updated as HL back-fills late-arriving trades. Without this, the
+        # most-recent candle's volume can be 30-50% lower than HL's eventual
+        # value, distorting vol_z and producing BT-vs-LIVE signal divergence.
+        start_ms = last_ts - 4 * INTERVAL_MS
     else:
         # 3 years back
         start_ms = now_ms - 3 * 365 * 86400 * 1000
@@ -84,6 +88,14 @@ def update_token(coin: str, full: bool = False) -> dict:
     except Exception as e:
         return {"coin": coin, "added": 0, "total": len(existing),
                 "status": f"error: {e}"}
+
+    # v12.12.2: safety. The window asks for ~5 candles (4 back-fill re-fetches +
+    # any new candles since). If HL returned dramatically fewer, the response is
+    # partial (timeout / rate-limit / API hiccup). Refuse to overwrite the
+    # cached candles with potentially stale data; keep existing intact.
+    if existing and len(new_candles) < 2:
+        return {"coin": coin, "added": 0, "total": len(existing),
+                "status": f"partial_response_skipped (got {len(new_candles)})"}
 
     # Merge + dedupe by ts
     all_by_ts = {int(c["t"]): c for c in existing}

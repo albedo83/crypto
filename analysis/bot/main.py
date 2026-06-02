@@ -104,6 +104,14 @@ async def run():
         log.info("Strategy perf scoped since %s (%.1f days)", _d.strftime("%Y-%m-%d %H:%M UTC"),
                  (_dt.datetime.now(_dt.timezone.utc) - _d).total_seconds() / 86400)
 
+    # v12.12.2: restore btc_z so regime-aware exits (prop_trail / s8_inlife /
+    # traj_cut) remain protected immediately after boot. Without this, exits
+    # were silently disabled for 30-60s until the first scan recomputed it.
+    _bz = state.get("_btc_z") if state else None
+    bot._btc_z = float(_bz) if _bz is not None else None
+    if bot._btc_z is not None:
+        log.info("Restored btc_z=%+.3f (regime-aware exits active immediately)", bot._btc_z)
+
     # Startup sanity check: sum of *all* trades should match stored _total_pnl
     # plus any accumulated realign offset.
     # close_position credits _total_pnl on every close (bot, manual_stop, reset)

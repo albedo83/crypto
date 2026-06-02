@@ -130,7 +130,11 @@ class MultiSignalBot:
         btc = self.states.get("BTC")
         if not btc or len(btc.candles_4h) < 50:
             return {}
-        return features.compute_btc_features(list(btc.candles_4h))
+        # v12.12.1: closed-candles only for BT-equivalent semantics
+        candles = self._closed_candles(btc.candles_4h)
+        if len(candles) < 50:
+            return {}
+        return features.compute_btc_features(candles)
 
     def _compute_alt_index(self) -> float:
         return features.compute_alt_index(self._feature_cache)
@@ -427,7 +431,8 @@ class MultiSignalBot:
             pnl_realign_offset=getattr(self, "_pnl_realign_offset", 0.0),
             last_entry_scan_4h_close=self._last_entry_scan_4h_close,
             fees_track_start_ts=self._fees_track_start_ts,
-            perf_track_start_ts=self._perf_track_start_ts)
+            perf_track_start_ts=self._perf_track_start_ts,
+            btc_z=self._btc_z)
 
     def _build_token_signals(self, now, btc_f: dict, cross_ctx: dict) -> list:
         """Per-token signal detection loop. Returns the list of fired token-level
@@ -588,14 +593,10 @@ class MultiSignalBot:
         except Exception as e:
             log.warning("Regime alert check failed: %s", e)
 
-        # 4h candle alignment gate — entries fire at most once per 4h period.
-        now_ts = int(time.time())
-        CANDLE_PERIOD_SEC = 14400  # 4h × 3600
-        last_4h_close = (now_ts // CANDLE_PERIOD_SEC) * CANDLE_PERIOD_SEC
-        if self._last_entry_scan_4h_close >= last_4h_close:
-            return 0  # already evaluated entries for this 4h candle
-        self._last_entry_scan_4h_close = last_4h_close
-
+        # v12.11.6: compute btc_z BEFORE the entry gate so exits (s8_inlife,
+        # traj_cut, prop_trail) and adaptive modulator have a fresh value at
+        # every scan, not just at 4h boundaries. Previously btc_z stayed None
+        # for up to 4h after restart, silently disabling those features.
         now = datetime.now(timezone.utc)
         btc_f = self._compute_btc_features()
         btc = self.states.get("BTC")
@@ -608,6 +609,14 @@ class MultiSignalBot:
                     lookback_days=MACRO_LOOKBACK_DAYS,
                     z_window_days=MACRO_Z_WINDOW_DAYS,
                 )
+
+        # 4h candle alignment gate — entries fire at most once per 4h period.
+        now_ts = int(time.time())
+        CANDLE_PERIOD_SEC = 14400  # 4h × 3600
+        last_4h_close = (now_ts // CANDLE_PERIOD_SEC) * CANDLE_PERIOD_SEC
+        if self._last_entry_scan_4h_close >= last_4h_close:
+            return 0  # already evaluated entries for this 4h candle
+        self._last_entry_scan_4h_close = last_4h_close
         # Basket correlation (observation-only)
         with self._pos_lock:
             pos_for_basket = dict(self.positions)

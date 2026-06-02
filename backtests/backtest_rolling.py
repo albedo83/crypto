@@ -42,6 +42,11 @@ from analysis.bot.config import (
     RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
     ADAPTIVE_ALPHA, MACRO_LOOKBACK_DAYS, MACRO_Z_WINDOW_DAYS,
     MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX, get_adaptive_alpha,
+    S8_INLIFE_PARAMS, S8_INLIFE_Z_THRESHOLD,
+    S8_DEAD_T_H, S8_DEAD_MFE_MAX_BPS,
+    TRAJ_CUT_STRATEGIES, TRAJ_CUT_BTC_Z_THRESHOLD,
+    TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H, TRAJ_CUT_TIME_SINCE_MFE_MIN_H,
+    TRAJ_CUT_AT_MAE_SLACK_BPS, TRAJ_CUT_MIN_LOSS_BPS,
 )
 from bisect import bisect_right
 
@@ -167,7 +172,7 @@ COST = TAKER_FEE_BPS + BACKTEST_SLIPPAGE_BPS  # applied once at close
 # Live HL orderbook depth on thin alts caps realistic trade size; without this
 # cap the compound simulation reports ROIs that aren't reachable in production.
 # Set to 0 (or negative) to disable.
-BACKTEST_MAX_NOTIONAL = float(os.environ.get("BACKTEST_MAX_NOTIONAL", "15000"))
+BACKTEST_MAX_NOTIONAL = float(os.environ.get("BACKTEST_MAX_NOTIONAL", "20000"))
 
 
 # ── Data loading ───────────────────────────────────────────────────────
@@ -464,12 +469,15 @@ def run_window(features, data, sector_features, dxy_data,
     cpd = max(1, 24 // max(1, interval_hours))  # candles per day
     n_lb = MACRO_LOOKBACK_DAYS * cpd
     n_zw = MACRO_Z_WINDOW_DAYS * cpd
-    # Build btc_z_map when adaptive modulator, trajectory dump, or regime-aware
-    # proportional trail is active. Needed any time the engine reads btc_z at a tick.
+    # Build btc_z_map when adaptive modulator, trajectory dump, regime-aware
+    # proportional trail, S8 in-life trail, or trajectory cut is active.
+    # Needed any time the engine reads btc_z at a tick.
     _need_btc_z = (
         apply_adaptive_modulator
         or trajectory_dump_path is not None
         or (proportional_trail is not None and "by_regime" in proportional_trail)
+        or (S8_INLIFE_PARAMS and any(v != (99999, 0) for v in S8_INLIFE_PARAMS.values()))
+        or TRAJ_CUT_STRATEGIES
     )
     if _need_btc_z and size_fn is None and len(btc_closes) >= n_lb + 30:
         # Compute ret_lb at every candle, then rolling z-score using only past
@@ -743,6 +751,36 @@ def run_window(features, data, sector_features, dxy_data,
                     if ur_bps <= mfe - S10_TRAILING_OFFSET:
                         exit_reason = "s10_trailing"
 
+            # v12.6.0 — S8 dead-in-water: if S8 LONG has never crossed MFE
+            # ceiling after T+8h, capitulation thesis invalidated. Mirror of
+            # analysis/bot/trading.py:check_exits (line 257-269).
+            if (not exit_reason and pos["strat"] == "S8" and pos["dir"] == 1
+                    and held * interval_hours >= S8_DEAD_T_H
+                    and pos.get("mfe", 0) <= S8_DEAD_MFE_MAX_BPS):
+                exit_reason = "s8_dead_in_water"
+
+            # v12.5.30 — S8 in-life MFE trail (regime-conditioned). Mirror of
+            # analysis/bot/trading.py:check_exits (line 270-287). Active only
+            # when btc_z is available (i.e. when the engine has BTC history).
+            if (not exit_reason and pos["strat"] == "S8" and S8_INLIFE_PARAMS
+                    and btc_z_map):
+                z = btc_z_map.get(ts, 0.0)
+                if z < -S8_INLIFE_Z_THRESHOLD:
+                    bucket_s8 = "bear"
+                elif z > S8_INLIFE_Z_THRESHOLD:
+                    bucket_s8 = "bull"
+                else:
+                    bucket_s8 = "neutral"
+                # v12.12.2: handle None (per-regime disable) gracefully.
+                cfg_s8 = S8_INLIFE_PARAMS.get(bucket_s8)
+                if cfg_s8 is not None:
+                    act, off = cfg_s8
+                    mfe = pos.get("mfe", 0)
+                    if mfe >= act:
+                        ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                        if ur_bps <= mfe - off:
+                            exit_reason = "s8_inlife"
+
             # Optional in-life exit (research hook — Families A/B/C from
             # docs/superpowers/specs/2026-05-14-inlife-exit-design.md).
             # Generic callable; sees a per-position snapshot and returns
@@ -786,6 +824,28 @@ def run_window(features, data, sector_features, dxy_data,
                 res = inlife_exit_extra(snap)
                 if res and res[0]:
                     exit_reason = res[1] or "inlife_exit"
+
+            # v12.7.1 — Trajectory cut (regime-conditioned mid-trade exit, S5
+            # by default). Mirror of analysis/bot/trading.py:check_exits
+            # (line 309-334). Fires in bear regime when MFE→cur decline is
+            # steep, position is pinned near MAE, and unrealized is below
+            # threshold. Kill-switch: empty TRAJ_CUT_STRATEGIES in config.
+            if (not exit_reason and pos["strat"] in TRAJ_CUT_STRATEGIES
+                    and btc_z_map):
+                z_tc = btc_z_map.get(ts, 0.0)
+                if z_tc < TRAJ_CUT_BTC_Z_THRESHOLD:
+                    ur_bps_tc = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                    mae_bps_tc = pos.get("mae", 0.0)
+                    mfe_bps_tc = pos.get("mfe", 0.0)
+                    if (ur_bps_tc <= TRAJ_CUT_MIN_LOSS_BPS
+                            and (ur_bps_tc - mae_bps_tc) <= TRAJ_CUT_AT_MAE_SLACK_BPS):
+                        hours_held_tc = held * interval_hours
+                        mfe_at_h_tc = pos.get("mfe_held", 0) * interval_hours
+                        t_since_mfe = hours_held_tc - mfe_at_h_tc
+                        if t_since_mfe >= TRAJ_CUT_TIME_SINCE_MFE_MIN_H:
+                            decline_rate = (mfe_bps_tc - ur_bps_tc) / max(t_since_mfe, 1.0)
+                            if decline_rate >= TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H:
+                                exit_reason = "traj_cut"
 
             # Dead-timeout early exit (option D): if trade is close to timeout,
             # has never shown meaningful MFE, and is still pinned near its MAE,

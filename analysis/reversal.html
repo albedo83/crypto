@@ -930,10 +930,10 @@ function refresh(){
           <span class="pill" title="${p.entry_time||''}"><span class="lbl">open</span><b>${p.entry_time?(()=>{const dt=new Date(p.entry_time);const iso=dt.toISOString();return iso.slice(5,10).replace('-','/')+' '+iso.slice(11,16)+'Z'})():'?'}</b></span>
           <span class="pill"><span class="lbl">held</span><b>${p.hold_hours.toFixed(1)}h</b></span>
           <span class="pill"><span class="lbl">rest</span><b>${p.remaining||Math.floor(p.remaining_hours)+'h'}</b></span>
-          <span class="pill"><span class="lbl">stop</span><b>${p.stop_bps}</b></span>
+          <span class="pill" title="Catastrophe stop: -${Math.abs(p.stop_bps)} bps from entry"><span class="lbl">stop</span><b>${p.stop_bps} / $${(p.entry_price*(1+(p.direction==='LONG'?1:-1)*p.stop_bps/1e4)).toFixed(p.entry_price>10?2:4)}</b></span>
           <span class="pill"><span class="lbl">mae</span><b>${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}</b></span>
           <span class="pill"><span class="lbl">mfe</span><b>${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}</b></span>
-          ${p.prop_trail_active?`<span class="pill" style="background:#1f6feb22;border:1px solid #1f6feb55" title="Trailing stop régime-conditionné armé (${p.prop_trail_regime}) — exit si unrealized ≤ ${p.prop_trail_stop_bps} bps"><span class="lbl">🪝 trail</span><b>${p.prop_trail_stop_bps>=0?'+':''}${p.prop_trail_stop_bps}</b></span>`:p.prop_trail_regime?`<span class="pill" style="opacity:0.5" title="prop_trail régime: ${p.prop_trail_regime}"><span class="lbl">🪝 trail</span><b>${p.prop_trail_regime}</b></span>`:''}
+          ${p.prop_trail_active?(()=>{const usd=p.size_usdt*p.prop_trail_stop_bps/1e4;return `<span class="pill" style="background:#1f6feb22;border:1px solid #1f6feb55" title="Trailing stop régime-conditionné armé (${p.prop_trail_regime}) — exit si unrealized ≤ ${p.prop_trail_stop_bps} bps"><span class="lbl">🪝 trail</span><b>${usd>=0?'+':'-'}$${Math.abs(usd).toFixed(2)}</b></span>`;})():p.prop_trail_regime?`<span class="pill" style="opacity:0.5" title="prop_trail régime: ${p.prop_trail_regime}"><span class="lbl">🪝 trail</span><b>${p.prop_trail_regime}</b></span>`:''}
         </div>
       </div></td>`;
       pb.appendChild(tr);
@@ -1251,13 +1251,24 @@ function refresh(){
     const oiF=mkt.oi_falling||0, oiR=mkt.oi_rising||0;
 
     // Regime (backend-computed, batch 2): BULL / BEAR / CHOPPY / STRESSED / RALLY / FLUSH
+    // v12.12.1: append btc_z + sub-bucket so the user sees where in the CHOPPY
+    // band we are (CHOPPY spans z=-1 to +1, but the trail logic uses ±0.5).
     const regime=s.regime||'CHOPPY';
     const regimeColor={BULL:'#3fb950',BEAR:'#f85149',CHOPPY:'#d29922',
                        STRESSED:'#f85149',RALLY:'#58a6ff',FLUSH:'#db6149'}[regime]||'#d29922';
     const stressNote=regime==='STRESSED'?' ('+(s.regime_stress||0)+' stressed)':'';
+    const z=s.btc_z_30d;
+    let subBucket='';
+    if(regime==='CHOPPY' && z!==null && z!==undefined){
+      if(z<-0.5) subBucket=' lean-bear';
+      else if(z>0.5) subBucket=' lean-bull';
+      else subBucket=' neutral';
+    }
+    const zSuffix=(z!==null && z!==undefined)?` z=${z>=0?'+':''}${z.toFixed(2)}`:'';
     document.getElementById('regime-dot').style.background=regimeColor;
     const rl=document.getElementById('regime-label');
-    rl.textContent=regime+stressNote;
+    rl.textContent=regime+subBucket+stressNote+' '+zSuffix;
+    rl.title=`btc_z = ${z===null||z===undefined?'—':z.toFixed(3)} | Trail buckets: bear<-0.5 / neutral / bull>+0.5 | Dashboard buckets: BEAR<-1 / CHOPPY / BULL>+1`;
     rl.style.color=regimeColor;
     rl.className='regime-badge regime-'+regime;
 

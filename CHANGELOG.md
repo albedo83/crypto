@@ -1,5 +1,26 @@
 # Changelog
 
+## [12.12.2] — 2026-06-02
+- **Trading engine**: `btc_z` persisté entre redémarrages (les sorties dépendantes du régime restent actives immédiatement au boot, plus de fenêtre 30-60s sans protection).
+- **Trading engine**: lecture atomique de `btc_z` dans la boucle d'exit (snapshot unique par appel, évite l'incohérence entre branches).
+- **Infra**: rafraîchissement des candles 4h via swap atomique de deque (plus de fenêtre où les lecteurs voient une liste vide).
+- **Infra**: `fetch_4h_candles.py` refuse d'écraser le cache si la réponse HL est partielle (<2 candles).
+- **Trading engine**: `S8_INLIFE_PARAMS` accepte désormais `None` par régime (kill-switch granulaire) sans crash.
+
+## [12.12.1] — 2026-06-02
+- **Dashboard**: badge régime affiche désormais la valeur z + un sous-libellé (neutral/lean-bear/lean-bull) pour préciser la zone à l'intérieur du CHOPPY.
+- **Trading engine**: features BTC (ret_30d, ret_7d, ret_24h) désormais calculées sur la candle juste fermée (cohérent avec la correction v12.11.2 sur les autres tokens).
+- **Infra**: `backtests/fetch_4h_candles.py` re-fetche désormais les 4 derniers candles à chaque appel pour capter les back-fills HL (le volume d'un candle juste fermé peut être réévalué dans l'heure suivante). Corrige une divergence vol_z systématique BT vs LIVE.
+
+## [12.12.0] — 2026-06-02
+- **Trading engine**: régime BTC recalculé à chaque scan (au lieu d'à chaque 4h boundary) — corrige une fenêtre de 4h post-restart où plusieurs sorties dépendantes du régime étaient silencieusement désactivées.
+
+## [12.11.5] — 2026-06-02
+- **Dashboard**: trailing stop régime-conditionné affiché en $ (au lieu de bps) pour cohérence avec stop manuel.
+
+## [12.11.4] — 2026-06-02
+- **Dashboard**: prix du stop catastrophe en $ affiché à côté des bps sur chaque position ouverte.
+
 ## [12.11.3] — 2026-06-02
 - **Dashboard**: indicateur visuel "trail" sur chaque position lorsqu'un trailing stop régime-conditionné est armé.
 

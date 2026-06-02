@@ -116,9 +116,13 @@ def fetch_candles(symbol: str, states: dict, days: int = 45) -> None:
         st = states[symbol]
         if not candles:
             return
-        st.candles_4h.clear()
+        # v12.12.2: build new deque first, then swap atomically. Avoids the
+        # window where readers (web.py /api/state, feature snapshots) could
+        # observe a half-populated deque between clear() and the loop fill.
+        from collections import deque
+        new_deque: deque = deque(maxlen=st.candles_4h.maxlen)
         for c in candles:
-            st.candles_4h.append({
+            new_deque.append({
                 "t": c["t"],
                 "o": float(c["o"]),
                 "c": float(c["c"]),
@@ -126,8 +130,8 @@ def fetch_candles(symbol: str, states: dict, days: int = 45) -> None:
                 "l": float(c["l"]),
                 "v": float(c.get("v", 0)),
             })
-        if candles:
-            st.last_candle_ts = candles[-1]["t"]
+        st.candles_4h = new_deque
+        st.last_candle_ts = candles[-1]["t"]
     except Exception as e:
         log.warning("Candle fetch %s: %s", symbol, e)
 

@@ -129,6 +129,10 @@ def check_exits(bot) -> int:
     """Close positions that hit timeout or stop loss. Returns count of exits."""
     now = datetime.now(timezone.utc)
     exits = 0
+    # v12.12.2: snapshot btc_z once at entry. The value is written by
+    # _scan_and_trade concurrently; reading it multiple times within a single
+    # exit-decision could yield inconsistent regime classification.
+    _btc_z_snap: float | None = bot._btc_z
 
     # Retry any previously failed exchange closes
     with bot._pos_lock:
@@ -267,31 +271,34 @@ def check_exits(bot) -> int:
             # Opposite tail of S8_INLIFE_PARAMS (MFE >= 300/1500) — no overlap.
             exit_reason = "s8_dead_in_water"
             # exit_price stays at st.price (live mark)
-        elif strategy == "S8" and bot._btc_z is not None and S8_INLIFE_PARAMS:
+        elif strategy == "S8" and _btc_z_snap is not None and S8_INLIFE_PARAMS:
             # v12.5.30 — regime-conditioned MFE trail.
             # Walk-forward 4/4 strict + null-shuffle z=+10.52 (12/13 shuffles
             # produce negative ΔPnL, real beats by ~10σ). See
             # backtests/inlife_exit_results.md.
-            z = bot._btc_z
+            z = _btc_z_snap
             if z < -S8_INLIFE_Z_THRESHOLD:
                 bucket = "bear"
             elif z > S8_INLIFE_Z_THRESHOLD:
                 bucket = "bull"
             else:
                 bucket = "neutral"
-            act, off = S8_INLIFE_PARAMS.get(bucket, (99999, 0))
-            if pos.mfe_bps >= act:
-                trailing_bps = pos.mfe_bps - off
-                if unrealized <= trailing_bps:
-                    exit_reason = "s8_inlife"
-                    exit_price = entry_price * (1 + direction * trailing_bps / 1e4)
+            # v12.12.2: handle None value (per-regime disable) gracefully.
+            cfg_s8 = S8_INLIFE_PARAMS.get(bucket)
+            if cfg_s8 is not None:
+                act, off = cfg_s8
+                if pos.mfe_bps >= act:
+                    trailing_bps = pos.mfe_bps - off
+                    if unrealized <= trailing_bps:
+                        exit_reason = "s8_inlife"
+                        exit_price = entry_price * (1 + direction * trailing_bps / 1e4)
         # v12.11.0 — Proportional trail (regime-conditioned, S9 bull-only by default).
         # stop = arm + (mfe - arm) * lock. Tight at arm, more permissive at high MFE.
         # Walk-forward strict 4/4 via backtests/backtest_prop_trail_regime_walkforward.py
         # Kill-switch: empty PROP_TRAIL_PARAMS = {} in config.py.
         if (not exit_reason and strategy in PROP_TRAIL_PARAMS
-                and bot._btc_z is not None):
-            z = bot._btc_z
+                and _btc_z_snap is not None):
+            z = _btc_z_snap
             if z < -PROP_TRAIL_Z_THRESHOLD:
                 bucket = "bear"
             elif z > PROP_TRAIL_Z_THRESHOLD:
@@ -320,8 +327,8 @@ def check_exits(bot) -> int:
         # Kill-switch: empty TRAJ_CUT_STRATEGIES in config.py.
         if (not exit_reason
                 and strategy in TRAJ_CUT_STRATEGIES
-                and bot._btc_z is not None
-                and bot._btc_z < TRAJ_CUT_BTC_Z_THRESHOLD
+                and _btc_z_snap is not None
+                and _btc_z_snap < TRAJ_CUT_BTC_Z_THRESHOLD
                 and unrealized <= TRAJ_CUT_MIN_LOSS_BPS
                 and (unrealized - pos.mae_bps) <= TRAJ_CUT_AT_MAE_SLACK_BPS):
             t_since_mfe = hours_held - pos.mfe_at_h
