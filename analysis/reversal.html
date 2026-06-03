@@ -964,25 +964,26 @@ function refresh(){
       el.title=tip;
     });
     // v12.13.8 regime banner — context macro pour les toggles
-    const bz=s.btc_z_30d, d7=s.cross_disp_7d;
-    let regimeTxt='--', regimeColor='#7d8590';
-    if(bz!=null){
-      if(bz<=-0.5){regimeTxt='BEAR ('+bz.toFixed(2)+')'; regimeColor='#f85149'}
-      else if(bz>=0.5){regimeTxt='BULL ('+bz.toFixed(2)+')'; regimeColor='#3fb950'}
-      else {regimeTxt='NEUTRE ('+bz.toFixed(2)+')'; regimeColor='#d29922'}
+    // Note: variables prefixed `rb_` to avoid collision with earlier `regimeColor` const
+    const rb_bz=s.btc_z_30d, rb_d7=s.cross_disp_7d;
+    let rb_regTxt='--', rb_regColor='#7d8590';
+    if(rb_bz!=null){
+      if(rb_bz<=-0.5){rb_regTxt='BEAR ('+rb_bz.toFixed(2)+')'; rb_regColor='#f85149'}
+      else if(rb_bz>=0.5){rb_regTxt='BULL ('+rb_bz.toFixed(2)+')'; rb_regColor='#3fb950'}
+      else {rb_regTxt='NEUTRE ('+rb_bz.toFixed(2)+')'; rb_regColor='#d29922'}
     }
-    document.getElementById('rb-regime').innerHTML='Régime : <span style="color:'+regimeColor+';font-weight:700">'+regimeTxt+'</span>';
-    let dispTxt='--', dispColor='#7d8590';
-    if(d7!=null){
-      if(d7>=700){dispTxt='ÉLEVÉE ('+Math.round(d7)+')'; dispColor='#f85149'}
-      else if(d7>=400){dispTxt='MODÉRÉE ('+Math.round(d7)+')'; dispColor='#d29922'}
-      else {dispTxt='FAIBLE ('+Math.round(d7)+')'; dispColor='#3fb950'}
+    document.getElementById('rb-regime').innerHTML='Régime : <span style="color:'+rb_regColor+';font-weight:700">'+rb_regTxt+'</span>';
+    let rb_dispTxt='--', rb_dispColor='#7d8590';
+    if(rb_d7!=null){
+      if(rb_d7>=700){rb_dispTxt='ÉLEVÉE ('+Math.round(rb_d7)+')'; rb_dispColor='#f85149'}
+      else if(rb_d7>=400){rb_dispTxt='MODÉRÉE ('+Math.round(rb_d7)+')'; rb_dispColor='#d29922'}
+      else {rb_dispTxt='FAIBLE ('+Math.round(rb_d7)+')'; rb_dispColor='#3fb950'}
     }
-    document.getElementById('rb-disp').innerHTML='Dispersion 7j : <span style="color:'+dispColor+';font-weight:700">'+dispTxt+'</span>';
-    const longFav=(bz==null||d7==null)?'--':((bz<-0.5&&d7>700)?'NON':'oui');
-    const shortFav=(bz==null)?'--':(bz>0.5?'NON':'oui');
-    document.getElementById('rb-long-fav').innerHTML='LONG favorisés : <span style="color:'+(longFav==='NON'?'#f85149':'#3fb950')+';font-weight:700">'+longFav+'</span>';
-    document.getElementById('rb-short-fav').innerHTML='SHORT favorisés : <span style="color:'+(shortFav==='NON'?'#f85149':'#3fb950')+';font-weight:700">'+shortFav+'</span>';
+    document.getElementById('rb-disp').innerHTML='Dispersion 7j : <span style="color:'+rb_dispColor+';font-weight:700">'+rb_dispTxt+'</span>';
+    const rb_longFav=(rb_bz==null||rb_d7==null)?'--':((rb_bz<-0.5&&rb_d7>700)?'NON':'oui');
+    const rb_shortFav=(rb_bz==null)?'--':(rb_bz>0.5?'NON':'oui');
+    document.getElementById('rb-long-fav').innerHTML='LONG favorisés : <span style="color:'+(rb_longFav==='NON'?'#f85149':'#3fb950')+';font-weight:700">'+rb_longFav+'</span>';
+    document.getElementById('rb-short-fav').innerHTML='SHORT favorisés : <span style="color:'+(rb_shortFav==='NON'?'#f85149':'#3fb950')+';font-weight:700">'+rb_shortFav+'</span>';
 
     const up=s.uptime_s;
     const h=Math.floor(up/3600),m=Math.floor((up%3600)/60);

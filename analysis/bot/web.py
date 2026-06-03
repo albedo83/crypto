@@ -46,6 +46,30 @@ from .analytics import (is_bot_trade, compute_signal_drift, compute_signal_drift
 from .trading import signal_skip_reason
 from .net import send_telegram
 
+def _to_py(v):
+    """Coerce numpy / arbitrary types to JSON-safe Python natives. Recursive."""
+    if v is None or isinstance(v, (str, bool)):
+        return v
+    if isinstance(v, dict):
+        return {str(k): _to_py(x) for k, x in v.items()}
+    if isinstance(v, (list, tuple)):
+        return [_to_py(x) for x in v]
+    if isinstance(v, int):
+        return int(v)
+    if isinstance(v, float):
+        return float(v)
+    # numpy types: .item() returns Python scalar
+    if hasattr(v, "item"):
+        try:
+            return v.item()
+        except (ValueError, AttributeError):
+            pass
+    try:
+        return float(v)
+    except (TypeError, ValueError):
+        return str(v)
+
+
 def _strategy_dashboard_extras(bot) -> dict:
     """v12.13.8: build the per-(strat, dir) advice/drift bundle for /api/state.
 
@@ -60,13 +84,13 @@ def _strategy_dashboard_extras(bot) -> dict:
     disp_7d = cross.get("disp_7d")
     disp_24h = cross.get("disp_24h")
     advice = compute_strategy_advice(drift, alerts, bot._btc_z, disp_7d)
-    return {
+    return _to_py({
         "signal_drift_by_dir": drift,
         "regime_recent_alerts": alerts,
         "strategy_advice": advice,
         "cross_disp_7d": disp_7d,
         "cross_disp_24h": disp_24h,
-    }
+    })
 
 
 def _collect_active_signals(bot, btc_f) -> list:
