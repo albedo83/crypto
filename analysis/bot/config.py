@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.12.2"
+VERSION = "12.13.8"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -222,6 +222,18 @@ LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
 # attrition, effective notional matches the optimal target.
 SIGNAL_MULT = {"S1": 1.125, "S5": 3.25, "S8": 1.25, "S9": 2.00, "S10": 2.00}
 
+# v12.13.5: abort partial fills below this notional. HL exchange minimum order
+# is $10, so a fill smaller than that is intradable (cannot even be re-trimmed)
+# AND pollutes the dashboard with a "ghost" mini-position whose PnL ceiling is
+# < $1 even on a 5% move. The bot already tolerates partial fills (SIGNAL_MULT
+# v11.9.2 calibrated against the ~30% natural attrition rate), but extreme
+# partial fills (<5% of requested) are NOT what the calibration covers — they
+# indicate margin saturation or book exhaustion, not natural slippage. Setting
+# this threshold to exchange minimum keeps the calibration semantics intact
+# (typical 30-90% partials still flow through) while killing the pathological
+# tail (GMX $0.51 / NEAR $1.85 cases observed 2026-06-02/03).
+MIN_FILL_ABORT_USDT = 10.0
+
 # ── Adaptive macro modulator (v11.10.0) ─────────────────────────────
 # Each scan, the bot computes a rolling z-score of BTC 30d return and
 # scales selected strategies' sizing by `1 + α × btc_z` (clipped). This
@@ -249,10 +261,12 @@ ADAPTIVE_ALPHA = {"S1": +0.5, "S8": -0.5, "S9": -0.5}
 # multiplier hits the 0.3 floor at btc_z=0.47 — effectively zero-sized in any
 # meaningful bull regime, where these SHORTs structurally bleed. S5 LONG and
 # S9 LONG unchanged (S9 LONG still uses ADAPTIVE_ALPHA["S9"]=-0.5).
-ADAPTIVE_ALPHA_DIR = {
-    ("S5", -1): -1.5,
-    ("S9", -1): -1.5,
-}
+# v12.13.0 — retiré suite à re-validation walk-forward post candle-sync fixes
+# (v12.12.2). Le modulator directionnel ne tient plus le strict 4/4 sur le BT
+# corrigé (split_1 et split_3 dégradés, DD avg pire de 3pp). Voir
+# memory/project_s5_short_modulator_revalidation_2026_06.md. Kill-switch :
+# laisser vide; ADAPTIVE_ALPHA général (v11.10.0) reste actif via get_adaptive_alpha.
+ADAPTIVE_ALPHA_DIR: dict[tuple[str, int], float] = {}
 MACRO_LOOKBACK_DAYS = 30        # BTC return horizon (= ret_30d)
 MACRO_Z_WINDOW_DAYS = 180       # rolling 6m for mean/std of past ret_30d
 MACRO_Z_CLIP = 2.5              # clip btc_z within ±2.5 (extreme outliers)

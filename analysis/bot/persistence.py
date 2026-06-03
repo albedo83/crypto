@@ -133,7 +133,8 @@ def save_state(state_file: str, positions: dict, pos_lock,
                last_entry_scan_4h_close: int = 0,
                fees_track_start_ts: float = 0.0,
                perf_track_start_ts: float = 0.0,
-               btc_z: float | None = None) -> None:
+               btc_z: float | None = None,
+               paused_strats: set | None = None) -> None:
     """Atomically persist bot state (write to .tmp then os.replace)."""
     output_dir = os.path.dirname(state_file)
     os.makedirs(output_dir, exist_ok=True)
@@ -171,6 +172,9 @@ def save_state(state_file: str, positions: dict, pos_lock,
         # immediately after restart (otherwise None until first scan completes,
         # silently disabling prop_trail/s8_inlife/traj_cut for 30-60s).
         "_btc_z": round(btc_z, 4) if btc_z is not None else None,
+        # v12.13.6: per-(strategy, direction) manual pauses for new entries.
+        # Serialized as list of [strat, dir] pairs. Existing positions unaffected.
+        "_paused_strats": sorted([list(p) for p in (paused_strats or set())]),
     }
     tmp = state_file + ".tmp"
     try:
@@ -226,6 +230,10 @@ def load_state(state_file: str, states: dict) -> dict:
         # v12.12.2: btc_z survives restart so regime-aware exits are immediate
         _bz = data.get("_btc_z")
         result["_btc_z"] = float(_bz) if _bz is not None else None
+        # v12.13.6: granular pauses persisted as list of [strat, dir] pairs.
+        # Restore as set of tuples for membership check in rank_and_enter.
+        _ps = data.get("_paused_strats", [])
+        result["_paused_strats"] = {tuple(x) for x in _ps if isinstance(x, list) and len(x) == 2}
         # Restore feature cache if recent enough (avoids blank dashboard on restart)
         fc_ts = data.get("feature_cache_ts", 0)
         if time.time() - fc_ts < 7200:  # < 2h old

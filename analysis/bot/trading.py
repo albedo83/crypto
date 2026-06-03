@@ -604,6 +604,15 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             log_event(bot._db, "SKIP", sym,
                       {"strategy": sig["strategy"], "dir": side, "reason": "blacklist"})
             continue
+
+        # v12.13.6: manual granular pause for (strategy, direction). Set via
+        # POST /api/strategy_toggle from the dashboard. Blocks only new entries;
+        # existing positions continue their normal exit lifecycle.
+        if (sig["strategy"], side) in getattr(bot, "_paused_strats", set()):
+            log.info("SKIP %s %s %s: paused_strategy", sig["strategy"], side, sym)
+            log_event(bot._db, "SKIP", sym,
+                      {"strategy": sig["strategy"], "dir": side, "reason": "paused_strategy"})
+            continue
         # NOTE: v12.1.0 introduced a static `S5_SHORT_BLACKLIST` (DOGE, SNX,
         # LDO, AAVE, MINA). v12.2.0 replaced it with an adaptive modulator
         # (config.ADAPTIVE_ALPHA_DIR `(S5, -1) → -0.5`). The modulator

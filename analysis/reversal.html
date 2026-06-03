@@ -399,6 +399,37 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 </div>
 <div id="degraded-bar" style="display:none;background:#da3633;color:#fff;padding:6px 20px;font-size:12px;font-weight:700;align-items:center;gap:8px"></div>
 
+<div id="regime-banner" style="padding:4px 20px;font-size:11px;border-bottom:1px solid #21262d;color:#7d8590;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+  <span id="rb-regime">Régime : --</span>
+  <span id="rb-disp">Dispersion : --</span>
+  <span id="rb-long-fav">LONG favorisés : --</span>
+  <span id="rb-short-fav">SHORT favorisés : --</span>
+</div>
+
+<div id="strat-pauses" style="padding:6px 20px;display:flex;align-items:center;gap:8px;font-size:11px;border-bottom:1px solid #21262d;flex-wrap:wrap">
+  <span class="dim" style="font-weight:700">Stratégies&nbsp;:</span>
+  <span id="strat-toggle-bar" style="display:flex;gap:5px;flex-wrap:wrap"></span>
+  <span class="dim" id="strat-pause-hint" style="margin-left:auto;font-size:10px">⚠ = regime_alert 48h · ●●● = score pause-worthy · clic = pause</span>
+</div>
+<style>
+.strat-tog{display:inline-flex;flex-direction:column;align-items:center;justify-content:center;padding:3px 8px;border-radius:4px;cursor:pointer;border:1px solid transparent;user-select:none;min-width:46px;line-height:1.15;transition:filter 120ms}
+.strat-tog .st-label{font-weight:700;font-size:10px;letter-spacing:0.3px}
+.strat-tog .st-wr{font-size:9px;font-weight:600;opacity:0.85;margin-top:1px}
+.strat-tog.h-green{color:#3fb950;background:rgba(63,185,80,0.10);border-color:rgba(63,185,80,0.30)}
+.strat-tog.h-yellow{color:#d29922;background:rgba(210,153,34,0.10);border-color:rgba(210,153,34,0.30)}
+.strat-tog.h-orange{color:#db6d28;background:rgba(219,109,40,0.12);border-color:rgba(219,109,40,0.35)}
+.strat-tog.h-gray{color:#7d8590;background:rgba(125,133,144,0.10);border-color:rgba(125,133,144,0.25)}
+.strat-tog.paused{color:#fff !important;background:#da3633 !important;border-color:#a31818 !important}
+.strat-tog.paused .st-wr::before{content:"⏸ "}
+.strat-tog:hover{filter:brightness(1.3)}
+.strat-tog{position:relative}
+.strat-tog .st-badge{position:absolute;top:-4px;right:-4px;background:#da3633;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:50%;line-height:1;border:1px solid #161b22}
+.strat-tog .st-score{font-size:8px;letter-spacing:1px;line-height:1;margin-top:1px;opacity:0.85}
+.strat-tog.s-low .st-score{color:#7d8590}
+.strat-tog.s-med .st-score{color:#d29922}
+.strat-tog.s-high .st-score{color:#f85149}
+</style>
+
 <div id="market-bar" style="padding:8px 20px;display:flex;align-items:center;gap:12px;font-size:12px;border-bottom:1px solid #21262d">
   <span id="regime-dot" style="width:10px;height:10px;border-radius:50%;flex-shrink:0"></span>
   <span id="regime-label" style="font-weight:700;min-width:60px"></span>
@@ -608,28 +639,60 @@ function stopBar(prog){
 // v11.7.21: position strip — horizontal "thermometer" from stop (left, red zone)
 // to MFE/target (right, green zone). Markers: stop edge, MAE dot below, entry
 // tick, current colored line, MFE dot above, optional trailing floor.
-function positionStrip(p,w=180,h=20){
+function positionStrip(p,w=200,h=42){
+  // v12.13.3: simplified. MAE and MFE labels on TOP (closer to their dots),
+  // current value on BOTTOM (alone, emphasized). Stop catastrophe hidden
+  // (visible only via the red edge / tooltip).
   if(p.stop_bps===undefined||p.stop_bps>=0)return '';
   const stopBps=p.stop_bps,mfe=p.mfe_bps||0,cur=p.unrealized_bps||0,mae=p.mae_bps||0;
-  const right=Math.max(mfe+100,500);            // right edge: room above entry
+  const right=Math.max(mfe+100,500);
   const left=stopBps;
   const range=Math.max(right-left,100);
   const xOf=v=>Math.max(0,Math.min(1,(v-left)/range));
   const x=v=>(xOf(v)*w).toFixed(1);
   const xZero=x(0),xCur=x(cur),xMae=x(mae),xMfe=x(mfe);
   const xTrail=p.trailing_active&&p.trailing_floor_bps!=null?x(p.trailing_floor_bps):null;
+  const xPropTrail=p.prop_trail_active&&p.prop_trail_stop_bps!=null?x(p.prop_trail_stop_bps):null;
   const curCol=cur>=0?'#3fb950':(cur>=stopBps*0.5?'#d29922':'#f85149');
-  const tooltip=`stop ${stopBps} | mae ${mae>=0?'+':''}${mae.toFixed(0)} | cur ${cur>=0?'+':''}${cur.toFixed(0)} | mfe ${mfe>=0?'+':''}${mfe.toFixed(0)}${xTrail!==null?' | trail '+(p.trailing_floor_bps>=0?'+':'')+p.trailing_floor_bps:''} bps`;
+  const fmt=v=>(v>=0?'+':'')+v.toFixed(0);
+  const tooltip=`stop ${stopBps} | mae ${fmt(mae)} | cur ${fmt(cur)} | mfe ${fmt(mfe)}${xTrail!==null?' | s10 trail '+fmt(p.trailing_floor_bps):''}${xPropTrail!==null?' | prop trail '+fmt(p.prop_trail_stop_bps):''} bps`;
   const id='strip-'+p.symbol+'-'+Math.floor(Math.random()*9999);
+  // Geometry: top labels y=0-11, bar y=15-29, bottom cur y=32-41
+  const barTop=15, barBot=29, barMid=22;
   let svg=`<svg class="pos-strip" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><title>${tooltip}</title>`;
-  svg+=`<defs><linearGradient id="${id}" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#f85149" stop-opacity="0.22"/><stop offset="${(xOf(0)*100).toFixed(0)}%" stop-color="#30363d" stop-opacity="0.4"/><stop offset="100%" stop-color="#3fb950" stop-opacity="0.22"/></linearGradient></defs>`;
-  svg+=`<rect x="0" y="${h/2-2}" width="${w}" height="4" rx="2" fill="url(#${id})"/>`;
-  svg+=`<line x1="0.5" y1="2" x2="0.5" y2="${h-2}" stroke="#f85149" stroke-width="1.5"/>`;
-  svg+=`<line x1="${xZero}" y1="3" x2="${xZero}" y2="${h-3}" stroke="#7d8590" stroke-width="1"/>`;
-  if(mae<-20)svg+=`<circle cx="${xMae}" cy="${h-2}" r="2.5" fill="#f85149" opacity="0.85"/>`;
-  if(mfe>20)svg+=`<circle cx="${xMfe}" cy="2" r="2.5" fill="#3fb950" opacity="0.85"/>`;
-  if(xTrail!==null)svg+=`<line x1="${xTrail}" y1="3" x2="${xTrail}" y2="${h-3}" stroke="#d29922" stroke-width="1.5" stroke-dasharray="2,2"/>`;
-  svg+=`<line x1="${xCur}" y1="0.5" x2="${xCur}" y2="${h-0.5}" stroke="${curCol}" stroke-width="2"/>`;
+  svg+=`<defs><linearGradient id="${id}" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#f85149" stop-opacity="0.35"/><stop offset="${(xOf(0)*100).toFixed(0)}%" stop-color="#30363d" stop-opacity="0.5"/><stop offset="100%" stop-color="#3fb950" stop-opacity="0.35"/></linearGradient></defs>`;
+  svg+=`<rect x="0" y="${barTop}" width="${w}" height="${barBot-barTop}" rx="3" fill="url(#${id})"/>`;
+  // TOP row: MAE (left) and MFE (right) values — smart anchor so the label
+  // edge stays inside the strip without displacing from the marker position.
+  const anchorOf=(xVal)=>{
+    const xn=parseFloat(xVal);
+    if(xn<25)return {anchor:'start',x:Math.max(2,xn-3)};
+    if(xn>w-25)return {anchor:'end',x:Math.min(w-2,xn+3)};
+    return {anchor:'middle',x:xn};
+  };
+  if(mae<-20){
+    const a=anchorOf(xMae);
+    svg+=`<text x="${a.x}" y="11" fill="#f85149" font-size="10" font-family="monospace" text-anchor="${a.anchor}">${fmt(mae)}</text>`;
+  }
+  if(mfe>20){
+    const a=anchorOf(xMfe);
+    svg+=`<text x="${a.x}" y="11" fill="#3fb950" font-size="10" font-family="monospace" text-anchor="${a.anchor}">${fmt(mfe)}</text>`;
+  }
+  // Vertical lines: stop boundary (edge red bar implicit) + zero
+  svg+=`<line x1="0.5" y1="${barTop}" x2="0.5" y2="${barBot}" stroke="#f85149" stroke-width="2"/>`;
+  svg+=`<line x1="${xZero}" y1="${barTop-2}" x2="${xZero}" y2="${barBot+2}" stroke="#7d8590" stroke-width="1" stroke-dasharray="2,1"/>`;
+  // Trailing lines
+  if(xTrail!==null)svg+=`<line x1="${xTrail}" y1="${barTop}" x2="${xTrail}" y2="${barBot}" stroke="#d29922" stroke-width="1.5" stroke-dasharray="2,2"/>`;
+  if(xPropTrail!==null)svg+=`<line x1="${xPropTrail}" y1="${barTop}" x2="${xPropTrail}" y2="${barBot}" stroke="#58a6ff" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+  // MAE & MFE dots (on bar)
+  if(mae<-20)svg+=`<circle cx="${xMae}" cy="${barBot-2}" r="3.5" fill="#f85149" stroke="#0d1117" stroke-width="0.8"/>`;
+  if(mfe>20)svg+=`<circle cx="${xMfe}" cy="${barTop+2}" r="3.5" fill="#3fb950" stroke="#0d1117" stroke-width="0.8"/>`;
+  // Current position: simple vertical line (no center dot per user feedback)
+  svg+=`<line x1="${xCur}" y1="${barTop-2}" x2="${xCur}" y2="${barBot+2}" stroke="${curCol}" stroke-width="3"/>`;
+  // BOTTOM row: cur value in WHITE (distinct from MAE red / MFE green / STOP),
+  // smart anchor so the label edge matches marker position exactly.
+  const a=anchorOf(xCur);
+  svg+=`<text x="${a.x}" y="41" fill="#f0f6fc" font-size="12" font-weight="bold" font-family="monospace" text-anchor="${a.anchor}">${fmt(cur)}</text>`;
   svg+=`</svg>`;
   return svg;
 }
@@ -839,6 +902,87 @@ function refresh(){
     } else {
       document.getElementById('degraded-bar').style.display='none';
     }
+
+    // v12.13.6/7/8: granular strategy pauses + health color + advice score + regime banner
+    const pausedSet=new Set((s.paused_strategies||[]).map(x=>x[0]+'_'+x[1]));
+    const driftDir=s.signal_drift_by_dir||{};
+    const advice=s.strategy_advice||{};
+    const alerts=s.regime_recent_alerts||{};
+    const togBar=document.getElementById('strat-toggle-bar');
+    if(!togBar.dataset.built){
+      const combos=[['S1','LONG'],['S1','SHORT'],['S5','LONG'],['S5','SHORT'],['S8','LONG'],['S8','SHORT'],['S9','LONG'],['S9','SHORT'],['S10','LONG'],['S10','SHORT']];
+      togBar.innerHTML=combos.map(([st,d])=>{
+        const arrow=d==='LONG'?'↑':'↓';
+        return `<span class="strat-tog" data-strat="${st}" data-dir="${d}"><span class="st-badge" style="display:none">⚠</span><span class="st-label">${st}${arrow}</span><span class="st-wr">--</span><span class="st-score">○○○</span></span>`;
+      }).join('');
+      togBar.dataset.built='1';
+      togBar.querySelectorAll('.strat-tog').forEach(el=>{
+        el.onclick=()=>{
+          const st=el.dataset.strat, d=el.dataset.dir;
+          const isPaused=el.classList.contains('paused');
+          fetch('api/strategy_toggle',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({strat:st,dir:d,paused:!isPaused})}).then(x=>x.json()).then(j=>{if(j.status==='ok')refresh();else alert(j.error||'Toggle failed')}).catch(e=>alert('Error: '+e));
+        };
+      });
+    }
+    togBar.querySelectorAll('.strat-tog').forEach(el=>{
+      const st=el.dataset.strat, d=el.dataset.dir;
+      const k=st+'_'+d;
+      const isPaused=pausedSet.has(k);
+      const drift=driftDir[k];
+      const adv=advice[k]||{score:0,wr_bad:false,alert_recent:false,regime_bad:false};
+      const wrEl=el.querySelector('.st-wr');
+      const badgeEl=el.querySelector('.st-badge');
+      const scoreEl=el.querySelector('.st-score');
+      let health='h-gray', wrTxt='--';
+      if(drift && drift.n>=3){
+        const wr=drift.wr_pct;
+        wrTxt=wr+'%';
+        if(wr>=50) health='h-green';
+        else if(wr>=35) health='h-yellow';
+        else health='h-orange';
+      }
+      wrEl.textContent=wrTxt;
+      // Badge ⚠ if regime_alert fired in last 48h for this combo
+      badgeEl.style.display=adv.alert_recent?'block':'none';
+      // Score gauge: filled balls = critères ON (●), empty = OFF (○)
+      const balls = (adv.wr_bad?'●':'○') + (adv.alert_recent?'●':'○') + (adv.regime_bad?'●':'○');
+      scoreEl.textContent=balls;
+      let scoreCls='s-low';
+      if(adv.score>=2) scoreCls='s-high';
+      else if(adv.score>=1) scoreCls='s-med';
+      el.className='strat-tog '+(isPaused?'paused':health)+' '+scoreCls;
+      const lifetime=drift?drift.n_lifetime:0;
+      const pnl=drift?drift.pnl_usdt:0;
+      const criteria=[];
+      if(adv.wr_bad) criteria.push('WR < 35%');
+      if(adv.alert_recent) criteria.push('regime_alert 48h');
+      if(adv.regime_bad) criteria.push('régime macro hostile');
+      const critTxt=criteria.length?'\nCritères ON: '+criteria.join(' · '):'\nAucun critère défavorable';
+      const tip=isPaused?
+        `${st} ${d} — EN PAUSE (clic pour reprendre)`:
+        `${st} ${d}\nWR ${wrTxt} sur ${drift?drift.n:0} derniers / ${lifetime} lifetime\nPnL récent $${pnl}\nScore pause-worthy: ${adv.score}/3${critTxt}\nClic pour pauser`;
+      el.title=tip;
+    });
+    // v12.13.8 regime banner — context macro pour les toggles
+    const bz=s.btc_z_30d, d7=s.cross_disp_7d;
+    let regimeTxt='--', regimeColor='#7d8590';
+    if(bz!=null){
+      if(bz<=-0.5){regimeTxt='BEAR ('+bz.toFixed(2)+')'; regimeColor='#f85149'}
+      else if(bz>=0.5){regimeTxt='BULL ('+bz.toFixed(2)+')'; regimeColor='#3fb950'}
+      else {regimeTxt='NEUTRE ('+bz.toFixed(2)+')'; regimeColor='#d29922'}
+    }
+    document.getElementById('rb-regime').innerHTML='Régime : <span style="color:'+regimeColor+';font-weight:700">'+regimeTxt+'</span>';
+    let dispTxt='--', dispColor='#7d8590';
+    if(d7!=null){
+      if(d7>=700){dispTxt='ÉLEVÉE ('+Math.round(d7)+')'; dispColor='#f85149'}
+      else if(d7>=400){dispTxt='MODÉRÉE ('+Math.round(d7)+')'; dispColor='#d29922'}
+      else {dispTxt='FAIBLE ('+Math.round(d7)+')'; dispColor='#3fb950'}
+    }
+    document.getElementById('rb-disp').innerHTML='Dispersion 7j : <span style="color:'+dispColor+';font-weight:700">'+dispTxt+'</span>';
+    const longFav=(bz==null||d7==null)?'--':((bz<-0.5&&d7>700)?'NON':'oui');
+    const shortFav=(bz==null)?'--':(bz>0.5?'NON':'oui');
+    document.getElementById('rb-long-fav').innerHTML='LONG favorisés : <span style="color:'+(longFav==='NON'?'#f85149':'#3fb950')+';font-weight:700">'+longFav+'</span>';
+    document.getElementById('rb-short-fav').innerHTML='SHORT favorisés : <span style="color:'+(shortFav==='NON'?'#f85149':'#3fb950')+';font-weight:700">'+shortFav+'</span>';
 
     const up=s.uptime_s;
     const h=Math.floor(up/3600),m=Math.floor((up%3600)/60);

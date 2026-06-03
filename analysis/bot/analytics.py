@@ -105,6 +105,122 @@ def compute_signal_drift(trades, perf_track_start_ts: float = 0.0) -> dict:
     return result
 
 
+def compute_signal_drift_by_dir(trades, perf_track_start_ts: float = 0.0,
+                                  recent_n: int = 10) -> dict:
+    """v12.13.7: per-(strategy, direction) stats for dashboard pause toggles.
+
+    Returns a dict keyed by f"{strat}_{dir}" (e.g. "S5_LONG") with the last
+    `recent_n` closed trades: win-rate, total pnl, sample size. Used by the
+    dashboard to color-code each strategy pause toggle (vert/jaune/rouge)
+    so the user sees at a glance which combo is struggling — without having
+    to cross-reference Strategy Performance + Trade History + Telegram alerts.
+
+    Mirrors compute_signal_drift's filtering (is_bot_trade, perf_track scope).
+    """
+    from datetime import datetime as _dt
+    by_key: dict[str, list] = defaultdict(list)
+    for t in trades:
+        if not is_bot_trade(t):
+            continue
+        if perf_track_start_ts > 0:
+            try:
+                ts = _dt.fromisoformat(t.entry_time).timestamp()
+            except (ValueError, AttributeError):
+                ts = 0
+            if ts > 0 and ts < perf_track_start_ts:
+                continue
+        dir_str = t.direction if isinstance(t.direction, str) else (
+            "LONG" if t.direction == 1 else "SHORT")
+        key = f"{t.strategy}_{dir_str}"
+        by_key[key].append(t)
+    result = {}
+    for key, lst in by_key.items():
+        recent = lst[-recent_n:]
+        n = len(recent)
+        if n == 0:
+            continue
+        wins = sum(1 for t in recent if t.pnl_usdt > 0)
+        pnl = sum(t.pnl_usdt for t in recent)
+        result[key] = {
+            "n": n,
+            "wr_pct": round(100 * wins / n, 0),
+            "pnl_usdt": round(pnl, 1),
+            "n_lifetime": len(lst),
+        }
+    return result
+
+
+def get_recent_regime_alerts(db, hours: int = 48) -> dict:
+    """v12.13.8: query REGIME_ALERT events from the last `hours` and return
+    a dict keyed by f"{strategy}_{dir}" → unix ts of the most recent fire.
+
+    Used by the dashboard to badge strategy pause toggles whose combo got
+    a recent regime alert.
+    """
+    import time as _time
+    import json as _json
+    out: dict[str, float] = {}
+    if db is None:
+        return out
+    cutoff = _time.time() - hours * 3600
+    try:
+        rows = db.execute(
+            "SELECT ts, data FROM events WHERE event='REGIME_ALERT' AND ts >= ? ORDER BY ts",
+            (cutoff,)).fetchall()
+    except Exception:
+        return out
+    for ts, data in rows:
+        try:
+            d = _json.loads(data)
+        except Exception:
+            continue
+        strat = d.get("strategy")
+        dirn = d.get("dir")
+        if not strat or not dirn:
+            continue
+        key = f"{strat}_{dirn}"
+        out[key] = max(out.get(key, 0), ts)
+    return out
+
+
+def compute_strategy_advice(drift_dir: dict, recent_alerts: dict,
+                             btc_z: float | None, disp_7d: float | None) -> dict:
+    """v12.13.8: combine the 3 pause-worthy criteria into a per-combo score.
+
+    For each (strategy, direction):
+      - wr_bad      : WR < 35% on last 10 closed trades
+      - alert_recent: REGIME_ALERT fired for this combo in last 48h
+      - regime_bad  : macro regime hostile to this combo right now
+          * LONG  combos : btc_z < -0.5 AND disp_7d > 700 (bear-dispersed)
+          * SHORT combos : btc_z > +0.5 (bull eats shorts)
+
+    Returns {"S5_LONG": {"score": 0-3, "wr_bad": bool, "alert_recent": bool,
+                          "regime_bad": bool}}.
+    """
+    advice: dict[str, dict] = {}
+    combos = [(s, d) for s in ("S1", "S5", "S8", "S9", "S10")
+              for d in ("LONG", "SHORT")]
+    bear_dispersed = (btc_z is not None and btc_z < -0.5
+                      and disp_7d is not None and disp_7d > 700)
+    bull_strong = (btc_z is not None and btc_z > 0.5)
+    for strat, dirn in combos:
+        key = f"{strat}_{dirn}"
+        wr_bad = False
+        drift = drift_dir.get(key)
+        if drift and drift.get("n", 0) >= 3:
+            wr_bad = drift["wr_pct"] < 35
+        alert_recent = key in recent_alerts
+        regime_bad = (bear_dispersed if dirn == "LONG" else bull_strong)
+        score = sum([wr_bad, alert_recent, regime_bad])
+        advice[key] = {
+            "score": score,
+            "wr_bad": wr_bad,
+            "alert_recent": alert_recent,
+            "regime_bad": regime_bad,
+        }
+    return advice
+
+
 def compute_s10_health(trades, days: int = 30) -> dict:
     """S10 rolling health check over the last N days.
 

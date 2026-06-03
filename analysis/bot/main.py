@@ -112,6 +112,13 @@ async def run():
     if bot._btc_z is not None:
         log.info("Restored btc_z=%+.3f (regime-aware exits active immediately)", bot._btc_z)
 
+    # v12.13.6 — restore granular pauses for (strategy, direction). These block
+    # new entries only; existing positions follow normal exit lifecycle.
+    bot._paused_strats = state.get("_paused_strats", set()) if state else set()
+    if bot._paused_strats:
+        _formatted = ", ".join(f"{s} {d}" for s, d in sorted(bot._paused_strats))
+        log.info("Restored paused strategies: %s", _formatted)
+
     # Startup sanity check: sum of *all* trades should match stored _total_pnl
     # plus any accumulated realign offset.
     # close_position credits _total_pnl on every close (bot, manual_stop, reset)

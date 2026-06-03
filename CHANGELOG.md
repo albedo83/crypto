@@ -1,5 +1,37 @@
 # Changelog
 
+## [12.13.8] — 2026-06-03
+- **Dashboard**: bandeau régime au-dessus des toggles "Stratégies" — affiche régime (BEAR/NEUTRE/BULL via btc_z), dispersion 7j (ÉLEVÉE/MODÉRÉE/FAIBLE), et favorabilité LONG/SHORT du moment. Permet de juger le contexte macro sans cross-référencer Telegram.
+- **Dashboard**: badge ⚠ en haut-droite de chaque toggle si un `regime_alert` a fire pour cette combo dans les 48h. Lecture critère #2 directement à l'écran.
+- **Dashboard**: jauge `●●○` sous le WR — un cercle plein par critère défavorable ON (WR<35%, alert récent, régime macro hostile). Score 2/3+ rouge = "envisage de pauser".
+- **Analytics**: nouvelles fonctions `get_recent_regime_alerts` (query events table sur 48h) et `compute_strategy_advice` (combine WR/alert/régime → score 0-3 par combo).
+- **Trading engine**: cache `bot._cross_ctx_cache` (snapshot du dernier scan) — permet à `/api/state` d'exposer disp_7d/disp_24h sans recomputer.
+
+## [12.13.7] — 2026-06-03
+- **Dashboard**: toggles "Stratégies" colorisés par WR récent (10 derniers fermés par strat+dir). Vert ≥50%, jaune 35-49%, orange <35%, gris si <3 trades. Rouge = pausé manuel (override). WR affiché sous le label + tooltip avec PnL récent + n lifetime. L'utilisateur voit d'un coup d'œil quel combo signal+direction souffre, sans cross-référencer Strategy Performance / Trade History / Telegram. Nouvelle fonction `analytics.compute_signal_drift_by_dir`, exposée dans `/api/state.signal_drift_by_dir`.
+
+## [12.13.6] — 2026-06-03
+- **Trading engine**: pause granulaire par (stratégie, direction) pour les NOUVELLES entrées. Endpoint `POST /api/strategy_toggle` body `{"strat":"S5","dir":"LONG","paused":true}`, persisté dans `state.json:_paused_strats`. Skip dans `rank_and_enter` avec reason `paused_strategy`. Positions déjà ouvertes continuent leur cycle normal (stop / timeout / manual close). Conçu pour réagir aux regime_alerts (v12.7.14) — l'humain pause un combo signal+direction qui souffre dans le régime courant, le bot exécute. Restauré au boot via main.py.
+- **Dashboard**: barre de toggles "Stratégies" sous le degraded-bar, 10 boutons (5 stratégies × LONG/SHORT). Vert = active, rouge = en pause. Clic = bascule via l'endpoint.
+
+## [12.13.5] — 2026-06-03
+- **Trading engine**: micro-fills < $10 notionnel annulés automatiquement (auto-close immédiat + skip création Position). Cas GMX $0.51 (2026-06-02 Live) et NEAR $1.85 (2026-06-03 Junior) ne pollueront plus le dashboard. Seuil `MIN_FILL_ABORT_USDT=10.0` dans `config.py` (= minimum d'ordre HL, sous lequel la position est intradable). Calibration v11.9.2 `SIGNAL_MULT[S5]=3.25` (qui compense ~30% d'attrition naturelle) reste intacte : seuls les fills pathologiques <5% du requested sont coupés. Si le close de la mini-position échoue, le bot la garde en gestion (évite l'orpheline). Fail-open dans tous les autres cas. Telegram `Open failed ... micro_fill_aborted` envoyé via le pipeline existant `actionable=True`.
+
+## [12.13.4] — 2026-06-02
+- **Dashboard**: valeur courante en blanc (distincte de MAE/MFE), positionnement précis sans décalage, point central supprimé.
+
+## [12.13.3] — 2026-06-02
+- **Dashboard**: barre de position simplifiée (MAE / MFE en haut, cur en bas, stop catastrophe masqué).
+
+## [12.13.2] — 2026-06-02
+- **Dashboard**: valeurs numériques sous la barre de position réparties sur 2 lignes (cur isolé, plus de superposition).
+
+## [12.13.1] — 2026-06-02
+- **Dashboard**: barre de position redessinée (plus haute, labels STOP / 0 / MFE visibles, valeurs numériques sous chaque marqueur, prop_trail visible).
+
+## [12.13.0] — 2026-06-02
+- **Trading engine**: retrait du modulator directionnel S5/S9 SHORT (re-validation walk-forward post-synchro révèle qu'il dégrade le drawdown sans bénéfice robuste).
+
 ## [12.12.2] — 2026-06-02
 - **Trading engine**: `btc_z` persisté entre redémarrages (les sorties dépendantes du régime restent actives immédiatement au boot, plus de fenêtre 30-60s sans protection).
 - **Trading engine**: lecture atomique de `btc_z` dans la boucle d'exit (snapshot unique par appel, évite l'incohérence entre branches).

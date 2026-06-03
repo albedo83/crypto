@@ -40,10 +40,34 @@ def _mode_color() -> str:
 log = logging.getLogger("multisignal")
 
 # DRY: shared helpers live in trading.py
-from .analytics import (is_bot_trade, compute_signal_drift, compute_s10_health, filter_by_perf_scope,
+from .analytics import (is_bot_trade, compute_signal_drift, compute_signal_drift_by_dir,
+                        get_recent_regime_alerts, compute_strategy_advice, compute_s10_health, filter_by_perf_scope,
                          estimate_win_prob, filter_recent_trades)
 from .trading import signal_skip_reason
 from .net import send_telegram
+
+def _strategy_dashboard_extras(bot) -> dict:
+    """v12.13.8: build the per-(strat, dir) advice/drift bundle for /api/state.
+
+    Computes once, returns dict to splat into the state response. Used by the
+    dashboard pause toggles to (a) color by recent WR, (b) badge if a regime
+    alert fired in the last 48h, (c) show a pause-worthy score 0-3.
+    """
+    drift = compute_signal_drift_by_dir(
+        bot.trades, getattr(bot, "_perf_track_start_ts", 0.0), recent_n=10)
+    alerts = get_recent_regime_alerts(bot._db, hours=48)
+    cross = getattr(bot, "_cross_ctx_cache", None) or {}
+    disp_7d = cross.get("disp_7d")
+    disp_24h = cross.get("disp_24h")
+    advice = compute_strategy_advice(drift, alerts, bot._btc_z, disp_7d)
+    return {
+        "signal_drift_by_dir": drift,
+        "regime_recent_alerts": alerts,
+        "strategy_advice": advice,
+        "cross_disp_7d": disp_7d,
+        "cross_disp_24h": disp_24h,
+    }
+
 
 def _collect_active_signals(bot, btc_f) -> list:
     """Scan all symbols and return active signal descriptions for the dashboard."""
@@ -400,6 +424,8 @@ def build_state_response(bot) -> dict:
         "execution_mode": EXECUTION_MODE,
         "bot_label": _mode_label(), "bot_label_color": _mode_color(),
         "paused": bot._paused, "running": bot.running,
+        # v12.13.6: list of [strat, dir] pairs paused for new entries
+        "paused_strategies": sorted([list(p) for p in getattr(bot, "_paused_strats", set())]),
         "degraded": list(bot._degraded), "loss_streak": bot._consecutive_losses,
         "balance": round(balance, 2), "capital": bot._capital,
         # Capital cap exposed for the DCA dashboard widget. Only Junior bot
@@ -435,6 +461,9 @@ def build_state_response(bot) -> dict:
         "next_scan_s": max(0, SCAN_INTERVAL - (time.time() - bot._last_scan)) if bot._last_scan else 0,
         "scan_interval": SCAN_INTERVAL,
         "signal_drift": compute_signal_drift(bot.trades, getattr(bot, "_perf_track_start_ts", 0.0)),
+        # v12.13.7/8: per-(strategy, direction) WR + regime alerts + advice
+        # for the dashboard pause toggles (color, badge, score).
+        **_strategy_dashboard_extras(bot),
         "perf_track_start_ts": getattr(bot, "_perf_track_start_ts", 0.0),
         "s10_health": compute_s10_health(bot.trades),
         "btc_z_30d": round(bot._btc_z, 3) if bot._btc_z is not None else None,
@@ -1234,6 +1263,38 @@ def create_app(bot) -> FastAPI:
         bot._paused, bot._last_scan = False, 0  # force immediate scan
         bot._save_state()
         return JSONResponse({"status": "resumed"})
+
+    @app.post("/api/strategy_toggle")
+    async def api_strategy_toggle(payload: dict):
+        """v12.13.6: pause/resume new entries for a (strategy, direction) pair.
+
+        Body: {"strat": "S5", "dir": "LONG", "paused": true|false}
+        Existing positions are NOT touched — only blocks NEW entries.
+        Idempotent: re-toggling the same state is a no-op.
+        """
+        strat = str(payload.get("strat", "")).strip().upper()
+        direction = str(payload.get("dir", "")).strip().upper()
+        paused = bool(payload.get("paused"))
+        valid_strats = {"S1", "S5", "S8", "S9", "S10"}
+        valid_dirs = {"LONG", "SHORT"}
+        if strat not in valid_strats or direction not in valid_dirs:
+            return JSONResponse(
+                {"status": "error",
+                 "error": f"invalid strat={strat} or dir={direction}"},
+                status_code=400)
+        if not hasattr(bot, "_paused_strats"):
+            bot._paused_strats = set()
+        key = (strat, direction)
+        if paused:
+            bot._paused_strats.add(key)
+        else:
+            bot._paused_strats.discard(key)
+        bot._save_state()
+        log.info("Strategy toggle: %s %s → paused=%s", strat, direction, paused)
+        return JSONResponse({
+            "status": "ok",
+            "paused_strategies": sorted([list(p) for p in bot._paused_strats]),
+        })
 
     @app.post("/api/reset")
     def api_reset():  # sync -- FastAPI runs in threadpool

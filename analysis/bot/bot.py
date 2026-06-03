@@ -45,6 +45,13 @@ class MultiSignalBot:
         self.trades: deque[Trade] = deque(maxlen=5000)
         self.running = False
         self._paused = False
+        # v12.13.6: granular pause per (strategy, direction). Set of
+        # tuples like {("S5", "LONG")}. Checked in rank_and_enter to skip
+        # NEW entries; existing positions continue normal exit lifecycle.
+        # Used to manually pause a struggling signal-direction combo
+        # (e.g. S5 LONG in dispersed-bear regime) without freezing the
+        # whole bot. Persisted in state.json across restarts.
+        self._paused_strats: set[tuple[str, str]] = set()
         self._feature_cache: dict[str, dict | None] = {}
         self._oi_summary: dict = {"falling": 0, "rising": 0}
         self._dxy_cache: tuple[float, float] = (0.0, 0.0)
@@ -71,6 +78,9 @@ class MultiSignalBot:
         self._giveback_alerted: set[str] = set()  # v12.7.2 — symbols already alerted on giveback pattern
         self._lock_floor_alerted: set[str] = set()  # v12.7.2 — symbols already alerted on lock-floor opportunity
         self._regime_alert_last_ts: float = 0.0  # v12.7.14 — cooldown ts for regime alert (in-memory only)
+        # v12.13.8: cache the last cross-sectional context (disp_7d, disp_24h)
+        # so /api/state can expose them for the dashboard regime banner.
+        self._cross_ctx_cache: dict | None = None
         self._basket_metrics: dict | None = None  # observation-only basket correlation
         # v12.9.0: gate entry-signal scans to 4h candle close boundaries to
         # match the BT engine's granularity. See _scan_and_trade for details.
@@ -432,7 +442,8 @@ class MultiSignalBot:
             last_entry_scan_4h_close=self._last_entry_scan_4h_close,
             fees_track_start_ts=self._fees_track_start_ts,
             perf_track_start_ts=self._perf_track_start_ts,
-            btc_z=self._btc_z)
+            btc_z=self._btc_z,
+            paused_strats=self._paused_strats)
 
     def _build_token_signals(self, now, btc_f: dict, cross_ctx: dict) -> list:
         """Per-token signal detection loop. Returns the list of fired token-level
@@ -575,6 +586,9 @@ class MultiSignalBot:
         Telegram patterns. Identified by code-review v12.9.4.
         """
         cross_ctx = signals.compute_cross_context(self._feature_cache)
+        # v12.13.8: cache so /api/state can expose disp_7d for the dashboard
+        # regime banner without recomputing.
+        self._cross_ctx_cache = cross_ctx
         # v12.9.5 — alerts always run at hourly cadence (not gated).
         try:
             self._check_wr_alerts()

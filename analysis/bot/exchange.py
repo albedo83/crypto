@@ -10,7 +10,7 @@ import threading
 import time
 from concurrent.futures import ThreadPoolExecutor, TimeoutError as _FTO
 
-from .config import TRADE_SYMBOLS, LEVERAGE
+from .config import TRADE_SYMBOLS, LEVERAGE, MIN_FILL_ABORT_USDT
 
 log = logging.getLogger("multisignal")
 
@@ -251,7 +251,7 @@ def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
         except (TypeError, ValueError):
             avg_px, actual_sz = 0.0, 0.0
         if avg_px > 0 and actual_sz > 0:
-            return {"avgPx": avg_px, "sz": actual_sz}
+            return _abort_if_micro_fill(exchange, sym, avg_px, actual_sz, size_usdt)
         log.warning("OPEN %s: invalid avgPx=%s sz=%s in filled response — falling back to user_fills",
                     sym, filled.get("avgPx"), filled.get("totalSz"))
 
@@ -266,11 +266,41 @@ def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
         if coin_fills:
             total_sz = sum(float(f["sz"]) for f in coin_fills)
             avg_px = sum(float(f["px"]) * float(f["sz"]) for f in coin_fills) / total_sz
-            return {"avgPx": avg_px, "sz": total_sz}
+            return _abort_if_micro_fill(exchange, sym, avg_px, total_sz, size_usdt)
     except Exception as e:
         log.warning("Fill lookup failed: %s — using market price", e)
 
     return {"avgPx": price, "sz": sz}  # last resort fallback
+
+
+def _abort_if_micro_fill(exchange, sym: str, avg_px: float, actual_sz: float,
+                         requested_usdt: float) -> dict:
+    """v12.13.5: reject micro-fills below MIN_FILL_ABORT_USDT and reverse them.
+
+    Saturated cross-margin or thin order books occasionally return fills at <5%
+    of requested notional. A position smaller than the HL minimum order ($10)
+    is intradable AND pollutes the dashboard with no upside. We close it
+    immediately and raise so rank_and_enter skips creating the Position.
+
+    Failure mode: if the reverse close itself fails, we keep the mini-position
+    in management (return normally) rather than leaving an orphan on the
+    exchange. The bot will manage it via normal stop/timeout — the only
+    downside is dashboard noise until natural exit.
+    """
+    filled_usdt = avg_px * actual_sz
+    if filled_usdt >= MIN_FILL_ABORT_USDT:
+        return {"avgPx": avg_px, "sz": actual_sz}
+    log.warning("MICRO FILL ABORT %s: filled $%.2f of requested $%.0f — closing",
+                sym, filled_usdt, requested_usdt)
+    try:
+        _sdk_call(exchange.market_close, sym, slippage=0.02, timeout=20.0)
+    except Exception as e:
+        log.error("MICRO FILL abort %s: reverse close failed (%s) — "
+                  "keeping mini-position in management", sym, e)
+        return {"avgPx": avg_px, "sz": actual_sz}
+    raise ValueError(
+        f"micro_fill_aborted: filled ${filled_usdt:.2f} of ${requested_usdt:.0f} "
+        f"(<${MIN_FILL_ABORT_USDT:.0f}) — position closed")
 
 
 def execute_close(exchange, hl_info, address: str, sym: str) -> dict | None:
