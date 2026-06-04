@@ -14,6 +14,7 @@ from datetime import datetime, timezone, timedelta
 
 from .config import (COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTION,
                      MAX_PER_SECTOR, MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS, MACRO_STRATEGIES,
+                     MAX_NOTIONAL_PER_TRADE,
                      TOKEN_SECTOR, STOP_LOSS_BPS, STOP_LOSS_S8, COOLDOWN_HOURS,
                      HOLD_HOURS_DEFAULT,
                      S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS,
@@ -680,6 +681,14 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
             modulator_mult = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
             modulator_z = bot._btc_z
             size = round(size * modulator_mult, 2)
+        # v12.13.9: cap per-trade notional to avoid single-position margin
+        # saturation. Without this cap, high STRAT_Z + SIGNAL_MULT=2 + modulator
+        # could push S9 notional to 1000+ on $800 equity → cascade-fails on
+        # subsequent entries at the same boundary.
+        if MAX_NOTIONAL_PER_TRADE > 0 and size > MAX_NOTIONAL_PER_TRADE:
+            log.info("Cap %s %s %s: $%.0f → $%.0f (MAX_NOTIONAL_PER_TRADE)",
+                     sig["strategy"], side, sym, size, MAX_NOTIONAL_PER_TRADE)
+            size = MAX_NOTIONAL_PER_TRADE
         # v11.10.1: skip explicit if post-modulator size below the live exchange
         # minimum ($10). Without this, execute_open raises ValueError and the
         # try/except logs an alarming "Order too small" — clean SKIP instead.
@@ -720,7 +729,13 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
                     category="trade")
             except Exception as e:
                 log.error("EXEC OPEN FAILED %s %s: %s", sym, sig["strategy"], e)
-                send_telegram(f"\u274c Open failed {sym} {sig['strategy']}: {e}", category="trade", actionable=True)
+                # v12.13.9: Insufficient-margin failures are normal when
+                # capital is saturated \u2014 don't spam Telegram with each
+                # cascade-fail on the same 4h boundary. Other errors still
+                # alert (legit system issues).
+                _err_str = str(e).lower()
+                if "insufficient margin" not in _err_str and "margin to place order" not in _err_str:
+                    send_telegram(f"\u274c Open failed {sym} {sig['strategy']}: {e}", category="trade", actionable=True)
                 continue
 
         ctx = sig.get("ctx", {})

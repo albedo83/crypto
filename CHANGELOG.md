@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.13.9] — 2026-06-04
+- **Trading engine**: cap notional par trade ($500) pour éviter qu'une seule position consomme toute la marge sur petits capitaux.
+- **Telegram**: les "Open failed" sur marge insuffisante sont silencés (spam de cascade sur boundary saturé).
+
 ## [12.13.8] — 2026-06-03
 - **Dashboard**: bandeau régime au-dessus des toggles "Stratégies" — affiche régime (BEAR/NEUTRE/BULL via btc_z), dispersion 7j (ÉLEVÉE/MODÉRÉE/FAIBLE), et favorabilité LONG/SHORT du moment. Permet de juger le contexte macro sans cross-référencer Telegram.
 - **Dashboard**: badge ⚠ en haut-droite de chaque toggle si un `regime_alert` a fire pour cette combo dans les 48h. Lecture critère #2 directement à l'écran.

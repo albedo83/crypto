@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.13.8"
+VERSION = "12.13.9"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -211,6 +211,12 @@ LEVERAGE = 2.0
 
 SIZE_PCT = 0.18        # base sizing (was 0.12, backtest: +138% P&L, DD -81%)
 SIZE_BONUS = 0.03
+# v12.13.9: hard cap on per-trade notional. Without this, S9/S10 (high
+# STRAT_Z + SIGNAL_MULT=2.0 + modulator) can hit $1000+ notional on $800
+# equity → single position consumes most of the available margin and
+# subsequent entries at the same 4h boundary cascade-fail with HL's
+# "Insufficient margin". Set to 0 to disable (legacy behavior).
+MAX_NOTIONAL_PER_TRADE = 500.0
 STRAT_Z = {"S1": 6.42, "S5": 3.67, "S8": 6.99, "S9": 8.71, "S10": 3.66}
 LIQUIDITY_HAIRCUT = {"S8": 0.8}  # S8 fires during thin/stressed markets
 # Per-signal multipliers (backtest_sizing.py cross-period sweep 3m/12m/24m).
