@@ -272,7 +272,10 @@ def run_window(features, data, sector_features, dxy_data,
                cooldown_hours: float = 24.0,
                cooldown_by_strat: dict | None = None,
                mid_trade_dump_path: str | None = None,
-               mid_trade_checkpoints_h: tuple[int, ...] = (4, 8, 12, 24)) -> dict:
+               mid_trade_checkpoints_h: tuple[int, ...] = (4, 8, 12, 24),
+               max_notional_per_trade: float | None = None,
+               margin_check: bool = False,
+               margin_max_util: float = 0.95) -> dict:
     """Run the portfolio backtest on a time window.
 
     `interval_hours` (default 4) tells the engine how many hours each candle
@@ -511,6 +514,9 @@ def run_window(features, data, sector_features, dxy_data,
     capital = start_capital
     peak_capital = start_capital
     max_dd_pct = 0.0
+    # Counter for margin_check skips (margin saturation). Kept in a list so
+    # the inner closure / loop can mutate it without `nonlocal`.
+    n_margin_skip = [0]
 
     # mid_trade_profiling_eda: snapshot collector. Snapshots emitted at
     # specified hold-hour checkpoints (default 4/8/12/24h) for each position
@@ -1158,6 +1164,19 @@ def run_window(features, data, sector_features, dxy_data,
             if basket_haircut_fn is not None:
                 effn_basket = _compute_effective_n(positions, ts)
                 size *= basket_haircut_fn(cand, effn_basket, len(positions))
+            # v12.13.9 mirror: per-trade notional cap (matches trading.py:688)
+            if max_notional_per_trade is not None and size > max_notional_per_trade:
+                size = max_notional_per_trade
+            # Margin saturation check: mirror HL "Insufficient margin" cascade
+            # mode the live bot can hit when total open notional / LEVERAGE
+            # approaches free balance. Off by default (legacy BT behavior).
+            if margin_check:
+                open_margin = sum(p["size"] / LEVERAGE for p in positions.values())
+                new_margin = size / LEVERAGE
+                margin_budget = capital * margin_max_util
+                if open_margin + new_margin > margin_budget:
+                    n_margin_skip[0] += 1
+                    continue
             # EDA hook (feature_modulator_eda): record entry features for
             # post-hoc analysis. Partial confluence = 4 of the 5 live components
             # (drops the OI component since the backtest has no live-grade
@@ -1363,6 +1382,7 @@ def run_window(features, data, sector_features, dxy_data,
         "best_strat": best_strat,
         "trades": trades,
         "basket_timeseries": basket_timeseries,
+        "n_margin_skip": n_margin_skip[0],
     }
 
 
