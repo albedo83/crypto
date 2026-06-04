@@ -1288,6 +1288,25 @@ def create_app(bot) -> FastAPI:
         bot._save_state()
         return JSONResponse({"status": "resumed"})
 
+    @app.post("/api/halt_entries")
+    async def api_halt_entries():
+        # v12.14.0: non-destructive global pause. Sets _paused=True so
+        # _scan_and_trade is skipped, but check_exits keeps running so open
+        # positions exit on their normal rules (stops, traj_cut, dead_in_water,
+        # manual_close, timeouts). Use when the market gets erratic and you
+        # want to freeze NEW entries without forcibly closing what's open.
+        bot._paused = True
+        bot._save_state()
+        log.info("HALT_ENTRIES: new entries blocked, open positions untouched")
+        return JSONResponse({"status": "halted"})
+
+    @app.post("/api/resume_entries")
+    async def api_resume_entries():
+        bot._paused, bot._last_scan = False, 0  # force immediate scan
+        bot._save_state()
+        log.info("RESUME_ENTRIES: scan resumed")
+        return JSONResponse({"status": "resumed"})
+
     @app.post("/api/strategy_toggle")
     async def api_strategy_toggle(payload: dict):
         """v12.13.6: pause/resume new entries for a (strategy, direction) pair.

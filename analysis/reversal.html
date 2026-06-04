@@ -368,6 +368,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
     <button class="btn-small" onclick="showBacktests()">Backtests</button>
     <span class="info" id="cap-display" style="font-size:11px;color:#8b949e"></span>
     <button class="btn-small" onclick="addCapital()" style="background:#238636;color:#fff;border-color:#2ea043">+ DCA</button>
+    <button class="btn-small" id="halt-btn" onclick="toggleHalt()" title="Halt new entries — does NOT touch open positions">❄ Halt</button>
   </div>
 </div>
 
@@ -736,6 +737,9 @@ function sparkline(traj,entryPx,dirSign,w=70,h=24){
 }
 function addCapital(){const a=prompt('DCA amount ($):');if(!a)return;const v=parseFloat(a);if(isNaN(v)||v===0){alert('Invalid amount');return}if(!confirm((v>0?'Deposit':'Withdraw')+' $'+Math.abs(v)+' ?'))return;fetch('api/capital',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:v})}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else{alert('Capital: $'+j.old+' -> $'+j.new);refresh()}}).catch(e=>alert('Error: '+e));}
 
+// v12.14.0: non-destructive halt — blocks new entries, leaves open positions running on normal exit rules.
+function toggleHalt(){const btn=document.getElementById('halt-btn');const isPaused=btn&&btn.textContent.includes('Resume');const action=isPaused?'resume new entries (scan resumes immediately)':'halt new entries (open positions keep running on their own exits)';if(!confirm('Confirm: '+action+'?'))return;const path=isPaused?'api/resume_entries':'api/halt_entries';fetch(path,{method:'POST',credentials:'same-origin'}).then(x=>x.json()).then(j=>{if(j.error)alert(j.error);else refresh()}).catch(e=>alert('Error: '+e));}
+
 // Minimal markdown → HTML: H2/H3 headings, list bullets, inline code, bold,
 // pipe-delimited tables (| col | col | with --- separator row).
 function renderMarkdown(md){
@@ -894,6 +898,24 @@ function refresh(){
     const pulse=document.getElementById('pulse');
     if(s.paused){tag.innerHTML='PAUSED';tag.className='tag paused'}
     else{tag.innerHTML='<span class="pulse"></span> LIVE';tag.className='tag live'}
+
+    // v12.14.0: halt-entries button label/style reflects current _paused state
+    const haltBtn=document.getElementById('halt-btn');
+    if(haltBtn){
+      if(s.paused){
+        haltBtn.textContent='▶ Resume';
+        haltBtn.style.background='#238636';
+        haltBtn.style.color='#fff';
+        haltBtn.style.borderColor='#2ea043';
+        haltBtn.title='Resume new entries (existing positions are already running on their normal exit rules)';
+      } else {
+        haltBtn.textContent='❄ Halt';
+        haltBtn.style.background='';
+        haltBtn.style.color='';
+        haltBtn.style.borderColor='';
+        haltBtn.title='Halt new entries — does NOT touch open positions';
+      }
+    }
 
     // Degraded mode banner
     if(s.degraded && s.degraded.length > 0){

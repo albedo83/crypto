@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.14.0] — 2026-06-04
+- **Dashboard**: bouton "❄ Halt" (header) bloque toutes les nouvelles entrées sans toucher aux positions ouvertes. Les exits (stops, trailing, dead-in-water, manual_close, timeouts) restent actifs. Toggle en "▶ Resume" quand actif.
+- **API**: endpoints `POST /api/halt_entries` et `POST /api/resume_entries` (non-destructifs, à distinguer du legacy `/api/pause` qui ferme tout).
+
 ## [12.13.9] — 2026-06-04
 - **Trading engine**: cap notional par trade ($500) pour éviter qu'une seule position consomme toute la marge sur petits capitaux.
 - **Telegram**: les "Open failed" sur marge insuffisante sont silencés (spam de cascade sur boundary saturé).
