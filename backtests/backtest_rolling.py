@@ -47,6 +47,8 @@ from analysis.bot.config import (
     TRAJ_CUT_STRATEGIES, TRAJ_CUT_BTC_Z_THRESHOLD,
     TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H, TRAJ_CUT_TIME_SINCE_MFE_MIN_H,
     TRAJ_CUT_AT_MAE_SLACK_BPS, TRAJ_CUT_MIN_LOSS_BPS,
+    S9_EARLY_DEAD_T_H, S9_EARLY_DEAD_MFE_MAX_BPS,
+    BTC_DROP_CUT_RET_4H_BPS, BTC_DROP_CUT_UR_MAX_BPS,
 )
 from bisect import bisect_right
 
@@ -275,7 +277,8 @@ def run_window(features, data, sector_features, dxy_data,
                mid_trade_checkpoints_h: tuple[int, ...] = (4, 8, 12, 24),
                max_notional_per_trade: float | None = None,
                margin_check: bool = False,
-               margin_max_util: float = 0.95) -> dict:
+               margin_max_util: float = 0.95,
+               early_dead_check: dict[str, tuple[float, float]] | None = None) -> dict:
     """Run the portfolio backtest on a time window.
 
     `interval_hours` (default 4) tells the engine how many hours each candle
@@ -331,6 +334,17 @@ def run_window(features, data, sector_features, dxy_data,
         for i, c in enumerate(data[coin]):
             all_ts.add(c["t"])
             coin_by_ts[coin][c["t"]] = i
+
+    # v12.15.0 — Pre-compute BTC last-4h-candle return per ts for btc_drop_cut.
+    # BTC isn't in `coins` (it's a REF_TOKEN), so we index it separately.
+    btc_ret_4h_by_ts: dict[int, float] = {}
+    if "BTC" in data:
+        _btc_arr = data["BTC"]
+        for i in range(1, len(_btc_arr)):
+            _p_prev = _btc_arr[i - 1]["c"]
+            _p_curr = _btc_arr[i]["c"]
+            if _p_prev > 0 and _p_curr > 0:
+                btc_ret_4h_by_ts[_btc_arr[i]["t"]] = (_p_curr / _p_prev - 1) * 1e4
 
     feat_by_ts = defaultdict(dict)
     for coin in coins:
@@ -765,6 +779,18 @@ def run_window(features, data, sector_features, dxy_data,
                     and pos.get("mfe", 0) <= S8_DEAD_MFE_MAX_BPS):
                 exit_reason = "s8_dead_in_water"
 
+            # EXIT-C R&D — early dead check generalized.
+            # Mirror of s8_dead_in_water for other strats. early_dead_check
+            # is a dict {strat: (T_check_h, mfe_cap_bps)}. Fires when held
+            # reaches T_check AND mfe still below cap.
+            if not exit_reason and early_dead_check is not None:
+                edc = early_dead_check.get(pos["strat"])
+                if edc is not None:
+                    t_check_h, mfe_cap = edc
+                    if (held * interval_hours >= t_check_h
+                            and pos.get("mfe", 0) <= mfe_cap):
+                        exit_reason = "early_dead_check"
+
             # v12.5.30 — S8 in-life MFE trail (regime-conditioned). Mirror of
             # analysis/bot/trading.py:check_exits (line 270-287). Active only
             # when btc_z is available (i.e. when the engine has BTC history).
@@ -852,6 +878,22 @@ def run_window(features, data, sector_features, dxy_data,
                             decline_rate = (mfe_bps_tc - ur_bps_tc) / max(t_since_mfe, 1.0)
                             if decline_rate >= TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H:
                                 exit_reason = "traj_cut"
+
+            # v12.15.0 — S9 early dead-in-water (mirror of s8_dead_in_water for S9).
+            # Mirror of analysis/bot/trading.py:check_exits (v12.15.0 block).
+            if (not exit_reason and pos["strat"] == "S9"
+                    and held * interval_hours >= S9_EARLY_DEAD_T_H
+                    and pos.get("mfe", 0) <= S9_EARLY_DEAD_MFE_MAX_BPS):
+                exit_reason = "s9_early_dead"
+
+            # v12.15.0 — BTC drop cut for LONG positions in unrealized loss.
+            # Uses BTC's last 4h candle return as the "drop" signal.
+            if (not exit_reason and pos["dir"] == 1):
+                _ur_bdc = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                if _ur_bdc <= BTC_DROP_CUT_UR_MAX_BPS:
+                    _btc_ret_4h_bdc = btc_ret_4h_by_ts.get(ts)
+                    if _btc_ret_4h_bdc is not None and _btc_ret_4h_bdc <= BTC_DROP_CUT_RET_4H_BPS:
+                        exit_reason = "btc_drop_cut"
 
             # Dead-timeout early exit (option D): if trade is close to timeout,
             # has never shown meaningful MFE, and is still pinned near its MAE,
@@ -996,6 +1038,7 @@ def run_window(features, data, sector_features, dxy_data,
                     "entry_t": pos["entry_t"], "exit_t": ts,
                     "reason": exit_reason, "size": pos["size"],
                     "mfe_bps": pos.get("mfe", 0.0), "mae_bps": pos.get("mae", 0.0),
+                    "mfe_held": pos.get("mfe_held", 0),
                     "conf_partial": pos.get("conf_partial"),
                     "session": pos.get("session"),
                     "entry_feats": pos.get("entry_feats"),

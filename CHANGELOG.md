@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.15.0] — 2026-06-04
+- **Trading engine**: 2 nouveaux mécanismes EXIT non-destructifs validés walk-forward strict 4/4. Aucun changement entries.
+
 ## [12.14.0] — 2026-06-04
 - **Dashboard**: bouton "❄ Halt" (header) bloque toutes les nouvelles entrées sans toucher aux positions ouvertes. Les exits (stops, trailing, dead-in-water, manual_close, timeouts) restent actifs. Toggle en "▶ Resume" quand actif.
 - **API**: endpoints `POST /api/halt_entries` et `POST /api/resume_entries` (non-destructifs, à distinguer du legacy `/api/pause` qui ferme tout).

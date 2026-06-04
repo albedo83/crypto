@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.14.0"
+VERSION = "12.15.0"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -318,6 +318,24 @@ STOP_LOSS_S8 = -750.0      # -7.5% price move (was -1500 leveraged)
 # Early exit: only S9 benefits in compounding (S5/S8 tested, both lose value)
 S9_EARLY_EXIT_BPS = -500.0    # -5% price move after 8h (was -1000 leveraged)
 S9_EARLY_EXIT_HOURS = 8.0
+
+# v12.15.0 — S9 early dead-in-water (mirror s8_dead_in_water for S9).
+# At T+12h, if S9 position MFE has never crossed +150 bps, the fade thesis
+# is unlikely to materialize within the 48h hold → cut. Walk-forward strict 4/4
+# via backtests/walkforward_exit_c_mfe_velocity.py V3 (variant {"S9": (12.0, 150.0)}).
+# Fires meaningfully only in deep bear (split_1 +39pp); no-op on splits 2/3/4.
+# Kill-switch: set S9_EARLY_DEAD_MFE_MAX_BPS = -99999 (rule never fires).
+S9_EARLY_DEAD_T_H = 12.0
+S9_EARLY_DEAD_MFE_MAX_BPS = 150.0
+
+# v12.15.0 — BTC drop cut: when BTC dumps -3%+ over last 4h candle AND a LONG
+# position is in unrealized loss, the alt-BTC correlation makes the position
+# very likely to deepen. Cut preemptively. Walk-forward strict 4/4 via
+# backtests/walkforward_exit_d_btc_drop.py V3 (btc_4h<-300 + dir=LONG + ur<=0).
+# Aggregate ΔPnL +56.58pp / ΔDD -4.91pp on 4 splits.
+# Kill-switch: set BTC_DROP_CUT_RET_4H_BPS = -99999 (rule never fires).
+BTC_DROP_CUT_RET_4H_BPS = -300.0
+BTC_DROP_CUT_UR_MAX_BPS = 0.0
 
 # Dead-timeout early exit: at T-LEAD hours before timeout, if the trade has
 # never shown meaningful upside (MFE <= MFE_CAP), is deeply underwater

@@ -31,7 +31,9 @@ from .config import (COST_BPS, FUNDING_DRAG_BPS, MAX_POSITIONS, MAX_SAME_DIRECTI
                      TRAJ_CUT_STRATEGIES, TRAJ_CUT_BTC_Z_THRESHOLD,
                      TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H, TRAJ_CUT_TIME_SINCE_MFE_MIN_H,
                      TRAJ_CUT_AT_MAE_SLACK_BPS, TRAJ_CUT_MIN_LOSS_BPS,
-                     PROP_TRAIL_PARAMS, PROP_TRAIL_Z_THRESHOLD)
+                     PROP_TRAIL_PARAMS, PROP_TRAIL_Z_THRESHOLD,
+                     S9_EARLY_DEAD_T_H, S9_EARLY_DEAD_MFE_MAX_BPS,
+                     BTC_DROP_CUT_RET_4H_BPS, BTC_DROP_CUT_UR_MAX_BPS)
 from .features import oi_delta_24h_bps
 from .models import Position, Trade
 from .exchange import execute_open, execute_close, fetch_position_funding
@@ -134,6 +136,18 @@ def check_exits(bot) -> int:
     # _scan_and_trade concurrently; reading it multiple times within a single
     # exit-decision could yield inconsistent regime classification.
     _btc_z_snap: float | None = bot._btc_z
+
+    # v12.15.0: snapshot BTC last-4h-candle return for btc_drop_cut rule.
+    # Uses closed candles only so the value matches the BT semantics.
+    _btc_ret_4h_snap: float | None = None
+    _btc_st = bot.states.get("BTC")
+    if _btc_st and len(_btc_st.candles_4h) >= 2:
+        _btc_closed = bot._closed_candles(_btc_st.candles_4h)
+        if len(_btc_closed) >= 2:
+            _p_prev = _btc_closed[-2]["c"]
+            _p_curr = _btc_closed[-1]["c"]
+            if _p_prev > 0 and _p_curr > 0:
+                _btc_ret_4h_snap = (_p_curr / _p_prev - 1) * 1e4
 
     # Retry any previously failed exchange closes
     with bot._pos_lock:
@@ -340,6 +354,30 @@ def check_exits(bot) -> int:
                     # exit_price stays at st.price (live mark) — the rule
                     # fires on observed price evolution, not a synthetic
                     # stop level.
+        # v12.15.0 — S9 early dead-in-water (mirror s8_dead_in_water for S9).
+        # If at T+12h the S9 position MFE has never crossed +150 bps, the fade
+        # thesis is unlikely to materialize → cut. Walk-forward strict 4/4 via
+        # backtests/walkforward_exit_c_mfe_velocity.py V3. Fires meaningfully
+        # in deep bear only (no-op on other regimes).
+        # Kill-switch: S9_EARLY_DEAD_MFE_MAX_BPS = -99999.
+        if (not exit_reason and strategy == "S9"
+                and hours_held >= S9_EARLY_DEAD_T_H
+                and pos.mfe_bps <= S9_EARLY_DEAD_MFE_MAX_BPS):
+            exit_reason = "s9_early_dead"
+            # exit_price stays at st.price (live mark)
+        # v12.15.0 — BTC drop cut for LONG positions in unrealized loss.
+        # When BTC dumps significantly over last 4h candle AND the position
+        # is a LONG already in the red, the alt-BTC correlation makes the
+        # position very likely to deepen. Cut preemptively. Walk-forward
+        # strict 4/4 via backtests/walkforward_exit_d_btc_drop.py V3.
+        # Aggregate ΔPnL +56.58pp / ΔDD -4.91pp over 4 splits.
+        # Kill-switch: BTC_DROP_CUT_RET_4H_BPS = -99999.
+        if (not exit_reason and direction == 1
+                and unrealized <= BTC_DROP_CUT_UR_MAX_BPS
+                and _btc_ret_4h_snap is not None
+                and _btc_ret_4h_snap <= BTC_DROP_CUT_RET_4H_BPS):
+            exit_reason = "btc_drop_cut"
+            # exit_price stays at st.price (live mark)
         # Dead-timeout early exit (v11.7.2, walk-forward 4/4 validated).
         # Checked last so stops/trailing take precedence.
         if (not exit_reason
