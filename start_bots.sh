@@ -43,6 +43,26 @@ TG_BOT_TOKEN="$JUNIOR_TG_BOT_TOKEN" TG_CHAT_ID="$JUNIOR_TG_CHAT_ID" \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
 echo "Junior bot started (PID: $!)"
 
+# Apprenti bot (:8100) — INACTIF. Pour activer :
+# 1) Renseigner les APPRENTI_* dans .env (suivre docs/setup_new_bot.md)
+# 2) Dé-commenter le bloc ci-dessous
+# 3) Ajuster HL_CAPITAL=N (montant USDC réellement déposé sur le master wallet)
+# 4) Restart : fuser -k 8100/tcp puis ./start_bots.sh
+# 5) Optionnel : updater watchdog cron pour seuil 4 au lieu de 3
+# 6) Pause par défaut au premier boot recommandée (curl POST /api/pause)
+#
+# mkdir -p analysis/output_apprenti/pairs_data
+# TG_BOT_TOKEN="$APPRENTI_TG_BOT_TOKEN" TG_CHAT_ID="$APPRENTI_TG_CHAT_ID" \
+#     TG_CATEGORIES="trade,daily,system" \
+#     DASHBOARD_USER="$APPRENTI_USER" DASHBOARD_PASS="$APPRENTI_PASS" \
+#     HL_PRIVATE_KEY="$APPRENTI_HL_PRIVATE_KEY" HL_MODE=live \
+#     HL_ACCOUNT_ADDRESS="$APPRENTI_MASTER_ADDRESS" \
+#     BOT_LABEL="APPRENTI" BOT_LABEL_COLOR="#a371f7" \
+#     HL_CAPITAL=0 WEB_PORT=8100 HL_OUTPUT_DIR=analysis/output_apprenti HL_ROOT_PATH=/apprenti \
+#     BOT_PUBLIC_URL=https://echonym.fr/apprenti \
+#     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_apprenti/reversal_v10.log 2>&1 &
+# echo "Apprenti bot started (PID: $!)"
+
 # Admin panel (:8090) — served behind nginx at /crypto/
 ADMIN_ROOT_PATH=/crypto nohup .venv/bin/python3 admin.py > analysis/output/admin.log 2>&1 &
 echo "Admin panel started (PID: $!)"

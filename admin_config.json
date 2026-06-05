@@ -6,6 +6,8 @@
     {"port": 8098, "label": "Live",   "mode": "live",  "path": "/bot",
      "auth_env": {"user": "DASHBOARD_USER", "pass": "DASHBOARD_PASS"}},
     {"port": 8099, "label": "Junior", "mode": "live", "path": "/junior",
-     "auth_env": {"user": "JUNIOR_USER", "pass": "JUNIOR_PASS"}}
+     "auth_env": {"user": "JUNIOR_USER", "pass": "JUNIOR_PASS"}},
+    {"port": 8100, "label": "Apprenti", "mode": "live", "path": "/apprenti",
+     "auth_env": {"user": "APPRENTI_USER", "pass": "APPRENTI_PASS"}}
   ]
 }

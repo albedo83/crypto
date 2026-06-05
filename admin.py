@@ -320,6 +320,8 @@ async def api_bots():
                     "mfe_bps": p.get("mfe_bps", 0),
                     "trailing_active": p.get("trailing_active", False),
                     "trailing_floor_bps": p.get("trailing_floor_bps"),
+                    "manual_stop_usdt": p.get("manual_stop_usdt"),
+                    "manual_stop_bps": p.get("manual_stop_bps"),
                 } for p in positions]
         results.append(info)
     return JSONResponse(results)
