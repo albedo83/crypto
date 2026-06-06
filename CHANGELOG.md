@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.15.5] — 2026-06-06
+- **Dashboard**: une combo sous-échantillonnée (< 3 trades lifetime) en régime hostile est désormais considérée présumée adverse plutôt que "indéterminée OK". Évite qu'une stratégie sans data glisse à 1/3 jaune alors qu'elle est structurellement vulnérable.
+
 ## [12.15.4] — 2026-06-06
 - **Dashboard**: les 3 pastilles ●○○/●●● du toggle stratégie remplacées par un feu 4 couleurs (vert/jaune/orange/rouge) pour le niveau de pause-worthiness. Détail des critères dans le tooltip.
 

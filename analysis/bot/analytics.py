@@ -206,15 +206,28 @@ def compute_strategy_advice(drift_dir: dict, recent_alerts: dict,
     for strat, dirn in combos:
         key = f"{strat}_{dirn}"
         wr_bad = False
+        wr_reason = None  # "wr_lt_35" or "thin_in_hostile" or None
         drift = drift_dir.get(key)
         if drift and drift.get("n", 0) >= 3:
             wr_bad = drift["wr_pct"] < 35
+            if wr_bad:
+                wr_reason = "wr_lt_35"
         alert_recent = key in recent_alerts
         regime_bad = (bear_dispersed if dirn == "LONG" else bull_strong)
+        # v12.15.5: "WR indéterminé en régime hostile" = présumé adverse.
+        # Sans data ET régime contraire = aucune évidence de safety →
+        # on traite l'inconnu comme `wr_bad=True`. Évite qu'une combo
+        # sous-échantillonnée (ex: S9 LONG, 1 seul trade lifetime) glisse
+        # à 1/3 jaune alors qu'elle est structurellement à risque.
+        n_lt = (drift or {}).get("n_lifetime", 0) if drift else 0
+        if not wr_bad and regime_bad and n_lt < 3:
+            wr_bad = True
+            wr_reason = "thin_in_hostile"
         score = sum([wr_bad, alert_recent, regime_bad])
         advice[key] = {
             "score": score,
             "wr_bad": wr_bad,
+            "wr_reason": wr_reason,
             "alert_recent": alert_recent,
             "regime_bad": regime_bad,
         }

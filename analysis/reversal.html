@@ -983,7 +983,10 @@ function refresh(){
       const lifetime=drift?drift.n_lifetime:0;
       const pnl=drift?drift.pnl_usdt:0;
       const criteria=[];
-      if(adv.wr_bad) criteria.push('WR < 35%');
+      if(adv.wr_bad){
+        if(adv.wr_reason==='thin_in_hostile') criteria.push('échantillon trop maigre (n<3) + régime hostile = présumé adverse');
+        else criteria.push('WR < 35%');
+      }
       if(adv.alert_recent) criteria.push('regime_alert 48h');
       if(adv.regime_bad) criteria.push('régime macro hostile');
       const critTxt=criteria.length?'\nCritères ON: '+criteria.join(' · '):'\nAucun critère défavorable';
