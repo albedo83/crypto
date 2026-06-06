@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.15.4] — 2026-06-06
+- **Dashboard**: les 3 pastilles ●○○/●●● du toggle stratégie remplacées par un feu 4 couleurs (vert/jaune/orange/rouge) pour le niveau de pause-worthiness. Détail des critères dans le tooltip.
+
 ## [12.15.3] — 2026-06-06
 - **Dashboard**: seuils de dépause LONGs explicites dans le bandeau régime. Score agrégé "Dépause LONGs : X/3" + tooltip détaillé. Ajout du Stress (regime_stress / 10).
 
