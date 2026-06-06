@@ -96,6 +96,11 @@ class MultiSignalBot:
         # to trades with entry_time >= start. Used after a soft reset to
         # show fresh perf tracking while keeping DB history for audit.
         self._perf_track_start_ts: float = 0.0
+        # v12.15.1: capital snapshot at the moment of the soft reset, used as
+        # the P&L curve baseline so the dashboard "Balance" line is anchored
+        # at the effective starting capital of the perf-tracking window
+        # (not the env-time CAPITAL_USDT). 0 = use CAPITAL_USDT (lifetime).
+        self._capital_at_perf_reset: float = 0.0
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -442,6 +447,7 @@ class MultiSignalBot:
             last_entry_scan_4h_close=self._last_entry_scan_4h_close,
             fees_track_start_ts=self._fees_track_start_ts,
             perf_track_start_ts=self._perf_track_start_ts,
+            capital_at_perf_reset=self._capital_at_perf_reset,
             btc_z=self._btc_z,
             paused_strats=self._paused_strats)
 

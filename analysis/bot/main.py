@@ -104,6 +104,17 @@ async def run():
         log.info("Strategy perf scoped since %s (%.1f days)", _d.strftime("%Y-%m-%d %H:%M UTC"),
                  (_dt.datetime.now(_dt.timezone.utc) - _d).total_seconds() / 86400)
 
+    # v12.15.1 — capital snapshot at perf-reset time. Backfill from current
+    # capital if perf window is active but the snapshot is missing (state
+    # file pre-dates this field). Assumes no DCA happened between the
+    # original soft reset and this boot, which is true for the existing
+    # live perf window set 2026-06-02.
+    bot._capital_at_perf_reset = float(state.get("_capital_at_perf_reset", 0)) if state else 0.0
+    if bot._perf_track_start_ts and bot._capital_at_perf_reset == 0:
+        bot._capital_at_perf_reset = bot._capital
+        log.info("Backfilled _capital_at_perf_reset = $%.2f from current capital",
+                 bot._capital_at_perf_reset)
+
     # v12.12.2: restore btc_z so regime-aware exits (prop_trail / s8_inlife /
     # traj_cut) remain protected immediately after boot. Without this, exits
     # were silently disabled for 30-60s until the first scan recomputed it.

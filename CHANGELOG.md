@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.15.1] — 2026-06-06
+- **Dashboard**: courbe P&L baselinée sur le capital au moment du soft-reset (au lieu de l'env CAPITAL_USDT). Affichage en balance absolue avec ligne de référence à la baseline, vert au-dessus, rouge en dessous. Backfill auto si snapshot manquant.
+
 ## [12.15.0] — 2026-06-04
 - **Trading engine**: 2 nouveaux mécanismes EXIT non-destructifs validés walk-forward strict 4/4. Aucun changement entries.
 

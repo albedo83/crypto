@@ -577,26 +577,27 @@ def build_trades_list(trades, limit: int = 50) -> list:
     tl = list(trades)
     return [t.__dict__ for t in tl[-limit:][::-1]]
 
-def build_pnl_curve(trades, capital: float, perf_track_start_ts: float = 0.0) -> list:
+def build_pnl_curve(trades, baseline: float, perf_track_start_ts: float = 0.0) -> dict:
     """Cumulative P&L curve for the dashboard chart.
 
-    `balance` uses the *initial* CAPITAL_USDT constant as baseline rather than
-    the live bot._capital — this keeps historical balance points consistent
-    after DCA injections. DCA itself shifts the current reference, not the
-    historical curve.
+    Returns {baseline, points}. `baseline` is the y-axis reference:
+      - Lifetime mode (perf_track_start_ts == 0): env CAPITAL_USDT, so the
+        curve is DCA-invariant — capital injections do not shift it.
+      - Scoped mode (perf_track_start_ts > 0, post soft-reset): the capital
+        snapshot at reset time (passed in via `baseline`), so the curve is
+        anchored at the effective starting capital of the perf window.
 
-    v12.10.6 : when `perf_track_start_ts > 0` (post soft-reset), filter to
-    trades with entry_time >= start. Cumulative restarts at 0 from the reset
-    point, consistent with the scoped signal_drift + Status header widgets.
+    Filters trades by entry_time >= perf_track_start_ts when set, so cum
+    restarts at 0 from the reset point — consistent with scoped signal_drift
+    and Status header widgets.
     """
-    _ = capital  # accepted for backwards compat but unused; baseline is CAPITAL_USDT
     scoped = filter_by_perf_scope(trades, perf_track_start_ts)
     cum, pts = 0.0, []
     for t in scoped:
         cum += t.pnl_usdt
         pts.append({"time": t.exit_time, "cum_pnl": round(cum, 2),
-                    "balance": round(CAPITAL_USDT + cum, 2)})
-    return pts
+                    "balance": round(baseline + cum, 2)})
+    return {"baseline": round(baseline, 2), "points": pts}
 
 _BACKTESTS_TAIL = """## Méthodologie
 
@@ -1078,7 +1079,10 @@ def create_app(bot) -> FastAPI:
     @app.get("/api/trades")
     async def api_trades(limit: int = 50): return JSONResponse(build_trades_list(bot.trades, limit))
     @app.get("/api/pnl")
-    async def api_pnl(): return JSONResponse(build_pnl_curve(bot.trades, bot._capital, getattr(bot, "_perf_track_start_ts", 0.0)))
+    async def api_pnl():
+        perf_ts = getattr(bot, "_perf_track_start_ts", 0.0)
+        baseline = (getattr(bot, "_capital_at_perf_reset", 0.0) or bot._capital) if perf_ts > 0 else CAPITAL_USDT
+        return JSONResponse(build_pnl_curve(bot.trades, baseline, perf_ts))
 
     @app.get("/api/events")
     def api_events(limit: int = 30):

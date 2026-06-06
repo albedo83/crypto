@@ -1561,29 +1561,36 @@ function refreshTrades(){
   }).catch(e=>console.warn('trades fetch error:',e));
 
   // P&L curve
-  fetch('api/pnl',{credentials:'same-origin'}).then(r=>r.json()).then(pts=>{
+  fetch('api/pnl',{credentials:'same-origin'}).then(r=>r.json()).then(data=>{
     const canvas=document.getElementById('pnl-canvas');
     const ctx=canvas.getContext('2d');
     canvas.width=canvas.parentElement.clientWidth;
     canvas.height=180;
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
+    // v12.15.1: response is {baseline, points}. baseline = capital snapshot
+    // at perf-reset (scoped mode) or env CAPITAL_USDT (lifetime mode).
+    // Curve plots absolute balance; reference line at baseline; green above,
+    // red below. `v` = signed delta vs baseline so the existing crossing
+    // logic stays unchanged.
+    const pts=data.points||[];
+    const baseline=data.baseline||0;
     if(pts.length<2) return;
-    const pnls=pts.map(p=>p.cum_pnl);
-    const minP=Math.min(0,...pnls);
-    const maxP=Math.max(0,...pnls);
+    const bals=pts.map(p=>p.balance);
+    const minP=Math.min(baseline,...bals);
+    const maxP=Math.max(baseline,...bals);
     const range=Math.max(maxP-minP,1);
     const w=canvas.width;
     const h=canvas.height-20;
-    const zeroY=h-(0-minP)/range*h+10;
+    const zeroY=h-(baseline-minP)/range*h+10;
 
-    // Zero line
+    // Baseline reference line
     ctx.strokeStyle='#30363d';ctx.lineWidth=1;
     ctx.beginPath();ctx.moveTo(0,zeroY);ctx.lineTo(w,zeroY);ctx.stroke();
 
-    // P&L line — green above zero, red below
-    // Draw segments between each pair of points, splitting at zero crossings
-    const coords=pts.map((p,i)=>({x:i/(pts.length-1)*w, y:h-(p.cum_pnl-minP)/range*h+10, v:p.cum_pnl}));
+    // Balance line — green above baseline, red below
+    // Draw segments between each pair of points, splitting at baseline crossings
+    const coords=pts.map((p,i)=>({x:i/(pts.length-1)*w, y:h-(p.balance-minP)/range*h+10, v:p.balance-baseline}));
     // Fill areas first (behind line)
     for(const positive of [true, false]){
       ctx.beginPath();
@@ -1624,11 +1631,13 @@ function refreshTrades(){
       }
     }
 
-    // Labels
+    // Labels — absolute balance on the axis, baseline marked on the reference line
     ctx.fillStyle='#7d8590';ctx.font='11px monospace';
     ctx.fillText('$'+fmt(maxP),4,14);
     ctx.fillText('$'+fmt(minP),4,h+8);
-    ctx.fillText('$'+fmt(pnls[pnls.length-1]),w-60,pnls[pnls.length-1]>=0?14:h+8);
+    ctx.fillText('ref $'+fmt(baseline),4,zeroY-2);
+    const lastB=bals[bals.length-1];
+    ctx.fillText('$'+fmt(lastB),w-60,lastB>=baseline?14:h+8);
   }).catch(e=>console.warn('pnl fetch error:',e));
 }
 
