@@ -115,6 +115,25 @@ async def run():
         log.info("Backfilled _capital_at_perf_reset = $%.2f from current capital",
                  bot._capital_at_perf_reset)
 
+    # v12.15.2 — _total_pnl snapshot at perf-reset, used by build_pnl_curve to
+    # offset the running balance so the last plotted point matches the live
+    # "Balance" widget exactly. Backfilled from history if missing.
+    bot._total_pnl_at_perf_reset = float(state.get("_total_pnl_at_perf_reset", 0)) if state else 0.0
+    if bot._perf_track_start_ts and bot._total_pnl_at_perf_reset == 0:
+        import datetime as _dt
+        post_sum = 0.0
+        for t in bot.trades:
+            try:
+                ts = _dt.datetime.fromisoformat(t.exit_time).timestamp()
+            except (ValueError, AttributeError):
+                continue
+            if ts >= bot._perf_track_start_ts:
+                post_sum += t.pnl_usdt
+        bot._total_pnl_at_perf_reset = bot._total_pnl - post_sum
+        log.info("Backfilled _total_pnl_at_perf_reset = $%+.2f "
+                 "(= _total_pnl $%+.2f − post-reset sum $%+.2f)",
+                 bot._total_pnl_at_perf_reset, bot._total_pnl, post_sum)
+
     # v12.12.2: restore btc_z so regime-aware exits (prop_trail / s8_inlife /
     # traj_cut) remain protected immediately after boot. Without this, exits
     # were silently disabled for 30-60s until the first scan recomputed it.

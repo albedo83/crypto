@@ -101,6 +101,12 @@ class MultiSignalBot:
         # at the effective starting capital of the perf-tracking window
         # (not the env-time CAPITAL_USDT). 0 = use CAPITAL_USDT (lifetime).
         self._capital_at_perf_reset: float = 0.0
+        # v12.15.2: _total_pnl snapshot at the soft reset moment. The P&L
+        # curve plots running balance = capital_at_reset + total_pnl_at_t,
+        # so the first point lands at the actual balance at reset time
+        # (not at capital) and the last point matches the live "Balance"
+        # widget (= capital + current _total_pnl).
+        self._total_pnl_at_perf_reset: float = 0.0
 
         # SQLite tick database
         self._db = db_mod.init_db(TICKS_DB)
@@ -448,6 +454,7 @@ class MultiSignalBot:
             fees_track_start_ts=self._fees_track_start_ts,
             perf_track_start_ts=self._perf_track_start_ts,
             capital_at_perf_reset=self._capital_at_perf_reset,
+            total_pnl_at_perf_reset=self._total_pnl_at_perf_reset,
             btc_z=self._btc_z,
             paused_strats=self._paused_strats)
 

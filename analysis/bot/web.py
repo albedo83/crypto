@@ -577,26 +577,51 @@ def build_trades_list(trades, limit: int = 50) -> list:
     tl = list(trades)
     return [t.__dict__ for t in tl[-limit:][::-1]]
 
-def build_pnl_curve(trades, baseline: float, perf_track_start_ts: float = 0.0) -> dict:
-    """Cumulative P&L curve for the dashboard chart.
+def build_pnl_curve(trades, baseline: float, perf_track_start_ts: float = 0.0,
+                    total_pnl_at_reset: float = 0.0) -> dict:
+    """Running balance curve for the dashboard chart.
 
-    Returns {baseline, points}. `baseline` is the y-axis reference:
-      - Lifetime mode (perf_track_start_ts == 0): env CAPITAL_USDT, so the
-        curve is DCA-invariant — capital injections do not shift it.
-      - Scoped mode (perf_track_start_ts > 0, post soft-reset): the capital
-        snapshot at reset time (passed in via `baseline`), so the curve is
-        anchored at the effective starting capital of the perf window.
+    Returns {baseline, points}. `baseline` is the horizontal reference line
+    (= capital). Each point's `balance` is the actual wallet balance at
+    that moment: `baseline + total_pnl_at_t` where `total_pnl_at_t` evolves
+    trade by trade.
 
-    Filters trades by entry_time >= perf_track_start_ts when set, so cum
-    restarts at 0 from the reset point — consistent with scoped signal_drift
-    and Status header widgets.
+    Two modes:
+      - Lifetime (perf_track_start_ts == 0): baseline = env CAPITAL_USDT,
+        plot all trades, cum starts at 0. Last point = CAPITAL_USDT +
+        total_realized_lifetime.
+      - Scoped (perf_track_start_ts > 0, post soft-reset): baseline =
+        capital_at_perf_reset, plot trades filtered by exit_time >= reset,
+        cum starts at `total_pnl_at_reset` (the value of _total_pnl at the
+        reset moment, snapshotted in state). Last point matches the live
+        "Balance" widget = capital + current _total_pnl. An initial point
+        is injected at the reset timestamp at balance = capital +
+        total_pnl_at_reset so the curve visibly starts at the reset.
     """
-    scoped = filter_by_perf_scope(trades, perf_track_start_ts)
-    cum, pts = 0.0, []
-    for t in scoped:
-        cum += t.pnl_usdt
-        pts.append({"time": t.exit_time, "cum_pnl": round(cum, 2),
-                    "balance": round(baseline + cum, 2)})
+    pts: list = []
+    if perf_track_start_ts <= 0:
+        cum = 0.0
+        for t in trades:
+            cum += t.pnl_usdt
+            pts.append({"time": t.exit_time, "cum_pnl": round(cum, 2),
+                        "balance": round(baseline + cum, 2)})
+        return {"baseline": round(baseline, 2), "points": pts}
+
+    from datetime import datetime as _dt, timezone as _tz
+    cum = total_pnl_at_reset
+    # Initial point at the soft-reset moment — anchors the curve start.
+    reset_iso = _dt.fromtimestamp(perf_track_start_ts, _tz.utc).isoformat()
+    pts.append({"time": reset_iso, "cum_pnl": round(cum, 2),
+                "balance": round(baseline + cum, 2)})
+    for t in trades:
+        try:
+            ts = _dt.fromisoformat(t.exit_time).timestamp()
+        except (ValueError, AttributeError):
+            ts = 0.0
+        if ts == 0 or ts >= perf_track_start_ts:
+            cum += t.pnl_usdt
+            pts.append({"time": t.exit_time, "cum_pnl": round(cum, 2),
+                        "balance": round(baseline + cum, 2)})
     return {"baseline": round(baseline, 2), "points": pts}
 
 _BACKTESTS_TAIL = """## Méthodologie
@@ -1081,8 +1106,13 @@ def create_app(bot) -> FastAPI:
     @app.get("/api/pnl")
     async def api_pnl():
         perf_ts = getattr(bot, "_perf_track_start_ts", 0.0)
-        baseline = (getattr(bot, "_capital_at_perf_reset", 0.0) or bot._capital) if perf_ts > 0 else CAPITAL_USDT
-        return JSONResponse(build_pnl_curve(bot.trades, baseline, perf_ts))
+        if perf_ts > 0:
+            baseline = getattr(bot, "_capital_at_perf_reset", 0.0) or bot._capital
+            total_at_reset = getattr(bot, "_total_pnl_at_perf_reset", 0.0)
+        else:
+            baseline = CAPITAL_USDT
+            total_at_reset = 0.0
+        return JSONResponse(build_pnl_curve(bot.trades, baseline, perf_ts, total_at_reset))
 
     @app.get("/api/events")
     def api_events(limit: int = 30):

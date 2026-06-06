@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.15.2] — 2026-06-06
+- **Dashboard**: courbe P&L trace désormais la balance running au cours du temps. Dernier point = widget Balance ($capital + _total_pnl actuel), premier point ancré au soft-reset.
+
 ## [12.15.1] — 2026-06-06
 - **Dashboard**: courbe P&L baselinée sur le capital au moment du soft-reset (au lieu de l'env CAPITAL_USDT). Affichage en balance absolue avec ligne de référence à la baseline, vert au-dessus, rouge en dessous. Backfill auto si snapshot manquant.
 

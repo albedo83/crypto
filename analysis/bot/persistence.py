@@ -134,6 +134,7 @@ def save_state(state_file: str, positions: dict, pos_lock,
                fees_track_start_ts: float = 0.0,
                perf_track_start_ts: float = 0.0,
                capital_at_perf_reset: float = 0.0,
+               total_pnl_at_perf_reset: float = 0.0,
                btc_z: float | None = None,
                paused_strats: set | None = None) -> None:
     """Atomically persist bot state (write to .tmp then os.replace)."""
@@ -172,6 +173,9 @@ def save_state(state_file: str, positions: dict, pos_lock,
         # v12.15.1: capital snapshot at perf-reset time, used as P&L curve
         # baseline. 0 = fallback to env CAPITAL_USDT (lifetime mode).
         "_capital_at_perf_reset": round(capital_at_perf_reset, 2),
+        # v12.15.2: _total_pnl snapshot at perf-reset time. Offsets the P&L
+        # curve so the last point matches the live "Balance" widget exactly.
+        "_total_pnl_at_perf_reset": round(total_pnl_at_perf_reset, 4),
         # v12.12.2: persist btc_z so regime-aware exits remain protected
         # immediately after restart (otherwise None until first scan completes,
         # silently disabling prop_trail/s8_inlife/traj_cut for 30-60s).
@@ -234,6 +238,10 @@ def load_state(state_file: str, states: dict) -> dict:
         # v12.15.1: capital snapshot at perf-reset, baseline for the P&L
         # curve. 0 = absent, caller backfills from current capital at boot.
         result["_capital_at_perf_reset"] = float(data.get("_capital_at_perf_reset", 0))
+        # v12.15.2: _total_pnl snapshot at perf-reset, used to offset the
+        # running balance plotted on the P&L curve. 0 = absent, caller
+        # backfills from (_total_pnl − sum of trades closed after reset).
+        result["_total_pnl_at_perf_reset"] = float(data.get("_total_pnl_at_perf_reset", 0))
         # v12.12.2: btc_z survives restart so regime-aware exits are immediate
         _bz = data.get("_btc_z")
         result["_btc_z"] = float(_bz) if _bz is not None else None
