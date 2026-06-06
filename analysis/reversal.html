@@ -427,14 +427,17 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 .strat-tog:hover{filter:brightness(1.3)}
 .strat-tog{position:relative}
 .strat-tog .st-badge{position:absolute;top:-4px;right:-4px;background:#da3633;color:#fff;font-size:8px;font-weight:700;padding:1px 3px;border-radius:50%;line-height:1;border:1px solid #161b22}
-/* v12.15.4: feu 4 couleurs (1 ●) au lieu de 3 pastilles. Une couleur par
-   niveau de pause-worthiness (0/3 = vert, 1/3 = jaune, 2/3 = orange,
-   3/3 = rouge). Détail des critères dans le tooltip. */
-.strat-tog .st-score{font-size:11px;line-height:1;margin-top:1px;opacity:0.95}
-.strat-tog.s-low .st-score{color:#3fb950}
-.strat-tog.s-med .st-score{color:#d29922}
-.strat-tog.s-high .st-score{color:#db6d28}
-.strat-tog.s-veryhigh .st-score{color:#f85149}
+/* v12.15.6: feu routier horizontal — 4 LEDs côte à côte, une seule
+   allumée selon le score (0=vert, 1=jaune, 2=orange, 3=rouge). Les
+   3 autres restent visibles (éteintes) pour donner le contexte de
+   l'échelle. Détail des critères dans le tooltip. */
+.strat-tog .st-score{font-size:9px;letter-spacing:2px;line-height:1;margin-top:1px}
+.strat-tog .st-score .led{color:#30363d;opacity:0.35;transition:opacity .2s, color .2s}
+.strat-tog .st-score .led.on{opacity:1}
+.strat-tog .st-score .led.lv0.on{color:#3fb950}
+.strat-tog .st-score .led.lv1.on{color:#d29922}
+.strat-tog .st-score .led.lv2.on{color:#db6d28}
+.strat-tog .st-score .led.lv3.on{color:#f85149}
 </style>
 
 <div id="market-bar" style="padding:8px 20px;display:flex;align-items:center;gap:12px;font-size:12px;border-bottom:1px solid #21262d">
@@ -941,7 +944,7 @@ function refresh(){
       const combos=[['S1','LONG'],['S1','SHORT'],['S5','LONG'],['S5','SHORT'],['S8','LONG'],['S8','SHORT'],['S9','LONG'],['S9','SHORT'],['S10','LONG'],['S10','SHORT']];
       togBar.innerHTML=combos.map(([st,d])=>{
         const arrow=d==='LONG'?'↑':'↓';
-        return `<span class="strat-tog" data-strat="${st}" data-dir="${d}"><span class="st-badge" style="display:none">⚠</span><span class="st-label">${st}${arrow}</span><span class="st-wr">--</span><span class="st-score">●</span></span>`;
+        return `<span class="strat-tog" data-strat="${st}" data-dir="${d}"><span class="st-badge" style="display:none">⚠</span><span class="st-label">${st}${arrow}</span><span class="st-wr">--</span><span class="st-score"><span class="led lv0">●</span><span class="led lv1">●</span><span class="led lv2">●</span><span class="led lv3">●</span></span></span>`;
       }).join('');
       togBar.dataset.built='1';
       togBar.querySelectorAll('.strat-tog').forEach(el=>{
@@ -972,14 +975,14 @@ function refresh(){
       wrEl.textContent=wrTxt;
       // Badge ⚠ if regime_alert fired in last 48h for this combo
       badgeEl.style.display=adv.alert_recent?'block':'none';
-      // v12.15.4: feu 4 couleurs au lieu de 3 pastilles. Une seule ●
-      // colorée selon le score (0=vert, 1=jaune, 2=orange, 3=rouge).
-      scoreEl.textContent='●';
-      let scoreCls='s-low';
-      if(adv.score>=3) scoreCls='s-veryhigh';
-      else if(adv.score>=2) scoreCls='s-high';
-      else if(adv.score>=1) scoreCls='s-med';
-      el.className='strat-tog '+(isPaused?'paused':health)+' '+scoreCls;
+      // v12.15.6: feu routier horizontal. On allume la LED qui correspond
+      // au score (clamp à 3 pour la sécurité). Les autres restent visibles
+      // mais éteintes pour donner l'échelle.
+      const lit=Math.min(adv.score||0, 3);
+      scoreEl.querySelectorAll('.led').forEach((led, i)=>{
+        led.classList.toggle('on', i===lit);
+      });
+      el.className='strat-tog '+(isPaused?'paused':health);
       const lifetime=drift?drift.n_lifetime:0;
       const pnl=drift?drift.pnl_usdt:0;
       const criteria=[];

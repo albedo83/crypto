@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.15.6] — 2026-06-06
+- **Dashboard**: le feu pause-worthy devient un "feu routier horizontal" — 4 LEDs côte à côte (vert/jaune/orange/rouge), seule celle correspondant au score allumée. Échelle visible en permanence.
+
 ## [12.15.5] — 2026-06-06
 - **Dashboard**: une combo sous-échantillonnée (< 3 trades lifetime) en régime hostile est désormais considérée présumée adverse plutôt que "indéterminée OK". Évite qu'une stratégie sans data glisse à 1/3 jaune alors qu'elle est structurellement vulnérable.
 
