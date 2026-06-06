@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.15.3] — 2026-06-06
+- **Dashboard**: seuils de dépause LONGs explicites dans le bandeau régime. Score agrégé "Dépause LONGs : X/3" + tooltip détaillé. Ajout du Stress (regime_stress / 10).
+
 ## [12.15.2] — 2026-06-06
 - **Dashboard**: courbe P&L trace désormais la balance running au cours du temps. Dernier point = widget Balance ($capital + _total_pnl actuel), premier point ancré au soft-reset.
 
