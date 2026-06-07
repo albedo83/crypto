@@ -485,6 +485,17 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <div id="reconcile-footer" class="dim" style="font-size:12px;line-height:1.7"></div>
 </div>
 
+<div class="section" data-block="price-chart" hidden>
+  <h2 id="chart-title">BTC — Live</h2>
+  <div class="sym-bar" id="sym-bar"></div>
+  <div class="price-chart" id="price-chart-container"></div>
+</div>
+
+<div class="section" data-block="pnl-curve" hidden>
+  <h2>P&L Curve</h2>
+  <div class="pnl-chart"><canvas id="pnl-canvas" width="800" height="180"></canvas></div>
+</div>
+
 <div class="section" data-block="strategy-performance" hidden>
   <h2>Strategy Performance <span class="dim" style="font-size:12px;font-weight:400" id="strat-perf-scope">— lifetime + recent 20 with trend arrow</span></h2>
   <table id="strat-table"><thead><tr>
@@ -495,17 +506,6 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
     <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
     <th>Trades</th><th>WR</th><th>Avg bps</th><th>P&L</th>
   </tr></thead><tbody id="strat-drift"></tbody></table>
-</div>
-
-<div class="section" data-block="pnl-curve" hidden>
-  <h2>P&L Curve</h2>
-  <div class="pnl-chart"><canvas id="pnl-canvas" width="800" height="180"></canvas></div>
-</div>
-
-<div class="section" data-block="price-chart" hidden>
-  <h2 id="chart-title">BTC — Live</h2>
-  <div class="sym-bar" id="sym-bar"></div>
-  <div class="price-chart" id="price-chart-container"></div>
 </div>
 
 <div class="section" data-block="trade-history" hidden>

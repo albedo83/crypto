@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.16.4] — 2026-06-07
+- **Dashboard**: réordonnancement des blocs — Price chart puis P&L Curve maintenant au-dessus de Strategy Performance.
+
 ## [12.16.3] — 2026-06-07
 - **Trading engine**: cadence boucle principale 60s → 20s. Réduit la latence max du manual_stop (et des autres exits) d'un facteur 3 sur les alts volatils.
 
