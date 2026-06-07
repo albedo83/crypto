@@ -1692,7 +1692,10 @@ function refreshTrades(){
 // ── Price Chart (Lightweight Charts) ────────────────────
 let _chartSym='BTC';
 let _lwChart=null, _lwSeries=null, _lwPriceLine=null;
-const ALL_SYMS=['BTC','ETH','ARB','OP','AVAX','SUI','APT','SEI','NEAR','AAVE','MKR','COMP','SNX','PENDLE','DYDX','DOGE','WLD','BLUR','LINK','PYTH','SOL','INJ','CRV','LDO','STX','GMX','IMX','SAND','GALA','MINA'];
+// v12.16.5 : ALL_SYMS injected by the server (BTC, ETH + TRADE_SYMBOLS).
+// Falls back to a minimal list if the server template didn't substitute
+// the placeholder (e.g. when opening the file directly).
+const ALL_SYMS={{TRADE_SYMBOLS_JSON}};
 
 function initSymBar(){
   const bar=document.getElementById('sym-bar');

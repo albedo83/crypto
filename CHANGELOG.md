@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.16.5] — 2026-06-07
+- **Dashboard**: barre de symboles du Price chart injectée dynamiquement depuis le serveur (TRADE_SYMBOLS). Plus de tokens manquants après une universe expansion.
+
 ## [12.16.4] — 2026-06-07
 - **Dashboard**: réordonnancement des blocs — Price chart puis P&L Curve maintenant au-dessus de Strategy Performance.
 

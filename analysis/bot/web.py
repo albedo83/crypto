@@ -994,10 +994,15 @@ def create_app(bot) -> FastAPI:
             if os.path.exists(HTML_PATH):
                 ml = _mode_label()
                 mc = _mode_color()
+                # v12.16.5 — inject TRADE_SYMBOLS as JSON so the Price chart
+                # symbol bar stays in sync with the bot universe (no more
+                # stale hardcoded list when tokens are added).
+                _syms_json = json.dumps(["BTC", "ETH"] + list(TRADE_SYMBOLS))
                 _html_cache["v"] = (Path(HTML_PATH).read_text()
                                     .replace("{{VERSION}}", VERSION)
                                     .replace("{{MODE}}", ml)
-                                    .replace("{{MODE_COLOR}}", mc))
+                                    .replace("{{MODE_COLOR}}", mc)
+                                    .replace("{{TRADE_SYMBOLS_JSON}}", _syms_json))
             else:
                 _html_cache["v"] = (
                     f'<html><body style="background:#0d1117;color:#e6edf3;font-family:monospace">'
