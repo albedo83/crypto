@@ -1143,6 +1143,127 @@ def create_app(bot) -> FastAPI:
         bot._save_state()
         return JSONResponse({"status": "closed", "symbol": sym})
 
+    @app.post("/api/manual_open")
+    async def api_manual_open(request: Request):
+        """v12.16.0: open a position manually, bypassing the scan/signal flow.
+
+        Body:
+          {"symbol": "BCH", "direction": "LONG", "size_usdt": 150,
+           "strategy": "S5", "hold_hours": 48, "stop_bps": -750}
+
+        Defaults: strategy="MANUAL", hold_hours=HOLD_HOURS_DEFAULT,
+        stop_bps=-STOP_LOSS_BPS. The position is created identically to
+        a scan-triggered entry — exits (stop / dead_timeout / strategy-
+        specific / timeout) apply normally. Bypasses paused_strats,
+        OI gate, blacklist, sector cap, etc. — purely discretionary.
+
+        Use this when you want to play a bounce without unpausing the
+        whole strategy. Pair with POST /api/manual_stop/{symbol} once
+        MFE is positive to lock in profit.
+        """
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"error": "Invalid JSON body"}, status_code=400)
+
+        sym = (body.get("symbol") or "").upper()
+        dir_str = (body.get("direction") or "").upper()
+        size = body.get("size_usdt")
+        strategy = (body.get("strategy") or "MANUAL").upper()
+        hold_h = body.get("hold_hours", HOLD_HOURS_DEFAULT)
+        stop_bps_in = body.get("stop_bps", -STOP_LOSS_BPS)
+
+        if sym not in TRADE_SYMBOLS:
+            return JSONResponse({"error": f"symbol must be one of {sorted(TRADE_SYMBOLS)}"},
+                                 status_code=400)
+        if dir_str not in ("LONG", "SHORT"):
+            return JSONResponse({"error": "direction must be 'LONG' or 'SHORT'"}, status_code=400)
+        if sym in bot.positions:
+            return JSONResponse({"error": f"{sym} already has an open position"}, status_code=400)
+        try:
+            size = float(size)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "size_usdt must be a number"}, status_code=400)
+        if not math.isfinite(size) or size < 10:
+            return JSONResponse({"error": "size_usdt must be >= $10"}, status_code=400)
+        try:
+            hold_h = float(hold_h)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "hold_hours must be a number"}, status_code=400)
+        if hold_h <= 0 or hold_h > 168:
+            return JSONResponse({"error": "hold_hours must be in (0, 168]"}, status_code=400)
+        try:
+            stop_bps_in = float(stop_bps_in)
+        except (TypeError, ValueError):
+            return JSONResponse({"error": "stop_bps must be a number"}, status_code=400)
+        if stop_bps_in >= 0:
+            return JSONResponse({"error": "stop_bps must be negative (e.g. -750 for -7.5%)"},
+                                 status_code=400)
+
+        st = bot.states.get(sym)
+        if not st or st.price <= 0:
+            return JSONResponse({"error": f"no live price for {sym} yet"}, status_code=400)
+
+        direction = 1 if dir_str == "LONG" else -1
+        now = datetime.now(timezone.utc)
+        entry_price = st.price
+        filled_size = size
+
+        # Live mode: place actual order via the exchange. Paper: skip and use
+        # the mark price directly.
+        if bot._exchange:
+            import asyncio as _aio
+            from .exchange import execute_open as _execute_open
+            try:
+                fill = await _aio.to_thread(
+                    _execute_open,
+                    bot._exchange, bot._hl_info, bot._hl_address, bot._sz_decimals,
+                    sym, direction == 1, size, st.price)
+                entry_price = fill["avgPx"]
+                filled_size = fill["sz"] * entry_price
+                send_telegram(
+                    f"\U0001f7e2 MANUAL OPEN {strategy} {dir_str} {sym} @ ${entry_price:.4f} | ${filled_size:.0f}",
+                    category="trade")
+            except Exception as e:
+                log.error("MANUAL OPEN FAILED %s %s: %s", sym, strategy, e)
+                return JSONResponse({"error": f"exchange open failed: {e}"}, status_code=500)
+
+        from .models import Position
+        from .db import log_event as _log_event
+        target_exit = now + timedelta(hours=hold_h)
+        with bot._pos_lock:
+            bot.positions[sym] = Position(
+                symbol=sym, direction=direction,
+                strategy=strategy,
+                entry_price=entry_price, entry_time=now,
+                size_usdt=filled_size, signal_info=f"manual_open hold={hold_h}h",
+                target_exit=target_exit,
+                trajectory=[(0.0, 0.0)],
+                stop_bps=stop_bps_in,
+                entry_oi_delta=0.0,
+                entry_crowding=0,
+                entry_confluence=0,
+                entry_session="",
+            )
+        _log_event(bot._db, "OPEN", sym, {
+            "strategy": strategy, "dir": dir_str,
+            "entry_price": round(entry_price, 6),
+            "size_usdt": round(filled_size, 2),
+            "target_exit": target_exit.isoformat(),
+            "stop_bps": round(stop_bps_in, 1),
+            "manual": True,
+        })
+        bot._save_state()
+        log.info("MANUAL OPEN %s %s %s @ $%.4f | $%.0f | stop=%+.0f bps | hold=%.0fh",
+                 strategy, dir_str, sym, entry_price, filled_size, stop_bps_in, hold_h)
+        return JSONResponse({
+            "status": "ok", "symbol": sym, "direction": dir_str, "strategy": strategy,
+            "entry_price": round(entry_price, 6),
+            "size_usdt": round(filled_size, 2),
+            "stop_bps": round(stop_bps_in, 1),
+            "target_exit": target_exit.isoformat(),
+        })
+
     @app.post("/api/manual_stop/{symbol}")
     async def api_manual_stop(symbol: str, request: Request):
         """Set or clear a per-position manual stop (v12.5.10).

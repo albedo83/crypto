@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.16.0] — 2026-06-07
+- **Trading engine**: endpoint `POST /api/manual_open` pour ouvrir une position discrétionnaire sans dépauser la stratégie. Body `{symbol, direction, size_usdt, strategy?, hold_hours?, stop_bps?}`. Bypass paused_strats / OI gate / blacklist / sector cap. Exits standards s'appliquent.
+
 ## [12.15.6] — 2026-06-06
 - **Dashboard**: le feu pause-worthy devient un "feu routier horizontal" — 4 LEDs côte à côte (vert/jaune/orange/rouge), seule celle correspondant au score allumée. Échelle visible en permanence.
 
