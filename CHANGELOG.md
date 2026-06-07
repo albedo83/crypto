@@ -1,5 +1,12 @@
 # Changelog
 
+## [12.17.0] — 2026-06-07
+- **Trading engine**: hardening de `/api/manual_open` — enforce MAX_POSITIONS / MAX_NOTIONAL_PER_TRADE, fix TOCTOU via `_inflight_open` set, refuse S8 + custom stop (silencieusement écrasé par check_exits), refuse manual_open quand bot en pause, NaN/inf guard sur hold_h et stop_bps.
+- **Trading engine**: retry HTTP 429 étendu aux read paths (fetch_account_state, fetch_equity_only, user_fills_by_time fallback, user_funding_history, reconcile). Délais réduits 1+3+5s → 0.5+1.5s (burst clear en <3s, blocage thread minimal). `_is_429` robustifié (status_code attr + args scan + string fallback).
+- **Trading engine**: heavy `fetch_account_state` dans main_loop maintenant gated sur sub-timer 60s (avant tournait toutes les 20s post-v12.16.3, 3× la charge inutile sur 4 SDK calls dont 2 fenêtres 90j).
+- **Dashboard**: `unpause_thresholds` exposé dans `/api/state` — single source of truth pour le widget Dépause LONGs et `regime_alert.py`. ALL_SYMS injection avec vrai fallback try/catch.
+- **Telegram**: `regime_alert.py` réutilise l'opener entre fetch_bot_state et fetch_btc_price (1 login au lieu de 2 par cron tick). BTC_LEVELS dérivés dynamiquement du prix courant (au lieu d'un range hardcodé).
+
 ## [12.16.7] — 2026-06-07
 - **Dashboard**: fix incohérence du seuil Stress dans le bandeau régime — l'affichage indiquait "≤ 3" alors que le score Dépause LONGs utilisait "≤ 6". Aligné sur ≤ 6 (idéal ≤ 3 dans le tooltip).
 

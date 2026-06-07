@@ -696,11 +696,22 @@ class MultiSignalBot:
                 self._last_price_fetch = time.time()
                 if meta_u and ctxs:
                     db_mod.log_ticks(self._db, ctxs, meta_u)
-                # Fetch real exchange balance (live mode)
-                if self._exchange:
+                # Fetch real exchange balance (live mode).
+                # v12.17.0: fetch_account_state is heavy (4 SDK calls incl. two
+                # 90d-window queries). main_loop now runs every 20s (v12.16.3),
+                # which used to trigger the heavy fetch 3× more often than v12.15.
+                # The dashboard equity card is already kept fresh by equity_refresh_loop
+                # via fetch_equity_only (2 SDK calls, every 10s). main_loop only needs
+                # the heavy fetch for the drift-vs-exchange check, which has a $5
+                # hysteresis and runs at most a few times per hour. Gate on 60s.
+                if self._exchange and (
+                    not hasattr(self, "_last_full_acct_ts")
+                    or time.time() - self._last_full_acct_ts >= 60.0
+                ):
                     from .exchange import fetch_account_state
                     fees_start = int(self._fees_track_start_ts * 1000) if self._fees_track_start_ts else None
                     acct = await asyncio.to_thread(fetch_account_state, self._hl_info, self._hl_address, fees_start)
+                    self._last_full_acct_ts = time.time()
                     if acct:
                         self._exchange_account = acct
                         # Alert on significant drift between bot accounting and real equity.

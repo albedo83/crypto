@@ -79,32 +79,45 @@ def _sdk_call(fn, *args, timeout: float = 20.0, **kwargs):
 
 # v12.16.6 — observed recurring HTTP 429s at 4h candle close (cascade of
 # fetch_candles × 35 tokens + reconcile + multi-order in a tight burst).
-# Each 429 silently drops the corresponding order/state read. Worst case
-# on 2026-06-07 16:03 UTC : the actual market_open SELL for a S9 SHORT
-# WLD signal got 429'd → trade missed entirely. Retry-with-backoff lets
-# the order succeed on the second or third attempt once the burst ends.
-_RETRY_DELAYS_429 = (1.0, 3.0, 5.0)
+# v12.17.0 — tightened delays (0.5s/1.5s) to cap blocking at ~2s vs original
+# 9s ; the 4h-close burst typically clears in <3s so longer delays just blocked
+# the calling thread without benefit. _is_429 also strengthened to cover
+# `status_code` attribute, full args scan, and string-fallback.
+_RETRY_DELAYS_429 = (0.5, 1.5)
 
 
 def _is_429(exc: Exception) -> bool:
-    """Return True if `exc` is a Hyperliquid ClientError with a 429 status.
+    """Return True if `exc` is a Hyperliquid rate-limit (HTTP 429) error.
 
-    Avoids importing `hyperliquid.utils.error.ClientError` directly here —
-    SDK is lazy-imported and we don't want module import order coupling.
-    Pattern-matches on the `args` tuple instead : `ClientError(429, None,
-    'null', None, headers_dict)` per upstream signature.
+    Robust to SDK exception-shape drift: checks `status_code` attribute
+    (Hyperliquid's ClientError sets this), then any arg == 429 (covers
+    the historical `ClientError(429, ...)` tuple signature), then a
+    last-resort string match on `'429'` in the exception text (catches
+    wrapped errors like ConnectionError("HTTP 429 ...")).
     """
-    args = getattr(exc, "args", ())
-    return bool(args) and args[0] == 429
+    if getattr(exc, "status_code", None) == 429:
+        return True
+    for a in getattr(exc, "args", ()):
+        if a == 429 or a == "429":
+            return True
+    try:
+        return "429" in str(exc)
+    except Exception:
+        return False
 
 
 def _sdk_call_with_429_retry(fn, *args, timeout: float = 20.0, **kwargs):
-    """Wrapper over `_sdk_call` that retries on Hyperliquid's HTTP 429
-    rate-limit response with exponential-ish backoff (1s, 3s, 5s).
+    """Wrapper over `_sdk_call` that retries on Hyperliquid HTTP 429.
 
-    Use for write paths (market_open, market_close) where a silent drop
-    means a missed signal or a stuck position. Read paths can use plain
-    `_sdk_call` since the next scan will refetch.
+    Tightened delays (v12.17.0): 0.5s, 1.5s ; cap of ~2s wall-clock sleep on
+    top of the underlying _sdk_call timeouts. The 4h-close burst that
+    motivates this typically clears in <3s — longer backoffs were just
+    blocking the asyncio to_thread worker for no benefit.
+
+    Safe to call from any path (write or read) — the predicate is cheap
+    and the retry budget bounded. Note: still blocking time.sleep ; not
+    safe to call directly from the asyncio event loop (callers must wrap
+    via asyncio.to_thread, which all current call sites do).
     """
     last_exc = None
     for attempt, delay in enumerate([0.0, *_RETRY_DELAYS_429]):
@@ -118,8 +131,6 @@ def _sdk_call_with_429_retry(fn, *args, timeout: float = 20.0, **kwargs):
             last_exc = e
             if not _is_429(e):
                 raise
-    # Exhausted retries — raise the last 429 so the caller's existing
-    # error-handling path (alert, log, skip) runs as before.
     raise last_exc
 
 
@@ -305,7 +316,7 @@ def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
     # Sum sz across recent fills on this coin to handle multi-fill orders.
     try:
         time.sleep(0.5)
-        fills = _sdk_call(hl_info.user_fills_by_time,
+        fills = _sdk_call_with_429_retry(hl_info.user_fills_by_time,
                           address, int((time.time() - 30) * 1000),
                           timeout=10.0)
         coin_fills = [f for f in fills if f.get("coin") == sym]
@@ -339,7 +350,7 @@ def _abort_if_micro_fill(exchange, sym: str, avg_px: float, actual_sz: float,
     log.warning("MICRO FILL ABORT %s: filled $%.2f of requested $%.0f — closing",
                 sym, filled_usdt, requested_usdt)
     try:
-        _sdk_call(exchange.market_close, sym, slippage=0.02, timeout=20.0)
+        _sdk_call_with_429_retry(exchange.market_close, sym, slippage=0.02, timeout=20.0)
     except Exception as e:
         log.error("MICRO FILL abort %s: reverse close failed (%s) — "
                   "keeping mini-position in management", sym, e)
@@ -390,7 +401,7 @@ def execute_close(exchange, hl_info, address: str, sym: str) -> dict | None:
     # Fallback: query fills API and sum recent fills on this coin.
     try:
         time.sleep(0.5)
-        fills = _sdk_call(hl_info.user_fills_by_time,
+        fills = _sdk_call_with_429_retry(hl_info.user_fills_by_time,
                           address, int((time.time() - 30) * 1000),
                           timeout=10.0)
         coin_fills = [f for f in fills if f.get("coin") == sym]
@@ -416,7 +427,7 @@ def fetch_position_funding(hl_info, address: str, coin: str,
         return 0.0
     try:
         # HL API requires a time window; grab slightly wider and filter
-        hist = _sdk_call(hl_info.user_funding_history, address, start_ms, end_ms,
+        hist = _sdk_call_with_429_retry(hl_info.user_funding_history, address, start_ms, end_ms,
                          timeout=10.0)
         total = 0.0
         for ev in hist:
@@ -441,8 +452,8 @@ def fetch_equity_only(hl_info, address: str) -> dict | None:
     if not hl_info:
         return None
     try:
-        state = _sdk_call(hl_info.user_state, address, timeout=60.0)
-        spot = _sdk_call(hl_info.spot_user_state, address, timeout=60.0)
+        state = _sdk_call_with_429_retry(hl_info.user_state, address, timeout=60.0)
+        spot = _sdk_call_with_429_retry(hl_info.spot_user_state, address, timeout=60.0)
         spot_usdc = 0.0
         spot_hold = 0.0
         for b in spot.get("balances", []):
@@ -479,8 +490,8 @@ def fetch_account_state(hl_info, address: str, fees_start_ms: int | None = None)
     if not hl_info:
         return None
     try:
-        state = _sdk_call(hl_info.user_state, address, timeout=60.0)
-        spot = _sdk_call(hl_info.spot_user_state, address, timeout=60.0)
+        state = _sdk_call_with_429_retry(hl_info.user_state, address, timeout=60.0)
+        spot = _sdk_call_with_429_retry(hl_info.spot_user_state, address, timeout=60.0)
 
         # Spot USDC: total includes the cross-margin "hold" (collateral
         # earmarked for perps); we capture both to avoid double-counting.
@@ -520,14 +531,14 @@ def fetch_account_state(hl_info, address: str, fees_start_ms: int | None = None)
         start_ms = max(start_ms, default_start_ms - 365 * 86400 * 1000)
         period_days = max(0.0, (end_ms - start_ms) / 86400000)
         try:
-            fills = _sdk_call(hl_info.user_fills_by_time, address, start_ms, end_ms,
+            fills = _sdk_call_with_429_retry(hl_info.user_fills_by_time, address, start_ms, end_ms,
                               timeout=15.0)
             taker_fees = sum(float(f.get("fee", 0)) for f in fills)
             closed_pnl = sum(float(f.get("closedPnl", 0)) for f in fills)
         except Exception:
             taker_fees, closed_pnl = 0.0, 0.0
         try:
-            funding_hist = _sdk_call(hl_info.user_funding_history, address, start_ms, end_ms,
+            funding_hist = _sdk_call_with_429_retry(hl_info.user_funding_history, address, start_ms, end_ms,
                                      timeout=15.0)
             funding_paid = sum(float(f["delta"]["usdc"]) for f in funding_hist)
         except Exception:
@@ -562,7 +573,7 @@ def reconcile(hl_info, address: str, bot_positions: dict, send_telegram_fn) -> N
     if not hl_info:
         return
     try:
-        state = _sdk_call(hl_info.user_state, address, timeout=60.0)
+        state = _sdk_call_with_429_retry(hl_info.user_state, address, timeout=60.0)
         exchange_positions: dict[str, dict] = {}
         for pos in state.get("assetPositions", []):
             p = pos["position"]

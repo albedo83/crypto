@@ -778,6 +778,13 @@ def rank_and_enter(signals: list, now: datetime, bot) -> int:
 
         ctx = sig.get("ctx", {})
         with bot._pos_lock:
+            # v12.17.0: respect the in-flight reservation set by /api/manual_open.
+            # Otherwise a scan-driven entry can race a manual entry on the same
+            # symbol → duplicate position on the exchange.
+            if sym in getattr(bot, "_inflight_open", ()):
+                log.info("SKIP %s %s: manual_open in flight on this symbol",
+                          sig["strategy"], sym)
+                continue
             bot.positions[sym] = Position(
                 symbol=sym, direction=sig["direction"],
                 strategy=sig["strategy"],

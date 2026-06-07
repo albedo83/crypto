@@ -44,13 +44,20 @@ BOT_HOST = "http://127.0.0.1:8098"
 HTTP_TIMEOUT = 10
 DIGEST_HOUR_UTC = 8  # send a forced digest at 08:xx UTC
 
-# Thresholds — mirror the dashboard widget (web.py → reversal.html v12.15.3)
+# Fallback thresholds — used if /api/state doesn't expose them. The
+# canonical values live in the bot itself (web.py exposes them via
+# unpause_thresholds) and the dashboard widget reads from there too.
+# v12.17.0: dynamic ; previously hardcoded constants that drifted from
+# the dashboard widget (v12.16.7 fix manually re-aligned them).
 THRESHOLD_BTC_Z = -1.0
 THRESHOLD_DISP_7D = 900.0
 THRESHOLD_STRESS = 6
 
-# BTC psychological levels to alert on upward crossing
-BTC_LEVELS = [63_000, 64_000, 65_000, 66_000, 67_000, 68_000]
+# BTC psychological levels to alert on upward crossing — derived
+# dynamically from the current price in main() so the script stays
+# relevant whatever the market regime. v12.17.0.
+BTC_LEVEL_STEP = 1_000  # $1k bucket
+BTC_LEVEL_STEPS_UP = 3  # alert on next 3 round numbers above current price
 
 
 # ── env + IO ─────────────────────────────────────────────────────────
@@ -68,35 +75,38 @@ def load_env(path: str) -> dict:
     return out
 
 
-def fetch_bot_state(env: dict) -> dict:
-    """Login + fetch /api/state from the live bot. Raises on failure."""
+def make_authed_opener(env: dict):
+    """v12.17.0: single opener + single login for the whole run.
+
+    Caller passes this opener to every subsequent fetch_* — avoids
+    re-hitting /login per call and respects the 10-attempts/5min/IP rate
+    limit. Raises on auth failure so the caller can short-circuit.
+    """
     cj = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
     user = env.get("DASHBOARD_USER", "admin")
     pwd = env.get("DASHBOARD_PASS", "")
     data = urllib.parse.urlencode({"username": user, "password": pwd}).encode()
     opener.open(f"{BOT_HOST}/login", data=data, timeout=HTTP_TIMEOUT)
+    return opener
+
+
+def fetch_bot_state(opener) -> dict:
     with opener.open(f"{BOT_HOST}/api/state", timeout=HTTP_TIMEOUT) as r:
         return json.loads(r.read())
 
 
-def fetch_btc_price() -> float | None:
-    """Pull the last BTC price from the bot's chart endpoint. Bot host is
-    expected to be authenticated — the chart endpoint needs auth too."""
-    # Reuse the same cookies path : we don't actually share opener with
-    # fetch_bot_state here, but for simplicity we re-login.
+def fetch_btc_price(opener) -> float | None:
+    """Pull the last BTC price from the bot's chart endpoint.
+    v12.17.0: reuses the opener from make_authed_opener instead of re-logging in.
+    """
     try:
-        env = load_env(ENV_FILE)
-        cj = http.cookiejar.CookieJar()
-        opener = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(cj))
-        data = urllib.parse.urlencode({"username": env.get("DASHBOARD_USER", "admin"),
-                                        "password": env.get("DASHBOARD_PASS", "")}).encode()
-        opener.open(f"{BOT_HOST}/login", data=data, timeout=HTTP_TIMEOUT)
         with opener.open(f"{BOT_HOST}/api/chart/BTC?hours=2", timeout=HTTP_TIMEOUT) as r:
             d = json.loads(r.read())
         pts = d.get("points", [])
         return float(pts[-1]["price"]) if pts else None
-    except Exception:
+    except Exception as e:
+        print(f"fetch_btc_price failed: {e}", file=sys.stderr)
         return None
 
 
@@ -166,10 +176,20 @@ def compute_score(s: dict) -> tuple[int, dict]:
 
 
 def crossed_btc_level(prev_price: float | None, cur_price: float | None) -> int | None:
-    """Return the highest BTC_LEVEL just crossed upward, or None."""
-    if prev_price is None or cur_price is None:
+    """Return the highest BTC level (≥ $1k bucket) just crossed upward, or None.
+
+    v12.17.0: levels derived from the current price instead of hardcoded.
+    Considers the next BTC_LEVEL_STEPS_UP round-number buckets above the
+    lower of (prev, cur) — so works at any BTC price band.
+    """
+    if (prev_price is None or cur_price is None
+            or not (isinstance(prev_price, (int, float)) and isinstance(cur_price, (int, float)))):
         return None
-    for lvl in sorted(BTC_LEVELS, reverse=True):
+    if prev_price != prev_price or cur_price != cur_price:  # NaN check
+        return None
+    base = int(min(prev_price, cur_price) // BTC_LEVEL_STEP) * BTC_LEVEL_STEP
+    for k in range(1, BTC_LEVEL_STEPS_UP + 1):
+        lvl = base + k * BTC_LEVEL_STEP
         if prev_price < lvl <= cur_price:
             return lvl
     return None
@@ -247,18 +267,33 @@ def main() -> int:
     args = ap.parse_args()
 
     env = load_env(ENV_FILE)
+    # v12.17.0: single login, reused for both fetches.
     try:
-        state = fetch_bot_state(env)
+        opener = make_authed_opener(env)
+    except Exception as e:
+        print(f"login failed: {e}", file=sys.stderr)
+        return 1
+    try:
+        state = fetch_bot_state(opener)
     except Exception as e:
         print(f"fetch_bot_state failed: {e}", file=sys.stderr)
         return 1
+
+    # v12.17.0: prefer server-supplied thresholds if exposed (single source
+    # of truth between dashboard widget and this script). Fall back to the
+    # constants above if the bot version is older.
+    global THRESHOLD_BTC_Z, THRESHOLD_DISP_7D, THRESHOLD_STRESS
+    th = state.get("unpause_thresholds") or {}
+    THRESHOLD_BTC_Z = th.get("btc_z", THRESHOLD_BTC_Z)
+    THRESHOLD_DISP_7D = th.get("disp_7d", THRESHOLD_DISP_7D)
+    THRESHOLD_STRESS = th.get("stress", THRESHOLD_STRESS)
 
     score, breakdown = compute_score(state)
     regime = state.get("regime", "?")
     paused = state.get("paused_strategies") or []
     paused_longs = {p[0] for p in paused if p[1] == "LONG"}
 
-    btc_price = fetch_btc_price()
+    btc_price = fetch_btc_price(opener)
 
     prev = load_prev_state()
     prev_score = prev.get("score")

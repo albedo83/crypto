@@ -1692,10 +1692,14 @@ function refreshTrades(){
 // ── Price Chart (Lightweight Charts) ────────────────────
 let _chartSym='BTC';
 let _lwChart=null, _lwSeries=null, _lwPriceLine=null;
-// v12.16.5 : ALL_SYMS injected by the server (BTC, ETH + TRADE_SYMBOLS).
-// Falls back to a minimal list if the server template didn't substitute
-// the placeholder (e.g. when opening the file directly).
-const ALL_SYMS={{TRADE_SYMBOLS_JSON}};
+// v12.16.5 / v12.17.0 : ALL_SYMS injected by the server.
+// Real fallback via try/catch — if the template placeholder isn't
+// substituted (e.g. opening the file directly), the catch keeps a
+// minimal list so the rest of the script keeps working.
+const ALL_SYMS = (function(){
+  try { return {{TRADE_SYMBOLS_JSON}}; }
+  catch (e) { return ['BTC','ETH']; }
+})();
 
 function initSymBar(){
   const bar=document.getElementById('sym-bar');

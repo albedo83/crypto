@@ -12,7 +12,7 @@ from .config import (
     VERSION, EXECUTION_MODE, BOT_LABEL, BOT_LABEL_COLOR,
     CAPITAL_USDT, JUNIOR_CAPITAL_CAP, LEVERAGE, DASHBOARD_USER,
     DASHBOARD_PASS, AUTH_SALT, HTML_PATH, CHANGELOG_PATH, BACKTESTS_PATH, TRADE_SYMBOLS, TOKEN_SECTOR,
-    MAX_POSITIONS, SCAN_INTERVAL,
+    MAX_POSITIONS, SCAN_INTERVAL, MAX_NOTIONAL_PER_TRADE,
     HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, COST_BPS, STOP_LOSS_BPS, STOP_LOSS_S8,
     OI_LONG_GATE_BPS, TRADE_BLACKLIST, S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
     PROP_TRAIL_PARAMS, PROP_TRAIL_Z_THRESHOLD,
@@ -24,6 +24,10 @@ from .config import (
 )
 from .concurrency import db_lock as _db_lock
 from .features import oi_delta_24h_bps
+import asyncio as _aio
+from .models import Position
+from .exchange import execute_open as _execute_open
+from .db import log_event as _log_event
 
 def _mode_label() -> str:
     """Display label (BOT_LABEL override, else PAPER/LIVE from EXECUTION_MODE)."""
@@ -491,6 +495,10 @@ def build_state_response(bot) -> dict:
         "perf_track_start_ts": getattr(bot, "_perf_track_start_ts", 0.0),
         "s10_health": compute_s10_health(bot.trades),
         "btc_z_30d": round(bot._btc_z, 3) if bot._btc_z is not None else None,
+        # v12.17.0: single source of truth for the Dépause LONGs score
+        # thresholds. Dashboard widget AND analysis/regime_alert.py both
+        # read these — eliminates the v12.16.7-style drift.
+        "unpause_thresholds": {"btc_z": -1.0, "disp_7d": 900.0, "stress": 6},
         "basket_metrics": bot._basket_metrics,
         "peak_balance": round(bot._peak_balance, 2),
         "drawdown_pct": round((balance - bot._peak_balance) / bot._peak_balance * 100, 2) if bot._peak_balance > 0 else 0,
@@ -1150,21 +1158,26 @@ def create_app(bot) -> FastAPI:
 
     @app.post("/api/manual_open")
     async def api_manual_open(request: Request):
-        """v12.16.0: open a position manually, bypassing the scan/signal flow.
+        """v12.16.0 + v12.17.0 hardening: open a position manually.
 
         Body:
           {"symbol": "BCH", "direction": "LONG", "size_usdt": 150,
-           "strategy": "S5", "hold_hours": 48, "stop_bps": -750}
+           "strategy": "S5", "hold_hours": 48, "stop_bps": -1250}
 
         Defaults: strategy="MANUAL", hold_hours=HOLD_HOURS_DEFAULT,
-        stop_bps=-STOP_LOSS_BPS. The position is created identically to
-        a scan-triggered entry — exits (stop / dead_timeout / strategy-
-        specific / timeout) apply normally. Bypasses paused_strats,
-        OI gate, blacklist, sector cap, etc. — purely discretionary.
+        stop_bps=STOP_LOSS_BPS (-1250). Bypasses paused_strats,
+        OI gate, blacklist, sector cap, cooldown — purely discretionary.
+        Pair with POST /api/manual_stop/{symbol} once MFE is positive.
 
-        Use this when you want to play a bounce without unpausing the
-        whole strategy. Pair with POST /api/manual_stop/{symbol} once
-        MFE is positive to lock in profit.
+        v12.17.0 enforces (was bypassed before):
+          - MAX_POSITIONS (6) and MAX_NOTIONAL_PER_TRADE ($500) hard caps
+          - bot._paused (cannot manual-open when halted, prevents the UI
+            contradiction "PAUSED but new entries appearing")
+          - Atomic check + reservation under _pos_lock (TOCTOU fix)
+          - Rejection of S8 + custom stop_bps (because check_exits
+            overrides any S8 stop with STOP_LOSS_S8=-750, the user's
+            value would be silently ignored)
+          - math.isfinite on hold_hours and stop_bps (NaN slipped through)
         """
         try:
             body = await request.json()
@@ -1176,35 +1189,61 @@ def create_app(bot) -> FastAPI:
         size = body.get("size_usdt")
         strategy = (body.get("strategy") or "MANUAL").upper()
         hold_h = body.get("hold_hours", HOLD_HOURS_DEFAULT)
-        # STOP_LOSS_BPS is already stored negative in config (e.g. -1250), so
-        # we pass it through directly when no override is supplied.
-        stop_bps_in = body.get("stop_bps", STOP_LOSS_BPS)
+        # STOP_LOSS_BPS is already stored negative in config (e.g. -1250).
+        user_stop = body.get("stop_bps")
+        stop_bps_in = user_stop if user_stop is not None else STOP_LOSS_BPS
 
         if sym not in TRADE_SYMBOLS:
             return JSONResponse({"error": f"symbol must be one of {sorted(TRADE_SYMBOLS)}"},
                                  status_code=400)
         if dir_str not in ("LONG", "SHORT"):
             return JSONResponse({"error": "direction must be 'LONG' or 'SHORT'"}, status_code=400)
-        if sym in bot.positions:
-            return JSONResponse({"error": f"{sym} already has an open position"}, status_code=400)
+
         try:
             size = float(size)
         except (TypeError, ValueError):
             return JSONResponse({"error": "size_usdt must be a number"}, status_code=400)
         if not math.isfinite(size) or size < 10:
             return JSONResponse({"error": "size_usdt must be >= $10"}, status_code=400)
+        # v12.17.0: enforce MAX_NOTIONAL_PER_TRADE — validated walk-forward 4/4 strict,
+        # critical for DD per project_notional_cap_walkforward_2026_06 memory.
+        if MAX_NOTIONAL_PER_TRADE > 0 and size > MAX_NOTIONAL_PER_TRADE:
+            return JSONResponse({"error": (
+                f"size_usdt ${size:.0f} exceeds MAX_NOTIONAL_PER_TRADE "
+                f"${MAX_NOTIONAL_PER_TRADE:.0f}. Override the cap intentionally? "
+                f"Edit the constant in config.py.")}, status_code=400)
+
         try:
             hold_h = float(hold_h)
         except (TypeError, ValueError):
             return JSONResponse({"error": "hold_hours must be a number"}, status_code=400)
-        if hold_h <= 0 or hold_h > 168:
-            return JSONResponse({"error": "hold_hours must be in (0, 168]"}, status_code=400)
+        if not math.isfinite(hold_h) or hold_h <= 0 or hold_h > 168:
+            return JSONResponse({"error": "hold_hours must be a finite number in (0, 168]"},
+                                 status_code=400)
+
         try:
             stop_bps_in = float(stop_bps_in)
         except (TypeError, ValueError):
             return JSONResponse({"error": "stop_bps must be a number"}, status_code=400)
-        if stop_bps_in >= 0:
-            return JSONResponse({"error": "stop_bps must be negative (e.g. -750 for -7.5%)"},
+        if not math.isfinite(stop_bps_in) or stop_bps_in >= 0:
+            return JSONResponse({"error": "stop_bps must be a finite negative number (e.g. -1250)"},
+                                 status_code=400)
+
+        # v12.17.0: reject S8 with a user-specified stop because check_exits
+        # (trading.py:206-211) hardcodes STOP_LOSS_S8 for any S8 position
+        # regardless of pos.stop_bps. Silently overriding is misleading.
+        if strategy == "S8" and user_stop is not None and float(user_stop) != STOP_LOSS_S8:
+            return JSONResponse({"error": (
+                f"S8 stop is hardcoded to {STOP_LOSS_S8:+.0f} bps by check_exits; "
+                f"user-supplied stop_bps={user_stop} would be silently ignored. "
+                f"Use strategy='MANUAL' with a custom stop, or omit stop_bps.")},
+                                 status_code=400)
+
+        # v12.17.0: refuse to add a new position when the operator paused entries.
+        # Halt flag (v12.14.0) blocks the auto scan; manual_open should respect
+        # the same invariant — otherwise the dashboard "PAUSED" indicator lies.
+        if getattr(bot, "_paused", False):
+            return JSONResponse({"error": "bot is paused (halted) — resume entries first"},
                                  status_code=400)
 
         st = bot.states.get(sym)
@@ -1213,63 +1252,86 @@ def create_app(bot) -> FastAPI:
 
         direction = 1 if dir_str == "LONG" else -1
         now = datetime.now(timezone.utc)
-        entry_price = st.price
-        filled_size = size
 
-        # Live mode: place actual order via the exchange. Paper: skip and use
-        # the mark price directly.
-        if bot._exchange:
-            import asyncio as _aio
-            from .exchange import execute_open as _execute_open
-            try:
-                fill = await _aio.to_thread(
-                    _execute_open,
-                    bot._exchange, bot._hl_info, bot._hl_address, bot._sz_decimals,
-                    sym, direction == 1, size, st.price)
-                entry_price = fill["avgPx"]
-                filled_size = fill["sz"] * entry_price
-                send_telegram(
-                    f"\U0001f7e2 MANUAL OPEN {strategy} {dir_str} {sym} @ ${entry_price:.4f} | ${filled_size:.0f}",
-                    category="trade")
-            except Exception as e:
-                log.error("MANUAL OPEN FAILED %s %s: %s", sym, strategy, e)
-                return JSONResponse({"error": f"exchange open failed: {e}"}, status_code=500)
-
-        from .models import Position
-        from .db import log_event as _log_event
-        target_exit = now + timedelta(hours=hold_h)
+        # v12.17.0: TOCTOU fix — atomic reservation. Under _pos_lock, re-verify
+        # nothing got created concurrently, check MAX_POSITIONS, and stake a
+        # claim with a sentinel `_inflight_open` set so a concurrent rank_and_enter
+        # / manual_open observes the in-flight open and backs off.
+        if not hasattr(bot, "_inflight_open"):
+            bot._inflight_open = set()
         with bot._pos_lock:
-            bot.positions[sym] = Position(
-                symbol=sym, direction=direction,
-                strategy=strategy,
-                entry_price=entry_price, entry_time=now,
-                size_usdt=filled_size, signal_info=f"manual_open hold={hold_h}h",
-                target_exit=target_exit,
-                trajectory=[(0.0, 0.0)],
-                stop_bps=stop_bps_in,
-                entry_oi_delta=0.0,
-                entry_crowding=0,
-                entry_confluence=0,
-                entry_session="",
-            )
-        _log_event(bot._db, "OPEN", sym, {
-            "strategy": strategy, "dir": dir_str,
-            "entry_price": round(entry_price, 6),
-            "size_usdt": round(filled_size, 2),
-            "target_exit": target_exit.isoformat(),
-            "stop_bps": round(stop_bps_in, 1),
-            "manual": True,
-        })
-        bot._save_state()
-        log.info("MANUAL OPEN %s %s %s @ $%.4f | $%.0f | stop=%+.0f bps | hold=%.0fh",
-                 strategy, dir_str, sym, entry_price, filled_size, stop_bps_in, hold_h)
-        return JSONResponse({
-            "status": "ok", "symbol": sym, "direction": dir_str, "strategy": strategy,
-            "entry_price": round(entry_price, 6),
-            "size_usdt": round(filled_size, 2),
-            "stop_bps": round(stop_bps_in, 1),
-            "target_exit": target_exit.isoformat(),
-        })
+            if sym in bot.positions:
+                return JSONResponse({"error": f"{sym} already has an open position"},
+                                     status_code=400)
+            if sym in bot._inflight_open:
+                return JSONResponse({"error": f"{sym} has an in-flight manual_open"},
+                                     status_code=400)
+            if len(bot.positions) + len(bot._inflight_open) >= MAX_POSITIONS:
+                return JSONResponse({"error": (
+                    f"MAX_POSITIONS={MAX_POSITIONS} reached "
+                    f"({len(bot.positions)} open + {len(bot._inflight_open)} in-flight). "
+                    f"Close one first.")}, status_code=400)
+            bot._inflight_open.add(sym)
+
+        try:
+            entry_price = st.price
+            filled_size = size
+
+            # Live mode: place actual order via the exchange. Paper: skip and use
+            # the mark price directly.
+            if bot._exchange:
+                try:
+                    fill = await _aio.to_thread(
+                        _execute_open,
+                        bot._exchange, bot._hl_info, bot._hl_address, bot._sz_decimals,
+                        sym, direction == 1, size, st.price)
+                    entry_price = fill["avgPx"]
+                    filled_size = fill["sz"] * entry_price
+                    send_telegram(
+                        f"\U0001f7e2 MANUAL OPEN {strategy} {dir_str} {sym} @ ${entry_price:.4f} | ${filled_size:.0f}",
+                        category="trade")
+                except Exception as e:
+                    log.error("MANUAL OPEN FAILED %s %s: %s", sym, strategy, e)
+                    return JSONResponse({"error": f"exchange open failed: {e}"},
+                                         status_code=500)
+
+            target_exit = now + timedelta(hours=hold_h)
+            with bot._pos_lock:
+                bot.positions[sym] = Position(
+                    symbol=sym, direction=direction,
+                    strategy=strategy,
+                    entry_price=entry_price, entry_time=now,
+                    size_usdt=filled_size,
+                    signal_info=f"manual_open hold={hold_h}h",
+                    target_exit=target_exit,
+                    trajectory=[(0.0, 0.0)],
+                    stop_bps=stop_bps_in,
+                    entry_oi_delta=0.0,
+                    entry_crowding=0,
+                    entry_confluence=0,
+                    entry_session="",
+                )
+            _log_event(bot._db, "OPEN", sym, {
+                "strategy": strategy, "dir": dir_str,
+                "entry_price": round(entry_price, 6),
+                "size_usdt": round(filled_size, 2),
+                "target_exit": target_exit.isoformat(),
+                "stop_bps": round(stop_bps_in, 1),
+                "manual": True,
+            })
+            bot._save_state()
+            log.info("MANUAL OPEN %s %s %s @ $%.4f | $%.0f | stop=%+.0f bps | hold=%.0fh",
+                     strategy, dir_str, sym, entry_price, filled_size, stop_bps_in, hold_h)
+            return JSONResponse({
+                "status": "ok", "symbol": sym, "direction": dir_str, "strategy": strategy,
+                "entry_price": round(entry_price, 6),
+                "size_usdt": round(filled_size, 2),
+                "stop_bps": round(stop_bps_in, 1),
+                "target_exit": target_exit.isoformat(),
+            })
+        finally:
+            with bot._pos_lock:
+                bot._inflight_open.discard(sym)
 
     @app.post("/api/manual_stop/{symbol}")
     async def api_manual_stop(symbol: str, request: Request):
