@@ -67,6 +67,7 @@ Items de mémoire long-terme, sans deadline.
 
 - [ ] **Token rotation auto-screening** — actuellement les 28 tokens sont hardcodés dans `TRADE_SYMBOLS`. Mémoire `project_token_rotation`. Idée : scoring périodique par volume/spread/historical edge, drop les pires, ajoute les nouveaux liquides.
 - [ ] **DD reduction sans tuer le compounding** — mémoire `project_dd_reduction`. Pistes : sizing dynamique par régime, levier variable, regime filter explicite (au-delà du modulator existant).
+- [ ] **Native HL stop orders pour `manual_stop_usdt`** — actuellement le déclenchement est polling-based (cadence 20s post-v12.16.3, était 60s). Sur un alt volatil le prix peut traverser le seuil entre 2 ticks → slippage de réaction. Cible : à chaque `POST /api/manual_stop`, le bot place aussi un ordre conditionnel `Stop` sur Hyperliquid. Si le prix touche, l'exchange close instantanément, le bot réconcilie au scan suivant. Nécessite : SDK call pour conditional orders, stockage `order_id` dans `Position`, cleanup à la fermeture/changement de stop. Effort 1-2j. Décision prise 2026-06-07 après que l'utilisateur ait flag la latence sur GMX manual_stop $0.50.
 
 ---
 

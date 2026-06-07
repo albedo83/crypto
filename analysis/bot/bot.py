@@ -686,7 +686,9 @@ class MultiSignalBot:
             await asyncio.sleep(10)
 
     async def main_loop(self):
-        """Two cadences: prices every 60s (for stop checks), full scan every hour."""
+        """Two cadences: prices every 20s (v12.16.3, was 60s — for tighter
+        manual_stop reaction), full scan every hour (SCAN_INTERVAL) or at
+        each 4h candle boundary +180s."""
         while self.running:
             try:
                 now = time.time()
@@ -799,4 +801,9 @@ class MultiSignalBot:
                         self._save_state()
             except Exception:
                 log.exception("Loop error")
-            await asyncio.sleep(60)
+            # v12.16.3 — 60s → 20s. Tighter price refresh + manual_stop check.
+            # 3× more HL `metaAndAssetCtxs` calls (bénin sur cet endpoint),
+            # mais latence max sur manual_stop_usdt passe de ~60s à ~20s.
+            # Full scan + entry logic restent gated par SCAN_INTERVAL et
+            # le 4h boundary check, non impactés.
+            await asyncio.sleep(20)
