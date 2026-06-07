@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.16.1] — 2026-06-07
+- **Trading engine**: fix default `stop_bps` sign sur `POST /api/manual_open`. La constante config est déjà négative, pas besoin d'inverser.
+
 ## [12.16.0] — 2026-06-07
 - **Trading engine**: endpoint `POST /api/manual_open` pour ouvrir une position discrétionnaire sans dépauser la stratégie. Body `{symbol, direction, size_usdt, strategy?, hold_hours?, stop_bps?}`. Bypass paused_strats / OI gate / blacklist / sector cap. Exits standards s'appliquent.
 

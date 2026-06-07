@@ -1171,7 +1171,9 @@ def create_app(bot) -> FastAPI:
         size = body.get("size_usdt")
         strategy = (body.get("strategy") or "MANUAL").upper()
         hold_h = body.get("hold_hours", HOLD_HOURS_DEFAULT)
-        stop_bps_in = body.get("stop_bps", -STOP_LOSS_BPS)
+        # STOP_LOSS_BPS is already stored negative in config (e.g. -1250), so
+        # we pass it through directly when no override is supplied.
+        stop_bps_in = body.get("stop_bps", STOP_LOSS_BPS)
 
         if sym not in TRADE_SYMBOLS:
             return JSONResponse({"error": f"symbol must be one of {sorted(TRADE_SYMBOLS)}"},
