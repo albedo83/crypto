@@ -77,6 +77,52 @@ def _sdk_call(fn, *args, timeout: float = 20.0, **kwargs):
         raise TimeoutError(f"SDK call {fn.__name__} exceeded {timeout}s")
 
 
+# v12.16.6 — observed recurring HTTP 429s at 4h candle close (cascade of
+# fetch_candles × 35 tokens + reconcile + multi-order in a tight burst).
+# Each 429 silently drops the corresponding order/state read. Worst case
+# on 2026-06-07 16:03 UTC : the actual market_open SELL for a S9 SHORT
+# WLD signal got 429'd → trade missed entirely. Retry-with-backoff lets
+# the order succeed on the second or third attempt once the burst ends.
+_RETRY_DELAYS_429 = (1.0, 3.0, 5.0)
+
+
+def _is_429(exc: Exception) -> bool:
+    """Return True if `exc` is a Hyperliquid ClientError with a 429 status.
+
+    Avoids importing `hyperliquid.utils.error.ClientError` directly here —
+    SDK is lazy-imported and we don't want module import order coupling.
+    Pattern-matches on the `args` tuple instead : `ClientError(429, None,
+    'null', None, headers_dict)` per upstream signature.
+    """
+    args = getattr(exc, "args", ())
+    return bool(args) and args[0] == 429
+
+
+def _sdk_call_with_429_retry(fn, *args, timeout: float = 20.0, **kwargs):
+    """Wrapper over `_sdk_call` that retries on Hyperliquid's HTTP 429
+    rate-limit response with exponential-ish backoff (1s, 3s, 5s).
+
+    Use for write paths (market_open, market_close) where a silent drop
+    means a missed signal or a stuck position. Read paths can use plain
+    `_sdk_call` since the next scan will refetch.
+    """
+    last_exc = None
+    for attempt, delay in enumerate([0.0, *_RETRY_DELAYS_429]):
+        if delay > 0:
+            log.warning("%s: HTTP 429, retry %d/%d after %.1fs",
+                        fn.__name__, attempt, len(_RETRY_DELAYS_429), delay)
+            time.sleep(delay)
+        try:
+            return _sdk_call(fn, *args, timeout=timeout, **kwargs)
+        except Exception as e:
+            last_exc = e
+            if not _is_429(e):
+                raise
+    # Exhausted retries — raise the last 429 so the caller's existing
+    # error-handling path (alert, log, skip) runs as before.
+    raise last_exc
+
+
 _SDK_PATCHES_APPLIED = False
 
 
@@ -222,10 +268,10 @@ def execute_open(exchange, hl_info, address: str, sz_decimals: dict,
 
     side_str = "BUY" if is_buy else "SELL"
     log.info("EXEC OPEN: %s %s sz=%s (~$%.0f)", side_str, sym, sz, sz * price)
-    # v12.5.29: timeout-capped + serialized via _sdk_call. Without it a hung
-    # SDK request would stall the calling scan thread indefinitely.
-    result = _sdk_call(exchange.market_open, sym, is_buy, sz, slippage=0.01,
-                       timeout=20.0)
+    # v12.5.29: timeout-capped + serialized via _sdk_call.
+    # v12.16.6: retry on HTTP 429 (rate limit cascade at 4h close).
+    result = _sdk_call_with_429_retry(exchange.market_open, sym, is_buy, sz,
+                                       slippage=0.01, timeout=20.0)
 
     # Validate response
     statuses = result.get("response", {}).get("data", {}).get("statuses", [])
@@ -315,8 +361,9 @@ def execute_close(exchange, hl_info, address: str, sym: str) -> dict | None:
     log.info("EXEC CLOSE: %s", sym)
     # v12.5.29: timeout-capped + serialized. Hung close was the worst case —
     # _closing mutex held forever, position stuck outside management.
-    result = _sdk_call(exchange.market_close, sym, slippage=0.01,
-                       timeout=20.0)
+    # v12.16.6: retry on HTTP 429 (rate limit cascade at 4h close).
+    result = _sdk_call_with_429_retry(exchange.market_close, sym, slippage=0.01,
+                                       timeout=20.0)
 
     statuses = result.get("response", {}).get("data", {}).get("statuses", [])
     if not statuses:

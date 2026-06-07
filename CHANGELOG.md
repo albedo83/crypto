@@ -1,5 +1,9 @@
 # Changelog
 
+## [12.16.6] — 2026-06-07
+- **Trading engine**: retry-with-backoff (1s/3s/5s) sur HTTP 429 dans `execute_open` + `execute_close`. Évite les missed orders au 4h candle close quand HL rate-limit le burst.
+- **Trading engine**: sleep entre fetch_candles 0.2s → 0.5s pour étaler le burst au candle close.
+
 ## [12.16.5] — 2026-06-07
 - **Dashboard**: barre de symboles du Price chart injectée dynamiquement depuis le serveur (TRADE_SYMBOLS). Plus de tokens manquants après une universe expansion.
 
