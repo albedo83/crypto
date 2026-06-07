@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.16.7] — 2026-06-07
+- **Dashboard**: fix incohérence du seuil Stress dans le bandeau régime — l'affichage indiquait "≤ 3" alors que le score Dépause LONGs utilisait "≤ 6". Aligné sur ≤ 6 (idéal ≤ 3 dans le tooltip).
+
 ## [12.16.6] — 2026-06-07
 - **Trading engine**: retry-with-backoff (1s/3s/5s) sur HTTP 429 dans `execute_open` + `execute_close`. Évite les missed orders au 4h candle close quand HL rate-limit le burst.
 - **Trading engine**: sleep entre fetch_candles 0.2s → 0.5s pour étaler le burst au candle close.

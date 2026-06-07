@@ -1030,8 +1030,8 @@ function refresh(){
       else {rb_strsTxt=rb_stress+'/10'; rb_strsColor='#f85149'}
     }
     const rbStrsEl=document.getElementById('rb-stress');
-    rbStrsEl.innerHTML='Stress : <span style="color:'+rb_strsColor+';font-weight:700">'+rb_strsTxt+'</span> <span style="opacity:0.6">[dépause si ≤ 3]</span>';
-    rbStrsEl.title='Seuil dépause LONGs : regime_stress ≤ 3 / 10\nActuel : '+(rb_stress!=null?rb_stress:'--');
+    rbStrsEl.innerHTML='Stress : <span style="color:'+rb_strsColor+';font-weight:700">'+rb_strsTxt+'</span> <span style="opacity:0.6">[dépause si ≤ 6]</span>';
+    rbStrsEl.title='Seuil dépause LONGs : regime_stress ≤ 6 (idéal ≤ 3)\nActuel : '+(rb_stress!=null?rb_stress:'--')+'\nCouleur de la valeur : vert ≤3 (idéal), orange 4-6 (acceptable), rouge >6';
 
     const rb_longFav=(rb_bz==null||rb_d7==null)?'--':((rb_bz<-0.5&&rb_d7>700)?'NON':'oui');
     const rb_shortFav=(rb_bz==null)?'--':(rb_bz>0.5?'NON':'oui');
