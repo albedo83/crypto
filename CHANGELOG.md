@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.16.2] — 2026-06-07
+- **Telegram**: nouveau script `analysis/regime_alert.py` (cron horaire à :15) — surveille le score Dépause LONGs et alerte sur transitions clés (score ↑↓, régime change, BTC franchit niveau psy) + digest quotidien à 08:15 UTC.
+
 ## [12.16.1] — 2026-06-07
 - **Trading engine**: fix default `stop_bps` sign sur `POST /api/manual_open`. La constante config est déjà négative, pas besoin d'inverser.
 
