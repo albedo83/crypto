@@ -318,11 +318,43 @@ def main():
     deploy_map = {b: d for b, d in BOT_DEPLOYMENTS}
     if bot_key not in deploy_map:
         sys.exit(f"No deployment date for {bot_key} in BOT_DEPLOYMENTS")
-    start_dt = dt.datetime.fromisoformat(deploy_map[bot_key]).replace(tzinfo=dt.timezone.utc)
+    deploy_dt = dt.datetime.fromisoformat(deploy_map[bot_key]).replace(tzinfo=dt.timezone.utc)
+    # v12.17.4: prefer the bot's actual soft-reset / hard-restart date over the
+    # hardcoded deployment when more recent — for paper this matters because the
+    # bot was hard-reset on 2026-06-04 but deploy_map still says 2026-03-25.
+    # Use max(deploy_date, perf_track_start_ts, min(trades.entry_time)).
+    start_dt = deploy_dt
+    start_source = "deployment date"
+    perf_ts = 0.0
+    if os.path.exists(state_path):
+        try:
+            with open(state_path) as _f:
+                _s = json.load(_f)
+            perf_ts = float(_s.get("_perf_track_start_ts", 0) or 0)
+        except Exception:
+            pass
+    if perf_ts > 0:
+        perf_dt = dt.datetime.fromtimestamp(perf_ts, dt.timezone.utc)
+        if perf_dt > start_dt:
+            start_dt = perf_dt
+            start_source = "soft-reset (perf_track_start_ts)"
+    # Also honor the actual earliest trade in the DB (covers hard resets that
+    # wipe the DB without touching perf_track_start_ts).
+    try:
+        _conn = sqlite3.connect(db_path)
+        _row = _conn.execute("SELECT MIN(entry_time) FROM trades").fetchone()
+        _conn.close()
+        if _row and _row[0]:
+            _min_dt = dt.datetime.fromisoformat(_row[0])
+            if _min_dt > start_dt:
+                start_dt = _min_dt
+                start_source = "earliest trade in DB"
+    except Exception:
+        pass
     # v12.10.12 — live default = $641 (post-soft-reset baseline 2026-05-31)
     default_caps = {"paper": 1000.0, "live": 641.0, "junior": 300.0}
     start_cap = args.start_cap if args.start_cap else default_caps[bot_key]
-    print(f"  Period start: {start_dt.date()} (deployment date)")
+    print(f"  Period start: {start_dt.date()} ({start_source})")
     print(f"  Starting capital: ${start_cap:.0f}")
 
     # Live side

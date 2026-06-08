@@ -12,6 +12,10 @@ Usage:
 import json, os, sys, sqlite3, subprocess, time
 from datetime import datetime, timezone
 
+# v12.17.4: ensure the repo root is on sys.path so `from backtests...` imports
+# work regardless of how the script is invoked (cron, direct script, -m module).
+sys.path.insert(0, "/home/crypto")
+
 CONFIG_PATH = "/home/crypto/analysis/output/paper_tracker_config.json"
 LOG_PATH = "/home/crypto/analysis/output/paper_vs_bt_tracker.log"
 STATE_PATH = "/home/crypto/analysis/output/reversal_state.json"
