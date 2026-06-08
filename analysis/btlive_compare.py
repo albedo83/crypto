@@ -329,6 +329,12 @@ def main():
     live = read_live_trades(db_path)
     if not live:
         sys.exit(f"No live trades in {db_path}")
+    # v12.17.3: keep the FULL db sum for the coherence check before
+    # windowing. state.total_pnl is a lifetime counter, so the coherence
+    # check must compare against the lifetime DB sum, not the windowed
+    # one — otherwise we get a spurious "DRIFT" equal to pre-window
+    # trade contributions.
+    db_total_full = sum(t["pnl"] for t in live)
     start_iso = start_dt.isoformat()
     live = [t for t in live if t["entry_iso"] >= start_iso]
 
@@ -379,16 +385,20 @@ def main():
         b_wr = B.get("wr", 0)
         print(f"    {s:<6} {L['n']:>4} {L['pnl']:>+9.2f} {l_wr:>5.0f}%  |  {B['n']:>4} {B['pnl']:>+9.2f} {b_wr:>5.0f}%")
 
-    # State.json coherence
-    db_total = sum(t["pnl"] for t in live)
+    # State.json coherence — v12.17.3: use the FULL DB sum (lifetime),
+    # not the windowed one. state.total_pnl is a lifetime counter; comparing
+    # against a windowed sum produces a spurious DRIFT equal to the pre-window
+    # trade contributions.
+    db_total_window = sum(t["pnl"] for t in live)
     print()
     print(f"  Coherence check:")
-    print(f"    DB sum(pnl_usdt)        = ${db_total:+.2f}")
-    print(f"    state.json total_pnl    = ${state_pnl:+.2f}")
-    print(f"    realign_offset          = ${state_offset:+.2f}")
-    coherence = db_total - state_pnl + state_offset
+    print(f"    DB sum(pnl_usdt) [window]   = ${db_total_window:+.2f}")
+    print(f"    DB sum(pnl_usdt) [lifetime] = ${db_total_full:+.2f}")
+    print(f"    state.json total_pnl        = ${state_pnl:+.2f}")
+    print(f"    realign_offset              = ${state_offset:+.2f}")
+    coherence = db_total_full - state_pnl + state_offset
     coh_label = "OK" if abs(coherence) < 1.0 else "DRIFT"
-    print(f"    db − state + offset     = ${coherence:+.4f}   [{coh_label}]")
+    print(f"    [lifetime] db − state + offset = ${coherence:+.4f}   [{coh_label}]")
 
     # ── PHASE 3: JUSTIFY / ROOT CAUSE ────────────────────────────────────
     print()

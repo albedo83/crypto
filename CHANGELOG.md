@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.17.3] — 2026-06-08
+- **Infra**: fix faux positif "Coherence DRIFT" dans `analysis/btlive_compare.py`. Le check comparait la somme DB windowed avec state.total_pnl (compteur lifetime) → drift = sum trades pré-fenêtre. Maintenant compare avec sum DB lifetime.
+
 ## [12.17.2] — 2026-06-08
 - **Trading engine**: `CANDLE_FETCH_SLEEP` configurable via env var (default 0.5s). Paper et Apprenti l'overrident à 1.0s pour réduire le burst IP partagé au 4h close — 4 bots × 35 tokens = 140 fetches concurrents si tous à 0.5s.
 
