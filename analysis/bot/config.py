@@ -17,7 +17,7 @@ logging.basicConfig(
 )
 log = logging.getLogger("multisignal")
 
-VERSION = "12.17.1"
+VERSION = "12.17.2"
 
 # ── Environment (.env) ──────────────────────────────────────────────
 # bot/ -> analysis/ -> project root
@@ -504,6 +504,13 @@ RUNNER_EXT_MIN_CUR_TO_MFE = 0.3    # current unrealized must be >= 30% of MFE
 # ── Timing ──────────────────────────────────────────────────────────
 SCAN_INTERVAL = 3600
 COOLDOWN_HOURS = 24
+
+# v12.17.2 — sleep between fetch_candles calls during the scan loop, in seconds.
+# 0.5s = default (live + junior). PAPER bots can override to 1.0s+ to reduce
+# the shared-IP burst at 4h close (4 bots × 35 tokens = 140 concurrent fetches
+# in ~20s if all run at 0.5s). 35 tokens × 0.5s = 17.5s scan ; × 1.0s = 35s.
+# Paper / apprenti don't need entry-time tightness so 35s scan is fine.
+CANDLE_FETCH_SLEEP = float(os.environ.get("CANDLE_FETCH_SLEEP", "0.5"))
 
 # ── Paths ───────────────────────────────────────────────────────────
 # bot/ -> analysis/ for base paths

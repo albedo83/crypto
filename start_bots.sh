@@ -17,7 +17,9 @@ sleep 5
 mkdir -p analysis/output/pairs_data analysis/output_live/pairs_data
 
 # Paper bot (:8097, no Telegram) — served behind nginx at /paper/
-TG_BOT_TOKEN= TG_CHAT_ID= HL_ROOT_PATH=/paper \
+# v12.17.2 : CANDLE_FETCH_SLEEP=1.0 (vs 0.5 default for live/junior) to reduce
+# the 4-bot shared-IP burst at 4h close. Paper is entry-time-insensitive.
+TG_BOT_TOKEN= TG_CHAT_ID= HL_ROOT_PATH=/paper CANDLE_FETCH_SLEEP=1.0 \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 echo "Paper bot started (PID: $!)"
 
@@ -59,7 +61,7 @@ echo "Junior bot started (PID: $!)"
 #     HL_ACCOUNT_ADDRESS="$APPRENTI_MASTER_ADDRESS" \
 #     BOT_LABEL="APPRENTI" BOT_LABEL_COLOR="#a371f7" \
 #     HL_CAPITAL=0 WEB_PORT=8100 HL_OUTPUT_DIR=analysis/output_apprenti HL_ROOT_PATH=/apprenti \
-#     BOT_PUBLIC_URL=https://echonym.fr/apprenti \
+#     BOT_PUBLIC_URL=https://echonym.fr/apprenti CANDLE_FETCH_SLEEP=1.0 \
 #     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_apprenti/reversal_v10.log 2>&1 &
 # echo "Apprenti bot started (PID: $!)"
 

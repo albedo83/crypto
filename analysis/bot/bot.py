@@ -765,11 +765,12 @@ class MultiSignalBot:
                         # (30d lookback + 180d rolling z-window). Others 45d.
                         days = 250 if sym == "BTC" else 45
                         await asyncio.to_thread(net.fetch_candles, sym, self.states, days)
-                        # v12.16.6: 0.2s → 0.5s. Étale le burst au candle close
-                        # pour éviter les 429 cascadants vus le 2026-06-07
-                        # (3 cascades dans la journée). 37 tokens × 0.3s extra
-                        # = +11s sur le scan, acceptable vs miss d'un signal.
-                        await asyncio.sleep(0.5)
+                        # v12.16.6: 0.2s → 0.5s. v12.17.2: configurable via env
+                        # CANDLE_FETCH_SLEEP. Paper / apprenti set this to 1.0s+
+                        # to reduce shared-IP burst at 4h close (4 bots × 35
+                        # tokens = 140 fetches in ~20s if all run at 0.5s).
+                        from .config import CANDLE_FETCH_SLEEP
+                        await asyncio.sleep(CANDLE_FETCH_SLEEP)
 
                     self._refresh_feature_cache()
                     if self._exchange:

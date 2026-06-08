@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.17.2] — 2026-06-08
+- **Trading engine**: `CANDLE_FETCH_SLEEP` configurable via env var (default 0.5s). Paper et Apprenti l'overrident à 1.0s pour réduire le burst IP partagé au 4h close — 4 bots × 35 tokens = 140 fetches concurrents si tous à 0.5s.
+
 ## [12.17.1] — 2026-06-08
 - **Trading engine**: étend les délais de retry-429 de `(0.5, 1.5)` à `(0.5, 1.5, 3.0, 5.0, 10.0)` — passe de 2s à 20s de budget pour passer outre un burst HL. Observation 2026-06-08 08:03 UTC : 429 sur SAND S5 malgré v12.17.0 → burst durait plus de 2s.
 
