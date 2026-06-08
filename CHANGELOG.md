@@ -1,5 +1,8 @@
 # Changelog
 
+## [12.17.1] — 2026-06-08
+- **Trading engine**: étend les délais de retry-429 de `(0.5, 1.5)` à `(0.5, 1.5, 3.0, 5.0, 10.0)` — passe de 2s à 20s de budget pour passer outre un burst HL. Observation 2026-06-08 08:03 UTC : 429 sur SAND S5 malgré v12.17.0 → burst durait plus de 2s.
+
 ## [12.17.0] — 2026-06-07
 - **Trading engine**: hardening de `/api/manual_open` — enforce MAX_POSITIONS / MAX_NOTIONAL_PER_TRADE, fix TOCTOU via `_inflight_open` set, refuse S8 + custom stop (silencieusement écrasé par check_exits), refuse manual_open quand bot en pause, NaN/inf guard sur hold_h et stop_bps.
 - **Trading engine**: retry HTTP 429 étendu aux read paths (fetch_account_state, fetch_equity_only, user_fills_by_time fallback, user_funding_history, reconcile). Délais réduits 1+3+5s → 0.5+1.5s (burst clear en <3s, blocage thread minimal). `_is_429` robustifié (status_code attr + args scan + string fallback).

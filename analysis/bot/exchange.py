@@ -79,11 +79,13 @@ def _sdk_call(fn, *args, timeout: float = 20.0, **kwargs):
 
 # v12.16.6 — observed recurring HTTP 429s at 4h candle close (cascade of
 # fetch_candles × 35 tokens + reconcile + multi-order in a tight burst).
-# v12.17.0 — tightened delays (0.5s/1.5s) to cap blocking at ~2s vs original
-# 9s ; the 4h-close burst typically clears in <3s so longer delays just blocked
-# the calling thread without benefit. _is_429 also strengthened to cover
-# `status_code` attribute, full args scan, and string-fallback.
-_RETRY_DELAYS_429 = (0.5, 1.5)
+# v12.17.0 — initial retry delays (0.5s, 1.5s) = 2s budget.
+# v12.17.1 — extended to (0.5, 1.5, 3.0, 5.0, 10.0) = 20s budget after
+# observing the burst can last 15-20s in practice (vu sur SAND S5 le
+# 2026-06-08 08:03 UTC). Each individual _sdk_call still timeout-capped
+# at 20s, so worst-case wall is ~120s on a hung HL but typical 429s
+# return in <1s and the sleeps dominate (true wall ≈ retry_delay × n).
+_RETRY_DELAYS_429 = (0.5, 1.5, 3.0, 5.0, 10.0)
 
 
 def _is_429(exc: Exception) -> bool:
