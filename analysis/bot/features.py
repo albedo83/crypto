@@ -204,14 +204,21 @@ def compute_btc_features(btc_candles: list) -> dict:
 
 def compute_btc_z(btc_candles: list, lookback_days: int = 30,
                   z_window_days: int = 180,
-                  candles_per_day: int = 6) -> float | None:
+                  candles_per_day: int = 6,
+                  robust: bool = False) -> float | None:
     """Rolling z-score of BTC's `lookback_days` return.
 
-    Computes ret_30d at each candle in the past `z_window_days`, then returns
-    the z-score of the latest ret_30d against that rolling distribution.
+    Computes ret_lookback at each candle in the past `z_window_days`, then
+    returns the z-score of the latest reading against that rolling distribution.
     No look-ahead: only past data is used. Returns None if history insufficient.
 
     candles_per_day=6 for 4h candles (24/4). For other granularities, adjust.
+
+    v12.18.0:
+      - `robust=True` uses median + MAD (Median Absolute Deviation × 1.4826)
+        instead of mean + std. Insensitive to a single whale-liquidation
+        outlier that would otherwise blow up the std and keep the bot stuck
+        in extreme-bear regime for 1-2 weeks even if BTC stabilizes.
     """
     n_lb = lookback_days * candles_per_day
     n_z = z_window_days * candles_per_day
@@ -227,10 +234,50 @@ def compute_btc_z(btc_candles: list, lookback_days: int = 30,
     if len(rets) < 30:
         return None
     rets_arr = np.array(rets)
-    mean = float(rets_arr.mean())
-    std = float(rets_arr.std()) or 1.0
     current_ret = rets_arr[-1]
-    return (current_ret - mean) / std
+    if robust:
+        center = float(np.median(rets_arr))
+        mad = float(np.median(np.abs(rets_arr - center))) * 1.4826
+        scale = mad or 1.0
+    else:
+        center = float(rets_arr.mean())
+        scale = float(rets_arr.std()) or 1.0
+    return (current_ret - center) / scale
+
+
+def compute_btc_z_multi(btc_candles: list,
+                          weight_long: float = 0.6,
+                          long_lookback_days: int = 30,
+                          long_z_window_days: int = 180,
+                          short_lookback_days: int = 7,
+                          short_z_window_days: int = 60,
+                          candles_per_day: int = 6,
+                          robust: bool = False) -> float | None:
+    """v12.18.0 — multi-horizon BTC z-score : weighted blend of long-window
+    (30d/180d) and short-window (7d/60d) z-scores.
+
+    Motivation : the long-window z-score is slow to thaw after a whale
+    liquidation (1-2 weeks lag for ret_30d to roll past the spike). The
+    short-window z-score reacts in 1-3 days and signals when the market
+    has actually stabilized, while the long-window keeps macro context.
+
+    weight_long defaults to 0.6 (60% macro, 40% short-horizon). Combine
+    with robust=True for the full v12.18.0 fix.
+
+    Returns the blended z-score, or whichever component is available
+    if only one has enough history.
+    """
+    z_long = compute_btc_z(btc_candles, long_lookback_days, long_z_window_days,
+                            candles_per_day, robust=robust)
+    z_short = compute_btc_z(btc_candles, short_lookback_days, short_z_window_days,
+                             candles_per_day, robust=robust)
+    if z_long is None and z_short is None:
+        return None
+    if z_long is None:
+        return z_short
+    if z_short is None:
+        return z_long
+    return weight_long * z_long + (1.0 - weight_long) * z_short
 
 
 def compute_basket_correlation(positions: dict, states: dict,

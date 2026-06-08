@@ -278,7 +278,8 @@ def run_window(features, data, sector_features, dxy_data,
                max_notional_per_trade: float | None = None,
                margin_check: bool = False,
                margin_max_util: float = 0.95,
-               early_dead_check: dict[str, tuple[float, float]] | None = None) -> dict:
+               early_dead_check: dict[str, tuple[float, float]] | None = None,
+               btc_z_variant: str = "baseline") -> dict:
     """Run the portfolio backtest on a time window.
 
     `interval_hours` (default 4) tells the engine how many hours each candle
@@ -497,22 +498,71 @@ def run_window(features, data, sector_features, dxy_data,
         or TRAJ_CUT_STRATEGIES
     )
     if _need_btc_z and size_fn is None and len(btc_closes) >= n_lb + 30:
-        # Compute ret_lb at every candle, then rolling z-score using only past
-        rets_history: list[float] = []
+        # v12.18.0 — `btc_z_variant` controls the z-score formula:
+        #   "baseline"     : ret_30d on 180d, mean+std (legacy)
+        #   "robust"       : ret_30d on 180d, median+MAD (whale-liquidation tolerant)
+        #   "multi"        : 0.6 × (ret_30d/180d, mean+std) + 0.4 × (ret_7d/60d, mean+std)
+        #   "robust_multi" : 0.6 × (ret_30d/180d, MAD) + 0.4 × (ret_7d/60d, MAD)
+        _use_robust = btc_z_variant in ("robust", "robust_multi")
+        _use_multi = btc_z_variant in ("multi", "robust_multi")
+        # Short-horizon params for multi-variant
+        _short_lb_days = 7
+        _short_zw_days = 60
+        _w_long = 0.6
+
+        def _rolling_z(rets_hist: list, j: int, n_zw_local: int, robust: bool) -> float | None:
+            past = rets_hist[max(0, j - n_zw_local):j + 1]
+            if len(past) < 30:
+                return None
+            past_arr = np.array(past)
+            if robust:
+                center = float(np.median(past_arr))
+                mad = float(np.median(np.abs(past_arr - center))) * 1.4826
+                scale = mad or 1.0
+            else:
+                center = float(past_arr.mean())
+                scale = float(past_arr.std()) or 1.0
+            return (rets_hist[j] - center) / scale
+
+        # Long-horizon series
+        rets_long: list[float] = []
         for i in range(n_lb, len(btc_closes)):
             if btc_closes[i - n_lb] > 0:
-                rets_history.append(float(btc_closes[i] / btc_closes[i - n_lb] - 1))
+                rets_long.append(float(btc_closes[i] / btc_closes[i - n_lb] - 1))
             else:
-                rets_history.append(0.0)
-        for j in range(len(rets_history)):
-            past = rets_history[max(0, j - n_zw):j + 1]
-            if len(past) < 30:
-                continue
-            past_arr = np.array(past)
-            mean = float(past_arr.mean())
-            std = float(past_arr.std()) or 1.0
+                rets_long.append(0.0)
+
+        # Short-horizon series (offset differs because n_lb differs)
+        rets_short: list[float] = []
+        n_lb_short = _short_lb_days * cpd
+        n_zw_short = _short_zw_days * cpd
+        if _use_multi:
+            for i in range(n_lb_short, len(btc_closes)):
+                if btc_closes[i - n_lb_short] > 0:
+                    rets_short.append(float(btc_closes[i] / btc_closes[i - n_lb_short] - 1))
+                else:
+                    rets_short.append(0.0)
+
+        for j in range(len(rets_long)):
             ts_j = btc_candles[n_lb + j]["t"]
-            btc_z_map[ts_j] = (rets_history[j] - mean) / std
+            z_long = _rolling_z(rets_long, j, n_zw, _use_robust)
+            if z_long is None:
+                continue
+            if not _use_multi:
+                btc_z_map[ts_j] = z_long
+                continue
+            # Find matching index in rets_short for the same candle
+            # Long index n_lb+j corresponds to candle n_lb+j; short index for
+            # same candle is (n_lb+j) - n_lb_short.
+            j_short = (n_lb + j) - n_lb_short
+            if j_short < 0 or j_short >= len(rets_short):
+                btc_z_map[ts_j] = z_long
+                continue
+            z_short = _rolling_z(rets_short, j_short, n_zw_short, _use_robust)
+            if z_short is None:
+                btc_z_map[ts_j] = z_long
+            else:
+                btc_z_map[ts_j] = _w_long * z_long + (1.0 - _w_long) * z_short
 
     def btc_ret(ts: int, lookback: int) -> float:
         if ts not in btc_by_ts:
