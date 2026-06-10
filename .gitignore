@@ -10,6 +10,7 @@ __pycache__/
 analysis/output/
 analysis/output_live/
 analysis/output_live2/
+analysis/output_apprenti/
 
 # Backtest output (generated DBs, charts, intermediate dumps)
 backtests/output/
