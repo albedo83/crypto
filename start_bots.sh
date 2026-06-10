@@ -68,3 +68,10 @@ echo "Junior bot started (PID: $!)"
 # Admin panel (:8090) — served behind nginx at /crypto/
 ADMIN_ROOT_PATH=/crypto nohup .venv/bin/python3 admin.py > analysis/output/admin.log 2>&1 &
 echo "Admin panel started (PID: $!)"
+
+# Alfred (:8101) — la refacto : MarketDataMaster + bots (alfred/bots.json).
+# Le lock alfred/data/alfred.lock fail-bind proprement si déjà lancé
+# (même pattern que le double-launch Junior). Logs dans alfred/data/alfred.log
+# via logging interne ; nohup capte le stdout résiduel d'uvicorn.
+nohup .venv/bin/python3 -m alfred > alfred/data/alfred_stdout.log 2>&1 &
+echo "Alfred started (PID: $!)"

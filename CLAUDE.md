@@ -13,13 +13,35 @@ Define success criteria. Loop until verified. Don't tell Claude what steps to fo
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## ⚠ PROJET ALFRED — LA REFACTO EN COURS (lire en premier)
+
+**Alfred (`alfred/`, web :8101, `python3 -m alfred`) est la refacto complète du bot
+qui REMPLACE progressivement `analysis/bot/` + les 4 process legacy.**
+Tout nouveau développement de trading se fait dans `alfred/`, PAS dans `analysis/bot/`
+(legacy = maintenance minimale jusqu'à migration). Architecture : un seul process =
+MarketDataMaster (1 connexion WS HL candle+trades pour tous les bots, REST résiduel,
+snapshot marché horaire calculé 1×) + N BotInstances (max 8, config `alfred/bots.json`,
+secrets = NOMS de variables .env) + web unifiée. Noyau de règles **partagé bot/backtest**
+(`alfred/rules.py` — plus jamais de double implémentation d'une règle).
+
+Phases : **1 ✓** noyau pur (iso-résultat BT 32/32 fenêtres, `backtests/compare_trade_dumps.py`) ·
+**2 ✓** MarketDataMaster (observation, auto-audits CANDLE_AUDIT/GAP_REPAIR/WS_RECONNECT) ·
+**3 🔄** paper $1000 en parallel-run vs legacy :8097 — gate = 0 divergence LOGIC sur plusieurs
+jours (`python3 -m alfred.tools.compare_paper`, classification STATE/DATA/PREBOOT/CASCADE/LOGIC) ·
+**4 ✓ code** LiveBroker (`alfred/hl.py` + `brokers.py`) — migration live gated sur la phase 3 ·
+**6** remise à zéro : acter les 14 divergences bot-vs-BT (`docs/alfred_divergences.md`) + retrait MKR ·
+**7** corrections paper engine (slippage 4 bps, gap fills — flags dans settings.py, OFF).
+
+Mémoire long-terme : `memory/project_alfred_refacto.md`. Le restart d'Alfred suit la même
+règle que les bots legacy : **jamais sans OK explicite** (positions paper + parallel-run en cours).
+
 ## Project Overview
 
 Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trading on 28 altcoins.
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 12.7.13). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`.
+Version in `analysis/bot/config.py` `VERSION` constant (currently 12.7.13). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`. **Alfred (la refacto) sur `:8101` — voir la section ci-dessus.**
 
 ### Execution Modes
 
