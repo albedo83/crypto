@@ -5,12 +5,18 @@ live (`analysis/bot/trading.py`) et le moteur backtest officiel
 (`backtests/backtest_rolling.py`) découvertes lors du câblage des deux côtés
 sur le noyau pur `alfred/rules.py` (2026-06-10).
 
-**Statut phase 1 : sémantique legacy conservée côté backtest** pour la
-validation iso-résultat (validée le 2026-06-10 : 32/32 fenêtres identiques
-trade-à-trade à ε=$0.01, cf. `backtests/compare_trade_dumps.py`, dumps dans
-`backtests/output/alfred/`). L'alignement éventuel (adopter la sémantique live
-dans le BT) est une étape ultérieure, explicite, qui produira de nouveaux
-chiffres de référence (phase 6).
+**Statut : PHASE 6 ACTÉE le 2026-06-10.** Les divergences #1/2/3/5/6/7/8/9/10
+sont alignées sur la sémantique live dans le run officiel (`run_window(aligned=True)`,
+défaut de `main()`). MKR retiré de l'univers (settings.py + backtest_genetic.TOKENS).
+Anciens chiffres archivés dans `docs/backtests_legacy_pre_phase6.md` ; attribution
+complète de l'impact (~34× d'inflation sur 28m, driver = cap notionnel #5) dans
+`docs/alfred_phase6_preview.md`. Échappatoire d'archéologie :
+`BACKTEST_LEGACY_SEMANTICS=1`. Les divergences #4 (manual_stop — action utilisateur,
+non simulable), #12 (coûts — granularité documentée) et #13 (MFE/MAE ticks vs
+candles — granularité) restent ouvertes par nature.
+
+Historique phase 1 : sémantique legacy conservée pour la validation iso-résultat
+(32/32 fenêtres identiques trade-à-trade à ε=$0.01, `backtests/compare_trade_dumps.py`).
 
 | # | Divergence | Live | Backtest (legacy, conservé) | Où c'est encodé |
 |---|---|---|---|---|

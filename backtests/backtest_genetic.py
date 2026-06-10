@@ -31,12 +31,14 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "output", "pairs_data")
 # divergence on the 7 missing tokens.
 TOKENS = [
     "ARB", "OP", "AVAX", "SUI", "APT", "SEI", "NEAR",
-    "AAVE", "MKR", "COMP", "SNX", "PENDLE", "DYDX",
+    "AAVE", "COMP", "SNX", "PENDLE", "DYDX",
     "DOGE", "WLD", "BLUR", "LINK", "PYTH",
     "SOL", "INJ", "CRV", "LDO", "STX", "GMX",
     "IMX", "SAND", "GALA", "MINA",
     # v12.7.0 universe expansion (2026-05-16) + TON pre-existing gap
     "ADA", "BCH", "DOT", "ENA", "TON", "UNI", "XMR",
+    # Phase 6 (2026-06-10) : MKR retiré — plus aucune candle HL depuis le
+    # 2025-09-05 (rebranding SKY). Voir docs/alfred_phase6_preview.md.
 ]
 
 REF_TOKENS = ["BTC", "ETH"]  # Not traded, used for features

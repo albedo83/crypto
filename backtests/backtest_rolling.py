@@ -1621,7 +1621,8 @@ def fmt_dollar(v: float) -> str:
 
 
 def build_report(results: list[dict], end_dt: datetime, version: str,
-                 capitals: list[float] | None = None) -> str:
+                 capitals: list[float] | None = None,
+                 aligned: bool = True) -> str:
     capitals = capitals or [1000.0]
     multi = len(capitals) > 1
     cap_phrase = (" / ".join(f"${int(c):,}".replace(",", " ") for c in capitals)
@@ -1633,6 +1634,12 @@ def build_report(results: list[dict], end_dt: datetime, version: str,
         f"**Bot version** : v{version}",
         f"**Données jusqu'à** : {end_dt.strftime('%Y-%m-%d')}",
         f"**Capitaux testés** : {cap_phrase}",
+        ("**Sémantique** : ALIGNED (phase 6, 2026-06-10) — exits/sizing via "
+         "`alfred/rules.py`, identique au bot live. Anciens chiffres : "
+         "`docs/backtests_legacy_pre_phase6.md`."
+         if aligned else
+         "**Sémantique** : LEGACY (`BACKTEST_LEGACY_SEMANTICS=1`, archéologie "
+         "uniquement — chiffres non comparables à la référence officielle)."),
         "",
         "Chaque ligne répond à la question : *si j'avais lancé le bot avec "
         f"{cap_phrase} au début de cette fenêtre jusqu'à la date des données, avec "
@@ -1839,6 +1846,17 @@ def main():
     trade_dump_path = os.environ.get("BACKTEST_TRADE_DUMP", "")
     trade_dump: list[dict] = []
 
+    # Phase 6 (actée 2026-06-10) : la sémantique ALIGNED (exécution live —
+    # exits canoniques, prix synthétiques, prop_trail, sizing cap $500
+    # post-modulateur, force S10 live, btc_z fenêtre bot) est désormais LA
+    # référence officielle. Les chiffres legacy étaient inflatés ~34× sur
+    # 28m (cap notionnel $20k pré-modulateur) — dossier complet dans
+    # docs/alfred_phase6_preview.md. Anciens chiffres archivés dans
+    # docs/backtests_legacy_pre_phase6.md.
+    # Échappatoire d'archéologie : BACKTEST_LEGACY_SEMANTICS=1.
+    aligned_run = os.environ.get("BACKTEST_LEGACY_SEMANTICS", "") != "1"
+    print(f"Semantics: {'ALIGNED (live execution — phase 6)' if aligned_run else 'LEGACY (pre-phase 6)'}")
+
     results = []
     for label, start_dt in windows:
         start_ts = int(start_dt.timestamp() * 1000)
@@ -1846,12 +1864,16 @@ def main():
         for cap in capitals:
             tag = f"  Running {label} (${cap:.0f}, {start_dt.strftime('%Y-%m-%d')} → {end_dt.strftime('%Y-%m-%d')})..."
             print(tag)
+            # En aligned, dead_timeout + runner_ext sont dans evaluate_exit —
+            # les hooks legacy seraient redondants (et ignorés via sentinel).
             r = run_window(features, data, sector_features, dxy_data, start_ts, end_ts,
                            start_capital=cap,
-                           oi_data=oi_data, early_exit_params=early_exit_params,
-                           runner_extension=runner_ext_cfg,
+                           oi_data=oi_data,
+                           early_exit_params=None if aligned_run else early_exit_params,
+                           runner_extension=None if aligned_run else runner_ext_cfg,
                            funding_data=funding_data,
-                           apply_adaptive_modulator=True)
+                           apply_adaptive_modulator=True,
+                           aligned=aligned_run)
             r["label"] = label
             r["start_date"] = start_dt.strftime("%Y-%m-%d")
             results.append(r)
@@ -1885,7 +1907,8 @@ def main():
             json.dump(trade_dump, f)
         print(f"Trade dump written to {trade_dump_path}")
 
-    report = build_report(results, end_dt, VERSION, capitals=capitals)
+    report = build_report(results, end_dt, VERSION, capitals=capitals,
+                          aligned=aligned_run)
     os.makedirs(os.path.dirname(DOCS_PATH), exist_ok=True)
     with open(DOCS_PATH, "w") as f:
         f.write(report)

@@ -23,9 +23,13 @@ def _d(**kw):
 @dataclass(frozen=True)
 class Params:
     # ── Universe ─────────────────────────────────────────────────────
+    # Phase 6 (2026-06-10) : MKR retiré — Hyperliquid ne sert plus aucune
+    # candle depuis le 2025-09-05 (rebranding MakerDAO→SKY) ; aucun signal
+    # possible depuis 9 mois (fail-safe silencieux). Impact chiffré dans
+    # docs/alfred_phase6_preview.md (-93pp sur 28m, no-op 6m/3m).
     trade_symbols: tuple[str, ...] = (
         "ARB", "OP", "AVAX", "SUI", "APT", "SEI", "NEAR",
-        "AAVE", "MKR", "COMP", "SNX", "PENDLE", "DYDX",
+        "AAVE", "COMP", "SNX", "PENDLE", "DYDX",
         "DOGE", "WLD", "BLUR", "LINK", "PYTH",
         "SOL", "INJ", "CRV", "LDO", "STX", "GMX",
         "IMX", "SAND", "GALA", "MINA",
@@ -38,7 +42,7 @@ class Params:
         "L1":       ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI", "TON"],
         "L1-major": ["BCH", "DOT", "ADA"],
         "Privacy":  ["XMR"],
-        "DeFi":     ["AAVE", "MKR", "CRV", "SNX", "PENDLE", "COMP", "DYDX",
+        "DeFi":     ["AAVE", "CRV", "SNX", "PENDLE", "COMP", "DYDX",
                      "LDO", "GMX", "UNI", "ENA"],
         "Gaming":   ["GALA", "IMX", "SAND"],
         "Infra":    ["LINK", "PYTH", "STX", "INJ", "ARB", "OP"],
