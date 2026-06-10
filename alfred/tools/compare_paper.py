@@ -1,27 +1,34 @@
 """Parallel-run audit — Alfred paper bot vs legacy paper bot (:8097).
 
-Compares the two bots' OPEN/CLOSE decisions over the run window and
-AUTO-CLASSIFIES each divergence:
+DOCTRINE : l'objectif est la COHÉRENCE d'Alfred, pas la duplication du
+legacy. Alfred est censé AMÉLIORER (données WS plus fraîches, état plus
+propre, source unique). Une position prise par Alfred et pas par le legacy
+est acceptable — voire souhaitable — TANT QU'ELLE EST JUSTIFIÉE par les
+propres règles et données d'Alfred. La gate phase 4 = zéro divergence
+INJUSTIFIÉE, pas zéro divergence.
 
-  STATE   — explained by inherited state differing between the two bots
-            (cooldowns, open positions, slot caps, manual pauses, capital).
-            Expected during the parallel-run: legacy carries history that
-            fresh-booted Alfred doesn't have. Does NOT block phase 4.
-  DATA    — explained by a market-data-path difference (oi_gate/disp_gate
-            verdicts derived from each bot's own OI/dispersion history,
-            which accumulates differently: legacy REST polls vs Alfred WS).
-            Worth eyeballing but expected to converge as Alfred's history
-            fills. Does NOT block phase 4 unless persistent after 48h.
-  PREBOOT — the other bot wasn't running yet at that period. Ignored.
-  CASCADE — a CLOSE whose OPEN was itself divergent (no position on the
-            other side → nothing to close). Consequence, not a divergence.
-  LOGIC   — none of the above: same inputs should have produced the same
-            decision and didn't. ✗ BLOCKS PHASE 4.
+Le legacy sert de détecteur d'anomalies, pas d'étalon : une divergence
+non expliquée par l'état/les données est un SIGNAL D'AUDIT — on vérifie
+alors la décision d'Alfred contre ses propres inputs (l'event OPEN logge
+le contexte signal complet : DD/vz/r24h/OI/disp/conf…). Si l'audit montre
+qu'Alfred a correctement appliqué ses règles à ses données, la divergence
+est actée comme amélioration. Sinon c'est un bug → bloque.
+
+AUTO-CLASSIFICATION :
+  STATE   — état hérité différent (cooldowns, positions, slots, pauses).
+            Attendu pendant le parallel-run. Ne bloque pas.
+  DATA    — chemin de données différent (oi_gate/disp_gate sur historiques
+            REST vs WS). Doit converger sous 48h. Ne bloque pas.
+  PREBOOT — l'autre bot ne tournait pas. Ignoré.
+  CASCADE — CLOSE dont l'OPEN était divergent. Conséquence.
+  ISO     — entrée commune avec size/stop/hold identiques. La preuve
+            positive de cohérence du noyau.
+  LOGIC   — divergence inexpliquée par ce qui précède → À AUDITER
+            (contre les règles d'Alfred). Exit code 1 = audit requis,
+            pas nécessairement bug.
 
 Usage:
     python3 -m alfred.tools.compare_paper [--hours 168]
-
-Exit code 0 = no LOGIC divergence; 1 otherwise.
 
 Reads:
     legacy: analysis/output/reversal_ticks.db   (events table)
@@ -67,7 +74,11 @@ def load_events(path: str, since_ts: int, kinds: tuple) -> list[dict]:
         d = json.loads(data or "{}")
         out.append({"ts": ts, "event": event, "symbol": symbol,
                     "strategy": d.get("strategy"), "dir": d.get("dir"),
-                    "reason": d.get("reason"), "period": ts // PERIOD})
+                    "reason": d.get("reason"), "period": ts // PERIOD,
+                    "size_usdt": d.get("size_usdt"),
+                    "entry_price": d.get("entry_price"),
+                    "stop_bps": d.get("stop_bps"),
+                    "target_exit": d.get("target_exit")})
     return out
 
 
@@ -144,6 +155,45 @@ def main() -> int:
               f"{k[1]} {k[2]} {k[3]} — {detail}")
     n_logic += counts["LOGIC"]
 
+    # Entrées communes : comparer les PARAMÈTRES (size/stop/hold) — deux bots
+    # peuvent prendre "le même trade" avec un sizing divergent (bug modulator/
+    # cap) sans que le simple matching (période, sym, strat, dir) le voie.
+    # Le prix d'entrée diverge naturellement (offsets de poll) → informatif.
+    n_param_diff = 0
+    if common:
+        lo_by_key = {key_open(e): e for e in legacy if e["event"] == "OPEN"}
+        ao_by_key = {key_open(e): e for e in alfred if e["event"] == "OPEN"}
+        for k in sorted(common):
+            le, ae = lo_by_key[k], ao_by_key[k]
+            diffs = []
+            if le.get("size_usdt") is not None and ae.get("size_usdt") is not None:
+                if abs(le["size_usdt"] - ae["size_usdt"]) > 0.5:
+                    diffs.append(f"size {le['size_usdt']} vs {ae['size_usdt']}")
+            if le.get("stop_bps") is not None and ae.get("stop_bps") is not None:
+                if abs(le["stop_bps"] - ae["stop_bps"]) > 0.1:
+                    diffs.append(f"stop {le['stop_bps']} vs {ae['stop_bps']}")
+            # hold = target_exit − ts, tolérance 10 min (jitter de scan)
+            try:
+                from datetime import datetime as _dt
+                lh = (_dt.fromisoformat(le["target_exit"]).timestamp() - le["ts"]) / 3600
+                ah = (_dt.fromisoformat(ae["target_exit"]).timestamp() - ae["ts"]) / 3600
+                if abs(lh - ah) > 0.17:
+                    diffs.append(f"hold {lh:.1f}h vs {ah:.1f}h")
+            except (TypeError, ValueError, KeyError):
+                pass
+            px_note = ""
+            if le.get("entry_price") and ae.get("entry_price"):
+                px_d = abs(le["entry_price"] / ae["entry_price"] - 1) * 1e4
+                px_note = f" | Δpx {px_d:.0f} bps (timing)"
+            if diffs:
+                n_param_diff += 1
+                print(f"  ✗ [LOGIC  ] commune {k[1]} {k[2]} {k[3]} — PARAMS divergents: "
+                      f"{'; '.join(diffs)}{px_note}")
+            else:
+                print(f"  ✓ [ISO    ] commune {time.strftime('%m-%d %Hh', time.gmtime(k[0]*PERIOD))} "
+                      f"{k[1]} {k[2]} {k[3]} — size/stop/hold identiques{px_note}")
+    n_logic += n_param_diff
+
     # Exits: match by (symbol, strategy) and compare reasons + timing
     lc = [e for e in legacy if e["event"] == "CLOSE"]
     ac = [e for e in alfred if e["event"] == "CLOSE"]
@@ -185,7 +235,7 @@ def main() -> int:
           f"PREBOOT={counts['PREBOOT']} LOGIC={counts['LOGIC']}")
 
     clean = n_logic == 0
-    print(f"\nVerdict: {'✓ gate phase 4 OK (écarts LOGIC: 0)' if clean else f'✗ {n_logic} écart(s) LOGIC à investiguer'}")
+    print(f"\nVerdict: {'✓ gate phase 4 OK (aucune divergence injustifiée)' if clean else f'⚠ {n_logic} divergence(s) à auditer contre les règles d''Alfred (amélioration légitime ou bug — trancher avant phase 4)'}")
     return 0 if clean else 1
 
 

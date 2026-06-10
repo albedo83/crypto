@@ -26,8 +26,10 @@ secrets = NOMS de variables .env) + web unifiée. Noyau de règles **partagé bo
 
 Phases : **1 ✓** noyau pur (iso-résultat BT 32/32 fenêtres, `backtests/compare_trade_dumps.py`) ·
 **2 ✓** MarketDataMaster (observation, auto-audits CANDLE_AUDIT/GAP_REPAIR/WS_RECONNECT) ·
-**3 🔄** paper $1000 en parallel-run vs legacy :8097 — gate = 0 divergence LOGIC sur plusieurs
-jours (`python3 -m alfred.tools.compare_paper`, classification STATE/DATA/PREBOOT/CASCADE/LOGIC) ·
+**3 🔄** paper $1000 en parallel-run vs legacy :8097 — gate = 0 divergence INJUSTIFIÉE sur
+plusieurs jours (`python3 -m alfred.tools.compare_paper`, classification STATE/DATA/PREBOOT/
+CASCADE/ISO/LOGIC). Doctrine : la référence est la cohérence d'ALFRED, pas la duplication du
+legacy — une divergence justifiée par de meilleures données est une amélioration, pas un bug ·
 **4 ✓ code** LiveBroker (`alfred/hl.py` + `brokers.py`) — migration live gated sur la phase 3 ·
 **6** remise à zéro : acter les 14 divergences bot-vs-BT (`docs/alfred_divergences.md`) + retrait MKR ·
 **7** corrections paper engine (slippage 4 bps, gap fills — flags dans settings.py, OFF).
