@@ -32,6 +32,12 @@ jours (`python3 -m alfred.tools.compare_paper`, classification STATE/DATA/PREBOO
 **6** remise à zéro : acter les 14 divergences bot-vs-BT (`docs/alfred_divergences.md`) + retrait MKR ·
 **7** corrections paper engine (slippage 4 bps, gap fills — flags dans settings.py, OFF).
 
+Couche données (2026-06-10) : table `candles` persistée dans market.db (store canonique,
+boot-reprise depuis la DB + event DOWNTIME + excursion catch-up des positions ouvertes),
+`admin_audit`, export BT `alfred/tools/export_candles.py` (même source bot/BT).
+Supervision : page **`/master`** (Système/Flotte/Admin — santé WS, exposition agrégée
+tous bots, lifecycle par bot, éditeur bots.json avec validation, journal d'audit).
+
 Mémoire long-terme : `memory/project_alfred_refacto.md`. Le restart d'Alfred suit la même
 règle que les bots legacy : **jamais sans OK explicite** (positions paper + parallel-run en cours).
 
