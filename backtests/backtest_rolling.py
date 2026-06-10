@@ -312,7 +312,8 @@ def run_window(features, data, sector_features, dxy_data,
                margin_check: bool = False,
                margin_max_util: float = 0.95,
                early_dead_check: dict[str, tuple[float, float]] | None = None,
-               btc_z_variant: str = "baseline") -> dict:
+               btc_z_variant: str = "baseline",
+               aligned: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
     `interval_hours` (default 4) tells the engine how many hours each candle
@@ -558,7 +559,11 @@ def run_window(features, data, sector_features, dxy_data,
         _w_long = 0.6
 
         def _rolling_z(rets_hist: list, j: int, n_zw_local: int, robust: bool) -> float | None:
-            past = rets_hist[max(0, j - n_zw_local):j + 1]
+            # Aligned (divergence #10) : fenêtre de n_zw observations comme le
+            # bot (le legacy en prenait n_zw+1 — off-by-one prouvé immatériel
+            # par backtests/test_btc_z_parity.py, aligné ici).
+            lo = (j - n_zw_local + 1) if aligned else (j - n_zw_local)
+            past = rets_hist[max(0, lo):j + 1]
             if len(past) < 30:
                 return None
             past_arr = np.array(past)
@@ -735,8 +740,11 @@ def run_window(features, data, sector_features, dxy_data,
         # Market context for the shared exit rules. btc_z semantics mirror the
         # historical engine: empty btc_z_map → None (regime rules skip);
         # non-empty map with missing ts → 0.0 (neutral bucket).
+        # Aligned (divergence #9) : missing ts → None (sémantique live —
+        # règles régime sautées plutôt que bucket neutre).
         _mctx = _rules.MarketCtx(
-            btc_z=(btc_z_map.get(ts, 0.0) if btc_z_map else None),
+            btc_z=(btc_z_map.get(ts) if aligned
+                   else (btc_z_map.get(ts, 0.0) if btc_z_map else None)),
             btc_ret_4h_bps=btc_ret_4h_by_ts.get(ts),
             disp_24h=disp_by_ts.get(ts),
         )
@@ -863,18 +871,42 @@ def run_window(features, data, sector_features, dxy_data,
                 extended=pos.get("extended", False),
             )
 
+            # ── ALIGNED MODE (phase 6) ────────────────────────────────
+            # One call to the canonical live exit chain (rules.evaluate_exit):
+            # live rule order, synthetic trigger prices, prop_trail included,
+            # stop-first via worst_bps. Replaces the whole legacy sequence
+            # below — R&D hooks are NOT applied in aligned reference runs.
+            # When aligned decides to HOLD, the sentinel keeps every legacy
+            # rule (all guarded by `not exit_reason`) from firing; it is
+            # cleared just before the close-booking block.
+            _ALIGNED_HOLD = "__aligned_hold__"
+            exit_reason = None
+            exit_price = current
+            if aligned:
+                _dec = _rules.evaluate_exit(pv, cur_bps, _mctx, _p_run,
+                                            worst_bps=worst_bps)
+                if _dec and _dec.action == "extend":
+                    pos["hold"] += int(_dec.extend_hours // interval_hours)
+                    pos["extended"] = True
+                    exit_reason = _ALIGNED_HOLD
+                elif _dec:
+                    exit_reason = _dec.reason
+                    exit_price = (_dec.exit_price
+                                  if _dec.exit_price is not None else current)
+                else:
+                    exit_reason = _ALIGNED_HOLD
+
             # Catastrophe stop (shared rule) — triggers on the candle's worst
             # excursion, books the synthetic stop price. `stop_override` lets
             # sweeps test alternate levels on one strategy.
-            exit_reason = None
-            exit_price = current
             _stop_val = (stop_override.get(pos["strat"])
                          if stop_override else None)
-            _dec = _rules.catastrophe_stop_rule(pv, worst_bps, _p_run,
-                                                stop_value=_stop_val)
-            if _dec:
-                exit_reason = "stop"  # legacy label (canonical: catastrophe_stop)
-                exit_price = _dec.exit_price
+            if not exit_reason:
+                _dec = _rules.catastrophe_stop_rule(pv, worst_bps, _p_run,
+                                                    stop_value=_stop_val)
+                if _dec:
+                    exit_reason = "stop"  # legacy label (canonical: catastrophe_stop)
+                    exit_price = _dec.exit_price
 
             # Early-MAE exit (experimental): if MAE crosses an aggressive
             # threshold within the first N candles, exit immediately at that
@@ -903,13 +935,16 @@ def run_window(features, data, sector_features, dxy_data,
             # thresholds runner_ext (mfe ≥ 1200) and dead_timeout (mfe ≤ 150)
             # are mutually exclusive, but keeping the order aligned protects
             # against silent divergences if thresholds change.
-            _dec = _rules.runner_ext_rule(pv, cur_bps, _p_run)
-            if _dec:
-                pos["hold"] += int(_dec.extend_hours // interval_hours)
-                pos["extended"] = True
-                pv = _dc.replace(
-                    pv, extended=True,
-                    hours_to_timeout=(pos["hold"] - held) * interval_hours)
+            # (aligned mode: runner ext + timeout already handled by
+            # evaluate_exit — the sentinel/exit_reason guard skips this.)
+            if not exit_reason:
+                _dec = _rules.runner_ext_rule(pv, cur_bps, _p_run)
+                if _dec:
+                    pos["hold"] += int(_dec.extend_hours // interval_hours)
+                    pos["extended"] = True
+                    pv = _dc.replace(
+                        pv, extended=True,
+                        hours_to_timeout=(pos["hold"] - held) * interval_hours)
 
             if held >= pos["hold"]:
                 exit_reason = exit_reason or "timeout"
@@ -1126,6 +1161,11 @@ def run_window(features, data, sector_features, dxy_data,
                             if adverse_bps <= -reversal_exit["adverse_bps"]:
                                 exit_reason = "reversal_momentum"
 
+            # Aligned hold sentinel : evaluate_exit a décidé de tenir — la
+            # position ne se ferme pas ce candle.
+            if exit_reason == _ALIGNED_HOLD:
+                exit_reason = None
+
             if exit_reason:
                 # P&L via the shared core (v11.3.0 invariant: size = notional).
                 # Real funding (v11.7.6): per-trade integral of hourly rates.
@@ -1202,9 +1242,10 @@ def run_window(features, data, sector_features, dxy_data,
                     "hold": int((sig["hold_hours"] // 4) * _scale),
                     # Legacy ranking quirk kept for iso-validation: the BT
                     # ranks S10 with flat strength 1000 (live ranks by
-                    # squeeze tightness). See docs/alfred_divergences.md.
-                    "strength": (1000 if sig["strategy"] == "S10"
-                                 else sig["strength"]),
+                    # squeeze tightness, divergence #8). Aligned mode uses
+                    # the live force.
+                    "strength": (sig["strength"] if (aligned or sig["strategy"] != "S10")
+                                 else 1000),
                 }
                 if "stop_bps" in sig:
                     cand["stop"] = sig["stop_bps"]
@@ -1232,8 +1273,9 @@ def run_window(features, data, sector_features, dxy_data,
                 continue
             # Shared entry gates (alfred.rules) — blacklist, OI gate, disp
             # gate, position/direction/slot/sector caps. check_size_floor
-            # stays off: the legacy BT enters sub-$10 post-modulator sizes
-            # the live exchange would reject (docs/alfred_divergences.md).
+            # stays off in legacy mode: the legacy BT enters sub-$10
+            # post-modulator sizes the live exchange would reject
+            # (divergence #7) — aligned mode enforces the live floor.
             _reason = _rules.entry_skip_reason(
                 {"symbol": coin, "direction": cand["dir"],
                  "strategy": cand["strat"]},
@@ -1244,7 +1286,7 @@ def run_window(features, data, sector_features, dxy_data,
                 _mctx, _P, capital, TOKEN_SECTOR,
                 oi_delta_24h=(oi_delta_24h_pct(oi_data, coin, ts)
                               if oi_data is not None else None),
-                check_size_floor=False)
+                check_size_floor=aligned)
             if _reason == "max_positions":
                 break
             if _reason:
@@ -1267,14 +1309,26 @@ def run_window(features, data, sector_features, dxy_data,
             if entry <= 0:
                 continue
 
-            size = strat_size(cand["strat"], capital)
+            if aligned:
+                # ── ALIGNED (phase 6) : sizing canonique live ─────────
+                # rules.position_size = base × modulateur, arrondi 2 déc.,
+                # cap MAX_NOTIONAL post-modulateur, floor $10 (divergences
+                # #5/#6/#7). Le btc_z vient de la map (fenêtre corrigée si
+                # btc_z_variant le demande).
+                _z = btc_z_map.get(ts) if (btc_z_map and apply_adaptive_modulator) else None
+                size = _rules.position_size(cand["strat"], cand["dir"],
+                                            capital, _z, _P)
+                if size < 10:
+                    continue  # modulator_floor (live SKIP)
+            else:
+                size = strat_size(cand["strat"], capital)
             if size_multiplier is not None:
                 size *= size_multiplier.get(cand["strat"], 1.0)
             # v11.7.28+ experimental: per-candidate size adjustment hook
             # Signature: size_fn(cand, feature_dict, n_positions) -> multiplier
             if size_fn is not None:
                 size *= size_fn(cand, f, len(positions))
-            elif btc_z_map and apply_adaptive_modulator:
+            elif not aligned and btc_z_map and apply_adaptive_modulator:
                 # v11.10.0 + v12.2.0 adaptive modulator (shared rule). Legacy
                 # quirk kept: the modulated size is NOT rounded here (live
                 # rounds to 2 decimals) — see docs/alfred_divergences.md.
