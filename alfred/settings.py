@@ -254,12 +254,11 @@ class BotConfig:
         return base.with_overrides(ov)
 
 
-def load_bots_config(path: str) -> list[BotConfig]:
-    """Parse bots.json. Fatal on: unknown override key, duplicate id, > MAX_BOTS,
-    duplicate signer env among live bots (nonce safety)."""
-    import json as _json
-    with open(path) as fh:
-        raw = _json.load(fh)
+def parse_bots_config(raw: dict) -> list[BotConfig]:
+    """Validation pure d'une config bots (dict déjà parsé). Fatal sur :
+    clé d'override inconnue, id dupliqué, > MAX_BOTS, env de signer partagée
+    entre bots live (nonce safety). Utilisée par load_bots_config (boot) et
+    par la validation HTTP de /master (dry-run sans toucher au disque)."""
     bots: list[BotConfig] = []
     for b in raw.get("bots", []):
         tg = b.get("telegram", {}) or {}
@@ -285,7 +284,7 @@ def load_bots_config(path: str) -> list[BotConfig]:
     enabled = [b for b in bots if b.enabled]
     ids = [b.id for b in enabled]
     if len(set(ids)) != len(ids):
-        raise ValueError(f"duplicate bot ids in {path}")
+        raise ValueError("duplicate bot ids")
     if len(enabled) > MAX_BOTS:
         raise ValueError(f"{len(enabled)} enabled bots > MAX_BOTS={MAX_BOTS}")
     signers = [b.private_key_env for b in enabled if b.mode == "live" and b.private_key_env]
@@ -293,3 +292,11 @@ def load_bots_config(path: str) -> list[BotConfig]:
         raise ValueError("two live bots share the same private_key_env — "
                          "same signer = nonce conflicts, refusing to start")
     return enabled
+
+
+def load_bots_config(path: str) -> list[BotConfig]:
+    """Parse bots.json (lecture fichier + parse_bots_config)."""
+    import json as _json
+    with open(path) as fh:
+        raw = _json.load(fh)
+    return parse_bots_config(raw)

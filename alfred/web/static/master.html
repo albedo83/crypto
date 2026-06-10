@@ -1,0 +1,372 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Alfred — Master</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px}
+a{color:#58a6ff;text-decoration:none}
+.header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #21262d}
+.header h1{font-size:18px;font-weight:600}
+.header .links a{color:#7d8590;font-size:13px;margin-left:14px}
+.header .links a:hover{color:#e6edf3}
+
+.tabs{display:flex;gap:4px;padding:10px 16px;border-bottom:1px solid #21262d}
+.tab{padding:7px 16px;border-radius:6px;color:#7d8590;cursor:pointer;font-size:14px;border:1px solid transparent;font-weight:500}
+.tab.active{background:#161b22;color:#e6edf3;border-color:#30363d}
+.panel{display:none;padding:16px}
+.panel.active{display:block}
+
+.grid{display:grid;gap:12px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+.card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px}
+.card h3{font-size:13px;color:#7d8590;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.kv{display:flex;justify-content:space-between;padding:3px 0;font-size:13px}
+.kv .k{color:#7d8590}
+.green{color:#3fb950}.red{color:#f85149}.yellow{color:#d29922}.dim{color:#7d8590}
+
+.symgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px}
+.symdot{display:flex;align-items:center;gap:4px;font-size:11px;padding:3px 5px;border-radius:4px;background:#0d1117}
+.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.dot.ok{background:#3fb950}.dot.warn{background:#d29922}.dot.bad{background:#f85149}
+
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:#7d8590;text-align:left;padding:6px 8px;border-bottom:1px solid #30363d;cursor:pointer;user-select:none;white-space:nowrap}
+th:hover{color:#e6edf3}
+td{padding:6px 8px;border-bottom:1px solid #21262d}
+tr.conc td{background:rgba(248,81,73,.08)}
+
+.evt{font-size:12px;padding:4px 0;border-bottom:1px solid #1c2128;display:flex;gap:8px}
+.evt .ts{color:#7d8590;white-space:nowrap}
+.evt .type{font-weight:600;white-space:nowrap}
+
+canvas{width:100%;height:220px;background:#0d1117;border-radius:6px}
+
+.botadmin{border:1px solid #30363d;border-radius:10px;padding:12px;margin-bottom:12px;background:#161b22}
+.botadmin .bhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.botadmin .bhead .name{font-weight:600;font-size:15px}
+.badge{font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid #30363d;color:#7d8590}
+.badge.live{color:#f85149;border-color:#f8514955}
+.badge.paper{color:#58a6ff;border-color:#58a6ff55}
+.badge.running{color:#3fb950;border-color:#3fb95055}
+.badge.stopped,.badge.error{color:#f85149;border-color:#f8514955}
+.badge.paused{color:#d29922;border-color:#d2992255}
+button{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer}
+button:hover{background:#30363d}
+button.danger{color:#f85149;border-color:#f8514955}
+button.danger:hover{background:#f8514922}
+button.ok{color:#3fb950;border-color:#3fb95055}
+.btnrow{display:flex;gap:8px;flex-wrap:wrap}
+.strgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
+.strtog{font-size:12px;text-align:center;padding:5px 4px;border-radius:6px;border:1px solid #30363d;cursor:pointer;color:#3fb950}
+.strtog.off{color:#f85149;background:#f851491a}
+
+textarea{width:100%;min-height:260px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:10px;font-family:ui-monospace,monospace;font-size:12px}
+.banner{padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:10px;display:none}
+.banner.pending{display:block;background:#d2992222;border:1px solid #d2992255;color:#d29922}
+.banner.err{display:block;background:#f8514922;border:1px solid #f8514955;color:#f85149}
+.banner.ok{display:block;background:#3fb95022;border:1px solid #3fb95055;color:#3fb950}
+</style>
+</head>
+<body>
+<div class="header">
+  <h1>Alfred — Master</h1>
+  <div class="links"><a href="./">Carousel</a><a href="logout">Logout</a></div>
+</div>
+<div class="tabs">
+  <div class="tab active" data-p="sys">Système</div>
+  <div class="tab" data-p="fleet">Flotte</div>
+  <div class="tab" data-p="admin">Admin</div>
+</div>
+
+<!-- ════ SYSTÈME ════ -->
+<div class="panel active" id="p-sys">
+  <div id="pendingBanner" class="banner"></div>
+  <div class="grid g2">
+    <div class="card"><h3>WebSocket & données</h3><div id="wsCard"></div></div>
+    <div class="card"><h3>Snapshot marché</h3><div id="snapCard"></div></div>
+    <div class="card"><h3>Gates refacto</h3><div id="gatesCard" class="dim">chargement…</div></div>
+    <div class="card"><h3>Couverture données</h3><div id="covCard"></div></div>
+  </div>
+  <div class="card" style="margin-top:12px"><h3>Fraîcheur par symbole</h3>
+    <div class="symgrid" id="symGrid"></div></div>
+  <div class="card" style="margin-top:12px"><h3>Events système</h3>
+    <div style="margin-bottom:8px">
+      <select id="evtKinds" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:4px 8px">
+        <option value="">tous</option>
+        <option>DOWNTIME</option><option>WS_RECONNECT</option>
+        <option>CANDLE_AUDIT</option><option>CANDLE_GAP_REPAIR</option>
+        <option>BACKFILL</option><option>MASTER_START</option>
+      </select>
+    </div>
+    <div id="evtList"></div></div>
+</div>
+
+<!-- ════ FLOTTE ════ -->
+<div class="panel" id="p-fleet">
+  <div class="card"><h3>Bots</h3>
+    <table id="fleetTable"><thead><tr>
+      <th data-s="label">Bot</th><th data-s="mode">Mode</th><th data-s="status">Statut</th>
+      <th data-s="balance">Equity</th><th data-s="total_pnl">P&L</th>
+      <th data-s="drawdown_pct">DD</th><th data-s="win_rate">WR</th>
+      <th data-s="n_positions">Pos</th><th></th>
+    </tr></thead><tbody></tbody></table></div>
+  <div class="card" style="margin-top:12px"><h3>Courbes equity (% du capital initial)</h3>
+    <canvas id="eqCanvas" height="220"></canvas><div id="eqLegend" style="font-size:12px;margin-top:6px"></div></div>
+  <div class="grid g2" style="margin-top:12px">
+    <div class="card"><h3>Exposition agrégée (tous bots)</h3>
+      <table id="expTable"><thead><tr><th>Symbole</th><th>Dir</th><th>Notional</th><th>Bots</th></tr></thead><tbody></tbody></table>
+      <div id="expTotals" class="dim" style="font-size:12px;margin-top:8px"></div></div>
+    <div class="card"><h3>Par secteur / direction</h3><div id="sectorCard"></div></div>
+  </div>
+</div>
+
+<!-- ════ ADMIN ════ -->
+<div class="panel" id="p-admin">
+  <div id="botAdmins"></div>
+  <div class="card" style="margin-top:12px"><h3>bots.json (effet au prochain restart)</h3>
+    <div id="cfgBanner" class="banner"></div>
+    <textarea id="cfgText" spellcheck="false"></textarea>
+    <div class="btnrow" style="margin-top:8px">
+      <button onclick="cfgValidate()">Valider</button>
+      <button class="ok" onclick="cfgSave()">Sauver</button>
+      <button onclick="cfgReload()">Recharger</button>
+    </div></div>
+  <div class="card" style="margin-top:12px"><h3>Journal d'audit</h3><div id="auditList"></div></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+const fmt=(v,d=2)=>v==null?'--':(v>=0?'+':'')+Number(v).toFixed(d);
+const fmtAge=s=>s==null?'--':s<90?Math.round(s)+'s':s<5400?Math.round(s/60)+'m':(s/3600).toFixed(1)+'h';
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  t.classList.add('active');$( 'p-'+t.dataset.p).classList.add('active');
+});
+
+// ── SYSTÈME ──
+function kv(k,v,c=''){return `<div class="kv"><span class="k">${k}</span><span class="${c}">${v}</span></div>`}
+
+function renderHealth(h){
+  const ws=h.ws||{};
+  $('wsCard').innerHTML=
+    kv('WS', ws.connected?'connecté':'DÉCONNECTÉ', ws.connected?'green':'red')+
+    kv('Reconnects', ws.reconnects??'--', ws.reconnects>0?'yellow':'')+
+    kv('Candle updates', (ws.candle_updates??0).toLocaleString())+
+    kv('Dernier prix', fmtAge(h.last_price_age_s), h.last_price_age_s>120?'red':'green')+
+    kv('market.db', h.market_db_bytes?(h.market_db_bytes/1048576).toFixed(1)+' MB':'--')+
+    kv('Bots', h.n_bots??'--')+
+    (h.degraded&&h.degraded.length?kv('Dégradé',h.degraded.join(', '),'yellow'):'');
+  const s=h.snapshot;
+  $('snapCard').innerHTML=!s?'<span class="dim">pas de snapshot</span>':
+    kv('Version','v'+s.version)+kv('Âge',fmtAge(s.age_s),s.age_s>4200?'yellow':'')+
+    kv('btc_z',fmt(s.btc_z),s.btc_z<-1?'red':s.btc_z>1?'green':'')+
+    kv('disp 7j',s.disp_7d!=null?Math.round(s.disp_7d):'--')+
+    kv('disp 24h',s.disp_24h!=null?Math.round(s.disp_24h):'--')+
+    kv('DXY 7j',fmt(s.dxy_7d,0))+kv('Alt index',fmt(s.alt_index,0))+
+    kv('OI',`↓${s.oi_summary?.falling??0} ↑${s.oi_summary?.rising??0}`);
+  const dt=h.downtime;
+  const cov=h.candle_coverage||{};
+  const nsym=Object.keys(cov).length;
+  const worst=Object.entries(cov).sort((a,b)=>b[1].last_close_age_s-a[1].last_close_age_s)[0];
+  $('covCard').innerHTML=
+    kv('Dernier downtime', dt?((dt.seconds/3600).toFixed(1)+'h le '+new Date(dt.from_ms).toISOString().slice(0,16)):'aucun', dt?'yellow':'green')+
+    kv('Symboles en DB', nsym)+
+    (worst?kv('Candle close la + vieille', worst[0]+' · '+fmtAge(worst[1].last_close_age_s), worst[1].last_close_age_s>16*3600?'yellow':''):'')+
+    kv('Config pending restart', h.config_pending_restart===null?'fichier invalide':h.config_pending_restart?'OUI':'non', h.config_pending_restart?'yellow':'green');
+  $('pendingBanner').className='banner'+(h.config_pending_restart?' pending':'');
+  $('pendingBanner').textContent=h.config_pending_restart?'⚠ bots.json modifié — effet au prochain restart d\'Alfred':'';
+  // grille fraîcheur
+  const f=h.freshness||{};
+  $('symGrid').innerHTML=Object.keys(f).sort().map(sym=>{
+    const a=f[sym];
+    const c=a==null?'bad':a<120?'ok':a<300?'warn':'bad';
+    return `<div class="symdot" title="${sym}: ${fmtAge(a)}"><span class="dot ${c}"></span>${sym}</div>`;
+  }).join('');
+}
+
+function renderGates(g){
+  const p2=g.phase2_observation||{},p3=g.phase3_parallel_run||{};
+  $('gatesCard').innerHTML=
+    kv('Phase 2 — observation', p2.ok?'✓':'✗', p2.ok?'green':'red')+
+    `<div class="dim" style="font-size:12px;margin:2px 0 8px">${esc(p2.summary)}</div>`+
+    kv('Phase 3 — parallel-run', p3.ok?'✓ gate OK':'✗ LOGIC divergences', p3.ok?'green':'red')+
+    `<div class="dim" style="font-size:12px;margin-top:2px">${esc(p3.summary)}</div>`;
+}
+
+function renderEvents(evts){
+  $('evtList').innerHTML=evts.map(e=>{
+    const d=new Date(e.ts*1000).toISOString().slice(5,16).replace('T',' ');
+    const col=e.event==='DOWNTIME'?'red':e.event==='WS_RECONNECT'?'yellow':'';
+    return `<div class="evt"><span class="ts">${d}</span><span class="type ${col}">${esc(e.event)}</span><span class="dim">${esc(e.symbol||'')}</span><span class="dim" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.data||'')}</span></div>`;
+  }).join('')||'<span class="dim">aucun</span>';
+}
+
+// ── FLOTTE ──
+let fleetData=null, sortKey='label', sortAsc=true;
+function renderFleet(d){
+  fleetData=d;
+  const rows=[...(d.bots||[])].sort((a,b)=>{
+    const x=a[sortKey],y=b[sortKey];
+    return (x<y?-1:x>y?1:0)*(sortAsc?1:-1);
+  });
+  $('fleetTable').querySelector('tbody').innerHTML=rows.map(b=>{
+    if(!b.online)return `<tr><td>${esc(b.label)}</td><td>${b.mode}</td><td class="red">ERREUR</td><td colspan="6">${esc(b.error)}</td></tr>`;
+    return `<tr>
+      <td style="color:${b.bot_label_color||'#e6edf3'}">${esc(b.label)}</td>
+      <td><span class="badge ${b.mode}">${b.mode}</span></td>
+      <td><span class="badge ${b.status==='ok'?'running':b.status}">${b.status}</span></td>
+      <td>$${(b.balance??0).toFixed(0)}</td>
+      <td class="${b.total_pnl>=0?'green':'red'}">${fmt(b.total_pnl)}</td>
+      <td class="${b.drawdown_pct<-10?'red':''}">${fmt(b.drawdown_pct,1)}%</td>
+      <td>${b.win_rate!=null?b.win_rate.toFixed(0)+'%':'--'}</td>
+      <td>${b.n_positions}/${b.max_positions}</td>
+      <td><a href="bot/${b.id}/" target="_blank">ouvrir</a></td></tr>`;
+  }).join('');
+  // expositions
+  $('expTable').querySelector('tbody').innerHTML=(d.exposures||[]).map(e=>
+    `<tr class="${e.concentrated?'conc':''}"><td>${esc(e.symbol)}</td>
+     <td class="${e.direction==='LONG'?'green':'red'}">${e.direction}</td>
+     <td>$${e.notional.toFixed(0)}</td>
+     <td title="${e.bots.join(', ')}">${e.n_bots}${e.concentrated?' ⚠':''}</td></tr>`
+  ).join('')||'<tr><td colspan="4" class="dim">aucune position</td></tr>';
+  $('expTotals').textContent=`Notional total $${(d.total_notional??0).toFixed(0)} / capital flotte $${(d.total_capital??0).toFixed(0)}`;
+  const bs=Object.entries(d.by_sector||{}).map(([k,v])=>kv(k,'$'+v.toFixed(0))).join('');
+  const bd=Object.entries(d.by_direction||{}).map(([k,v])=>kv(k,'$'+v.toFixed(0),k==='LONG'?'green':'red')).join('');
+  $('sectorCard').innerHTML=bd+'<hr style="border-color:#21262d;margin:8px 0">'+bs;
+  drawCurves(d.curves||{});
+}
+document.querySelectorAll('#fleetTable th[data-s]').forEach(th=>th.onclick=()=>{
+  const k=th.dataset.s;
+  if(sortKey===k)sortAsc=!sortAsc;else{sortKey=k;sortAsc=true}
+  if(fleetData)renderFleet(fleetData);
+});
+
+function drawCurves(curves){
+  const cv=$('eqCanvas');cv.width=cv.parentElement.clientWidth-28;
+  const ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  const all=Object.values(curves).flatMap(c=>c.points.map(p=>p.pct));
+  if(!all.length){$('eqLegend').innerHTML='<span class="dim">pas de trades</span>';return}
+  const min=Math.min(0,...all),max=Math.max(0,...all),range=Math.max(max-min,.5);
+  const h=cv.height-20,w=cv.width;
+  const zy=h-(0-min)/range*h+10;
+  ctx.strokeStyle='#30363d';ctx.beginPath();ctx.moveTo(0,zy);ctx.lineTo(w,zy);ctx.stroke();
+  let leg='';
+  const palette=['#58a6ff','#3fb950','#d29922','#f85149','#a371f7','#ff7b72','#79c0ff','#56d364'];
+  let i=0;
+  for(const[id,c]of Object.entries(curves)){
+    const col=c.color||palette[i++%palette.length];
+    const pts=c.points;if(!pts.length)continue;
+    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();
+    pts.forEach((p,j)=>{
+      const x=j/(Math.max(pts.length-1,1))*w;
+      const y=h-(p.pct-min)/range*h+10;
+      j?ctx.lineTo(x,y):ctx.moveTo(x,y);
+    });
+    ctx.stroke();
+    leg+=`<span style="color:${col}">●</span> ${esc(c.label)} (${fmt(pts[pts.length-1].pct,1)}%) &nbsp;`;
+  }
+  $('eqLegend').innerHTML=leg;
+}
+
+// ── ADMIN ──
+const STRATS=['S1','S5','S8','S9','S10'];
+function renderAdmins(d){
+  $('botAdmins').innerHTML=(d.bots||[]).map(b=>{
+    if(!b.online)return '';
+    const paused=new Set((b.paused_strats||[]).map(x=>x.join('_')));
+    const togs=STRATS.flatMap(s=>['LONG','SHORT'].map(dir=>{
+      const off=paused.has(s+'_'+dir);
+      return `<div class="strtog ${off?'off':''}" onclick="togStrat('${b.id}','${s}','${dir}',${!off})">${s} ${dir==='LONG'?'↑':'↓'}</div>`;
+    })).join('');
+    return `<div class="botadmin">
+      <div class="bhead"><span class="name" style="color:${b.bot_label_color||'#e6edf3'}">${esc(b.label)}</span>
+        <span class="badge ${b.mode}">${b.mode}</span>
+        <span class="badge ${b.status==='ok'?'running':b.status}">${b.status}</span>
+        <span class="dim" style="margin-left:auto">$${(b.balance??0).toFixed(0)} · ${b.n_positions} pos</span></div>
+      <div class="btnrow">
+        <button class="danger" onclick="lifecycle('${b.id}','stop',${b.n_positions})">⏹ Stop</button>
+        <button class="ok" onclick="lifecycle('${b.id}','start',0)">▶ Start</button>
+        <button onclick="botAct('${b.id}','halt_entries','Geler les entrées ?')">❄ Halt entries</button>
+        <button onclick="botAct('${b.id}','resume_entries','Reprendre les entrées ?')">▶ Resume entries</button>
+        <button class="danger" onclick="botAct('${b.id}','reset','⚠ RAZ COMPLÈTE (trades effacés) — sûr ?')">RAZ</button>
+      </div>
+      <div class="strgrid">${togs}</div></div>`;
+  }).join('');
+}
+function lifecycle(id,action,npos){
+  const msg=action==='stop'
+    ?`STOP ${id} : le bot est ENTIÈREMENT gelé (exits compris${npos?' — '+npos+' position(s) ouverte(s) ne seront plus gérées':''}). Confirmer ?`
+    :`Redémarrer ${id} ?`;
+  if(!confirm(msg))return;
+  fetch(`api/bot/${id}/lifecycle`,{method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},body:JSON.stringify({action})})
+    .then(r=>r.json()).then(j=>{if(j.warning)alert(j.warning);refresh()});
+}
+function botAct(id,action,msg){
+  if(!confirm(msg))return;
+  fetch(`bot/${id}/api/${action}`,{method:'POST',credentials:'same-origin'})
+    .then(()=>refresh());
+}
+function togStrat(id,strat,dir,pause){
+  fetch(`bot/${id}/api/strategy_toggle`,{method:'POST',credentials:'same-origin',
+    headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({strat,dir,paused:pause})}).then(()=>refresh());
+}
+
+// bots.json editor
+function cfgReload(){
+  fetch('api/botsconfig',{credentials:'same-origin'}).then(r=>r.json()).then(j=>{
+    $('cfgText').value=j.content||'';
+    $('cfgBanner').className='banner';
+  });
+}
+function cfgValidate(){
+  fetch('api/botsconfig/validate',{method:'POST',credentials:'same-origin',
+    body:$('cfgText').value}).then(r=>r.json()).then(j=>{
+    const b=$('cfgBanner');
+    if(j.valid){b.className='banner ok';
+      b.textContent=`✓ valide — bots: ${j.bots.map(x=>x.id).join(', ')} | +${j.diff.added.join(',')||'∅'} −${j.diff.removed.join(',')||'∅'}`;}
+    else{b.className='banner err';b.textContent='✗ '+j.error;}
+  });
+}
+function cfgSave(){
+  if(!confirm('Sauver bots.json ? (effet au prochain restart)'))return;
+  fetch('api/botsconfig',{method:'POST',credentials:'same-origin',
+    body:$('cfgText').value}).then(r=>r.json()).then(j=>{
+    const b=$('cfgBanner');
+    if(j.saved){b.className='banner ok';b.textContent='✓ sauvegardé — '+j.note;}
+    else{b.className='banner err';b.textContent='✗ '+j.error;}
+  });
+}
+
+function renderAudit(rows){
+  $('auditList').innerHTML=rows.map(r=>{
+    const d=new Date(r.ts*1000).toISOString().slice(5,16).replace('T',' ');
+    return `<div class="evt"><span class="ts">${d}</span><span class="type">${esc(r.route)}</span><span class="dim">${esc(r.bot_id||'')}</span><span class="dim">${esc(r.payload||'')}</span><span>${esc(r.result)}</span></div>`;
+  }).join('')||'<span class="dim">aucune action</span>';
+}
+
+// ── refresh ──
+let gatesTimer=0;
+function refresh(){
+  fetch('api/master/health',{credentials:'same-origin'}).then(r=>r.json()).then(renderHealth).catch(()=>{});
+  fetch('api/master/events?limit=40&kinds='+($('evtKinds').value||''),{credentials:'same-origin'}).then(r=>r.json()).then(renderEvents).catch(()=>{});
+  fetch('api/fleet',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{renderFleet(d);renderAdmins(d)}).catch(()=>{});
+  fetch('api/admin/audit?limit=50',{credentials:'same-origin'}).then(r=>r.json()).then(renderAudit).catch(()=>{});
+  // gates : cher (run compare_paper) → toutes les 5 min seulement
+  if(Date.now()-gatesTimer>300000){gatesTimer=Date.now();
+    fetch('api/master/gates',{credentials:'same-origin'}).then(r=>r.json()).then(renderGates).catch(()=>{});}
+}
+$('evtKinds').onchange=refresh;
+refresh();cfgReload();
+setInterval(refresh,10000);
+</script>
+</body>
+</html>

@@ -569,9 +569,151 @@ def build_admin_summary(bots: dict, master) -> list:
                 "uptime_s": st["uptime_s"],
                 "first_trade_date": st["first_trade_date"],
                 "price_age_s": price_age,
+                "paused_strats": st["paused_strategies"],
             })
         except Exception as e:
             log.exception("admin summary failed for %s", bot.id)
             out.append({"id": bot.id, "label": bot.label, "mode": bot.mode,
                         "online": False, "error": str(e)})
     return out
+
+
+# ── /master supervision builders ──────────────────────────────────────
+
+
+def build_master_health(master, bots: dict, bots_cfg_path: str) -> dict:
+    """Niveau 1 — santé système : WS, fraîcheur par symbole, snapshot,
+    couverture données (DOWNTIME, candles en DB), config pending-restart."""
+    import os as _os
+    now = time.time()
+    freshness = {sym: round(now - st.updated_at, 1) if st.updated_at else None
+                 for sym, st in master.states.items()}
+    candle_cov = {}
+    try:
+        with master.db.lock:
+            rows = master.db.conn.execute(
+                """SELECT symbol, COUNT(*), MAX(close_t) FROM candles
+                   WHERE closed=1 GROUP BY symbol""").fetchall()
+        for sym, n, last_close in rows:
+            candle_cov[sym] = {"n_closed": n,
+                               "last_close_age_s": round(now - last_close / 1000)}
+    except Exception:
+        pass
+    # Config pending : le fichier sur disque diffère-t-il de la config chargée ?
+    pending = False
+    try:
+        from ..settings import load_bots_config
+        on_disk = {c.id: c for c in load_bots_config(bots_cfg_path)}
+        loaded = {b.id: b.cfg for b in bots.values()}
+        pending = (set(on_disk) != set(loaded)
+                   or any(on_disk[i] != loaded[i] for i in on_disk))
+    except Exception:
+        pending = None  # fichier invalide ou absent
+    snap = master.snapshot
+    db_size = 0
+    try:
+        db_size = _os.path.getsize(master.db.path)
+    except OSError:
+        pass
+    return {
+        "ws": {"connected": master.ws_connected,
+               "reconnects": master.ws_reconnects,
+               "candle_updates": master.ws_candle_updates},
+        "last_price_age_s": (round(now - master.last_price_fetch, 1)
+                             if master.last_price_fetch else None),
+        "freshness": freshness,
+        "snapshot": ({"version": snap.version,
+                      "age_s": round(now - snap.ts, 1),
+                      "btc_z": snap.btc_z,
+                      "disp_7d": snap.cross_ctx.get("disp_7d"),
+                      "disp_24h": snap.cross_ctx.get("disp_24h"),
+                      "dxy_7d": snap.dxy_7d,
+                      "alt_index": snap.alt_index,
+                      "oi_summary": snap.oi_summary} if snap else None),
+        "degraded": list(master._degraded),
+        "downtime": master.last_downtime,
+        "candle_coverage": candle_cov,
+        "market_db_bytes": db_size,
+        "config_pending_restart": pending,
+        "n_bots": len(bots),
+    }
+
+
+def build_gates_status() -> dict:
+    """Niveau 1 — gates de la refacto (phase 2 observation, phase 3
+    parallel-run). Réutilise les fonctions du digest quotidien."""
+    from ..tools.daily_report import observation_summary, parallel_run_summary
+    obs_line, obs_ok = observation_summary()
+    pr_line, pr_ok = parallel_run_summary()
+    return {"phase2_observation": {"ok": obs_ok, "summary": obs_line},
+            "phase3_parallel_run": {"ok": pr_ok, "summary": pr_line}}
+
+
+def build_fleet_response(bots: dict, master) -> dict:
+    """Niveau 2 — cartes par bot + expositions agrégées + courbes equity
+    normalisées (% du capital initial)."""
+    cards = build_admin_summary(bots, master)
+
+    # Expositions agrégées tous bots (symbole × direction, secteur, direction)
+    by_combo: dict[tuple, dict] = {}
+    by_sector: dict[str, float] = {}
+    by_dir = {"LONG": 0.0, "SHORT": 0.0}
+    total_notional = 0.0
+    total_capital = 0.0
+    for bot in bots.values():
+        total_capital += bot._capital + bot._total_pnl
+        sector_map = bot.token_sector
+        with bot._pos_lock:
+            poss = list(bot.positions.values())
+        for p in poss:
+            dir_str = "LONG" if p.direction == 1 else "SHORT"
+            key = (p.symbol, dir_str)
+            slot = by_combo.setdefault(key, {"notional": 0.0, "bots": []})
+            slot["notional"] += p.size_usdt
+            slot["bots"].append(bot.id)
+            sect = sector_map.get(p.symbol, "?")
+            by_sector[sect] = by_sector.get(sect, 0.0) + p.size_usdt
+            by_dir[dir_str] += p.size_usdt
+            total_notional += p.size_usdt
+    exposures = [{"symbol": k[0], "direction": k[1],
+                  "notional": round(v["notional"], 2),
+                  "n_bots": len(v["bots"]), "bots": v["bots"],
+                  "concentrated": len(v["bots"]) >= 3}
+                 for k, v in sorted(by_combo.items(),
+                                    key=lambda kv: -kv[1]["notional"])]
+
+    # Courbes equity normalisées
+    curves = {}
+    for bot in bots.values():
+        pts = build_pnl_curve(list(bot.trades), bot._capital,
+                              bot._perf_track_start_ts,
+                              bot._total_pnl_at_perf_reset)
+        cap0 = bot.cfg.capital_initial if hasattr(bot, "cfg") else bot._capital
+        curve = [{"time": p["time"],
+                  "pct": round((p["balance"] / cap0 - 1) * 100, 2)}
+                 for p in (pts.get("points", []) if isinstance(pts, dict) else pts)]
+        curves[bot.id] = {"label": bot.label, "color": bot.color,
+                          "points": curve}
+
+    return {"bots": cards,
+            "exposures": exposures,
+            "by_sector": {k: round(v, 2) for k, v in
+                          sorted(by_sector.items(), key=lambda kv: -kv[1])},
+            "by_direction": {k: round(v, 2) for k, v in by_dir.items()},
+            "total_notional": round(total_notional, 2),
+            "total_capital": round(total_capital, 2),
+            "curves": curves}
+
+
+def build_audit_trail(master, limit: int = 100) -> list:
+    """Niveau 3 — journal des actions admin (table dédiée admin_audit)."""
+    try:
+        with master.db.lock:
+            rows = master.db.conn.execute(
+                """SELECT ts, ip, route, bot_id, payload, result
+                   FROM admin_audit ORDER BY ts DESC LIMIT ?""",
+                (limit,)).fetchall()
+        return [{"ts": r[0], "ip": r[1], "route": r[2], "bot_id": r[3],
+                 "payload": r[4], "result": r[5]} for r in rows]
+    except Exception:
+        return []

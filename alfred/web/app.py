@@ -246,6 +246,156 @@ def create_app(bots: dict, master) -> FastAPI:
             "n_bots": len(bots),
         })
 
+    # ── /master : supervision 3 niveaux ───────────────────────────────
+
+    _bots_cfg_path = os.environ.get(
+        "ALFRED_BOTS_CONFIG",
+        os.path.join(os.path.dirname(os.path.dirname(
+            os.path.dirname(os.path.abspath(__file__)))), "alfred", "bots.json"))
+
+    def _audit(request: Request, route: str, bot_id: str | None,
+               payload: dict | None, result: str) -> None:
+        ip = request.client.host if request.client else "?"
+        master.db.log_admin_action(ip, route, bot_id, payload, result)
+
+    @app.get("/master", response_class=HTMLResponse)
+    async def master_page():
+        return (_STATIC / "master.html").read_text()
+
+    @app.get("/api/master/health")
+    def api_master_health():
+        return JSONResponse(views._to_py(
+            views.build_master_health(master, bots, _bots_cfg_path)))
+
+    @app.get("/api/master/gates")
+    def api_master_gates():
+        return JSONResponse(views.build_gates_status())
+
+    @app.get("/api/master/events")
+    def api_master_events(limit: int = 50, kinds: str = ""):
+        limit = max(1, min(limit, 500))
+        try:
+            with master.db.lock:
+                if kinds:
+                    klist = [k.strip() for k in kinds.split(",") if k.strip()]
+                    q = ",".join("?" for _ in klist)
+                    rows = master.db.conn.execute(
+                        f"SELECT ts, event, symbol, data FROM events "
+                        f"WHERE event IN ({q}) ORDER BY ts DESC LIMIT ?",
+                        (*klist, limit)).fetchall()
+                else:
+                    rows = master.db.conn.execute(
+                        "SELECT ts, event, symbol, data FROM events "
+                        "ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
+            return JSONResponse([{"ts": r[0], "event": r[1],
+                                  "symbol": r[2], "data": r[3]} for r in rows])
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    @app.get("/api/fleet")
+    def api_fleet():
+        return JSONResponse(views._to_py(views.build_fleet_response(bots, master)))
+
+    @app.get("/api/admin/audit")
+    def api_admin_audit(limit: int = 100):
+        return JSONResponse(views.build_audit_trail(master, max(1, min(limit, 500))))
+
+    @app.post("/api/bot/{bot_id}/lifecycle")
+    async def api_bot_lifecycle(bot_id: str, request: Request):
+        """Stop/start d'un BotInstance au runtime. stop ≠ pause : le
+        scheduler saute ENTIÈREMENT le bot (exits gelés aussi)."""
+        bot = _bot(bot_id)
+        if bot is None:
+            return JSONResponse({"error": "unknown bot"}, status_code=404)
+        try:
+            body = await request.json()
+        except Exception:
+            return JSONResponse({"error": "invalid JSON"}, status_code=400)
+        action = body.get("action")
+        if action not in ("stop", "start"):
+            return JSONResponse({"error": "action must be stop|start"},
+                                status_code=400)
+        if action == "stop":
+            bot.status = "stopped"
+        else:
+            bot.status = "running"
+        bot._save_state()
+        bot.db.log_event("LIFECYCLE", None, {"action": action})
+        _audit(request, f"/api/bot/{bot_id}/lifecycle", bot_id,
+               {"action": action}, "ok")
+        log.info("[%s] lifecycle: %s", bot_id, action)
+        n_pos = len(bot.positions)
+        return JSONResponse({"status": "ok", "bot_status": bot.status,
+                             "open_positions": n_pos,
+                             "warning": (f"{n_pos} position(s) ouverte(s) — "
+                                         f"exits GELÉS tant que stopped"
+                                         if action == "stop" and n_pos else None)})
+
+    @app.get("/api/botsconfig")
+    def api_botsconfig_get():
+        try:
+            with open(_bots_cfg_path) as fh:
+                content = fh.read()
+            return JSONResponse({"path": _bots_cfg_path, "content": content})
+        except OSError as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
+    def _validate_bots_payload(text: str) -> tuple[list | None, str | None]:
+        from ..settings import parse_bots_config
+        try:
+            raw = json.loads(text)
+        except json.JSONDecodeError as e:
+            return None, f"JSON invalide : {e}"
+        try:
+            cfgs = parse_bots_config(raw)
+        except (ValueError, KeyError, TypeError) as e:
+            return None, f"Config invalide : {e}"
+        return cfgs, None
+
+    @app.post("/api/botsconfig/validate")
+    async def api_botsconfig_validate(request: Request):
+        body = await request.body()
+        cfgs, err = _validate_bots_payload(body.decode())
+        if err:
+            return JSONResponse({"valid": False, "error": err})
+        loaded_ids = set(bots.keys())
+        new_ids = {c.id for c in cfgs}
+        return JSONResponse({
+            "valid": True,
+            "bots": [{"id": c.id, "mode": c.mode, "label": c.label,
+                      "enabled": c.enabled} for c in cfgs],
+            "diff": {"added": sorted(new_ids - loaded_ids),
+                     "removed": sorted(loaded_ids - new_ids),
+                     "kept": sorted(new_ids & loaded_ids)}})
+
+    @app.post("/api/botsconfig")
+    async def api_botsconfig_save(request: Request):
+        body = await request.body()
+        text = body.decode()
+        cfgs, err = _validate_bots_payload(text)
+        if err:
+            _audit(request, "/api/botsconfig", None, None, f"rejected: {err}")
+            return JSONResponse({"saved": False, "error": err}, status_code=400)
+        try:
+            # backup + écriture atomique
+            if os.path.exists(_bots_cfg_path):
+                import shutil
+                shutil.copy2(_bots_cfg_path, _bots_cfg_path + ".bak")
+            tmp = _bots_cfg_path + ".tmp"
+            with open(tmp, "w") as fh:
+                fh.write(text)
+            os.replace(tmp, _bots_cfg_path)
+        except OSError as e:
+            _audit(request, "/api/botsconfig", None, None, f"io_error: {e}")
+            return JSONResponse({"saved": False, "error": str(e)}, status_code=500)
+        _audit(request, "/api/botsconfig", None,
+               {"bots": [c.id for c in cfgs]}, "saved")
+        log.info("bots.json sauvegardé (%d bots) — effet au prochain restart",
+                 len(cfgs))
+        return JSONResponse({"saved": True,
+                             "note": "effet au prochain restart d'Alfred",
+                             "bots": [c.id for c in cfgs]})
+
     # ── Per-bot helpers ───────────────────────────────────────────────
 
     def _bot(bot_id: str):
