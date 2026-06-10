@@ -1,16 +1,18 @@
-"""Alfred entry point.
-
-Phase 2: MarketDataMaster only (0 bots) — observation deployment running
-alongside the legacy bots. Phase 3 adds BotInstances + the unified web app.
+"""Alfred entry point — MarketDataMaster + BotInstances + unified web app.
 
     python3 -m alfred
 
 Env (all optional):
     ALFRED_DATA_DIR       default alfred/data
-    ALFRED_REST_POLL      metaAndAssetCtxs cadence seconds (default 60 —
-                          observation-friendly; production target is 20)
+    ALFRED_BOTS_CONFIG    default alfred/bots.json (no file = 0 bots, pure
+                          observation mode)
+    ALFRED_WEB_PORT       default 8101
+    ALFRED_ROOT_PATH      nginx subpath (e.g. /alfred)
+    ALFRED_REST_POLL      metaAndAssetCtxs cadence seconds (default 60 during
+                          the observation/parallel-run phase; production 20)
     ALFRED_CANDLE_SLEEP   inter-symbol sleep for REST candle fetches (default 1.0)
     TG_BOT_TOKEN/TG_CHAT_ID  master system alerts (label ALFRED)
+    DASHBOARD_USER/PASS/AUTH_SALT  web auth
 """
 
 from __future__ import annotations
@@ -21,6 +23,7 @@ import logging
 import os
 import signal
 import sys
+import time
 
 logging.basicConfig(
     level=logging.INFO,
@@ -30,6 +33,10 @@ logging.basicConfig(
 log = logging.getLogger("alfred")
 
 _REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+TICK_SECONDS = 20.0          # exit-chain cadence (manual_stop latency ceiling)
+SCAN_SECONDS = 3600.0        # full scan cadence
+BOUNDARY_GRACE_S = 180.0     # post-4h-close grace before the entry scan
 
 
 def _load_env():
@@ -44,18 +51,56 @@ def _load_env():
                 os.environ.setdefault(k.strip(), v.strip().strip("'\""))
 
 
+async def scheduler(master, bots: dict, shutdown: asyncio.Event):
+    """Owns the trading cadences: 20s ticks (exits) and hourly / 4h-boundary
+    scans (snapshot refresh + entries). The master's own hourly loop keeps
+    the data-health duties (gap repair, WS audit, status line)."""
+    last_scan = 0.0
+    while master.running:
+        t0 = time.time()
+        try:
+            # No prices yet (first REST poll in flight) → nothing meaningful
+            # to tick or scan; rushing would burn the 4h entry gate on empty
+            # signals (st.price == 0 → no candidates).
+            if not master.last_price_fetch:
+                await asyncio.sleep(1.0)
+                continue
+            for b in bots.values():
+                await asyncio.to_thread(b.safe_on_tick)
+
+            now_t = time.time()
+            last_4h = (int(now_t) // 14400) * 14400
+            post_4h = (now_t - last_4h >= BOUNDARY_GRACE_S
+                       and any(b._last_entry_scan_4h_close < last_4h
+                               for b in bots.values()))
+            if now_t - last_scan >= SCAN_SECONDS or post_4h:
+                log.info("Scan (trigger: %s)",
+                         "4h-boundary" if post_4h and now_t - last_scan < SCAN_SECONDS
+                         else "hourly")
+                master.snapshot = await asyncio.to_thread(master.build_snapshot)
+                await asyncio.to_thread(master.log_market_snapshot)
+                for b in bots.values():
+                    await asyncio.to_thread(b.safe_on_scan)
+                last_scan = now_t
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            log.exception("scheduler error")
+        await asyncio.sleep(max(1.0, TICK_SECONDS - (time.time() - t0)))
+
+
 async def run():
     from alfred import ALFRED_VERSION
+    from alfred.botinstance import BotInstance
     from alfred.db import Database
     from alfred.market import MarketDataMaster
-    from alfred.settings import DEFAULT_PARAMS
+    from alfred.settings import DEFAULT_PARAMS, load_bots_config
     from alfred.telegram import Notifier
 
     data_dir = os.environ.get(
         "ALFRED_DATA_DIR", os.path.join(_REPO_ROOT, "alfred", "data"))
     os.makedirs(data_dir, exist_ok=True)
 
-    # Single-instance lock
     lock_file = open(os.path.join(data_dir, "alfred.lock"), "w")
     try:
         fcntl.flock(lock_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
@@ -66,7 +111,7 @@ async def run():
     notifier = Notifier(
         token=os.environ.get("TG_BOT_TOKEN", ""),
         chat_id=os.environ.get("TG_CHAT_ID", ""),
-        categories=os.environ.get("ALFRED_TG_CATEGORIES", "system"),
+        categories=os.environ.get("ALFRED_TG_CATEGORIES", "system,security"),
         label="ALFRED")
 
     db = Database(os.path.join(data_dir, "market.db"), "market")
@@ -75,6 +120,19 @@ async def run():
         rest_poll_seconds=float(os.environ.get("ALFRED_REST_POLL", "60")),
         candle_fetch_sleep=float(os.environ.get("ALFRED_CANDLE_SLEEP", "1.0")),
     )
+
+    # ── Bots ──
+    bots: dict[str, BotInstance] = {}
+    bots_cfg_path = os.environ.get(
+        "ALFRED_BOTS_CONFIG", os.path.join(_REPO_ROOT, "alfred", "bots.json"))
+    if os.path.exists(bots_cfg_path):
+        for cfg in load_bots_config(bots_cfg_path):
+            bots[cfg.id] = BotInstance(cfg, master, data_dir)
+            log.info("Bot configured: %s (%s, capital $%.0f%s)",
+                     cfg.id, cfg.mode, cfg.capital_initial,
+                     ", paused" if cfg.start_paused else "")
+    else:
+        log.info("No bots.json (%s) — observation mode, 0 bots", bots_cfg_path)
 
     shutdown = asyncio.Event()
 
@@ -86,12 +144,13 @@ async def run():
     signal.signal(signal.SIGINT, _sig)
     signal.signal(signal.SIGTERM, _sig)
 
-    log.info("Alfred v%s — MarketDataMaster observation mode (%d symbols, "
-             "poll %.0fs, data %s)", ALFRED_VERSION,
-             len(DEFAULT_PARAMS.all_symbols), master.rest_poll_seconds, data_dir)
-    db.log_event("MASTER_START", None, {"version": ALFRED_VERSION,
-                                        "mode": "observation"})
-    notifier.send(f"🤖 Alfred v{ALFRED_VERSION} démarré (observation, 0 bot)",
+    log.info("Alfred v%s — %d symbols, %d bot(s), poll %.0fs, data %s",
+             ALFRED_VERSION, len(DEFAULT_PARAMS.all_symbols), len(bots),
+             master.rest_poll_seconds, data_dir)
+    db.log_event("MASTER_START", None, {
+        "version": ALFRED_VERSION, "bots": sorted(bots.keys())})
+    notifier.send(f"🤖 Alfred v{ALFRED_VERSION} démarré "
+                  f"({len(bots)} bot(s): {', '.join(sorted(bots)) or 'aucun'})",
                   category="system")
 
     await master.backfill()
@@ -100,19 +159,41 @@ async def run():
              master.snapshot.version,
              f"{master.snapshot.btc_z:+.2f}" if master.snapshot.btc_z is not None else "n/a",
              master.snapshot.alt_index)
+    for b in bots.values():
+        b.load()
+
+    # ── Web app ──
+    import uvicorn
+    from alfred.web.app import create_app
+    web_port = int(os.environ.get("ALFRED_WEB_PORT", "8101"))
+    app = create_app(bots, master)
+    server = uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=web_port,
+                                           log_level="warning"))
+    log.info("Web app on :%d (root_path=%r)", web_port,
+             os.environ.get("ALFRED_ROOT_PATH", ""))
 
     tasks = [
         asyncio.create_task(master.ws_loop(), name="ws"),
         asyncio.create_task(master.poll_loop(), name="poll"),
         asyncio.create_task(master.hourly_loop(), name="hourly"),
+        asyncio.create_task(scheduler(master, bots, shutdown), name="scheduler"),
+        asyncio.create_task(server.serve(), name="web"),
     ]
     await shutdown.wait()
+    server.should_exit = True
+    for b in bots.values():
+        try:
+            b._save_state()
+        except Exception:
+            log.exception("[%s] final save_state failed", b.id)
     for t in tasks:
         t.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
     master.flow.flush_all()
     db.log_event("MASTER_STOP")
     db.close()
+    for b in bots.values():
+        b.db.close()
     log.info("Alfred stopped cleanly")
 
 

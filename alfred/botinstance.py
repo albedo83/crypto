@@ -1,0 +1,646 @@
+"""BotInstance — one trading bot (paper or live) inside the Alfred process.
+
+Holds the per-bot mutable state that analysis/bot/bot.py:MultiSignalBot used
+to mix with market data: positions, trades, capital/P&L, cooldowns, pauses,
+alert dedup. Market data (states, features, btc_z, cross_ctx…) is READ from
+the shared MarketDataMaster — never recomputed per bot.
+
+Decision logic is the pure shared core (alfred/rules.py) — the same code the
+backtests run. This file is only the impure shell: broker calls, DB/Telegram
+writes, locks, persistence.
+
+Attribute names intentionally mirror MultiSignalBot so the dashboard
+response builders (web/views.py) port with minimal churn.
+"""
+
+from __future__ import annotations
+
+import logging
+import threading
+import time
+from collections import deque
+from datetime import datetime, timezone, timedelta
+
+from . import ALFRED_VERSION
+from . import alerts, features, persistence, rules, signals
+from .brokers import PaperBroker
+from .db import Database
+from .models import Position, Trade
+from .settings import BotConfig
+from .telegram import Notifier
+
+log = logging.getLogger("alfred")
+
+
+class BotInstance:
+    def __init__(self, cfg: BotConfig, master, data_dir: str):
+        import os
+        self.cfg = cfg
+        self.id = cfg.id
+        self.label = cfg.label
+        self.mode = cfg.mode
+        self.color = cfg.color
+        self.version = ALFRED_VERSION
+        self.p = cfg.params()
+        self.master = master
+        self.states = master.states            # shared market state (read-only use)
+        self.token_sector = self.p.token_sector()
+
+        bot_dir = os.path.join(data_dir, "bots", cfg.id)
+        os.makedirs(bot_dir, exist_ok=True)
+        self.db = Database(os.path.join(bot_dir, "bot.db"), "bot")
+        self.state_file = os.path.join(bot_dir, "state.json")
+        self.notifier = Notifier(
+            token=os.environ.get(cfg.tg_token_env, "") if cfg.tg_token_env else "",
+            chat_id=os.environ.get(cfg.tg_chat_id_env, "") if cfg.tg_chat_id_env else "",
+            categories=cfg.tg_categories, label=cfg.label,
+            public_url=cfg.public_url)
+        if cfg.mode == "live":
+            raise NotImplementedError("LiveBroker lands in Alfred phase 4")
+        self.broker = PaperBroker(self.p)
+
+        # ── Per-bot mutable state (names mirror MultiSignalBot) ──
+        self.positions: dict[str, Position] = {}
+        self.trades: deque[Trade] = deque(maxlen=5000)
+        self.status = "running"               # running | paused | error | stopped
+        self.running = True
+        self.started_at: datetime | None = None
+        self._capital = cfg.capital_initial
+        self._total_pnl = 0.0
+        self._wins = 0
+        self._peak_balance = cfg.capital_initial
+        self._paused = cfg.start_paused
+        self._paused_strats: set[tuple[str, str]] = set()
+        self._cooldowns: dict[str, float] = {}
+        self._consecutive_losses = 0
+        self._signal_first_seen: dict[str, float] = {}
+        self._pos_lock = threading.Lock()
+        self._failed_closes: set[str] = set()
+        self._closing: set[str] = set()
+        self._inflight_open: set[str] = set()
+        self._btc_z: float | None = None
+        self._wr_alerted: set[str] = set()
+        self._giveback_alerted: set[str] = set()
+        self._lock_floor_alerted: set[str] = set()
+        self._regime_alert_last_ts = 0.0
+        self._basket_metrics: dict | None = None
+        self._last_entry_scan_4h_close = 0
+        self._last_scan: float = 0.0
+        self._last_daily_report: float = 0.0
+        self._perf_track_start_ts = 0.0
+        self._capital_at_perf_reset = 0.0
+        self._total_pnl_at_perf_reset = 0.0
+        self._exchange = None                  # live-only (phase 4)
+        self._exchange_account: dict | None = None
+
+    # ── Boot ─────────────────────────────────────────────────────────
+
+    def load(self) -> None:
+        """Restore state.json + trade history. Call once before scheduling."""
+        st = persistence.load_state(self.state_file, set(self.p.all_symbols))
+        if st:
+            self._capital = st.get("capital", self._capital)
+            self._total_pnl = st.get("total_pnl", 0.0)
+            self._wins = st.get("wins", 0)
+            self._peak_balance = max(st.get("peak_balance", 0.0),
+                                     self._capital + self._total_pnl)
+            self._last_daily_report = st.get("last_daily_report", 0)
+            self._paused = st.get("paused", self._paused)
+            self._consecutive_losses = st.get("consecutive_losses", 0)
+            self._cooldowns = st.get("cooldowns", {})
+            self._signal_first_seen = st.get("signal_first_seen", {})
+            self._last_entry_scan_4h_close = st.get("_last_entry_scan_4h_close", 0)
+            self._perf_track_start_ts = st.get("_perf_track_start_ts", 0.0)
+            self._capital_at_perf_reset = st.get("_capital_at_perf_reset", 0.0)
+            self._total_pnl_at_perf_reset = st.get("_total_pnl_at_perf_reset", 0.0)
+            self._btc_z = st.get("_btc_z")
+            self._paused_strats = st.get("_paused_strats", set())
+            self.positions = st.get("positions", {})
+            log.info("[%s] restored: %d positions, capital $%.2f, P&L $%.2f",
+                     self.id, len(self.positions), self._capital, self._total_pnl)
+        for t in persistence.load_trades(self.db):
+            self.trades.append(t)
+        self.started_at = datetime.now(timezone.utc)
+
+    def _save_state(self) -> None:
+        persistence.save_state(self)
+
+    # ── Market-data wrappers (read the master; used by views too) ────
+
+    @property
+    def snapshot(self):
+        return self.master.snapshot
+
+    @property
+    def _feature_cache(self) -> dict:
+        snap = self.master.snapshot
+        return snap.feature_cache if snap else {}
+
+    @property
+    def _cross_ctx_cache(self) -> dict | None:
+        snap = self.master.snapshot
+        return snap.cross_ctx if snap else None
+
+    @property
+    def _dxy_cache(self) -> tuple[float, float]:
+        snap = self.master.snapshot
+        return (snap.dxy_7d, snap.ts) if snap else (0.0, 0.0)
+
+    @property
+    def _oi_summary(self) -> dict:
+        snap = self.master.snapshot
+        return snap.oi_summary if snap else {"falling": 0, "rising": 0}
+
+    @property
+    def _degraded(self) -> list:
+        return self.master._degraded
+
+    @property
+    def _last_price_fetch(self) -> float:
+        return self.master.last_price_fetch
+
+    def _get_cached_features(self, sym: str) -> dict | None:
+        return self._feature_cache.get(sym)
+
+    def _compute_features(self, sym: str) -> dict | None:
+        return self.master._compute_features_for(sym)
+
+    def _compute_btc_features(self) -> dict:
+        snap = self.master.snapshot
+        return snap.btc_f if snap else {}
+
+    def _compute_alt_index(self) -> float:
+        snap = self.master.snapshot
+        return snap.alt_index if snap else 0.0
+
+    def _compute_oi_features(self, sym: str) -> dict:
+        return self.master._oi_features(sym)
+
+    def _compute_crowding_score(self, sym: str, oi_f: dict | None = None) -> int:
+        st = self.states.get(sym)
+        if not st:
+            return 0
+        if oi_f is None:
+            oi_f = self._compute_oi_features(sym)
+        f = self._feature_cache.get(sym)
+        return features.compute_crowding_score(
+            st.funding, st.premium, oi_f["oi_delta_1h"],
+            f.get("vol_z", 0) if f else None)
+
+    def _compute_sector_divergence(self, sym: str) -> dict | None:
+        return features.compute_sector_divergence(
+            sym, self._feature_cache, self.p.sectors, self.token_sector)
+
+    def _detect_squeeze(self, sym: str) -> dict | None:
+        st = self.states.get(sym)
+        if not st or len(st.candles_4h) < 8:
+            return None
+        f = self._feature_cache.get(sym)
+        vr = f.get("vol_ratio", 2) if f else 2
+        from .market import closed_candles
+        candles = closed_candles(st.candles_4h)
+        if len(candles) < 8:
+            return None
+        return signals.detect_squeeze(candles, vr, self.p)
+
+    def _market_ctx(self) -> rules.MarketCtx:
+        snap = self.master.snapshot
+        return rules.MarketCtx(
+            btc_z=self._btc_z,
+            btc_ret_4h_bps=snap.btc_ret_4h_bps if snap else None,
+            disp_24h=(snap.cross_ctx.get("disp_24h") if snap else None))
+
+    # ── Exits (every tick) ───────────────────────────────────────────
+
+    def on_tick(self, now: datetime | None = None) -> int:
+        """Update excursions and evaluate the exit chain for every position.
+        Returns the number of exits."""
+        now = now or datetime.now(timezone.utc)
+        exits = 0
+        m = self._market_ctx()
+
+        # Retry any previously failed closes (live mode; no-op on paper)
+        with self._pos_lock:
+            failed_snapshot = list(self._failed_closes)
+        for sym in failed_snapshot:
+            if sym in self.positions:
+                st = self.states.get(sym)
+                if st and st.price > 0:
+                    self.close_position(sym, st.price, now, "retry_close")
+                    if sym not in self.positions:
+                        exits += 1
+
+        for sym in list(self.positions.keys()):
+            with self._pos_lock:
+                pos = self.positions.get(sym)
+                if not pos:
+                    continue
+                entry_price = pos.entry_price
+                direction = pos.direction
+                target_exit = pos.target_exit
+
+            st = self.states.get(sym)
+            if not st or st.price == 0:
+                if st and now >= target_exit:
+                    log.warning("[%s] force-closing %s: price unavailable, hold expired",
+                                self.id, sym)
+                    self.close_position(sym, entry_price, now, "stale_price")
+                    exits += 1
+                continue
+
+            unrealized = direction * (st.price / entry_price - 1) * 1e4
+            with self._pos_lock:
+                if sym not in self.positions:
+                    continue
+                hours_held = (now - pos.entry_time).total_seconds() / 3600
+                rules.update_excursions(pos, unrealized, hours_held)
+                last_h = pos.trajectory[-1][0] if pos.trajectory else -1
+                if hours_held - last_h >= 0.95 and len(pos.trajectory) < 200:
+                    pos.trajectory.append((round(hours_held, 1), round(unrealized, 1)))
+                pv = rules.PosView(
+                    strategy=pos.strategy, direction=direction,
+                    entry_price=entry_price, size_usdt=pos.size_usdt,
+                    stop_bps=pos.stop_bps,
+                    mfe_bps=pos.mfe_bps, mae_bps=pos.mae_bps,
+                    hours_held=hours_held,
+                    hours_to_timeout=(pos.target_exit - now).total_seconds() / 3600,
+                    mfe_at_h=pos.mfe_at_h, extended=pos.extended,
+                    manual_stop_usdt=pos.manual_stop_usdt)
+
+            dec = rules.evaluate_exit(pv, unrealized, m, self.p)
+            if dec is None:
+                continue
+            if dec.action == "extend":
+                new_target = target_exit + timedelta(hours=dec.extend_hours)
+                with self._pos_lock:
+                    if sym in self.positions:
+                        self.positions[sym].target_exit = new_target
+                        self.positions[sym].extended = True
+                log.info("[%s] ⏭ RUNNER_EXT %s %s: MFE %+.0f cur %+.0f → hold +%dh",
+                         self.id, pos.strategy, sym, pos.mfe_bps, unrealized,
+                         int(dec.extend_hours))
+                self.db.log_event("RUNNER_EXT", sym, {
+                    "strategy": pos.strategy, "mfe_bps": round(pos.mfe_bps, 1),
+                    "current_bps": round(unrealized, 1),
+                    "extra_hours": dec.extend_hours,
+                    "new_exit": new_target.isoformat()})
+                self._save_state()
+                continue
+            exit_price = dec.exit_price if dec.exit_price is not None else st.price
+            self.close_position(sym, exit_price, now, dec.reason)
+            exits += 1
+        return exits
+
+    # ── Close ────────────────────────────────────────────────────────
+
+    def close_position(self, sym: str, exit_price: float, now: datetime,
+                       reason: str) -> None:
+        """Exit a position, record the trade, update portfolio state.
+        _closing mutex guards concurrent paths (tick exit + dashboard close)."""
+        with self._pos_lock:
+            if sym not in self.positions or sym in self._closing:
+                return
+            self._closing.add(sym)
+        try:
+            self._close_inner(sym, exit_price, now, reason)
+        finally:
+            with self._pos_lock:
+                self._closing.discard(sym)
+
+    def _close_inner(self, sym: str, exit_price: float, now: datetime,
+                     reason: str) -> None:
+        st = self.states.get(sym)
+        mark = st.price if st and st.price > 0 else exit_price
+        with self._pos_lock:
+            pos = self.positions.get(sym)
+            if pos is None:
+                return
+        fill = self.broker.close(sym, pos.direction, exit_price, mark)
+        exit_price = fill.avg_px
+        funding_adj = self.broker.trade_funding_usdt(
+            sym, pos.direction, pos.size_usdt, accrued=0.0)
+
+        with self._pos_lock:
+            if sym not in self.positions:
+                return
+            pos = self.positions.pop(sym)
+            hold_h = (now - pos.entry_time).total_seconds() / 3600
+            final_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
+            pos.trajectory.append((round(hold_h, 1), round(final_bps, 1)))
+            gross_bps, net_bps, pnl = rules.compute_trade_pnl(
+                pos.direction, pos.entry_price, exit_price, pos.size_usdt,
+                self.p.cost_bps, funding_usdt=-funding_adj)
+            self._total_pnl += pnl
+            balance = self._capital + self._total_pnl
+            if balance > self._peak_balance:
+                self._peak_balance = balance
+            if pnl > 0:
+                self._wins += 1
+                self._consecutive_losses = 0
+            else:
+                self._consecutive_losses += 1
+            self._cooldowns[sym] = time.time() + self.p.cooldown_hours * 3600
+
+        trade = Trade(
+            symbol=sym, direction="LONG" if pos.direction == 1 else "SHORT",
+            strategy=pos.strategy,
+            entry_time=pos.entry_time.isoformat(), exit_time=now.isoformat(),
+            entry_price=pos.entry_price, exit_price=exit_price,
+            hold_hours=round(hold_h, 1), size_usdt=pos.size_usdt,
+            signal_info=pos.signal_info,
+            gross_bps=round(gross_bps, 1), net_bps=round(net_bps, 1),
+            pnl_usdt=round(pnl, 2),
+            mae_bps=round(pos.mae_bps, 1), mfe_bps=round(pos.mfe_bps, 1),
+            reason=reason,
+            entry_oi_delta=pos.entry_oi_delta, entry_crowding=pos.entry_crowding,
+            entry_confluence=pos.entry_confluence, entry_session=pos.entry_session,
+            funding_usdt=round(funding_adj, 4))
+        self.trades.append(trade)
+        persistence.write_trade(trade, self.db)
+        persistence.write_trajectory(sym, pos, self.db)
+        self.db.log_event("CLOSE", sym, {
+            "strategy": pos.strategy, "dir": trade.direction,
+            "exit_price": round(exit_price, 6), "hold_h": round(hold_h, 1),
+            "gross_bps": round(gross_bps, 1), "net_bps": round(net_bps, 1),
+            "pnl_usdt": round(pnl, 2), "mae_bps": round(pos.mae_bps, 1),
+            "mfe_bps": round(pos.mfe_bps, 1), "reason": reason})
+
+        n = len(self.trades)
+        balance = self._capital + self._total_pnl
+        wr = self._wins / n * 100 if n > 0 else 0
+        arrow = "✓" if pnl > 0 else "✗"
+        log.info("[%s] %s %s %s %s | %.0fh | %s | gross %+.1f | net %+.1f | "
+                 "$%+.2f | mae %+.0f | mfe %+.0f | bal $%.0f (#%d %.0f%%)",
+                 self.id, arrow, pos.strategy, trade.direction, sym, hold_h,
+                 reason, gross_bps, net_bps, pnl, pos.mae_bps, pos.mfe_bps,
+                 balance, n, wr)
+        emoji = "🟩" if pnl > 0 else "🟥"
+        self.notifier.send(
+            f"{emoji} CLOSE {pos.strategy} {trade.direction} {sym} | "
+            f"{net_bps:+.0f} bps | ${pnl:+.2f} | bal ${balance:.0f}",
+            category="trade")
+        self._save_state()
+
+    def close_and_check(self, sym: str, exit_price: float, now, reason: str) -> bool:
+        """Close + report success via _failed_closes (canonical check)."""
+        self.close_position(sym, exit_price, now, reason)
+        return sym not in self._failed_closes
+
+    # ── Entries (4h-boundary scans) ──────────────────────────────────
+
+    def _build_token_signals(self, now: datetime, btc_f: dict,
+                             cross_ctx: dict) -> list:
+        """Per-token detection. Mirrors bot.py:_build_token_signals (v12.17.3)
+        — same SKIP/S9F_OBS observability events, shared detection code."""
+        import numpy as np
+        all_signals: list = []
+        for sym in self.p.trade_symbols:
+            if sym in self.positions:
+                self.db.log_event("SKIP", sym, {"reason": "already_in_position"})
+                continue
+            if sym in self._cooldowns and time.time() < self._cooldowns[sym]:
+                self.db.log_event("SKIP", sym, {
+                    "reason": "cooldown",
+                    "expires_at": int(self._cooldowns[sym]),
+                    "remaining_h": round((self._cooldowns[sym] - time.time()) / 3600, 2)})
+                continue
+            f = self._feature_cache.get(sym) or self._compute_features(sym)
+            if not f:
+                continue
+            st = self.states.get(sym)
+            if not st or st.price == 0:
+                continue
+
+            oi_f = self._compute_oi_features(sym)
+            crowd = self._compute_crowding_score(sym, oi_f=oi_f)
+            sd = self._compute_sector_divergence(sym)
+            sq = self._detect_squeeze(sym)
+
+            sym_sector = self.token_sector.get(sym, "?")
+            sect_stress = cross_ctx["stress_by_sector"].get(sym_sector, 0)
+            dd = abs(f.get("drawdown", 0))
+            shock = round(abs(f.get("ret_24h", 0)) / dd, 2) if dd > 100 else 0
+            r24 = abs(f.get("ret_24h", 0))
+            clean = round(f.get("range_pct", 0) / r24, 2) if r24 > 50 else 0
+            _sect = self.token_sector.get(sym)
+            _peers = ([self._feature_cache.get(pp) for pp in self.p.sectors.get(_sect, [])
+                       if pp != sym] if _sect else [])
+            _peer_rets = [abs(pf.get("ret_42h", 0)) for pf in _peers if pf]
+            _peer_avg = np.mean(_peer_rets) if _peer_rets else 0
+            lead = round(abs(f.get("ret_42h", 0)) / _peer_avg, 1) if _peer_avg > 100 else 0
+            conf = int(sum([
+                abs(f.get("drawdown", 0)) > 3000, f.get("vol_z", 0) > 1.5,
+                abs(f.get("ret_24h", 0)) > 200, cross_ctx["n_stress_global"] >= 5,
+                oi_f["oi_delta_1h"] < -1.0]))
+            _h = now.hour
+            _session = ("Asia" if _h < 8 else "EU" if _h < 14
+                        else "US" if _h < 21 else "Night")
+            if now.weekday() >= 5:
+                _session = "WE"
+            oi_tag = (f" OI1h={oi_f['oi_delta_1h']:+.1f}% CS={crowd}"
+                      f" str={cross_ctx['n_stress_global']}/{sect_stress}"
+                      f" disp={cross_ctx['disp_24h']:.0f}/{cross_ctx['disp_7d']:.0f}"
+                      f" shk={shock:.2f} cln={clean:.1f} lead={lead:.1f}"
+                      f" conf={conf} ses={_session}")
+            entry_ctx = {"oi_delta": oi_f["oi_delta_1h"], "crowding": crowd,
+                         "confluence": conf, "session": _session}
+
+            token_sigs = signals.detect_token_signals(
+                sym, f, btc_f, sd, sq, oi_tag, entry_ctx, self.p)
+            token_sigs = [s for s in token_sigs
+                          if s["strategy"] in self.p.enabled_strategies]
+            all_signals.extend(token_sigs)
+
+            s9f = signals.check_s9f_observation(st.price_ticks, st.price)
+            if s9f:
+                self.db.log_event("S9F_OBS", sym, s9f)
+        return all_signals
+
+    def _rank_and_enter(self, sigs: list, now: datetime, m: rules.MarketCtx) -> int:
+        """Sort by z, apply the shared gates, open positions via the broker.
+        Mirrors trading.rank_and_enter (v12.17.3) wired on rules.py."""
+        sigs.sort(key=lambda s: (s["z"], s["strength"]), reverse=True)
+        with self._pos_lock:
+            pos_snapshot = list(self.positions.values())
+        c = rules.PortfolioCounters(
+            n_total=len(pos_snapshot),
+            n_longs=sum(1 for p in pos_snapshot if p.direction == 1),
+            n_shorts=sum(1 for p in pos_snapshot if p.direction == -1),
+            n_macro=sum(1 for p in pos_snapshot if p.strategy in self.p.macro_strategies),
+            n_token=sum(1 for p in pos_snapshot if p.strategy not in self.p.macro_strategies))
+        for _p in pos_snapshot:
+            _s = self.token_sector.get(_p.symbol)
+            if _s:
+                c.sector_counts[_s] = c.sector_counts.get(_s, 0) + 1
+
+        entries = 0
+        seen: set[str] = set()
+        capital = self._capital + self._total_pnl
+        for sig in sigs:
+            sym = sig["symbol"]
+            side = "LONG" if sig["direction"] == 1 else "SHORT"
+            if sym in seen:
+                continue
+            seen.add(sym)
+            st = self.states.get(sym)
+            oi_d = features.oi_delta_24h_bps(st.oi_history) if st else None
+            reason = rules.entry_skip_reason(
+                sig, c, m, self.p, capital, self.token_sector,
+                in_position=sym in self.positions,
+                in_cooldown=sym in self._cooldowns and time.time() < self._cooldowns[sym],
+                paused=(sig["strategy"], side) in self._paused_strats,
+                oi_delta_24h=oi_d, check_size_floor=True)
+            if reason == "max_positions":
+                self.db.log_event("SKIP", sym, {"strategy": sig["strategy"],
+                                                "dir": side, "reason": reason})
+                break
+            if reason in ("already in position", "cooldown"):
+                continue  # already logged at signal-building stage
+            if reason:
+                self.db.log_event("SKIP", sym, {"strategy": sig["strategy"],
+                                                "dir": side, "reason": reason})
+                continue
+            if not st or st.price <= 0:
+                continue
+            with self._pos_lock:
+                if sym in self._inflight_open:
+                    continue
+
+            size = rules.position_size(sig["strategy"], sig["direction"],
+                                       capital, self._btc_z, self.p)
+            mult = rules.modulator_mult(sig["strategy"], sig["direction"],
+                                        self._btc_z, self.p)
+            hold_h = sig.get("hold_hours", self.p.hold_hours_default)
+            target_exit = now + timedelta(hours=hold_h)
+            fill = self.broker.open(sym, sig["direction"], size, st.price)
+            entry_price, filled_size = fill.avg_px, fill.size_usdt
+
+            ctx = sig.get("ctx", {})
+            with self._pos_lock:
+                self.positions[sym] = Position(
+                    symbol=sym, direction=sig["direction"],
+                    strategy=sig["strategy"],
+                    entry_price=entry_price, entry_time=now,
+                    size_usdt=filled_size, signal_info=sig["info"],
+                    target_exit=target_exit,
+                    trajectory=[(0.0, 0.0)],
+                    stop_bps=sig.get("stop_bps", 0.0),
+                    entry_oi_delta=float(ctx.get("oi_delta", 0.0)),
+                    entry_crowding=int(ctx.get("crowding", 0) or 0),
+                    entry_confluence=int(ctx.get("confluence", 0) or 0),
+                    entry_session=ctx.get("session", "") or "")
+            esi = features.compute_entry_side_imbalance(
+                sig["direction"], st.price, st.impact_bid, st.impact_ask)
+            self.db.log_event("OPEN", sym, {
+                "strategy": sig["strategy"], "dir": side,
+                "entry_price": round(entry_price, 6),
+                "size_usdt": round(filled_size, 2),
+                "target_exit": target_exit.isoformat(),
+                "stop_bps": round(sig.get("stop_bps", 0.0), 1),
+                "btc_z": round(self._btc_z, 3) if self._btc_z is not None else None,
+                "mult": round(mult, 3) if mult is not None else None,
+                "basket_effective_n": (self._basket_metrics or {}).get("effective_n"),
+                "entry_side_imbalance": esi["esi"] if esi else None})
+            self.notifier.send(
+                f"🟢 OPEN {sig['strategy']} {side} {sym} @ ${entry_price:.4f} | ${filled_size:.0f}",
+                category="trade")
+
+            c.n_total += 1
+            if sig["direction"] == 1:
+                c.n_longs += 1
+            else:
+                c.n_shorts += 1
+            if sig["strategy"] in self.p.macro_strategies:
+                c.n_macro += 1
+            else:
+                c.n_token += 1
+            _sect = self.token_sector.get(sym)
+            if _sect:
+                c.sector_counts[_sect] = c.sector_counts.get(_sect, 0) + 1
+            entries += 1
+            log.info("[%s] → %s %s %s @ $%.4f | %s | $%.0f | exit ~%s | %d/%d pos",
+                     self.id, sig["strategy"], side, sym, entry_price, sig["info"],
+                     filled_size, target_exit.strftime("%m-%d %H:%M"),
+                     c.n_total, self.p.max_positions)
+        return entries
+
+    def on_scan(self, now: datetime | None = None) -> int:
+        """Hourly scan: alerts always; entries gated to 4h boundaries.
+        Mirrors bot.py:_scan_and_trade (v12.17.3)."""
+        now = now or datetime.now(timezone.utc)
+        snap = self.master.snapshot
+        if snap is None:
+            return 0
+        self._last_scan = time.time()
+        self._btc_z = snap.btc_z
+        cross_ctx = snap.cross_ctx
+        btc_f = snap.btc_f
+
+        alerts.run_all(self, cross_ctx)
+
+        # Daily Telegram digest at 00 UTC
+        if now.hour == 0 and time.time() - self._last_daily_report > 43200:
+            try:
+                from .web import views
+                self.notifier.send(views.build_daily_summary(self), category="daily")
+                self._last_daily_report = time.time()
+            except Exception as e:
+                log.warning("[%s] daily summary failed: %s", self.id, e)
+
+        if self._paused:
+            return 0
+
+        # Defensive: never consume the 4h gate without live prices (the gate
+        # marks the period as evaluated — burning it on empty data would skip
+        # the period's entries entirely).
+        if not self.master.last_price_fetch:
+            return 0
+
+        # 4h candle alignment gate (v12.9.0) — entries at most once per period
+        now_ts = int(time.time())
+        last_4h_close = (now_ts // 14400) * 14400
+        if self._last_entry_scan_4h_close >= last_4h_close:
+            return 0
+        self._last_entry_scan_4h_close = last_4h_close
+
+        with self._pos_lock:
+            pos_for_basket = dict(self.positions)
+        self._basket_metrics = features.compute_basket_correlation(
+            pos_for_basket, self.states)
+        persistence.log_basket_snapshot(self._basket_metrics, self.db)
+
+        m = self._market_ctx()
+        sigs = self._build_token_signals(now, btc_f, cross_ctx)
+        signals.track_signal_age(sigs, self._signal_first_seen, time.time())
+        n_new = self._rank_and_enter(sigs, now, m)
+        self._save_state()
+        return n_new
+
+    # ── Safe wrappers (scheduler entry points) ───────────────────────
+
+    def safe_on_tick(self) -> None:
+        if self.status == "stopped":
+            return
+        try:
+            if self.on_tick():
+                self._save_state()
+            if self.status == "error":
+                self.status = "running"
+        except Exception:
+            log.exception("[%s] on_tick failed", self.id)
+            self.status = "error"
+
+    def safe_on_scan(self) -> None:
+        if self.status == "stopped":
+            return
+        try:
+            n = self.on_scan()
+            if n:
+                log.info("[%s] opened %d new positions", self.id, n)
+            if self.status == "error":
+                self.status = "running"
+        except Exception:
+            log.exception("[%s] on_scan failed", self.id)
+            self.status = "error"
+            self.notifier.send(f"💥 [{self.label}] scan error — bot en statut error, "
+                               f"voir alfred.log", category="system")

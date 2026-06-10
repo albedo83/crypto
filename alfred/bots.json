@@ -1,0 +1,14 @@
+{
+  "_comment": "Configuration des bots Alfred. Secrets = NOMS de variables .env, jamais de valeurs. overrides = champs de settings.Params (clé inconnue = erreur fatale au boot). Max 8 bots enabled.",
+  "bots": [
+    {
+      "id": "paper",
+      "label": "PAPER-ALFRED",
+      "color": "#58a6ff",
+      "mode": "paper",
+      "capital_initial": 1000,
+      "overrides": {},
+      "enabled": true
+    }
+  ]
+}

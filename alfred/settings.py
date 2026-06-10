@@ -168,6 +168,10 @@ class Params:
 
     # ── Timing ───────────────────────────────────────────────────────
     cooldown_hours: float = 24.0
+    scan_interval: float = 3600.0
+
+    # ── Per-bot strategy enablement (bots.json overrides) ────────────
+    enabled_strategies: frozenset[str] = frozenset({"S1", "S5", "S8", "S9", "S10"})
 
     # ── Paper engine (phase 7 corrections — shipped OFF) ─────────────
     paper_slippage_bps: float = 0.0           # 4.0 once phase 7 activates
@@ -211,3 +215,81 @@ class Params:
 
 
 DEFAULT_PARAMS = Params()
+
+
+# ── Per-bot configuration (bots.json) ─────────────────────────────────
+
+MAX_BOTS = 8
+
+
+@dataclass(frozen=True)
+class BotConfig:
+    """One bots.json entry. Secrets are NEVER stored here — only the names
+    of the .env variables holding them (resolved at broker init)."""
+    id: str
+    label: str
+    mode: str                      # "paper" | "live"
+    color: str = ""
+    private_key_env: str = ""      # env var name holding the signer key
+    account_address: str = ""      # master wallet (agent model); "" = key IS wallet
+    capital_initial: float = 1000.0
+    capital_cap: float = 0.0       # 0 = no cap (replaces JUNIOR_CAPITAL_CAP)
+    tg_token_env: str = ""
+    tg_chat_id_env: str = ""
+    tg_categories: str = "*"
+    public_url: str = ""
+    enabled: bool = True
+    start_paused: bool = False
+    overrides: dict = field(default_factory=dict)
+
+    def params(self, base: Params = DEFAULT_PARAMS) -> Params:
+        ov = dict(self.overrides)
+        # JSON can't carry sets/tuples — coerce the common list-valued keys.
+        if "enabled_strategies" in ov:
+            ov["enabled_strategies"] = frozenset(ov["enabled_strategies"])
+        if "trade_blacklist" in ov:
+            ov["trade_blacklist"] = frozenset(ov["trade_blacklist"])
+        if "trade_symbols" in ov:
+            ov["trade_symbols"] = tuple(ov["trade_symbols"])
+        return base.with_overrides(ov)
+
+
+def load_bots_config(path: str) -> list[BotConfig]:
+    """Parse bots.json. Fatal on: unknown override key, duplicate id, > MAX_BOTS,
+    duplicate signer env among live bots (nonce safety)."""
+    import json as _json
+    with open(path) as fh:
+        raw = _json.load(fh)
+    bots: list[BotConfig] = []
+    for b in raw.get("bots", []):
+        tg = b.get("telegram", {}) or {}
+        cfg = BotConfig(
+            id=b["id"], label=b.get("label", b["id"].upper()),
+            mode=b.get("mode", "paper"), color=b.get("color", ""),
+            private_key_env=b.get("private_key_env", ""),
+            account_address=b.get("account_address", ""),
+            capital_initial=float(b.get("capital_initial", 1000.0)),
+            capital_cap=float(b.get("capital_cap", 0.0)),
+            tg_token_env=tg.get("token_env", ""),
+            tg_chat_id_env=tg.get("chat_id_env", ""),
+            tg_categories=tg.get("categories", "*"),
+            public_url=b.get("public_url", ""),
+            enabled=bool(b.get("enabled", True)),
+            start_paused=bool(b.get("start_paused", False)),
+            overrides=b.get("overrides", {}) or {},
+        )
+        if cfg.mode not in ("paper", "live"):
+            raise ValueError(f"bot {cfg.id}: mode must be paper|live")
+        cfg.params()  # validates override keys (raises on unknown)
+        bots.append(cfg)
+    enabled = [b for b in bots if b.enabled]
+    ids = [b.id for b in enabled]
+    if len(set(ids)) != len(ids):
+        raise ValueError(f"duplicate bot ids in {path}")
+    if len(enabled) > MAX_BOTS:
+        raise ValueError(f"{len(enabled)} enabled bots > MAX_BOTS={MAX_BOTS}")
+    signers = [b.private_key_env for b in enabled if b.mode == "live" and b.private_key_env]
+    if len(set(signers)) != len(signers):
+        raise ValueError("two live bots share the same private_key_env — "
+                         "same signer = nonce conflicts, refusing to start")
+    return enabled

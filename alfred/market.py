@@ -524,12 +524,12 @@ class MarketDataMaster:
             VALUES (?,?,?,?,?,?,?,?,?)""", rows)
 
     async def hourly_loop(self):
-        """Snapshot refresh + gap repair + WS audit + status line."""
+        """Data-health duties: gap repair + WS audit + status line. The
+        snapshot refresh + market_snapshots logging are owned by the
+        scheduler in __main__ (which also drives the bots' scan cadence)."""
         while self.running:
             try:
                 await self.repair_gaps("hourly")
-                self.snapshot = await asyncio.to_thread(self.build_snapshot)
-                await asyncio.to_thread(self.log_market_snapshot)
                 await self.audit_candles()
                 fresh = sum(1 for st in self.states.values()
                             if time.time() - st.updated_at < 120)

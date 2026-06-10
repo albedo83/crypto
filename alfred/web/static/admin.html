@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Alfred — Trading Bots</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif}
+.header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #21262d}
+.header h1{font-size:18px;font-weight:600}
+.header a{color:#7d8590;text-decoration:none;font-size:13px}
+.header a:hover{color:#e6edf3}
+
+/* Mobile tabs (carousel navigator) */
+.tabs{display:flex;gap:4px;padding:8px 12px;overflow-x:auto;border-bottom:1px solid #21262d;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{padding:6px 12px;border-radius:6px;background:transparent;color:#7d8590;cursor:pointer;font-size:13px;border:1px solid transparent;white-space:nowrap;display:inline-flex;align-items:center;gap:6px;font-weight:500}
+.tab.active{background:#161b22;color:#e6edf3;border-color:#30363d}
+.tab .dot{width:6px;height:6px;border-radius:50%;background:#484f58}
+.tab .dot.ok{background:#3fb950}
+.tab .dot.degraded{background:#d29922}
+.tab .dot.stale,.tab .dot.paused{background:#f85149}
+
+/* Mobile-first: horizontal carousel of one screen per bot */
+.screens{display:flex;overflow-x:auto;scroll-snap-type:x mandatory;scroll-behavior:smooth;scrollbar-width:none;padding:12px;gap:12px}
+.screens::-webkit-scrollbar{display:none}
+.screen{flex:0 0 100%;scroll-snap-align:center;background:#161b22;border:1px solid #30363d;border-top:3px solid #30363d;border-radius:12px;padding:14px;transition:border-color .2s}
+
+/* Screen header */
+.screen-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+.screen-title{font-size:16px;font-weight:600;display:inline-flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0}
+.status-dot.ok{background:#3fb950}
+.status-dot.degraded{background:#d29922}
+.status-dot.stale{background:#f85149}
+.status-dot.offline{background:#484f58}
+.status-dot.paused{background:#d29922;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.badges{display:flex;gap:5px;align-items:center;flex-shrink:0}
+.badge{padding:2px 8px;border-radius:10px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}
+.badge.live{background:#da363322;color:#f85149;border:1px solid #da363388}
+.badge.paper{background:#1f6feb22;color:#58a6ff;border:1px solid #1f6feb88}
+.badge.running{background:#23863622;color:#3fb950;border:1px solid #2ea04388}
+.badge.paused{background:#d2992222;color:#d29922;border:1px solid #d2992288}
+
+/* Stats grid: 4-col on mobile (compact), denser on desktop */
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+.stat{background:#0d1117;border-radius:6px;padding:7px 8px;min-width:0}
+.stat-label{font-size:9px;color:#7d8590;text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat-value{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stat-value.green{color:#3fb950}
+.stat-value.red{color:#f85149}
+.stat-value.blue{color:#58a6ff}
+.stat-value.tiny{font-size:11px}
+.stat-sub{font-size:9px;color:#7d8590;margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+/* Open positions mini-list */
+.section-title{font-size:10px;color:#7d8590;text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px;display:flex;justify-content:space-between;align-items:center}
+.pos-mini-empty{font-size:11px;color:#484f58;padding:6px 0;text-align:center;font-style:italic}
+.pos-mini-row{display:grid;grid-template-columns:auto auto auto 1fr auto auto;gap:8px;font-size:12px;padding:7px 8px 7px 6px;border-radius:5px;align-items:center;margin-bottom:3px;border-left:3px solid transparent;background:#0d1117}
+.pos-mini-row:last-child{margin-bottom:0}
+.pos-mini-row.pos-win{background:#3fb9501a;border-left-color:#3fb950}
+.pos-mini-row.pos-loss{background:#f851491a;border-left-color:#f85149}
+.pos-mini-row.pos-flat{background:#0d1117;border-left-color:#30363d}
+.pos-mini-sym{font-weight:600;min-width:36px;font-size:13px}
+.pos-mini-side{font-weight:700;font-size:10px;width:14px;text-align:center;border-radius:3px;padding:1px 0}
+.pos-mini-side.green{background:#3fb95044;color:#3fb950}
+.pos-mini-side.red{background:#f8514944;color:#f85149}
+.pos-mini-strat{color:#7d8590;font-size:10px;font-weight:500}
+.pos-mini-pnl{text-align:right;font-weight:700;font-size:13px}
+.pos-mini-pnl.green{color:#3fb950}
+.pos-mini-pnl.red{color:#f85149}
+.pos-mini-bps{color:#7d8590;font-size:10px;text-align:right;min-width:48px}
+.pos-mini-rem{font-size:13px;font-weight:700;text-align:right;min-width:42px;color:#c9d1d9;letter-spacing:.2px}
+.pos-mini-ms{font-size:10px;font-weight:700;color:#d29922;background:rgba(210,153,34,0.12);padding:1px 4px;border-radius:3px;border:1px solid rgba(210,153,34,0.30);white-space:nowrap}
+.pos-mini-rem.urgent{color:#f85149}
+.pos-mini-rem.soon{color:#d29922}
+.pos-mini-strip{grid-column:1/-1;height:10px;margin-top:4px}
+
+/* Active signals */
+.signals{font-size:11px;color:#7d8590;margin-bottom:10px;line-height:1.45;min-height:14px}
+.signals span{color:#c9d1d9}
+
+/* Footer */
+.screen-foot{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid #21262d;gap:6px;flex-wrap:wrap}
+.version{font-size:10px;color:#7d8590;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.btn-row{display:flex;gap:5px;flex-shrink:0}
+.btn-ctrl{background:#21262d;color:#e6edf3;border:1px solid #30363d;padding:5px 10px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;transition:all .15s;letter-spacing:.3px}
+.btn-ctrl:hover{background:#30363d;border-color:#58a6ff}
+.btn-ctrl.stop{background:#da3633;color:#fff;border-color:#f85149}
+.btn-ctrl.stop:hover{background:#b62324}
+.btn-ctrl.resume{background:#238636;color:#fff;border-color:#2ea043}
+.btn-ctrl.resume:hover{background:#1a6b2a}
+.btn-ctrl.raz{color:#f85149}
+.btn-ctrl.raz:hover{background:#da363322;border-color:#f85149}
+.btn-open{background:#238636;color:#fff;border:none;padding:5px 12px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
+.btn-open:hover{background:#2ea043}
+
+.offline-card{opacity:.55}
+.offline-msg{text-align:center;padding:40px 14px;color:#484f58;font-size:13px}
+
+/* Dedicated "controls" screen — destructive actions isolated to avoid mis-tap */
+.screen.controls-screen{border-top:3px solid #f85149;background:#1a0d0d}
+.controls-warning{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#f8514922;border:1px solid #f85149;border-radius:6px;margin-bottom:14px;font-size:12px;color:#f85149;font-weight:600}
+.controls-warning::before{content:'⚠';font-size:18px}
+.controls-row{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#0d1117;border:1px solid #30363d;border-radius:6px;margin-bottom:6px;gap:10px}
+.controls-row .label-block{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
+.controls-row .label-block .name{font-size:14px;font-weight:600}
+.controls-row .label-block .meta{font-size:11px;color:#7d8590}
+.controls-row .btn-row{flex-shrink:0;display:flex;gap:6px}
+.tab.tab-ctrl{color:#f85149;border-color:#f8514944}
+.tab.tab-ctrl.active{background:#f851491a;border-color:#f85149}
+
+/* Desktop: 3-col grid, no carousel, no tabs */
+@media(min-width:900px){
+  body{padding:6px 0}
+  .tabs{display:none}
+  .screens{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));overflow:visible;scroll-snap-type:none;padding:16px}
+  .screen{flex:initial;scroll-snap-align:none;padding:18px}
+  .stats{grid-template-columns:repeat(4,1fr)}
+}
+
+/* Tiny phones: tighten padding, allow 3-col stats so we don't waste vertical room */
+@media(max-width:380px){
+  .screen{padding:11px}
+  .screens{padding:10px;gap:10px}
+  .stat-value{font-size:13px}
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Alfred — Trading Bots</h1>
+  <div style="display:flex;gap:14px;align-items:center">
+    <a href="logout">Logout</a>
+  </div>
+</div>
+
+<div class="tabs" id="bot-tabs"></div>
+<div class="screens" id="bot-screens">
+  <div class="offline-msg">Loading…</div>
+</div>
+
+<script>
+function fmt(v,d=2){return (v>=0?'+':'')+v.toFixed(d)}
+function fmtTime(s){
+  if(!s||s<0)return '--';
+  const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);
+  if(d>0)return d+'d '+h+'h';
+  if(h>0)return h+'h '+m+'m';
+  return m+'m';
+}
+function cls(v){return v>=0?'green':'red'}
+
+// Position strip viz — same idea as the bot dashboard, scaled down for admin.
+function positionStrip(p,w=240,h=12){
+  if(p.stop_bps===undefined||p.stop_bps==null||p.stop_bps>=0)return '';
+  const stopBps=p.stop_bps,mfe=p.mfe_bps||0,cur=p.unrealized_bps||0,mae=p.mae_bps||0;
+  const right=Math.max(mfe+100,500);
+  const left=stopBps;
+  const range=Math.max(right-left,100);
+  const xOf=v=>Math.max(0,Math.min(1,(v-left)/range));
+  const x=v=>(xOf(v)*w).toFixed(1);
+  const xZero=x(0),xCur=x(cur),xMae=x(mae),xMfe=x(mfe);
+  const xTrail=p.trailing_active&&p.trailing_floor_bps!=null?x(p.trailing_floor_bps):null;
+  const curCol=cur>=0?'#3fb950':(cur>=stopBps*0.5?'#d29922':'#f85149');
+  const id='ms-'+p.symbol+'-'+Math.floor(Math.random()*9999);
+  let svg=`<svg class="pos-mini-strip" width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
+  svg+=`<defs><linearGradient id="${id}" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#f85149" stop-opacity="0.22"/><stop offset="${(xOf(0)*100).toFixed(0)}%" stop-color="#30363d" stop-opacity="0.4"/><stop offset="100%" stop-color="#3fb950" stop-opacity="0.22"/></linearGradient></defs>`;
+  svg+=`<rect x="0" y="${h/2-1.5}" width="${w}" height="3" rx="1.5" fill="url(#${id})"/>`;
+  svg+=`<line x1="0.5" y1="1" x2="0.5" y2="${h-1}" stroke="#f85149" stroke-width="1.2"/>`;
+  svg+=`<line x1="${xZero}" y1="2" x2="${xZero}" y2="${h-2}" stroke="#7d8590" stroke-width="0.8"/>`;
+  if(mae<-20)svg+=`<circle cx="${xMae}" cy="${h-1.5}" r="1.8" fill="#f85149" opacity="0.85"/>`;
+  if(mfe>20)svg+=`<circle cx="${xMfe}" cy="1.5" r="1.8" fill="#3fb950" opacity="0.85"/>`;
+  if(xTrail!==null)svg+=`<line x1="${xTrail}" y1="2" x2="${xTrail}" y2="${h-2}" stroke="#d29922" stroke-width="1.2" stroke-dasharray="2,2"/>`;
+  svg+=`<line x1="${xCur}" y1="0.5" x2="${xCur}" y2="${h-0.5}" stroke="${curCol}" stroke-width="1.6"/>`;
+  svg+=`</svg>`;
+  return svg;
+}
+
+function renderPositions(positions){
+  if(!positions||!positions.length)return '<div class="pos-mini-empty">No open positions</div>';
+  return positions.map(p=>{
+    const sideClass=p.direction==='LONG'?'green':'red';
+    const sideTxt=p.direction==='LONG'?'L':'S';
+    const pnlClass=cls(p.pnl_usdt);
+    // Row-level win/loss tint: $0.10 threshold to ignore micro-noise
+    const rowClass=p.pnl_usdt>0.1?'pos-win':(p.pnl_usdt<-0.1?'pos-loss':'pos-flat');
+    const bpsSign=p.unrealized_bps>=0?'+':'';
+    const rh=p.remaining_hours||0;
+    // Urgency on remaining time: red ≤ 6h, yellow ≤ 12h, default otherwise
+    const remClass=rh<=6?'urgent':(rh<=12?'soon':'');
+    const rem=p.remaining||(Math.floor(rh)+'h');
+    const tooltipParts=[`stop ${p.stop_bps}`,`mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}`,`cur ${p.unrealized_bps>=0?'+':''}${p.unrealized_bps.toFixed(0)}`,`mfe ${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}`];
+    if(p.trailing_active)tooltipParts.push('trail '+(p.trailing_floor_bps>=0?'+':'')+p.trailing_floor_bps);
+    // v12.13.9: surface manual_stop in admin view (was hidden — visible only in bot dashboard)
+    const msUsdt=p.manual_stop_usdt;
+    const msBadge=(msUsdt!=null)?`<span class="pos-mini-ms" title="Manual stop : ferme si unrealized ≤ $${msUsdt.toFixed(2)}">🎯$${msUsdt.toFixed(0)}</span>`:'';
+    if(msUsdt!=null)tooltipParts.push(`manual_stop $${msUsdt.toFixed(2)}`);
+    const tooltip=tooltipParts.join(' | ')+' bps · '+rem+' left';
+    return `<div class="pos-mini-row ${rowClass}" title="${tooltip}">
+      <span class="pos-mini-sym">${p.symbol}</span>
+      <span class="pos-mini-side ${sideClass}">${sideTxt}</span>
+      <span class="pos-mini-strat">${p.strategy||'?'}</span>
+      <span class="pos-mini-pnl ${pnlClass}">${fmt(p.pnl_usdt,2)}</span>
+      <span class="pos-mini-bps">${bpsSign}${(p.unrealized_bps||0).toFixed(0)}bp</span>
+      ${msBadge}
+      <span class="pos-mini-rem ${remClass}">${rem}</span>
+      ${positionStrip(p)}
+    </div>`;
+  }).join('');
+}
+
+let _activeIdx=0;
+function setActiveTab(idx){
+  _activeIdx=idx;
+  document.querySelectorAll('.tab').forEach((t,i)=>t.classList.toggle('active',i===idx));
+}
+function jumpTo(idx){
+  const screens=document.getElementById('bot-screens');
+  const target=screens.children[idx];
+  if(target)screens.scrollTo({left:target.offsetLeft-screens.offsetLeft,behavior:'smooth'});
+  setActiveTab(idx);
+}
+
+function renderBots(bots){
+  const tabs=document.getElementById('bot-tabs');
+  const grid=document.getElementById('bot-screens');
+  if(!bots.length){grid.innerHTML='<div class="offline-msg">No bots configured</div>';tabs.innerHTML='';return}
+
+  // Tabs (mobile only via CSS) — bots + dedicated "Controles" tab at end
+  const ctrlIdx=bots.length;  // index of the controls screen
+  tabs.innerHTML=bots.map((b,i)=>{
+    const dotClass=b.online?(b.paused?'paused':(b.status||'offline')):'offline';
+    return `<button class="tab${i===_activeIdx?' active':''}" onclick="jumpTo(${i})"><span class="dot ${dotClass}"></span>${b.label}</button>`;
+  }).join('') + `<button class="tab tab-ctrl${_activeIdx===ctrlIdx?' active':''}" onclick="jumpTo(${ctrlIdx})">⚠ Controles</button>`;
+
+  // Screens
+  grid.innerHTML=bots.map(b=>{
+    const online=b.online;
+    const status=b.paused?'paused':(b.status||'offline');
+    const balance=b.balance||0;
+    const capital=b.capital||0;
+    const wr=b.win_rate?Math.round(b.win_rate*100):0;
+    const dd=b.drawdown_pct||0;
+    const ddClass=dd<-1?'red':(dd<0?'':'green');
+    const ea=b.exchange_account;
+    // v12.7.4: align with live dashboard formulas.
+    // - Equity = ea.equity minus estimated close-side fees (~9 bps × open notional)
+    //   = "if I close everything now". Falls back to balance when ea is absent.
+    // - P&L = realized + unrealized = ea.equity - capital (when ea available).
+    //   Otherwise the realized-only total_pnl is the best estimate.
+    const closeFeesEst=(b.positions||[]).reduce((a,p)=>a+(p.size_usdt||0)*0.0009,0);
+    const equity=ea?(ea.equity-closeFeesEst):balance;
+    const pnl=ea?(ea.equity-capital):(b.total_pnl||0);
+    const pnlPct=capital>0?(pnl/capital*100):0;
+    const stateBadge=online?(b.paused?'<span class="badge paused">paused</span>':'<span class="badge running">running</span>'):'';
+    const borderStyle=online&&b.bot_label_color?`style="border-top-color:${b.bot_label_color}"`:'';
+    const sigs=online&&b.active_signals&&b.active_signals.length?b.active_signals.map(s=>`<span>${s}</span>`).join(' &middot; '):'<i>No active signals</i>';
+
+    const stats=online?`
+      <div class="stat">
+        <div class="stat-label">Equity</div>
+        <div class="stat-value">$${equity.toFixed(0)}</div>
+        ${ea?`<div class="stat-sub ${ea.unrealized>=0?'green':'red'}">${fmt(ea.unrealized,0)} unr.</div>`:''}
+      </div>
+      <div class="stat">
+        <div class="stat-label">P&L</div>
+        <div class="stat-value ${cls(pnl)}">${fmt(pnl,0)}</div>
+        <div class="stat-sub ${cls(pnlPct)}">${fmt(pnlPct,1)}%</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">DD</div>
+        <div class="stat-value ${ddClass}">${fmt(dd,1)}%</div>
+        <div class="stat-sub">peak $${(b.peak_balance||0).toFixed(0)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Pos</div>
+        <div class="stat-value blue">${b.n_positions||0}/${b.max_positions||6}</div>
+        ${ea?`<div class="stat-sub">marg $${ea.margin_used.toFixed(0)}</div>`:''}
+      </div>
+      <div class="stat">
+        <div class="stat-label">WR</div>
+        <div class="stat-value">${wr}%</div>
+        <div class="stat-sub">${b.total_trades||0} trades</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Capital</div>
+        <div class="stat-value">$${capital.toFixed(0)}</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Uptime</div>
+        <div class="stat-value tiny">${fmtTime(b.uptime_s)}</div>
+        ${b.first_trade_date?`<div class="stat-sub">since ${new Date(b.first_trade_date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</div>`:''}
+      </div>
+      <div class="stat">
+        <div class="stat-label">${ea?'Available':'Price age'}</div>
+        <div class="stat-value tiny">${ea?'$'+ea.available.toFixed(0):(b.price_age_s!==undefined?Math.floor(b.price_age_s)+'s':'--')}</div>
+        ${ea&&ea.taker_fees!==undefined?`<div class="stat-sub red">fees $${ea.taker_fees.toFixed(0)}</div>`:''}
+      </div>
+    `:'<div class="offline-msg" style="grid-column:1/-1">Bot offline</div>';
+
+    return `<div class="screen ${online?'':'offline-card'}" ${borderStyle}>
+      <div class="screen-head">
+        <span class="screen-title">
+          <span class="status-dot ${online?status:'offline'}"></span>
+          ${b.label}
+        </span>
+        <span class="badges">
+          <span class="badge ${b.mode}">${b.mode}</span>
+          ${stateBadge}
+        </span>
+      </div>
+      <div class="stats">${stats}</div>
+      ${online?`
+        <div class="section-title">Open positions <span style="font-weight:400">${(b.positions||[]).length}/${b.max_positions||6}</span></div>
+        ${renderPositions(b.positions)}
+        <div class="section-title">Active signals</div>
+        <div class="signals">${sigs}</div>
+      `:''}
+      <div class="screen-foot">
+        <span class="version">${online?'v'+(b.version||'?'):(b.error||'erreur')}</span>
+        <div class="btn-row">
+          <a class="btn-open" href="bot/${b.id}/">Open</a>
+        </div>
+      </div>
+    </div>`;
+  }).join('') + renderControlsScreen(bots);
+
+  // Re-apply active scroll position after re-render so the user doesn't lose place.
+  if(_activeIdx>0&&_activeIdx<bots.length){
+    const target=grid.children[_activeIdx];
+    if(target&&window.matchMedia('(max-width:899px)').matches){
+      grid.scrollLeft=target.offsetLeft-grid.offsetLeft;
+    }
+  }
+  setActiveTab(_activeIdx);
+}
+
+function renderControlsScreen(bots){
+  // Dedicated screen at the end of the carousel for destructive actions
+  // (STOP / RESUME / RAZ). Isolated to avoid mis-tap on the per-bot cards.
+  const rows=bots.map(b=>{
+    if(!b.online){
+      return `<div class="controls-row" style="opacity:.5">
+        <div class="label-block"><span class="status-dot offline"></span>
+        <div><div class="name">${b.label}</div><div class="meta">erreur — voir alfred.log</div></div></div>
+      </div>`;
+    }
+    const stateLabel=b.paused?'<span class="badge paused">paused</span>':'<span class="badge running">running</span>';
+    const dotClass=b.paused?'paused':(b.status||'ok');
+    const stopOrResume=b.paused
+      ? `<button class="btn-ctrl resume" onclick="if(confirm('RESUME ${b.label} — re-enable new entries?'))ctrlBot('${b.id}','resume_entries','${b.label}')">RESUME</button>`
+      : `<button class="btn-ctrl stop" onclick="if(confirm('STOP ${b.label} — block new entries (existing positions stay open)?'))ctrlBot('${b.id}','halt_entries','${b.label}')">STOP</button>`;
+    const raz=`<button class="btn-ctrl raz" onclick="if(confirm('⚠ RAZ ${b.label} — close ALL positions and reset state. Vraiment continuer ?'))ctrlBot('${b.id}','reset','${b.label}')">RAZ</button>`;
+    return `<div class="controls-row">
+      <div class="label-block">
+        <span class="status-dot ${dotClass}"></span>
+        <div><div class="name">${b.label} ${stateLabel}</div>
+        <div class="meta">${b.n_positions||0} pos · ${b.mode} · v${b.version||'?'}</div></div>
+      </div>
+      <div class="btn-row">${stopOrResume}${raz}</div>
+    </div>`;
+  }).join('');
+  return `<div class="screen controls-screen">
+    <div class="screen-head">
+      <span class="screen-title" style="color:#f85149">⚠ Controles</span>
+      <span class="badges"><span class="badge" style="background:#f8514922;color:#f85149;border:1px solid #f85149">DESTRUCTIVE</span></span>
+    </div>
+    <div class="controls-warning">Actions destructives — bouge-toi de cet ecran si tu n'es pas sur</div>
+    ${rows}
+    <div class="screen-foot" style="border-color:#f8514933;margin-top:10px">
+      <span class="version">STOP = bloque nouvelles entrees · RAZ = ferme tout + reset state</span>
+    </div>
+  </div>`;
+}
+
+function ctrlBot(id,action,label){
+  fetch('bot/'+id+'/api/'+action,{method:'POST',credentials:'same-origin'})
+    .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.json();})
+    .then(()=>refresh())
+    .catch(e=>alert(label+' '+action+' failed: '+e));
+}
+function refresh(){
+  fetch('api/admin',{credentials:'same-origin'}).then(r=>r.json()).then(renderBots).catch(e=>console.warn('fetch error:',e));
+}
+
+// Track which screen the user is currently viewing so refresh doesn't yank scroll.
+document.getElementById('bot-screens').addEventListener('scroll',()=>{
+  const screens=document.getElementById('bot-screens');
+  const idx=Math.round(screens.scrollLeft/screens.clientWidth);
+  if(idx!==_activeIdx&&idx>=0&&idx<screens.children.length)setActiveTab(idx);
+});
+
+refresh();
+setInterval(refresh,10000);
+</script>
+</body>
+</html>
