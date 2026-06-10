@@ -23,11 +23,14 @@ TG_BOT_TOKEN= TG_CHAT_ID= HL_ROOT_PATH=/paper CANDLE_FETCH_SLEEP=1.0 \
     nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
 echo "Paper bot started (PID: $!)"
 
-# Live bot (:8098) — served behind nginx at /bot/
-HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
-    BOT_PUBLIC_URL=https://echonym.fr/bot \
-    nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
-echo "Live bot started (PID: $!)"
+# Live bot legacy (:8098) — MIGRÉ VERS ALFRED le 2026-06-10 (bot "live" dans
+# alfred/bots.json, capital = equity $680.58, état legacy archivé dans
+# analysis/output_live/). Ne pas relancer : même clé HL_PRIVATE_KEY que le
+# bot Alfred live → double-trading + conflits de nonce.
+# HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_ROOT_PATH=/bot \
+#     BOT_PUBLIC_URL=https://echonym.fr/bot \
+#     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
+# echo "Live bot started (PID: $!)"
 
 # Junior bot (:8099) — paper mode until private key is set.
 # Separate credentials + own Telegram bot. Capital capped at JUNIOR_CAPITAL_CAP

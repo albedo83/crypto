@@ -30,8 +30,14 @@ Phases : **1 ✓** noyau pur (iso-résultat BT 32/32 fenêtres, `backtests/compa
 plusieurs jours (`python3 -m alfred.tools.compare_paper`, classification STATE/DATA/PREBOOT/
 CASCADE/ISO/LOGIC). Doctrine : la référence est la cohérence d'ALFRED, pas la duplication du
 legacy — une divergence justifiée par de meilleures données est une amélioration, pas un bug ·
-**4 ✓ code** LiveBroker (`alfred/hl.py` + `brokers.py`) — migration live gated sur la phase 3 ·
-**6** remise à zéro : acter les 14 divergences bot-vs-BT (`docs/alfred_divergences.md`) + retrait MKR ·
+**4 ✓ LIVE MIGRÉ (2026-06-10)** : le live tourne dans Alfred (bot `live` de `bots.json`,
+clé `HL_PRIVATE_KEY`, capital = equity $680.58, reset décidé par l'utilisateur sans attendre
+la gate phase 3 — 0 position legacy à la bascule). **Legacy :8098 ARRÊTÉ**, bloc commenté
+dans `start_bots.sh` — ne JAMAIS le relancer (même clé que Alfred live = double-trading +
+conflits de nonce). supervisor.py/strategy_review.py lisent encore les DB legacy live (à porter) ·
+**6 ✓** remise à zéro actée 2026-06-10 : BT aligned par défaut (`BACKTEST_LEGACY_SEMANTICS=1`
+= échappatoire), MKR retiré, `docs/backtests.md` re-baseliné (28m +1436% — anciens chiffres
+~34× inflatés archivés dans `docs/backtests_legacy_pre_phase6.md`) ·
 **7** corrections paper engine (slippage 4 bps, gap fills — flags dans settings.py, OFF).
 
 Couche données (2026-06-10) : table `candles` persistée dans market.db (store canonique,
@@ -41,7 +47,8 @@ Supervision : page **`/master`** (Système/Flotte/Admin — santé WS, expositio
 tous bots, lifecycle par bot, éditeur bots.json avec validation, journal d'audit).
 
 Mémoire long-terme : `memory/project_alfred_refacto.md`. Le restart d'Alfred suit la même
-règle que les bots legacy : **jamais sans OK explicite** (positions paper + parallel-run en cours).
+règle que les bots legacy : **jamais sans OK explicite** — d'autant plus critique depuis
+le 2026-06-10 : Alfred porte le bot LIVE (argent réel) en plus du paper parallel-run.
 
 ## Project Overview
 
@@ -49,7 +56,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 12.7.13). Paper dashboard on `:8097`, live on `:8098`, Junior on `:8099`, admin panel on `:8090`. **Alfred (la refacto) sur `:8101` — voir la section ci-dessus.**
+Version in `analysis/bot/config.py` `VERSION` constant (currently 12.7.13). Paper dashboard on `:8097`, Junior on `:8099`, Apprenti on `:8100`, admin panel on `:8090`. **Le LIVE est migré sur Alfred (:8101) depuis le 2026-06-10 — legacy :8098 arrêté définitivement.**
 
 ### Execution Modes
 

@@ -9,6 +9,17 @@
       "capital_initial": 1000,
       "overrides": {},
       "enabled": true
+    },
+    {
+      "id": "live",
+      "label": "LIVE-ALFRED",
+      "color": "#f0883e",
+      "mode": "live",
+      "private_key_env": "HL_PRIVATE_KEY",
+      "capital_initial": 680.58,
+      "telegram": {"token_env": "TG_BOT_TOKEN", "chat_id_env": "TG_CHAT_ID"},
+      "overrides": {},
+      "enabled": true
     }
   ]
 }
