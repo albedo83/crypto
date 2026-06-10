@@ -21,35 +21,98 @@ from dateutil.relativedelta import relativedelta  # type: ignore
 
 import numpy as np
 
-# Bot config — single source of truth. Import from the live bot so this
-# backtest automatically reflects any rule or parameter change.
-from analysis.bot.config import (
-    SIZE_PCT, SIZE_BONUS, STRAT_Z, SIGNAL_MULT, LIQUIDITY_HAIRCUT,
-    LEVERAGE, COST_BPS, TAKER_FEE_BPS, FUNDING_DRAG_BPS,
-    MAX_POSITIONS, MAX_SAME_DIRECTION, MAX_PER_SECTOR,
-    MAX_MACRO_SLOTS, MAX_TOKEN_SLOTS, MACRO_STRATEGIES, TOKEN_SECTOR, SECTORS,
-    STOP_LOSS_BPS, STOP_LOSS_S8, S9_EARLY_EXIT_BPS, S9_EARLY_EXIT_HOURS,
-    HOLD_HOURS_DEFAULT, HOLD_HOURS_S5, HOLD_HOURS_S8, HOLD_HOURS_S9, HOLD_HOURS_S10,
-    S5_DIV_THRESHOLD, S5_VOL_Z_MIN,
-    S8_DRAWDOWN_THRESH, S8_VOL_Z_MIN, S8_RET_24H_THRESH, S8_BTC_7D_THRESH,
-    S9_RET_THRESH, S9_ADAPTIVE_STOP, VERSION,
-    S10_SQUEEZE_WINDOW, S10_VOL_RATIO_MAX, S10_BREAKOUT_PCT, S10_REINT_CANDLES,
-    S10_ALLOW_LONGS, S10_ALLOWED_TOKENS,
-    S10_TRAILING_TRIGGER, S10_TRAILING_OFFSET,
-    OI_LONG_GATE_BPS, TRADE_BLACKLIST,
-    DISP_GATE_BPS, DISP_GATE_STRATEGIES,
-    RUNNER_EXT_STRATEGIES, RUNNER_EXT_HOURS,
-    RUNNER_EXT_MIN_MFE_BPS, RUNNER_EXT_MIN_CUR_TO_MFE,
-    ADAPTIVE_ALPHA, MACRO_LOOKBACK_DAYS, MACRO_Z_WINDOW_DAYS,
-    MACRO_Z_CLIP, MACRO_MULT_MIN, MACRO_MULT_MAX, get_adaptive_alpha,
-    S8_INLIFE_PARAMS, S8_INLIFE_Z_THRESHOLD,
-    S8_DEAD_T_H, S8_DEAD_MFE_MAX_BPS,
-    TRAJ_CUT_STRATEGIES, TRAJ_CUT_BTC_Z_THRESHOLD,
-    TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H, TRAJ_CUT_TIME_SINCE_MFE_MIN_H,
-    TRAJ_CUT_AT_MAE_SLACK_BPS, TRAJ_CUT_MIN_LOSS_BPS,
-    S9_EARLY_DEAD_T_H, S9_EARLY_DEAD_MFE_MAX_BPS,
-    BTC_DROP_CUT_RET_4H_BPS, BTC_DROP_CUT_UR_MAX_BPS,
-)
+# Alfred shared core — single source of truth for every rule and parameter.
+# The same rules/signals modules drive the live runtime; the historical
+# bot-vs-backtest re-implementations are gone (Alfred phase 1).
+import dataclasses as _dc
+
+from alfred.settings import DEFAULT_PARAMS
+from alfred import rules as _rules
+from alfred import signals as _alf_signals
+
+# Bot version label for the report header (the bot runtime still lives in
+# analysis/bot/ until Alfred phase 5 — this is the only remaining import).
+from analysis.bot.config import VERSION
+
+_P = DEFAULT_PARAMS
+
+# Module-level aliases: many research scripts import these names from
+# backtest_rolling (and the report builder uses them). Values come from
+# alfred Params — keep the names, change the source.
+TOKEN_SECTOR = _P.token_sector()
+SECTORS = _P.sectors
+SIZE_PCT, SIZE_BONUS = _P.size_pct, _P.size_bonus
+STRAT_Z = _P.strat_z
+SIGNAL_MULT = _P.signal_mult
+LIQUIDITY_HAIRCUT = _P.liquidity_haircut
+LEVERAGE = _P.leverage
+COST_BPS = _P.cost_bps
+TAKER_FEE_BPS = _P.taker_fee_bps
+FUNDING_DRAG_BPS = _P.funding_drag_bps
+MAX_POSITIONS = _P.max_positions
+MAX_SAME_DIRECTION = _P.max_same_direction
+MAX_PER_SECTOR = _P.max_per_sector
+MAX_MACRO_SLOTS = _P.max_macro_slots
+MAX_TOKEN_SLOTS = _P.max_token_slots
+MACRO_STRATEGIES = _P.macro_strategies
+STOP_LOSS_BPS = _P.stop_loss_bps
+STOP_LOSS_S8 = _P.stop_loss_s8
+S9_EARLY_EXIT_BPS = _P.s9_early_exit_bps
+S9_EARLY_EXIT_HOURS = _P.s9_early_exit_hours
+HOLD_HOURS_DEFAULT = _P.hold_hours_for("S1")
+HOLD_HOURS_S5 = _P.hold_hours_for("S5")
+HOLD_HOURS_S8 = _P.hold_hours_for("S8")
+HOLD_HOURS_S9 = _P.hold_hours_for("S9")
+HOLD_HOURS_S10 = _P.hold_hours_for("S10")
+S5_DIV_THRESHOLD = _P.s5_div_threshold
+S5_VOL_Z_MIN = _P.s5_vol_z_min
+S8_DRAWDOWN_THRESH = _P.s8_drawdown_thresh
+S8_VOL_Z_MIN = _P.s8_vol_z_min
+S8_RET_24H_THRESH = _P.s8_ret_24h_thresh
+S8_BTC_7D_THRESH = _P.s8_btc_7d_thresh
+S9_RET_THRESH = _P.s9_ret_thresh
+S9_ADAPTIVE_STOP = _P.s9_adaptive_stop
+S10_SQUEEZE_WINDOW = _P.s10_squeeze_window
+S10_VOL_RATIO_MAX = _P.s10_vol_ratio_max
+S10_BREAKOUT_PCT = _P.s10_breakout_pct
+S10_REINT_CANDLES = _P.s10_reint_candles
+S10_ALLOW_LONGS = _P.s10_allow_longs
+S10_ALLOWED_TOKENS = _P.s10_allowed_tokens
+S10_TRAILING_TRIGGER = _P.s10_trailing_trigger
+S10_TRAILING_OFFSET = _P.s10_trailing_offset
+OI_LONG_GATE_BPS = _P.oi_long_gate_bps
+TRADE_BLACKLIST = _P.trade_blacklist
+DISP_GATE_BPS = _P.disp_gate_bps
+DISP_GATE_STRATEGIES = _P.disp_gate_strategies
+RUNNER_EXT_STRATEGIES = _P.runner_ext_strategies
+RUNNER_EXT_HOURS = _P.runner_ext_hours
+RUNNER_EXT_MIN_MFE_BPS = _P.runner_ext_min_mfe_bps
+RUNNER_EXT_MIN_CUR_TO_MFE = _P.runner_ext_min_cur_to_mfe
+ADAPTIVE_ALPHA = _P.adaptive_alpha
+MACRO_LOOKBACK_DAYS = _P.macro_lookback_days
+MACRO_Z_WINDOW_DAYS = _P.macro_z_window_days
+MACRO_Z_CLIP = _P.macro_z_clip
+MACRO_MULT_MIN = _P.macro_mult_min
+MACRO_MULT_MAX = _P.macro_mult_max
+get_adaptive_alpha = _P.get_adaptive_alpha
+S8_INLIFE_PARAMS = _P.s8_inlife_params
+S8_INLIFE_Z_THRESHOLD = _P.s8_inlife_z_threshold
+S8_DEAD_T_H = _P.s8_dead_t_h
+S8_DEAD_MFE_MAX_BPS = _P.s8_dead_mfe_max_bps
+TRAJ_CUT_STRATEGIES = _P.traj_cut_strategies
+TRAJ_CUT_BTC_Z_THRESHOLD = _P.traj_cut_btc_z_threshold
+TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H = _P.traj_cut_decline_rate_min_bps_per_h
+TRAJ_CUT_TIME_SINCE_MFE_MIN_H = _P.traj_cut_time_since_mfe_min_h
+TRAJ_CUT_AT_MAE_SLACK_BPS = _P.traj_cut_at_mae_slack_bps
+TRAJ_CUT_MIN_LOSS_BPS = _P.traj_cut_min_loss_bps
+S9_EARLY_DEAD_T_H = _P.s9_early_dead_t_h
+S9_EARLY_DEAD_MFE_MAX_BPS = _P.s9_early_dead_mfe_max_bps
+BTC_DROP_CUT_RET_4H_BPS = _P.btc_drop_cut_ret_4h_bps
+BTC_DROP_CUT_UR_MAX_BPS = _P.btc_drop_cut_ur_max_bps
+DEAD_TIMEOUT_LEAD_HOURS = _P.dead_timeout_lead_hours
+DEAD_TIMEOUT_MFE_CAP_BPS = _P.dead_timeout_mfe_cap_bps
+DEAD_TIMEOUT_MAE_FLOOR_BPS = _P.dead_timeout_mae_floor_bps
+DEAD_TIMEOUT_SLACK_BPS = _P.dead_timeout_slack_bps
 from bisect import bisect_right
 
 # Data + feature builders reused as-is from the existing backtest infrastructure
@@ -194,55 +257,25 @@ def load_dxy():
 
 
 def detect_squeeze(candles, idx, vol_ratio, candle_scale: int = 1):
-    """Detect S10 squeeze pattern.
+    """S10 squeeze detection — shared implementation (alfred.signals).
 
-    `candle_scale` lets the caller scale the time-based windows to non-4h
-    grids. Default 1 = use config values (S10_SQUEEZE_WINDOW=3 means 12h on
-    4h grid). Pass candle_scale=4 for 1h grid (12h = 12 candles instead of 3).
+    Returns the fade direction (±1) or None, preserving this module's
+    historical int return type for downstream callers.
     """
-    sq_window = S10_SQUEEZE_WINDOW * candle_scale
-    reint = S10_REINT_CANDLES * candle_scale
-    if vol_ratio > S10_VOL_RATIO_MAX or idx < sq_window + reint + 2:
-        return None
-    for bo_offset in range(1, reint + 1):
-        bo_idx = idx - bo_offset
-        sq_start = bo_idx - sq_window
-        if sq_start < 0:
-            continue
-        sq = candles[sq_start:sq_start + sq_window]
-        rh = max(c["h"] for c in sq)
-        rl = min(c["l"] for c in sq)
-        rs = rh - rl
-        if rs <= 0 or rl <= 0:
-            continue
-        bo = candles[bo_idx]
-        th = rs * S10_BREAKOUT_PCT
-        above = bo["h"] > rh + th
-        below = bo["l"] < rl - th
-        if not above and not below:
-            continue
-        if above and below:
-            continue
-        bo_dir = 1 if above else -1
-        ri_end = min(bo_idx + 1 + reint, idx + 1)
-        for ri in range(bo_idx + 1, ri_end):
-            if rl <= candles[ri]["c"] <= rh:
-                return -bo_dir
-    return None
+    res = _alf_signals.detect_squeeze_at(candles, idx, vol_ratio, _P,
+                                         candle_scale=candle_scale)
+    return res["direction"] if res else None
 
 
 def strat_size(strat: str, capital: float) -> float:
-    """Match analysis.bot.config.strat_size() exactly, plus a backtest-only
-    notional cap (BACKTEST_MAX_NOTIONAL env var; models live orderbook depth)."""
-    z = STRAT_Z.get(strat, 3.0)
-    w = max(0.5, min(2.0, z / 4.0))
-    pct = SIZE_PCT + (SIZE_BONUS if z > 4.0 else 0)
-    haircut = LIQUIDITY_HAIRCUT.get(strat, 1.0)
-    mult = SIGNAL_MULT.get(strat, 1.0)
-    raw = max(10, capital * pct * w * haircut * mult)
-    if BACKTEST_MAX_NOTIONAL > 0:
-        raw = min(raw, BACKTEST_MAX_NOTIONAL)
-    return round(raw, 2)
+    """Base size via the shared core (alfred.rules.base_size), plus the
+    backtest-only notional cap (BACKTEST_MAX_NOTIONAL env var; models live
+    orderbook depth). NOTE: this cap applies BEFORE the adaptive modulator,
+    unlike the live bot's MAX_NOTIONAL_PER_TRADE which applies after —
+    legacy semantics kept for iso-validation (see docs/alfred_divergences.md)."""
+    return _rules.base_size(
+        strat, capital, _P,
+        cap=BACKTEST_MAX_NOTIONAL if BACKTEST_MAX_NOTIONAL > 0 else None)
 
 
 # ── Backtest engine ────────────────────────────────────────────────────
@@ -499,12 +532,26 @@ def run_window(features, data, sector_features, dxy_data,
     )
     if _need_btc_z and size_fn is None and len(btc_closes) >= n_lb + 30:
         # v12.18.0 — `btc_z_variant` controls the z-score formula:
-        #   "baseline"     : ret_30d on 180d, mean+std (legacy)
-        #   "robust"       : ret_30d on 180d, median+MAD (whale-liquidation tolerant)
-        #   "multi"        : 0.6 × (ret_30d/180d, mean+std) + 0.4 × (ret_7d/60d, mean+std)
-        #   "robust_multi" : 0.6 × (ret_30d/180d, MAD) + 0.4 × (ret_7d/60d, MAD)
+        #   "baseline"        : ret_30d on 180d, mean+std (legacy)
+        #   "robust"          : ret_30d on 180d, median+MAD
+        #   "multi"           : 0.6 × (30d/180d, mean+std) + 0.4 × (7d/60d, mean+std)
+        #   "robust_multi"    : 0.6 × (30d/180d, MAD) + 0.4 × (7d/60d, MAD)
+        # v12.18.1 — new variants for whale-liquidation handling:
+        #   "winsorize"       : cap per-candle returns at ±800 bps before
+        #                       building the 30d return series — neutralizes
+        #                       single-bar whale-liq spikes in the rolling
+        #                       distribution without changing long-term sensitivity
+        #   "adaptive_window" : when |z_30d| > 2.5, recompute with 14d lookback
+        #                       for faster recovery — auto-heals from extreme regimes
         _use_robust = btc_z_variant in ("robust", "robust_multi")
         _use_multi = btc_z_variant in ("multi", "robust_multi")
+        _use_winsorize = btc_z_variant == "winsorize"
+        _use_adaptive = btc_z_variant == "adaptive_window"
+        # Winsorize cap : 800 bps = 8% single-candle move
+        _WINSOR_CAP = 0.08
+        # Adaptive window threshold
+        _ADAPTIVE_Z_THRESH = 2.5
+        _ADAPTIVE_SHORT_LB_DAYS = 14
         # Short-horizon params for multi-variant
         _short_lb_days = 7
         _short_zw_days = 60
@@ -524,11 +571,24 @@ def run_window(features, data, sector_features, dxy_data,
                 scale = float(past_arr.std()) or 1.0
             return (rets_hist[j] - center) / scale
 
+        # v12.18.1 winsorize : build a sanitized close series where per-candle
+        # returns are capped at ±_WINSOR_CAP, then compute ret_30d on that.
+        if _use_winsorize:
+            per_candle_rets = np.diff(btc_closes) / btc_closes[:-1]
+            per_candle_rets = np.clip(per_candle_rets, -_WINSOR_CAP, _WINSOR_CAP)
+            # Rebuild synthetic closes
+            sanitized_closes = np.empty_like(btc_closes)
+            sanitized_closes[0] = btc_closes[0]
+            sanitized_closes[1:] = btc_closes[0] * np.cumprod(1.0 + per_candle_rets)
+            closes_for_z = sanitized_closes
+        else:
+            closes_for_z = btc_closes
+
         # Long-horizon series
         rets_long: list[float] = []
-        for i in range(n_lb, len(btc_closes)):
-            if btc_closes[i - n_lb] > 0:
-                rets_long.append(float(btc_closes[i] / btc_closes[i - n_lb] - 1))
+        for i in range(n_lb, len(closes_for_z)):
+            if closes_for_z[i - n_lb] > 0:
+                rets_long.append(float(closes_for_z[i] / closes_for_z[i - n_lb] - 1))
             else:
                 rets_long.append(0.0)
 
@@ -537,23 +597,41 @@ def run_window(features, data, sector_features, dxy_data,
         n_lb_short = _short_lb_days * cpd
         n_zw_short = _short_zw_days * cpd
         if _use_multi:
-            for i in range(n_lb_short, len(btc_closes)):
-                if btc_closes[i - n_lb_short] > 0:
-                    rets_short.append(float(btc_closes[i] / btc_closes[i - n_lb_short] - 1))
+            for i in range(n_lb_short, len(closes_for_z)):
+                if closes_for_z[i - n_lb_short] > 0:
+                    rets_short.append(float(closes_for_z[i] / closes_for_z[i - n_lb_short] - 1))
                 else:
                     rets_short.append(0.0)
+
+        # v12.18.1 adaptive_window : also build a 14d-lookback series to swap in
+        rets_adaptive: list[float] = []
+        n_lb_adapt = _ADAPTIVE_SHORT_LB_DAYS * cpd
+        if _use_adaptive:
+            for i in range(n_lb_adapt, len(closes_for_z)):
+                if closes_for_z[i - n_lb_adapt] > 0:
+                    rets_adaptive.append(float(closes_for_z[i] / closes_for_z[i - n_lb_adapt] - 1))
+                else:
+                    rets_adaptive.append(0.0)
 
         for j in range(len(rets_long)):
             ts_j = btc_candles[n_lb + j]["t"]
             z_long = _rolling_z(rets_long, j, n_zw, _use_robust)
             if z_long is None:
                 continue
+            # adaptive_window: if |z_long| extreme, swap to 14d lookback
+            if _use_adaptive and abs(z_long) > _ADAPTIVE_Z_THRESH:
+                j_adapt = (n_lb + j) - n_lb_adapt
+                if 0 <= j_adapt < len(rets_adaptive):
+                    z_adapt = _rolling_z(rets_adaptive, j_adapt, n_zw, _use_robust)
+                    if z_adapt is not None:
+                        btc_z_map[ts_j] = z_adapt
+                        continue
+                btc_z_map[ts_j] = z_long
+                continue
             if not _use_multi:
                 btc_z_map[ts_j] = z_long
                 continue
-            # Find matching index in rets_short for the same candle
-            # Long index n_lb+j corresponds to candle n_lb+j; short index for
-            # same candle is (n_lb+j) - n_lb_short.
+            # Multi: blend long + short
             j_short = (n_lb + j) - n_lb_short
             if j_short < 0 or j_short >= len(rets_short):
                 btc_z_map[ts_j] = z_long
@@ -599,6 +677,33 @@ def run_window(features, data, sector_features, dxy_data,
     hold_candles = {k: int(v * _scale) for k, v in HOLD_CANDLES.items()}
     s9_early_exit_candles = int(S9_EARLY_EXIT_CANDLES * _scale)
 
+    # Per-run Params: fold the runner_extension / early_exit_params hook
+    # dicts into an alfred Params clone so the shared exit rules read them.
+    # runner_extension=None disables the rule; early_exit_params=None
+    # disables dead_timeout (lead = -inf never matches).
+    if runner_extension is not None:
+        _re_strats = runner_extension.get("strategies")
+        _p_run = _dc.replace(
+            _P,
+            runner_ext_strategies=(frozenset(_re_strats) if _re_strats is not None
+                                   else frozenset(STRAT_Z.keys())),
+            runner_ext_hours=float(runner_extension.get("extra_candles", 6) * interval_hours),
+            runner_ext_min_mfe_bps=float(runner_extension.get("min_mfe_bps", 500)),
+            runner_ext_min_cur_to_mfe=float(runner_extension.get("min_cur_to_mfe", 0.5)),
+        )
+    else:
+        _p_run = _dc.replace(_P, runner_ext_strategies=frozenset())
+    if early_exit_params is not None:
+        _p_run = _dc.replace(
+            _p_run,
+            dead_timeout_lead_hours=float(early_exit_params["exit_lead_candles"] * interval_hours),
+            dead_timeout_mfe_cap_bps=float(early_exit_params["mfe_cap_bps"]),
+            dead_timeout_mae_floor_bps=float(early_exit_params["mae_floor_bps"]),
+            dead_timeout_slack_bps=float(early_exit_params["slack_bps"]),
+        )
+    else:
+        _p_run = _dc.replace(_p_run, dead_timeout_lead_hours=float("-inf"))
+
     sorted_ts = sorted(ts for ts in all_ts if start_ts_ms <= ts <= end_ts_ms)
 
     for ts in sorted_ts:
@@ -627,6 +732,15 @@ def run_window(features, data, sector_features, dxy_data,
                 "capital": round(capital, 2),
             })
 
+        # Market context for the shared exit rules. btc_z semantics mirror the
+        # historical engine: empty btc_z_map → None (regime rules skip);
+        # non-empty map with missing ts → 0.0 (neutral bucket).
+        _mctx = _rules.MarketCtx(
+            btc_z=(btc_z_map.get(ts, 0.0) if btc_z_map else None),
+            btc_ret_4h_bps=btc_ret_4h_by_ts.get(ts),
+            disp_24h=disp_by_ts.get(ts),
+        )
+
         # ── EXITS ──
         for coin in list(positions.keys()):
             pos = positions[coin]
@@ -642,12 +756,8 @@ def run_window(features, data, sector_features, dxy_data,
                 continue
 
             # Track MFE (best unrealized) and MAE (worst unrealized)
-            if pos["dir"] == 1:
-                best_bps = (candle["h"] / pos["entry"] - 1) * 1e4
-                worst_bps = (candle["l"] / pos["entry"] - 1) * 1e4
-            else:
-                best_bps = -(candle["l"] / pos["entry"] - 1) * 1e4
-                worst_bps = -(candle["h"] / pos["entry"] - 1) * 1e4
+            best_bps, worst_bps = _rules.candle_excursions(
+                pos["dir"], pos["entry"], candle["h"], candle["l"])
             if best_bps > pos.get("mfe", 0):
                 pos["mfe"] = best_bps
                 pos["mfe_held"] = held
@@ -739,31 +849,32 @@ def run_window(features, data, sector_features, dxy_data,
                 pos["size"] = pos["size"] - partial_size
                 pos["partial_taken"] = True
 
-            # Per-strategy stop in price-move bps (not leveraged).
-            # `stop_override` lets the caller test tighter/looser stops on a
-            # specific strategy without re-coding everything (e.g., test a
-            # tighter S5 stop while keeping S8/S9 unchanged).
-            if stop_override and pos["strat"] in stop_override:
-                stop = stop_override[pos["strat"]]
-            elif pos["strat"] == "S8":
-                stop = STOP_LOSS_S8
-            elif pos.get("stop", 0) != 0:
-                stop = pos["stop"]
-            else:
-                stop = STOP_LOSS_BPS
+            # Shared-rules view of this position at this candle. cur_bps is
+            # the close-based unrealized move all non-stop rules read.
+            cur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+            pv = _rules.PosView(
+                strategy=pos["strat"], direction=pos["dir"],
+                entry_price=pos["entry"], size_usdt=pos["size"],
+                stop_bps=pos.get("stop", 0),
+                mfe_bps=pos.get("mfe", 0.0), mae_bps=pos.get("mae", 0.0),
+                hours_held=held * interval_hours,
+                hours_to_timeout=(pos["hold"] - held) * interval_hours,
+                mfe_at_h=pos.get("mfe_held", 0) * interval_hours,
+                extended=pos.get("extended", False),
+            )
 
+            # Catastrophe stop (shared rule) — triggers on the candle's worst
+            # excursion, books the synthetic stop price. `stop_override` lets
+            # sweeps test alternate levels on one strategy.
             exit_reason = None
             exit_price = current
-            if pos["dir"] == 1:
-                worst = (candle["l"] / pos["entry"] - 1) * 1e4
-                if worst < stop:
-                    exit_reason = "stop"
-                    exit_price = pos["entry"] * (1 + stop / 1e4)
-            else:
-                worst = -(candle["h"] / pos["entry"] - 1) * 1e4
-                if worst < stop:
-                    exit_reason = "stop"
-                    exit_price = pos["entry"] * (1 - stop / 1e4)
+            _stop_val = (stop_override.get(pos["strat"])
+                         if stop_override else None)
+            _dec = _rules.catastrophe_stop_rule(pv, worst_bps, _p_run,
+                                                stop_value=_stop_val)
+            if _dec:
+                exit_reason = "stop"  # legacy label (canonical: catastrophe_stop)
+                exit_price = _dec.exit_price
 
             # Early-MAE exit (experimental): if MAE crosses an aggressive
             # threshold within the first N candles, exit immediately at that
@@ -792,42 +903,34 @@ def run_window(features, data, sector_features, dxy_data,
             # thresholds runner_ext (mfe ≥ 1200) and dead_timeout (mfe ≤ 150)
             # are mutually exclusive, but keeping the order aligned protects
             # against silent divergences if thresholds change.
-            if (held >= pos["hold"] and not pos.get("extended", False)
-                    and runner_extension is not None):
-                strats = runner_extension.get("strategies")
-                if strats is None or pos["strat"] in strats:
-                    cur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
-                    mfe_bps = pos.get("mfe", 0)
-                    min_mfe = runner_extension.get("min_mfe_bps", 500)
-                    min_ratio = runner_extension.get("min_cur_to_mfe", 0.5)
-                    if mfe_bps >= min_mfe and cur_bps / mfe_bps >= min_ratio:
-                        pos["hold"] += runner_extension.get("extra_candles", 6)
-                        pos["extended"] = True
+            _dec = _rules.runner_ext_rule(pv, cur_bps, _p_run)
+            if _dec:
+                pos["hold"] += int(_dec.extend_hours // interval_hours)
+                pos["extended"] = True
+                pv = _dc.replace(
+                    pv, extended=True,
+                    hours_to_timeout=(pos["hold"] - held) * interval_hours)
 
             if held >= pos["hold"]:
                 exit_reason = exit_reason or "timeout"
 
-            # S9 early exit: cut if not reverting after S9_EARLY_EXIT_HOURS
-            if not exit_reason and pos["strat"] == "S9" and held >= s9_early_exit_candles:
-                ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
-                if ur_bps < S9_EARLY_EXIT_BPS:
-                    exit_reason = "s9_early_exit"
+            # S9 early exit (shared rule; legacy books the candle close)
+            if not exit_reason:
+                _dec = _rules.s9_early_rule(pv, cur_bps, _p_run, synthetic=False)
+                if _dec:
+                    exit_reason = _dec.reason
 
-            # S10 trailing stop: lock gains when MFE exceeds trigger
-            if not exit_reason and pos["strat"] == "S10":
-                mfe = pos.get("mfe", 0)
-                if mfe >= S10_TRAILING_TRIGGER:
-                    ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
-                    if ur_bps <= mfe - S10_TRAILING_OFFSET:
-                        exit_reason = "s10_trailing"
+            # S10 trailing stop (shared rule; legacy books the candle close)
+            if not exit_reason:
+                _dec = _rules.s10_trail_rule(pv, cur_bps, _p_run, synthetic=False)
+                if _dec:
+                    exit_reason = _dec.reason
 
-            # v12.6.0 — S8 dead-in-water: if S8 LONG has never crossed MFE
-            # ceiling after T+8h, capitulation thesis invalidated. Mirror of
-            # analysis/bot/trading.py:check_exits (line 257-269).
-            if (not exit_reason and pos["strat"] == "S8" and pos["dir"] == 1
-                    and held * interval_hours >= S8_DEAD_T_H
-                    and pos.get("mfe", 0) <= S8_DEAD_MFE_MAX_BPS):
-                exit_reason = "s8_dead_in_water"
+            # v12.6.0 — S8 dead-in-water (shared rule)
+            if not exit_reason:
+                _dec = _rules.s8_dead_rule(pv, _p_run)
+                if _dec:
+                    exit_reason = _dec.reason
 
             # EXIT-C R&D — early dead check generalized.
             # Mirror of s8_dead_in_water for other strats. early_dead_check
@@ -841,27 +944,12 @@ def run_window(features, data, sector_features, dxy_data,
                             and pos.get("mfe", 0) <= mfe_cap):
                         exit_reason = "early_dead_check"
 
-            # v12.5.30 — S8 in-life MFE trail (regime-conditioned). Mirror of
-            # analysis/bot/trading.py:check_exits (line 270-287). Active only
-            # when btc_z is available (i.e. when the engine has BTC history).
-            if (not exit_reason and pos["strat"] == "S8" and S8_INLIFE_PARAMS
-                    and btc_z_map):
-                z = btc_z_map.get(ts, 0.0)
-                if z < -S8_INLIFE_Z_THRESHOLD:
-                    bucket_s8 = "bear"
-                elif z > S8_INLIFE_Z_THRESHOLD:
-                    bucket_s8 = "bull"
-                else:
-                    bucket_s8 = "neutral"
-                # v12.12.2: handle None (per-regime disable) gracefully.
-                cfg_s8 = S8_INLIFE_PARAMS.get(bucket_s8)
-                if cfg_s8 is not None:
-                    act, off = cfg_s8
-                    mfe = pos.get("mfe", 0)
-                    if mfe >= act:
-                        ur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
-                        if ur_bps <= mfe - off:
-                            exit_reason = "s8_inlife"
+            # v12.5.30 — S8 in-life MFE trail (shared rule; legacy books close)
+            if not exit_reason:
+                _dec = _rules.s8_inlife_rule(pv, cur_bps, _mctx, _p_run,
+                                             synthetic=False)
+                if _dec:
+                    exit_reason = _dec.reason
 
             # Optional in-life exit (research hook — Families A/B/C from
             # docs/superpowers/specs/2026-05-14-inlife-exit-design.md).
@@ -907,59 +995,30 @@ def run_window(features, data, sector_features, dxy_data,
                 if res and res[0]:
                     exit_reason = res[1] or "inlife_exit"
 
-            # v12.7.1 — Trajectory cut (regime-conditioned mid-trade exit, S5
-            # by default). Mirror of analysis/bot/trading.py:check_exits
-            # (line 309-334). Fires in bear regime when MFE→cur decline is
-            # steep, position is pinned near MAE, and unrealized is below
-            # threshold. Kill-switch: empty TRAJ_CUT_STRATEGIES in config.
-            if (not exit_reason and pos["strat"] in TRAJ_CUT_STRATEGIES
-                    and btc_z_map):
-                z_tc = btc_z_map.get(ts, 0.0)
-                if z_tc < TRAJ_CUT_BTC_Z_THRESHOLD:
-                    ur_bps_tc = pos["dir"] * (current / pos["entry"] - 1) * 1e4
-                    mae_bps_tc = pos.get("mae", 0.0)
-                    mfe_bps_tc = pos.get("mfe", 0.0)
-                    if (ur_bps_tc <= TRAJ_CUT_MIN_LOSS_BPS
-                            and (ur_bps_tc - mae_bps_tc) <= TRAJ_CUT_AT_MAE_SLACK_BPS):
-                        hours_held_tc = held * interval_hours
-                        mfe_at_h_tc = pos.get("mfe_held", 0) * interval_hours
-                        t_since_mfe = hours_held_tc - mfe_at_h_tc
-                        if t_since_mfe >= TRAJ_CUT_TIME_SINCE_MFE_MIN_H:
-                            decline_rate = (mfe_bps_tc - ur_bps_tc) / max(t_since_mfe, 1.0)
-                            if decline_rate >= TRAJ_CUT_DECLINE_RATE_MIN_BPS_PER_H:
-                                exit_reason = "traj_cut"
+            # v12.7.1 — Trajectory cut (shared rule, regime-conditioned)
+            if not exit_reason:
+                _dec = _rules.traj_cut_rule(pv, cur_bps, _mctx, _p_run)
+                if _dec:
+                    exit_reason = _dec.reason
 
-            # v12.15.0 — S9 early dead-in-water (mirror of s8_dead_in_water for S9).
-            # Mirror of analysis/bot/trading.py:check_exits (v12.15.0 block).
-            if (not exit_reason and pos["strat"] == "S9"
-                    and held * interval_hours >= S9_EARLY_DEAD_T_H
-                    and pos.get("mfe", 0) <= S9_EARLY_DEAD_MFE_MAX_BPS):
-                exit_reason = "s9_early_dead"
+            # v12.15.0 — S9 early dead-in-water (shared rule)
+            if not exit_reason:
+                _dec = _rules.s9_early_dead_rule(pv, _p_run)
+                if _dec:
+                    exit_reason = _dec.reason
 
-            # v12.15.0 — BTC drop cut for LONG positions in unrealized loss.
-            # Uses BTC's last 4h candle return as the "drop" signal.
-            if (not exit_reason and pos["dir"] == 1):
-                _ur_bdc = pos["dir"] * (current / pos["entry"] - 1) * 1e4
-                if _ur_bdc <= BTC_DROP_CUT_UR_MAX_BPS:
-                    _btc_ret_4h_bdc = btc_ret_4h_by_ts.get(ts)
-                    if _btc_ret_4h_bdc is not None and _btc_ret_4h_bdc <= BTC_DROP_CUT_RET_4H_BPS:
-                        exit_reason = "btc_drop_cut"
+            # v12.15.0 — BTC drop cut (shared rule)
+            if not exit_reason:
+                _dec = _rules.btc_drop_cut_rule(pv, cur_bps, _mctx, _p_run)
+                if _dec:
+                    exit_reason = _dec.reason
 
-            # Dead-timeout early exit (option D): if trade is close to timeout,
-            # has never shown meaningful MFE, and is still pinned near its MAE,
-            # crystallize the loss now instead of waiting for timeout at MAE.
-            # Mirrors live bot order — checked LAST, after timeout / stop /
-            # s9_early / s10_trailing. (Was placed earlier in the chain in
-            # earlier versions; relocated here for bot-vs-backtest parity.)
-            if (not exit_reason and early_exit_params is not None
-                    and held >= pos["hold"] - early_exit_params["exit_lead_candles"]):
-                cur_bps = pos["dir"] * (current / pos["entry"] - 1) * 1e4
-                mfe = pos.get("mfe", 0.0)
-                mae = pos.get("mae", 0.0)
-                if (mfe <= early_exit_params["mfe_cap_bps"]
-                        and mae <= early_exit_params["mae_floor_bps"]
-                        and cur_bps <= mae + early_exit_params["slack_bps"]):
-                    exit_reason = "dead_timeout"
+            # v11.7.2 — Dead-timeout early exit (shared rule; hook params
+            # folded into _p_run). Checked LAST, mirrors live bot order.
+            if not exit_reason:
+                _dec = _rules.dead_timeout_rule(pv, cur_bps, _p_run)
+                if _dec:
+                    exit_reason = _dec.reason
                     exit_price = current
 
             # Optional give-back exit: exit if MFE crossed `min_mfe_bps` AND
@@ -1068,16 +1127,15 @@ def run_window(features, data, sector_features, dxy_data,
                                 exit_reason = "reversal_momentum"
 
             if exit_reason:
-                # P&L math matches trading.py close_position (v11.3.0+)
-                gross = pos["dir"] * (exit_price / pos["entry"] - 1) * 1e4
-                net = gross - COST
-                pnl = pos["size"] * net / 1e4
-                # Real funding (v11.7.6): subtract sum of hourly funding payments
-                if funding_data is not None:
-                    funding_cost = compute_funding_cost(
-                        funding_data, coin, pos["dir"],
-                        pos["entry_t"], ts, pos["size"])
-                    pnl -= funding_cost
+                # P&L via the shared core (v11.3.0 invariant: size = notional).
+                # Real funding (v11.7.6): per-trade integral of hourly rates.
+                funding_cost = (compute_funding_cost(
+                    funding_data, coin, pos["dir"],
+                    pos["entry_t"], ts, pos["size"])
+                    if funding_data is not None else 0.0)
+                gross, net, pnl = _rules.compute_trade_pnl(
+                    pos["dir"], pos["entry"], exit_price, pos["size"],
+                    COST, funding_usdt=funding_cost)
                 capital += pnl
                 peak_capital = max(peak_capital, capital)
                 dd = (capital - peak_capital) / peak_capital * 100 if peak_capital > 0 else 0
@@ -1117,6 +1175,7 @@ def run_window(features, data, sector_features, dxy_data,
         btc7 = btc_ret(ts, 42)
 
         candidates = []
+        _btc_f = {"btc_30d": btc30, "btc_7d": btc7}
         for coin in coins:
             if coin in positions or (coin in cooldown and ts < cooldown[coin]):
                 continue
@@ -1124,56 +1183,32 @@ def run_window(features, data, sector_features, dxy_data,
             if not f:
                 continue
 
-            ret_24h = f.get("ret_6h", 0)  # 6 candles of 4h = 24h
-
-            if btc30 > 2000:
-                candidates.append({
-                    "coin": coin, "dir": 1, "strat": "S1",
-                    "z": STRAT_Z["S1"], "hold": hold_candles["S1"],
-                    "strength": max(f.get("ret_42h", 0), 0),
-                })
-
-            sf = sector_features.get((ts, coin))
-            if sf and abs(sf["divergence"]) >= S5_DIV_THRESHOLD and sf["vol_z"] >= S5_VOL_Z_MIN:
-                candidates.append({
-                    "coin": coin, "dir": 1 if sf["divergence"] > 0 else -1, "strat": "S5",
-                    "z": STRAT_Z["S5"], "hold": hold_candles["S5"],
-                    "strength": abs(sf["divergence"]),
-                })
-
-            if (f.get("drawdown", 0) < S8_DRAWDOWN_THRESH
-                    and f.get("vol_z", 0) > S8_VOL_Z_MIN
-                    and ret_24h < S8_RET_24H_THRESH
-                    and btc7 < S8_BTC_7D_THRESH):
-                candidates.append({
-                    "coin": coin, "dir": 1, "strat": "S8",
-                    "z": STRAT_Z["S8"], "hold": hold_candles["S8"],
-                    "strength": abs(f["drawdown"]),
-                })
-
-            if abs(ret_24h) >= S9_RET_THRESH:
-                s9_dir = -1 if ret_24h > 0 else 1
-                s9_stop = (max(STOP_LOSS_BPS, -500 - abs(ret_24h) / 8)
-                           if S9_ADAPTIVE_STOP else 0)
-                candidates.append({
-                    "coin": coin, "dir": s9_dir, "strat": "S9",
-                    "z": STRAT_Z["S9"], "hold": hold_candles["S9"],
-                    "strength": abs(ret_24h), "stop": s9_stop,
-                })
-
+            # Shared detection (alfred.signals) — the same code the live bot
+            # runs. Feature schema adapted (ret_6h → ret_24h); squeeze via the
+            # shared indexed detector; S10 whitelist applied inside.
+            sq = None
             if coin in coin_by_ts and ts in coin_by_ts[coin]:
                 ci = coin_by_ts[coin][ts]
-                sq_dir = detect_squeeze(data[coin], ci, f.get("vol_ratio", 2),
-                                        candle_scale=int(_scale))
-                if sq_dir:
-                    s10_block = ((not S10_ALLOW_LONGS and sq_dir == 1)
-                                 or coin not in S10_ALLOWED_TOKENS)
-                    if not s10_block:
-                        candidates.append({
-                            "coin": coin, "dir": sq_dir, "strat": "S10",
-                            "z": STRAT_Z["S10"], "hold": hold_candles["S10"],
-                            "strength": 1000,
-                        })
+                sq = _alf_signals.detect_squeeze_at(
+                    data[coin], ci, f.get("vol_ratio", 2), _P,
+                    candle_scale=int(_scale))
+            sigs = _alf_signals.detect_token_signals(
+                coin, _rules.adapt_bt_features(f), _btc_f,
+                sector_features.get((ts, coin)), sq, "", {}, _P)
+            for sig in sigs:
+                cand = {
+                    "coin": coin, "dir": sig["direction"],
+                    "strat": sig["strategy"], "z": sig["z"],
+                    "hold": int((sig["hold_hours"] // 4) * _scale),
+                    # Legacy ranking quirk kept for iso-validation: the BT
+                    # ranks S10 with flat strength 1000 (live ranks by
+                    # squeeze tightness). See docs/alfred_divergences.md.
+                    "strength": (1000 if sig["strategy"] == "S10"
+                                 else sig["strength"]),
+                }
+                if "stop_bps" in sig:
+                    cand["stop"] = sig["stop_bps"]
+                candidates.append(cand)
 
         # Optional extra candidates from a callback (used for new-signal sweeps).
         # Callback signature: fn(ts, coins, feat_by_ts, data, coin_by_ts, positions, cooldown) -> list[cand]
@@ -1183,48 +1218,46 @@ def run_window(features, data, sector_features, dxy_data,
 
         candidates.sort(key=lambda x: (x["z"], x["strength"]), reverse=True)
         seen = set()
+        _sector_counts: dict[str, int] = {}
+        for _p_open in positions.values():
+            _s_open = TOKEN_SECTOR.get(_p_open["coin"])
+            if _s_open:
+                _sector_counts[_s_open] = _sector_counts.get(_s_open, 0) + 1
         for cand in candidates:
             coin = cand["coin"]
             if coin in seen or coin in positions:
                 continue
             seen.add(coin)
-            # v11.4.10 blacklist
-            if coin in TRADE_BLACKLIST:
-                continue
-            # v11.4.9 OI gate LONG
-            if cand["dir"] == 1 and oi_data is not None:
-                oi_d = oi_delta_24h_pct(oi_data, coin, ts)
-                if oi_d is not None and oi_d < -OI_LONG_GATE_BPS:
-                    continue
-            # v11.7.28 dispersion gate — skip mean-reversion in regime breakdowns
-            if cand["strat"] in DISP_GATE_STRATEGIES:
-                d = disp_by_ts.get(ts)
-                if d is not None and d >= DISP_GATE_BPS:
-                    continue
             if skip_fn is not None and skip_fn(coin, ts, cand["strat"], cand["dir"]):
                 continue
-            if len(positions) >= MAX_POSITIONS:
+            # Shared entry gates (alfred.rules) — blacklist, OI gate, disp
+            # gate, position/direction/slot/sector caps. check_size_floor
+            # stays off: the legacy BT enters sub-$10 post-modulator sizes
+            # the live exchange would reject (docs/alfred_divergences.md).
+            _reason = _rules.entry_skip_reason(
+                {"symbol": coin, "direction": cand["dir"],
+                 "strategy": cand["strat"]},
+                _rules.PortfolioCounters(
+                    n_total=len(positions), n_longs=n_long, n_shorts=n_short,
+                    n_macro=n_macro, n_token=n_token,
+                    sector_counts=_sector_counts),
+                _mctx, _P, capital, TOKEN_SECTOR,
+                oi_delta_24h=(oi_delta_24h_pct(oi_data, coin, ts)
+                              if oi_data is not None else None),
+                check_size_floor=False)
+            if _reason == "max_positions":
                 break
-            if cand["dir"] == 1 and n_long >= MAX_SAME_DIRECTION:
-                continue
-            if cand["dir"] == -1 and n_short >= MAX_SAME_DIRECTION:
-                continue
-            if cand["strat"] in macro_strats and n_macro >= MAX_MACRO_SLOTS:
-                continue
-            if cand["strat"] not in macro_strats and n_token >= MAX_TOKEN_SLOTS:
+            if _reason:
                 continue
 
             sym_sector = TOKEN_SECTOR.get(coin)
-            if sym_sector:
-                sc = sum(1 for p in positions.values() if TOKEN_SECTOR.get(p["coin"]) == sym_sector)
-                if sc >= MAX_PER_SECTOR:
+            if sym_sector and block_opposite_sector:
+                # Optional rule: block entries opposite to an existing
+                # same-sector position
+                same_sec_dirs = [p["dir"] for p in positions.values()
+                                 if TOKEN_SECTOR.get(p["coin"]) == sym_sector]
+                if same_sec_dirs and any(d != cand["dir"] for d in same_sec_dirs):
                     continue
-                # Optional rule: block entries opposite to an existing same-sector position
-                if block_opposite_sector:
-                    same_sec_dirs = [p["dir"] for p in positions.values()
-                                     if TOKEN_SECTOR.get(p["coin"]) == sym_sector]
-                    if same_sec_dirs and any(d != cand["dir"] for d in same_sec_dirs):
-                        continue
 
             f = feat_by_ts.get(ts, {}).get(coin)
             idx_f = f.get("_idx") if f else None
@@ -1242,14 +1275,13 @@ def run_window(features, data, sector_features, dxy_data,
             if size_fn is not None:
                 size *= size_fn(cand, f, len(positions))
             elif btc_z_map and apply_adaptive_modulator:
-                # v11.10.0 + v12.2.0 default adaptive modulator (mirrors live).
-                # Uses get_adaptive_alpha() to honor direction-specific overrides.
-                alpha = get_adaptive_alpha(cand["strat"], cand["dir"])
-                if alpha != 0:
-                    z = btc_z_map.get(ts, 0.0)
-                    z_clip = max(-MACRO_Z_CLIP, min(MACRO_Z_CLIP, z))
-                    m = max(MACRO_MULT_MIN, min(MACRO_MULT_MAX, 1.0 + alpha * z_clip))
-                    size *= m
+                # v11.10.0 + v12.2.0 adaptive modulator (shared rule). Legacy
+                # quirk kept: the modulated size is NOT rounded here (live
+                # rounds to 2 decimals) — see docs/alfred_divergences.md.
+                _m = _rules.modulator_mult(cand["strat"], cand["dir"],
+                                           btc_z_map.get(ts, 0.0), _P)
+                if _m is not None:
+                    size *= _m
             # basket_haircut_eda: multiplicative haircut from basket concentration.
             # Runs AFTER the adaptive modulator so it stacks on top, not in place
             # of it. Signature: basket_haircut_fn(cand, effn_dict, n_positions)
@@ -1365,6 +1397,8 @@ def run_window(features, data, sector_features, dxy_data,
                 n_macro += 1
             else:
                 n_token += 1
+            if sym_sector:
+                _sector_counts[sym_sector] = _sector_counts.get(sym_sector, 0) + 1
 
     # Close remaining positions at the last available candle (mark-to-market)
     for coin in list(positions.keys()):
@@ -1373,14 +1407,13 @@ def run_window(features, data, sector_features, dxy_data,
         last_idx = coin_by_ts[coin][last_ts]
         exit_p = data[coin][last_idx]["c"]
         if exit_p > 0:
-            gross = pos["dir"] * (exit_p / pos["entry"] - 1) * 1e4
-            net = gross - COST
-            pnl = pos["size"] * net / 1e4
-            if funding_data is not None:
-                funding_cost = compute_funding_cost(
-                    funding_data, coin, pos["dir"],
-                    pos["entry_t"], last_ts, pos["size"])
-                pnl -= funding_cost
+            funding_cost = (compute_funding_cost(
+                funding_data, coin, pos["dir"],
+                pos["entry_t"], last_ts, pos["size"])
+                if funding_data is not None else 0.0)
+            gross, net, pnl = _rules.compute_trade_pnl(
+                pos["dir"], pos["entry"], exit_p, pos["size"],
+                COST, funding_usdt=funding_cost)
             capital += pnl
             trades.append({
                 "pnl": pnl, "net": net, "dir": pos["dir"],
@@ -1716,11 +1749,7 @@ def main():
 
     windows = rolling_windows(end_dt)
     # Default-activate D2 (v11.7.2 dead-timeout exit) to mirror live bot behavior.
-    # Convert 12h lead to candles (4h each) = 3 candles. Other params come from config.
-    from analysis.bot.config import (
-        DEAD_TIMEOUT_LEAD_HOURS, DEAD_TIMEOUT_MFE_CAP_BPS,
-        DEAD_TIMEOUT_MAE_FLOOR_BPS, DEAD_TIMEOUT_SLACK_BPS,
-    )
+    # Convert 12h lead to candles (4h each) = 3 candles. Params from alfred.
     early_exit_params = dict(
         exit_lead_candles=int(DEAD_TIMEOUT_LEAD_HOURS // 4),
         mfe_cap_bps=DEAD_TIMEOUT_MFE_CAP_BPS,
@@ -1749,6 +1778,13 @@ def main():
         capitals = [1000.0]
     print(f"Capitals: {capitals}")
 
+    # BACKTEST_TRADE_DUMP env var: path to a JSON file where the full
+    # trade-by-trade list of every window is dumped. Used for iso-result
+    # validation when the engine internals change (Alfred phase 1). No
+    # effect on the simulation itself.
+    trade_dump_path = os.environ.get("BACKTEST_TRADE_DUMP", "")
+    trade_dump: list[dict] = []
+
     results = []
     for label, start_dt in windows:
         start_ts = int(start_dt.timestamp() * 1000)
@@ -1767,9 +1803,33 @@ def main():
             results.append(r)
             print(f"    → {r['end_capital']:.0f} ({r['pnl_pct']:+.1f}%), "
                   f"{r['n_trades']} trades, DD {r['max_dd_pct']:.1f}%")
+            if trade_dump_path:
+                trade_dump.append({
+                    "label": label,
+                    "start_date": r["start_date"],
+                    "capital": cap,
+                    "end_capital": round(r["end_capital"], 6),
+                    "max_dd_pct": round(r["max_dd_pct"], 6),
+                    "trades": [
+                        {
+                            "coin": t["coin"], "strat": t["strat"],
+                            "dir": t["dir"], "entry_t": t["entry_t"],
+                            "exit_t": t["exit_t"], "reason": t["reason"],
+                            "size": round(t["size"], 6),
+                            "net": round(t["net"], 6),
+                            "pnl": round(t["pnl"], 6),
+                        }
+                        for t in r["trades"]
+                    ],
+                })
 
     # Sort by (start_date asc, capital asc) so window groups stay consecutive
     results.sort(key=lambda x: (x["start_date"], x["start_capital"]))
+
+    if trade_dump_path:
+        with open(trade_dump_path, "w") as f:
+            json.dump(trade_dump, f)
+        print(f"Trade dump written to {trade_dump_path}")
 
     report = build_report(results, end_dt, VERSION, capitals=capitals)
     os.makedirs(os.path.dirname(DOCS_PATH), exist_ok=True)

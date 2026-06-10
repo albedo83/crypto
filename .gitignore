@@ -31,3 +31,6 @@ nohup.out
 # Deploy secrets
 deploy/*.key
 backtests/output
+
+# Alfred runtime data (market.db, state, locks)
+alfred/data/
