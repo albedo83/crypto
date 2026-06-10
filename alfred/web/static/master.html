@@ -5,79 +5,142 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Alfred — Master</title>
 <style>
+:root{
+  --bg:#0d1117;--card:#161b22;--card2:#1c2128;--border:#30363d;--border2:#21262d;
+  --txt:#e6edf3;--dim:#7d8590;--dim2:#484f58;
+  --green:#3fb950;--red:#f85149;--yellow:#d29922;--blue:#58a6ff;--purple:#a371f7;--orange:#db6d28;
+}
 *{margin:0;padding:0;box-sizing:border-box}
-body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px}
-a{color:#58a6ff;text-decoration:none}
-.header{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;border-bottom:1px solid #21262d}
-.header h1{font-size:18px;font-weight:600}
-.header .links a{color:#7d8590;font-size:13px;margin-left:14px}
-.header .links a:hover{color:#e6edf3}
+body{background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+a{color:var(--blue);text-decoration:none}
+a:hover{text-decoration:underline}
 
-.tabs{display:flex;gap:4px;padding:10px 16px;border-bottom:1px solid #21262d}
-.tab{padding:7px 16px;border-radius:6px;color:#7d8590;cursor:pointer;font-size:14px;border:1px solid transparent;font-weight:500}
-.tab.active{background:#161b22;color:#e6edf3;border-color:#30363d}
-.panel{display:none;padding:16px}
-.panel.active{display:block}
+/* ── Header ── */
+.header{display:flex;align-items:center;gap:14px;padding:14px 20px;border-bottom:1px solid var(--border2);position:sticky;top:0;background:rgba(13,17,23,.92);backdrop-filter:blur(8px);z-index:10}
+.header h1{font-size:17px;font-weight:650;letter-spacing:-.2px}
+.header h1 .alfred{background:linear-gradient(90deg,var(--blue),var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
+.syspill{display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:600;padding:4px 12px;border-radius:14px;border:1px solid var(--border)}
+.syspill .beat{width:8px;height:8px;border-radius:50%;background:var(--dim2)}
+.syspill.ok{color:var(--green);border-color:rgba(63,185,80,.35)}
+.syspill.ok .beat{background:var(--green);animation:pulse 2.4s ease-in-out infinite}
+.syspill.bad{color:var(--red);border-color:rgba(248,81,73,.4)}
+.syspill.bad .beat{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(63,185,80,.45)}50%{opacity:.75;box-shadow:0 0 0 5px rgba(63,185,80,0)}}
+.header .meta{color:var(--dim);font-size:12px}
+.header .spacer{flex:1}
+.header .links a{color:var(--dim);font-size:13px;margin-left:16px}
+.header .links a:hover{color:var(--txt);text-decoration:none}
 
-.grid{display:grid;gap:12px}
-.g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
-.card{background:#161b22;border:1px solid #30363d;border-radius:10px;padding:14px}
-.card h3{font-size:13px;color:#7d8590;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
-.kv{display:flex;justify-content:space-between;padding:3px 0;font-size:13px}
-.kv .k{color:#7d8590}
-.green{color:#3fb950}.red{color:#f85149}.yellow{color:#d29922}.dim{color:#7d8590}
+/* ── Tabs ── */
+.tabs{display:flex;gap:2px;padding:0 20px;border-bottom:1px solid var(--border2);background:var(--bg)}
+.tab{padding:11px 18px 9px;color:var(--dim);cursor:pointer;font-size:14px;font-weight:550;border-bottom:2px solid transparent;display:flex;align-items:center;gap:8px;transition:color .15s}
+.tab:hover{color:var(--txt)}
+.tab.active{color:var(--txt);border-bottom-color:var(--blue)}
+.tab .count{font-size:11px;background:var(--card2);border:1px solid var(--border);border-radius:10px;padding:1px 7px;color:var(--dim)}
+.panel{display:none;padding:18px 20px;max-width:1500px;margin:0 auto}
+.panel.active{display:block;animation:fadein .18s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
 
-.symgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(64px,1fr));gap:4px}
-.symdot{display:flex;align-items:center;gap:4px;font-size:11px;padding:3px 5px;border-radius:4px;background:#0d1117}
-.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.dot.ok{background:#3fb950}.dot.warn{background:#d29922}.dot.bad{background:#f85149}
+/* ── Cards ── */
+.grid{display:grid;gap:14px}
+.g2{grid-template-columns:repeat(auto-fit,minmax(330px,1fr))}
+.card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px;transition:border-color .15s}
+.card:hover{border-color:#3d444d}
+.card h3{font-size:11px;color:var(--dim);font-weight:650;text-transform:uppercase;letter-spacing:.8px;margin-bottom:12px;display:flex;align-items:center;gap:7px}
+.card h3 .ico{font-size:13px;opacity:.9}
+.bignum{font-size:24px;font-weight:650;letter-spacing:-.5px;line-height:1.1}
+.bigrow{display:flex;gap:26px;flex-wrap:wrap;margin-bottom:12px}
+.bigrow .cell .lbl{font-size:11px;color:var(--dim);margin-bottom:3px}
+.kv{display:flex;justify-content:space-between;align-items:baseline;padding:4px 0;font-size:13px;border-bottom:1px solid var(--border2)}
+.kv:last-child{border-bottom:none}
+.kv .k{color:var(--dim)}
+.green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.dim{color:var(--dim)}.blue{color:var(--blue)}
+.mono{font-variant-numeric:tabular-nums}
 
+/* ── Symbol freshness grid ── */
+.symgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:5px}
+.symdot{display:flex;align-items:center;gap:6px;font-size:11px;font-weight:550;padding:5px 7px;border-radius:6px;background:var(--bg);border:1px solid var(--border2);cursor:default;transition:border-color .12s}
+.symdot:hover{border-color:var(--border)}
+.dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.dot.ok{background:var(--green);box-shadow:0 0 5px rgba(63,185,80,.5)}
+.dot.warn{background:var(--yellow)}
+.dot.bad{background:var(--red)}
+
+/* ── Tables ── */
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{color:#7d8590;text-align:left;padding:6px 8px;border-bottom:1px solid #30363d;cursor:pointer;user-select:none;white-space:nowrap}
-th:hover{color:#e6edf3}
-td{padding:6px 8px;border-bottom:1px solid #21262d}
-tr.conc td{background:rgba(248,81,73,.08)}
+th{color:var(--dim);text-align:left;padding:7px 10px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;font-size:12px;font-weight:600}
+th:hover{color:var(--txt)}
+th .arr{opacity:.7;font-size:10px;margin-left:3px}
+th.num,td.num{text-align:right;font-variant-numeric:tabular-nums}
+td{padding:7px 10px;border-bottom:1px solid var(--border2)}
+tbody tr{transition:background .1s}
+tbody tr:hover{background:rgba(177,186,196,.04)}
+tr.conc td{background:rgba(248,81,73,.07)}
+tr.conc:hover td{background:rgba(248,81,73,.11)}
 
-.evt{font-size:12px;padding:4px 0;border-bottom:1px solid #1c2128;display:flex;gap:8px}
-.evt .ts{color:#7d8590;white-space:nowrap}
-.evt .type{font-weight:600;white-space:nowrap}
-
-canvas{width:100%;height:220px;background:#0d1117;border-radius:6px}
-
-.botadmin{border:1px solid #30363d;border-radius:10px;padding:12px;margin-bottom:12px;background:#161b22}
-.botadmin .bhead{display:flex;align-items:center;gap:10px;margin-bottom:10px}
-.botadmin .bhead .name{font-weight:600;font-size:15px}
-.badge{font-size:11px;padding:2px 8px;border-radius:10px;border:1px solid #30363d;color:#7d8590}
-.badge.live{color:#f85149;border-color:#f8514955}
-.badge.paper{color:#58a6ff;border-color:#58a6ff55}
-.badge.running{color:#3fb950;border-color:#3fb95055}
-.badge.stopped,.badge.error{color:#f85149;border-color:#f8514955}
-.badge.paused{color:#d29922;border-color:#d2992255}
-button{background:#21262d;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:6px 12px;font-size:13px;cursor:pointer}
-button:hover{background:#30363d}
-button.danger{color:#f85149;border-color:#f8514955}
-button.danger:hover{background:#f8514922}
-button.ok{color:#3fb950;border-color:#3fb95055}
+/* ── Badges & buttons ── */
+.badge{font-size:11px;font-weight:600;padding:2px 9px;border-radius:10px;border:1px solid var(--border);color:var(--dim);white-space:nowrap}
+.badge.live{color:var(--red);border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.08)}
+.badge.paper{color:var(--blue);border-color:rgba(88,166,255,.35);background:rgba(88,166,255,.07)}
+.badge.running,.badge.ok{color:var(--green);border-color:rgba(63,185,80,.35);background:rgba(63,185,80,.07)}
+.badge.stopped,.badge.error{color:var(--red);border-color:rgba(248,81,73,.4);background:rgba(248,81,73,.08)}
+.badge.paused{color:var(--yellow);border-color:rgba(210,153,34,.4);background:rgba(210,153,34,.08)}
+button{background:var(--card2);color:var(--txt);border:1px solid var(--border);border-radius:7px;padding:6px 14px;font-size:13px;font-weight:550;cursor:pointer;transition:all .12s}
+button:hover{background:var(--border);transform:translateY(-1px)}
+button:active{transform:none}
+button.danger{color:var(--red);border-color:rgba(248,81,73,.4)}
+button.danger:hover{background:rgba(248,81,73,.12)}
+button.ok{color:var(--green);border-color:rgba(63,185,80,.4)}
+button.ok:hover{background:rgba(63,185,80,.12)}
 .btnrow{display:flex;gap:8px;flex-wrap:wrap}
-.strgrid{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
-.strtog{font-size:12px;text-align:center;padding:5px 4px;border-radius:6px;border:1px solid #30363d;cursor:pointer;color:#3fb950}
-.strtog.off{color:#f85149;background:#f851491a}
 
-textarea{width:100%;min-height:260px;background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:10px;font-family:ui-monospace,monospace;font-size:12px}
-.banner{padding:8px 12px;border-radius:6px;font-size:13px;margin-bottom:10px;display:none}
-.banner.pending{display:block;background:#d2992222;border:1px solid #d2992255;color:#d29922}
-.banner.err{display:block;background:#f8514922;border:1px solid #f8514955;color:#f85149}
-.banner.ok{display:block;background:#3fb95022;border:1px solid #3fb95055;color:#3fb950}
+/* ── Events ── */
+.evt{font-size:12px;padding:6px 2px;border-bottom:1px solid var(--border2);display:flex;gap:10px;align-items:baseline}
+.evt:hover{background:rgba(177,186,196,.03)}
+.evt .ts{color:var(--dim2);white-space:nowrap;font-variant-numeric:tabular-nums}
+.evt .type{font-weight:650;white-space:nowrap;font-size:11px;padding:1px 7px;border-radius:8px;background:var(--card2);border:1px solid var(--border2)}
+.evt .type.red{color:var(--red);border-color:rgba(248,81,73,.35)}
+.evt .type.yellow{color:var(--yellow);border-color:rgba(210,153,34,.35)}
+.evt .data{color:var(--dim);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+select{background:var(--bg);color:var(--txt);border:1px solid var(--border);border-radius:7px;padding:5px 10px;font-size:12px}
+
+canvas{width:100%;height:230px;background:var(--bg);border-radius:8px}
+
+/* ── Admin ── */
+.botadmin{border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:14px;background:var(--card);border-left:3px solid var(--border)}
+.botadmin .bhead{display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap}
+.botadmin .bhead .name{font-weight:650;font-size:16px;letter-spacing:-.2px}
+.botadmin .stats{color:var(--dim);font-size:12px;margin-left:auto;font-variant-numeric:tabular-nums}
+.dangerzone{border-top:1px dashed rgba(248,81,73,.25);margin-top:12px;padding-top:10px}
+.dangerzone .dz{font-size:10px;color:var(--red);text-transform:uppercase;letter-spacing:.8px;font-weight:650;margin-bottom:8px;opacity:.8}
+.strgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(86px,1fr));gap:6px;margin-top:12px}
+.strtog{font-size:12px;font-weight:600;text-align:center;padding:6px 4px;border-radius:7px;border:1px solid rgba(63,185,80,.3);cursor:pointer;color:var(--green);background:rgba(63,185,80,.05);transition:all .12s}
+.strtog:hover{filter:brightness(1.25)}
+.strtog.off{color:var(--red);background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.35)}
+
+textarea{width:100%;min-height:280px;background:var(--bg);color:var(--txt);border:1px solid var(--border);border-radius:8px;padding:12px;font-family:ui-monospace,'SF Mono',Menlo,monospace;font-size:12.5px;line-height:1.55;resize:vertical}
+textarea:focus{outline:none;border-color:var(--blue)}
+.banner{padding:9px 14px;border-radius:8px;font-size:13px;margin-bottom:10px;display:none;font-weight:550}
+.banner.pending{display:block;background:rgba(210,153,34,.12);border:1px solid rgba(210,153,34,.35);color:var(--yellow)}
+.banner.err{display:block;background:rgba(248,81,73,.1);border:1px solid rgba(248,81,73,.35);color:var(--red)}
+.banner.ok{display:block;background:rgba(63,185,80,.1);border:1px solid rgba(63,185,80,.35);color:var(--green)}
+
+.empty{color:var(--dim2);text-align:center;padding:18px;font-size:13px}
+.mt{margin-top:14px}
+@media(max-width:700px){.panel{padding:12px}.header{padding:12px 14px}.header .meta{display:none}.bigrow{gap:16px}}
 </style>
 </head>
 <body>
 <div class="header">
-  <h1>Alfred — Master</h1>
+  <h1><span class="alfred">Alfred</span> · Master</h1>
+  <span class="syspill" id="sysPill"><span class="beat"></span><span id="sysPillTxt">connexion…</span></span>
+  <span class="meta" id="lastUpd"></span>
+  <div class="spacer"></div>
   <div class="links"><a href="./">Carousel</a><a href="logout">Logout</a></div>
 </div>
 <div class="tabs">
   <div class="tab active" data-p="sys">Système</div>
-  <div class="tab" data-p="fleet">Flotte</div>
+  <div class="tab" data-p="fleet">Flotte <span class="count" id="cntBots">–</span></div>
   <div class="tab" data-p="admin">Admin</div>
 </div>
 
@@ -85,133 +148,144 @@ textarea{width:100%;min-height:260px;background:#0d1117;color:#e6edf3;border:1px
 <div class="panel active" id="p-sys">
   <div id="pendingBanner" class="banner"></div>
   <div class="grid g2">
-    <div class="card"><h3>WebSocket & données</h3><div id="wsCard"></div></div>
-    <div class="card"><h3>Snapshot marché</h3><div id="snapCard"></div></div>
-    <div class="card"><h3>Gates refacto</h3><div id="gatesCard" class="dim">chargement…</div></div>
-    <div class="card"><h3>Couverture données</h3><div id="covCard"></div></div>
+    <div class="card"><h3><span class="ico">📡</span>WebSocket & données</h3><div id="wsCard"></div></div>
+    <div class="card"><h3><span class="ico">🌐</span>Snapshot marché</h3><div id="snapCard"></div></div>
+    <div class="card"><h3><span class="ico">🚦</span>Gates refacto</h3><div id="gatesCard" class="empty">chargement…</div></div>
+    <div class="card"><h3><span class="ico">💾</span>Couverture données</h3><div id="covCard"></div></div>
   </div>
-  <div class="card" style="margin-top:12px"><h3>Fraîcheur par symbole</h3>
+  <div class="card mt"><h3><span class="ico">🛰</span>Fraîcheur par symbole <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:400">— vert &lt;2 min · jaune &lt;5 min</span></h3>
     <div class="symgrid" id="symGrid"></div></div>
-  <div class="card" style="margin-top:12px"><h3>Events système</h3>
-    <div style="margin-bottom:8px">
-      <select id="evtKinds" style="background:#0d1117;color:#e6edf3;border:1px solid #30363d;border-radius:6px;padding:4px 8px">
-        <option value="">tous</option>
-        <option>DOWNTIME</option><option>WS_RECONNECT</option>
-        <option>CANDLE_AUDIT</option><option>CANDLE_GAP_REPAIR</option>
-        <option>BACKFILL</option><option>MASTER_START</option>
-      </select>
-    </div>
+  <div class="card mt"><h3><span class="ico">📋</span>Events système
+    <select id="evtKinds" style="margin-left:auto">
+      <option value="">tous</option>
+      <option>DOWNTIME</option><option>WS_RECONNECT</option>
+      <option>CANDLE_AUDIT</option><option>CANDLE_GAP_REPAIR</option>
+      <option>BACKFILL</option><option>MASTER_START</option>
+    </select></h3>
     <div id="evtList"></div></div>
 </div>
 
 <!-- ════ FLOTTE ════ -->
 <div class="panel" id="p-fleet">
-  <div class="card"><h3>Bots</h3>
-    <table id="fleetTable"><thead><tr>
+  <div class="card"><h3><span class="ico">🤖</span>Bots</h3>
+    <div style="overflow-x:auto"><table id="fleetTable"><thead><tr>
       <th data-s="label">Bot</th><th data-s="mode">Mode</th><th data-s="status">Statut</th>
-      <th data-s="balance">Equity</th><th data-s="total_pnl">P&L</th>
-      <th data-s="drawdown_pct">DD</th><th data-s="win_rate">WR</th>
-      <th data-s="n_positions">Pos</th><th></th>
-    </tr></thead><tbody></tbody></table></div>
-  <div class="card" style="margin-top:12px"><h3>Courbes equity (% du capital initial)</h3>
-    <canvas id="eqCanvas" height="220"></canvas><div id="eqLegend" style="font-size:12px;margin-top:6px"></div></div>
-  <div class="grid g2" style="margin-top:12px">
-    <div class="card"><h3>Exposition agrégée (tous bots)</h3>
-      <table id="expTable"><thead><tr><th>Symbole</th><th>Dir</th><th>Notional</th><th>Bots</th></tr></thead><tbody></tbody></table>
-      <div id="expTotals" class="dim" style="font-size:12px;margin-top:8px"></div></div>
-    <div class="card"><h3>Par secteur / direction</h3><div id="sectorCard"></div></div>
+      <th data-s="balance" class="num">Equity</th><th data-s="total_pnl" class="num">P&L</th>
+      <th data-s="drawdown_pct" class="num">DD</th><th data-s="win_rate" class="num">WR</th>
+      <th data-s="n_positions" class="num">Pos</th><th></th>
+    </tr></thead><tbody></tbody></table></div></div>
+  <div class="card mt"><h3><span class="ico">📈</span>Courbes equity <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:400">— % du capital initial</span></h3>
+    <canvas id="eqCanvas" height="230"></canvas><div id="eqLegend" style="font-size:12.5px;margin-top:8px"></div></div>
+  <div class="grid g2 mt">
+    <div class="card"><h3><span class="ico">⚖️</span>Exposition agrégée <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:400">— rouge = ≥3 bots même combo</span></h3>
+      <table id="expTable"><thead><tr><th>Symbole</th><th>Dir</th><th class="num">Notional</th><th class="num">Bots</th></tr></thead><tbody></tbody></table>
+      <div id="expTotals" class="dim" style="font-size:12px;margin-top:10px;font-variant-numeric:tabular-nums"></div></div>
+    <div class="card"><h3><span class="ico">🗂</span>Par secteur / direction</h3><div id="sectorCard"></div></div>
   </div>
 </div>
 
 <!-- ════ ADMIN ════ -->
 <div class="panel" id="p-admin">
   <div id="botAdmins"></div>
-  <div class="card" style="margin-top:12px"><h3>bots.json (effet au prochain restart)</h3>
+  <div class="card mt"><h3><span class="ico">⚙️</span>bots.json <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:400">— effet au prochain restart</span></h3>
     <div id="cfgBanner" class="banner"></div>
     <textarea id="cfgText" spellcheck="false"></textarea>
-    <div class="btnrow" style="margin-top:8px">
-      <button onclick="cfgValidate()">Valider</button>
-      <button class="ok" onclick="cfgSave()">Sauver</button>
-      <button onclick="cfgReload()">Recharger</button>
+    <div class="btnrow" style="margin-top:10px">
+      <button onclick="cfgValidate()">✓ Valider</button>
+      <button class="ok" onclick="cfgSave()">💾 Sauver</button>
+      <button onclick="cfgReload()">↺ Recharger</button>
     </div></div>
-  <div class="card" style="margin-top:12px"><h3>Journal d'audit</h3><div id="auditList"></div></div>
+  <div class="card mt"><h3><span class="ico">📜</span>Journal d'audit</h3><div id="auditList"></div></div>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
 const fmt=(v,d=2)=>v==null?'--':(v>=0?'+':'')+Number(v).toFixed(d);
 const fmtAge=s=>s==null?'--':s<90?Math.round(s)+'s':s<5400?Math.round(s/60)+'m':(s/3600).toFixed(1)+'h';
+const fmtUsd=v=>v==null?'--':'$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0});
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
-// Tabs
 document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
-  t.classList.add('active');$( 'p-'+t.dataset.p).classList.add('active');
+  t.classList.add('active');$('p-'+t.dataset.p).classList.add('active');
+  if(t.dataset.p==='fleet'&&fleetData)drawCurves(fleetData.curves||{});
 });
 
-// ── SYSTÈME ──
-function kv(k,v,c=''){return `<div class="kv"><span class="k">${k}</span><span class="${c}">${v}</span></div>`}
+function kv(k,v,c=''){return `<div class="kv"><span class="k">${k}</span><span class="${c} mono">${v}</span></div>`}
 
+// ── SYSTÈME ──
 function renderHealth(h){
   const ws=h.ws||{};
+  const sysOk=ws.connected&&(h.last_price_age_s==null||h.last_price_age_s<300);
+  const pill=$('sysPill');
+  pill.className='syspill '+(sysOk?'ok':'bad');
+  $('sysPillTxt').textContent=sysOk?'système OK':'DÉGRADÉ';
   $('wsCard').innerHTML=
-    kv('WS', ws.connected?'connecté':'DÉCONNECTÉ', ws.connected?'green':'red')+
-    kv('Reconnects', ws.reconnects??'--', ws.reconnects>0?'yellow':'')+
-    kv('Candle updates', (ws.candle_updates??0).toLocaleString())+
-    kv('Dernier prix', fmtAge(h.last_price_age_s), h.last_price_age_s>120?'red':'green')+
-    kv('market.db', h.market_db_bytes?(h.market_db_bytes/1048576).toFixed(1)+' MB':'--')+
-    kv('Bots', h.n_bots??'--')+
+    `<div class="bigrow">
+      <div class="cell"><div class="lbl">WebSocket</div><div class="bignum ${ws.connected?'green':'red'}">${ws.connected?'UP':'DOWN'}</div></div>
+      <div class="cell"><div class="lbl">Dernier prix</div><div class="bignum mono ${h.last_price_age_s>120?'red':''}">${fmtAge(h.last_price_age_s)}</div></div>
+      <div class="cell"><div class="lbl">Reconnects</div><div class="bignum mono ${ws.reconnects>0?'yellow':''}">${ws.reconnects??'--'}</div></div>
+    </div>`+
+    kv('Candle updates',(ws.candle_updates??0).toLocaleString())+
+    kv('market.db',h.market_db_bytes?(h.market_db_bytes/1048576).toFixed(1)+' MB':'--')+
+    kv('Bots actifs',h.n_bots??'--')+
     (h.degraded&&h.degraded.length?kv('Dégradé',h.degraded.join(', '),'yellow'):'');
   const s=h.snapshot;
-  $('snapCard').innerHTML=!s?'<span class="dim">pas de snapshot</span>':
-    kv('Version','v'+s.version)+kv('Âge',fmtAge(s.age_s),s.age_s>4200?'yellow':'')+
-    kv('btc_z',fmt(s.btc_z),s.btc_z<-1?'red':s.btc_z>1?'green':'')+
-    kv('disp 7j',s.disp_7d!=null?Math.round(s.disp_7d):'--')+
+  $('snapCard').innerHTML=!s?'<div class="empty">pas de snapshot</div>':
+    `<div class="bigrow">
+      <div class="cell"><div class="lbl">btc_z 30j</div><div class="bignum mono ${s.btc_z<-1?'red':s.btc_z>1?'green':''}">${fmt(s.btc_z)}</div></div>
+      <div class="cell"><div class="lbl">disp 7j</div><div class="bignum mono">${s.disp_7d!=null?Math.round(s.disp_7d):'--'}</div></div>
+      <div class="cell"><div class="lbl">Alt index</div><div class="bignum mono">${fmt(s.alt_index,0)}</div></div>
+    </div>`+
+    kv('Snapshot','v'+s.version+' · '+fmtAge(s.age_s),s.age_s>4200?'yellow':'')+
     kv('disp 24h',s.disp_24h!=null?Math.round(s.disp_24h):'--')+
-    kv('DXY 7j',fmt(s.dxy_7d,0))+kv('Alt index',fmt(s.alt_index,0))+
+    kv('DXY 7j',fmt(s.dxy_7d,0))+
     kv('OI',`↓${s.oi_summary?.falling??0} ↑${s.oi_summary?.rising??0}`);
-  const dt=h.downtime;
-  const cov=h.candle_coverage||{};
-  const nsym=Object.keys(cov).length;
+  const dt=h.downtime,cov=h.candle_coverage||{};
   const worst=Object.entries(cov).sort((a,b)=>b[1].last_close_age_s-a[1].last_close_age_s)[0];
   $('covCard').innerHTML=
-    kv('Dernier downtime', dt?((dt.seconds/3600).toFixed(1)+'h le '+new Date(dt.from_ms).toISOString().slice(0,16)):'aucun', dt?'yellow':'green')+
-    kv('Symboles en DB', nsym)+
-    (worst?kv('Candle close la + vieille', worst[0]+' · '+fmtAge(worst[1].last_close_age_s), worst[1].last_close_age_s>16*3600?'yellow':''):'')+
-    kv('Config pending restart', h.config_pending_restart===null?'fichier invalide':h.config_pending_restart?'OUI':'non', h.config_pending_restart?'yellow':'green');
+    kv('Dernier downtime',dt?((dt.seconds/3600).toFixed(1)+'h · '+new Date(dt.from_ms).toISOString().slice(0,16).replace('T',' ')):'aucun',dt?'yellow':'green')+
+    kv('Symboles en DB',Object.keys(cov).length)+
+    (worst?kv('Close la + ancienne',worst[0]+' · '+fmtAge(worst[1].last_close_age_s),worst[1].last_close_age_s>16*3600?'yellow':''):'')+
+    kv('Config pending restart',h.config_pending_restart===null?'fichier invalide':h.config_pending_restart?'OUI':'non',h.config_pending_restart?'yellow':'green');
   $('pendingBanner').className='banner'+(h.config_pending_restart?' pending':'');
   $('pendingBanner').textContent=h.config_pending_restart?'⚠ bots.json modifié — effet au prochain restart d\'Alfred':'';
-  // grille fraîcheur
   const f=h.freshness||{};
   $('symGrid').innerHTML=Object.keys(f).sort().map(sym=>{
     const a=f[sym];
     const c=a==null?'bad':a<120?'ok':a<300?'warn':'bad';
-    return `<div class="symdot" title="${sym}: ${fmtAge(a)}"><span class="dot ${c}"></span>${sym}</div>`;
+    return `<div class="symdot" title="${sym} : ${fmtAge(a)}"><span class="dot ${c}"></span>${sym}</div>`;
   }).join('');
 }
 
 function renderGates(g){
   const p2=g.phase2_observation||{},p3=g.phase3_parallel_run||{};
   $('gatesCard').innerHTML=
-    kv('Phase 2 — observation', p2.ok?'✓':'✗', p2.ok?'green':'red')+
-    `<div class="dim" style="font-size:12px;margin:2px 0 8px">${esc(p2.summary)}</div>`+
-    kv('Phase 3 — parallel-run', p3.ok?'✓ gate OK':'✗ LOGIC divergences', p3.ok?'green':'red')+
-    `<div class="dim" style="font-size:12px;margin-top:2px">${esc(p3.summary)}</div>`;
+    `<div class="bigrow">
+      <div class="cell"><div class="lbl">Phase 2 · observation</div><div class="bignum ${p2.ok?'green':'red'}">${p2.ok?'✓':'✗'}</div></div>
+      <div class="cell"><div class="lbl">Phase 3 · parallel-run</div><div class="bignum ${p3.ok?'green':'red'}">${p3.ok?'✓':'✗'}</div></div>
+    </div>`+
+    `<div class="dim" style="font-size:12px;line-height:1.6">${esc(p2.summary)}<br>${esc(p3.summary)}</div>`;
 }
 
 function renderEvents(evts){
   $('evtList').innerHTML=evts.map(e=>{
     const d=new Date(e.ts*1000).toISOString().slice(5,16).replace('T',' ');
     const col=e.event==='DOWNTIME'?'red':e.event==='WS_RECONNECT'?'yellow':'';
-    return `<div class="evt"><span class="ts">${d}</span><span class="type ${col}">${esc(e.event)}</span><span class="dim">${esc(e.symbol||'')}</span><span class="dim" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(e.data||'')}</span></div>`;
-  }).join('')||'<span class="dim">aucun</span>';
+    return `<div class="evt"><span class="ts">${d}</span><span class="type ${col}">${esc(e.event)}</span><span class="dim">${esc(e.symbol||'')}</span><span class="data" title="${esc(e.data||'')}">${esc(e.data||'')}</span></div>`;
+  }).join('')||'<div class="empty">aucun événement</div>';
 }
 
 // ── FLOTTE ──
-let fleetData=null, sortKey='label', sortAsc=true;
+let fleetData=null,sortKey='label',sortAsc=true;
 function renderFleet(d){
   fleetData=d;
+  $('cntBots').textContent=(d.bots||[]).length;
+  document.querySelectorAll('#fleetTable th[data-s]').forEach(th=>{
+    const base=th.textContent.replace(/[▲▼]\s*$/,'').trim();
+    th.innerHTML=base+(th.dataset.s===sortKey?`<span class="arr">${sortAsc?'▲':'▼'}</span>`:'');
+  });
   const rows=[...(d.bots||[])].sort((a,b)=>{
     const x=a[sortKey],y=b[sortKey];
     return (x<y?-1:x>y?1:0)*(sortAsc?1:-1);
@@ -219,28 +293,27 @@ function renderFleet(d){
   $('fleetTable').querySelector('tbody').innerHTML=rows.map(b=>{
     if(!b.online)return `<tr><td>${esc(b.label)}</td><td>${b.mode}</td><td class="red">ERREUR</td><td colspan="6">${esc(b.error)}</td></tr>`;
     return `<tr>
-      <td style="color:${b.bot_label_color||'#e6edf3'}">${esc(b.label)}</td>
+      <td style="color:${b.bot_label_color||'var(--txt)'};font-weight:600">${esc(b.label)}</td>
       <td><span class="badge ${b.mode}">${b.mode}</span></td>
       <td><span class="badge ${b.status==='ok'?'running':b.status}">${b.status}</span></td>
-      <td>$${(b.balance??0).toFixed(0)}</td>
-      <td class="${b.total_pnl>=0?'green':'red'}">${fmt(b.total_pnl)}</td>
-      <td class="${b.drawdown_pct<-10?'red':''}">${fmt(b.drawdown_pct,1)}%</td>
-      <td>${b.win_rate!=null?b.win_rate.toFixed(0)+'%':'--'}</td>
-      <td>${b.n_positions}/${b.max_positions}</td>
-      <td><a href="bot/${b.id}/" target="_blank">ouvrir</a></td></tr>`;
-  }).join('');
-  // expositions
+      <td class="num">${fmtUsd(b.balance)}</td>
+      <td class="num ${b.total_pnl>=0?'green':'red'}">${fmt(b.total_pnl)}</td>
+      <td class="num ${b.drawdown_pct<-10?'red':''}">${fmt(b.drawdown_pct,1)}%</td>
+      <td class="num">${b.win_rate!=null?b.win_rate.toFixed(0)+'%':'--'}</td>
+      <td class="num">${b.n_positions}/${b.max_positions}</td>
+      <td><a href="bot/${b.id}/" target="_blank">ouvrir ↗</a></td></tr>`;
+  }).join('')||'<tr><td colspan="9" class="empty">aucun bot</td></tr>';
   $('expTable').querySelector('tbody').innerHTML=(d.exposures||[]).map(e=>
-    `<tr class="${e.concentrated?'conc':''}"><td>${esc(e.symbol)}</td>
-     <td class="${e.direction==='LONG'?'green':'red'}">${e.direction}</td>
-     <td>$${e.notional.toFixed(0)}</td>
-     <td title="${e.bots.join(', ')}">${e.n_bots}${e.concentrated?' ⚠':''}</td></tr>`
-  ).join('')||'<tr><td colspan="4" class="dim">aucune position</td></tr>';
-  $('expTotals').textContent=`Notional total $${(d.total_notional??0).toFixed(0)} / capital flotte $${(d.total_capital??0).toFixed(0)}`;
-  const bs=Object.entries(d.by_sector||{}).map(([k,v])=>kv(k,'$'+v.toFixed(0))).join('');
-  const bd=Object.entries(d.by_direction||{}).map(([k,v])=>kv(k,'$'+v.toFixed(0),k==='LONG'?'green':'red')).join('');
-  $('sectorCard').innerHTML=bd+'<hr style="border-color:#21262d;margin:8px 0">'+bs;
-  drawCurves(d.curves||{});
+    `<tr class="${e.concentrated?'conc':''}"><td style="font-weight:600">${esc(e.symbol)}</td>
+     <td class="${e.direction==='LONG'?'green':'red'}">${e.direction==='LONG'?'▲ LONG':'▼ SHORT'}</td>
+     <td class="num">${fmtUsd(e.notional)}</td>
+     <td class="num" title="${e.bots.join(', ')}">${e.n_bots}${e.concentrated?' ⚠':''}</td></tr>`
+  ).join('')||'<tr><td colspan="4" class="empty">aucune position ouverte</td></tr>';
+  $('expTotals').textContent=`Notional total ${fmtUsd(d.total_notional)} · capital flotte ${fmtUsd(d.total_capital)} · levier effectif ${d.total_capital?(d.total_notional/d.total_capital).toFixed(2)+'×':'--'}`;
+  const bd=Object.entries(d.by_direction||{}).map(([k,v])=>kv(k==='LONG'?'▲ LONG':'▼ SHORT',fmtUsd(v),k==='LONG'?'green':'red')).join('');
+  const bs=Object.entries(d.by_sector||{}).map(([k,v])=>kv(k,fmtUsd(v))).join('');
+  $('sectorCard').innerHTML=bd+(bs?'<div style="height:10px"></div>'+bs:'');
+  if($('p-fleet').classList.contains('active'))drawCurves(d.curves||{});
 }
 document.querySelectorAll('#fleetTable th[data-s]').forEach(th=>th.onclick=()=>{
   const k=th.dataset.s;
@@ -249,28 +322,45 @@ document.querySelectorAll('#fleetTable th[data-s]').forEach(th=>th.onclick=()=>{
 });
 
 function drawCurves(curves){
-  const cv=$('eqCanvas');cv.width=cv.parentElement.clientWidth-28;
-  const ctx=cv.getContext('2d');ctx.clearRect(0,0,cv.width,cv.height);
+  const cv=$('eqCanvas');
+  const W=cv.parentElement.clientWidth-32;if(W<50)return;
+  const dpr=window.devicePixelRatio||1;
+  cv.width=W*dpr;cv.height=230*dpr;cv.style.width=W+'px';cv.style.height='230px';
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,230);
   const all=Object.values(curves).flatMap(c=>c.points.map(p=>p.pct));
-  if(!all.length){$('eqLegend').innerHTML='<span class="dim">pas de trades</span>';return}
+  if(!all.length){
+    ctx.fillStyle='#484f58';ctx.font='13px -apple-system,sans-serif';ctx.textAlign='center';
+    ctx.fillText('pas encore de trades clôturés',W/2,120);
+    $('eqLegend').innerHTML='';return;
+  }
   const min=Math.min(0,...all),max=Math.max(0,...all),range=Math.max(max-min,.5);
-  const h=cv.height-20,w=cv.width;
-  const zy=h-(0-min)/range*h+10;
-  ctx.strokeStyle='#30363d';ctx.beginPath();ctx.moveTo(0,zy);ctx.lineTo(w,zy);ctx.stroke();
+  const padL=44,padR=10,padT=12,padB=20;
+  const w=W-padL-padR,h=230-padT-padB;
+  const Y=p=>padT+h-(p-min)/range*h;
+  // gridlines + labels
+  ctx.font='10px ui-monospace,monospace';ctx.fillStyle='#484f58';ctx.textAlign='right';
+  const steps=4;
+  for(let i=0;i<=steps;i++){
+    const val=min+range*i/steps,y=Y(val);
+    ctx.strokeStyle='rgba(48,54,61,.5)';ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();
+    ctx.fillText(fmt(val,1)+'%',padL-6,y+3);
+  }
+  // zero line
+  ctx.strokeStyle='#30363d';ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(padL,Y(0));ctx.lineTo(W-padR,Y(0));ctx.stroke();ctx.lineWidth=1;
   let leg='';
   const palette=['#58a6ff','#3fb950','#d29922','#f85149','#a371f7','#ff7b72','#79c0ff','#56d364'];
   let i=0;
   for(const[id,c]of Object.entries(curves)){
     const col=c.color||palette[i++%palette.length];
     const pts=c.points;if(!pts.length)continue;
-    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.beginPath();
+    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();
     pts.forEach((p,j)=>{
-      const x=j/(Math.max(pts.length-1,1))*w;
-      const y=h-(p.pct-min)/range*h+10;
-      j?ctx.lineTo(x,y):ctx.moveTo(x,y);
+      const x=padL+j/(Math.max(pts.length-1,1))*w;
+      j?ctx.lineTo(x,Y(p.pct)):ctx.moveTo(x,Y(p.pct));
     });
     ctx.stroke();
-    leg+=`<span style="color:${col}">●</span> ${esc(c.label)} (${fmt(pts[pts.length-1].pct,1)}%) &nbsp;`;
+    const last=pts[pts.length-1].pct;
+    leg+=`<span style="color:${col};font-weight:600">●</span> ${esc(c.label)} <span class="mono ${last>=0?'green':'red'}">${fmt(last,1)}%</span> &nbsp;&nbsp;`;
   }
   $('eqLegend').innerHTML=leg;
 }
@@ -283,27 +373,30 @@ function renderAdmins(d){
     const paused=new Set((b.paused_strats||[]).map(x=>x.join('_')));
     const togs=STRATS.flatMap(s=>['LONG','SHORT'].map(dir=>{
       const off=paused.has(s+'_'+dir);
-      return `<div class="strtog ${off?'off':''}" onclick="togStrat('${b.id}','${s}','${dir}',${!off})">${s} ${dir==='LONG'?'↑':'↓'}</div>`;
+      return `<div class="strtog ${off?'off':''}" title="${s} ${dir} : ${off?'PAUSÉ — clic pour reprendre':'actif — clic pour pauser'}" onclick="togStrat('${b.id}','${s}','${dir}',${!off})">${s} ${dir==='LONG'?'▲':'▼'}</div>`;
     })).join('');
-    return `<div class="botadmin">
-      <div class="bhead"><span class="name" style="color:${b.bot_label_color||'#e6edf3'}">${esc(b.label)}</span>
+    return `<div class="botadmin" style="border-left-color:${b.bot_label_color||'var(--border)'}">
+      <div class="bhead"><span class="name" style="color:${b.bot_label_color||'var(--txt)'}">${esc(b.label)}</span>
         <span class="badge ${b.mode}">${b.mode}</span>
         <span class="badge ${b.status==='ok'?'running':b.status}">${b.status}</span>
-        <span class="dim" style="margin-left:auto">$${(b.balance??0).toFixed(0)} · ${b.n_positions} pos</span></div>
+        <span class="stats">${fmtUsd(b.balance)} · ${b.n_positions} pos · WR ${b.win_rate!=null?b.win_rate.toFixed(0)+'%':'--'}</span></div>
       <div class="btnrow">
-        <button class="danger" onclick="lifecycle('${b.id}','stop',${b.n_positions})">⏹ Stop</button>
         <button class="ok" onclick="lifecycle('${b.id}','start',0)">▶ Start</button>
-        <button onclick="botAct('${b.id}','halt_entries','Geler les entrées ?')">❄ Halt entries</button>
-        <button onclick="botAct('${b.id}','resume_entries','Reprendre les entrées ?')">▶ Resume entries</button>
-        <button class="danger" onclick="botAct('${b.id}','reset','⚠ RAZ COMPLÈTE (trades effacés) — sûr ?')">RAZ</button>
+        <button onclick="botAct('${b.id}','halt_entries','Geler les entrées de ${esc(b.label)} ? (exits actifs)')">❄ Halt entries</button>
+        <button onclick="botAct('${b.id}','resume_entries','Reprendre les entrées de ${esc(b.label)} ?')">▶ Resume entries</button>
       </div>
-      <div class="strgrid">${togs}</div></div>`;
+      <div class="strgrid">${togs}</div>
+      <div class="dangerzone"><div class="dz">zone dangereuse</div>
+        <div class="btnrow">
+          <button class="danger" onclick="lifecycle('${b.id}','stop',${b.n_positions})">⏹ Stop total</button>
+          <button class="danger" onclick="botAct('${b.id}','reset','⚠ RAZ COMPLÈTE de ${esc(b.label)} : positions fermées + historique trades effacé. IRRÉVERSIBLE. Confirmer ?')">🗑 RAZ</button>
+        </div></div></div>`;
   }).join('');
 }
 function lifecycle(id,action,npos){
   const msg=action==='stop'
-    ?`STOP ${id} : le bot est ENTIÈREMENT gelé (exits compris${npos?' — '+npos+' position(s) ouverte(s) ne seront plus gérées':''}). Confirmer ?`
-    :`Redémarrer ${id} ?`;
+    ?`STOP ${id} : le bot est ENTIÈREMENT gelé — exits compris${npos?'. ⚠ '+npos+' position(s) ouverte(s) ne seront PLUS GÉRÉES':''}. Confirmer ?`
+    :`Démarrer ${id} ?`;
   if(!confirm(msg))return;
   fetch(`api/bot/${id}/lifecycle`,{method:'POST',credentials:'same-origin',
     headers:{'Content-Type':'application/json'},body:JSON.stringify({action})})
@@ -311,8 +404,7 @@ function lifecycle(id,action,npos){
 }
 function botAct(id,action,msg){
   if(!confirm(msg))return;
-  fetch(`bot/${id}/api/${action}`,{method:'POST',credentials:'same-origin'})
-    .then(()=>refresh());
+  fetch(`bot/${id}/api/${action}`,{method:'POST',credentials:'same-origin'}).then(()=>refresh());
 }
 function togStrat(id,strat,dir,pause){
   fetch(`bot/${id}/api/strategy_toggle`,{method:'POST',credentials:'same-origin',
@@ -320,11 +412,9 @@ function togStrat(id,strat,dir,pause){
     body:JSON.stringify({strat,dir,paused:pause})}).then(()=>refresh());
 }
 
-// bots.json editor
 function cfgReload(){
   fetch('api/botsconfig',{credentials:'same-origin'}).then(r=>r.json()).then(j=>{
-    $('cfgText').value=j.content||'';
-    $('cfgBanner').className='banner';
+    $('cfgText').value=j.content||'';$('cfgBanner').className='banner';
   });
 }
 function cfgValidate(){
@@ -332,16 +422,16 @@ function cfgValidate(){
     body:$('cfgText').value}).then(r=>r.json()).then(j=>{
     const b=$('cfgBanner');
     if(j.valid){b.className='banner ok';
-      b.textContent=`✓ valide — bots: ${j.bots.map(x=>x.id).join(', ')} | +${j.diff.added.join(',')||'∅'} −${j.diff.removed.join(',')||'∅'}`;}
+      b.textContent=`✓ valide — bots : ${j.bots.map(x=>x.id+(x.enabled?'':' (off)')).join(', ')}  |  ajoutés : ${j.diff.added.join(', ')||'∅'}  ·  retirés : ${j.diff.removed.join(', ')||'∅'}`;}
     else{b.className='banner err';b.textContent='✗ '+j.error;}
   });
 }
 function cfgSave(){
-  if(!confirm('Sauver bots.json ? (effet au prochain restart)'))return;
+  if(!confirm('Sauver bots.json ? (effet au prochain restart d\'Alfred)'))return;
   fetch('api/botsconfig',{method:'POST',credentials:'same-origin',
     body:$('cfgText').value}).then(r=>r.json()).then(j=>{
     const b=$('cfgBanner');
-    if(j.saved){b.className='banner ok';b.textContent='✓ sauvegardé — '+j.note;}
+    if(j.saved){b.className='banner ok';b.textContent='✓ sauvegardé — '+j.note;refresh();}
     else{b.className='banner err';b.textContent='✗ '+j.error;}
   });
 }
@@ -349,22 +439,29 @@ function cfgSave(){
 function renderAudit(rows){
   $('auditList').innerHTML=rows.map(r=>{
     const d=new Date(r.ts*1000).toISOString().slice(5,16).replace('T',' ');
-    return `<div class="evt"><span class="ts">${d}</span><span class="type">${esc(r.route)}</span><span class="dim">${esc(r.bot_id||'')}</span><span class="dim">${esc(r.payload||'')}</span><span>${esc(r.result)}</span></div>`;
-  }).join('')||'<span class="dim">aucune action</span>';
+    return `<div class="evt"><span class="ts">${d}</span><span class="type">${esc(r.route.replace('/api/',''))}</span><span class="dim">${esc(r.bot_id||'')}</span><span class="data">${esc(r.payload||'')}</span><span class="${r.result==='ok'||r.result==='saved'?'green':'yellow'}">${esc(r.result)}</span></div>`;
+  }).join('')||'<div class="empty">aucune action admin</div>';
 }
 
 // ── refresh ──
-let gatesTimer=0;
+let gatesTimer=0,lastOk=0;
 function refresh(){
-  fetch('api/master/health',{credentials:'same-origin'}).then(r=>r.json()).then(renderHealth).catch(()=>{});
+  fetch('api/master/health',{credentials:'same-origin'}).then(r=>r.json()).then(h=>{
+    renderHealth(h);lastOk=Date.now();
+  }).catch(()=>{
+    $('sysPill').className='syspill bad';$('sysPillTxt').textContent='INJOIGNABLE';
+  });
   fetch('api/master/events?limit=40&kinds='+($('evtKinds').value||''),{credentials:'same-origin'}).then(r=>r.json()).then(renderEvents).catch(()=>{});
   fetch('api/fleet',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{renderFleet(d);renderAdmins(d)}).catch(()=>{});
   fetch('api/admin/audit?limit=50',{credentials:'same-origin'}).then(r=>r.json()).then(renderAudit).catch(()=>{});
-  // gates : cher (run compare_paper) → toutes les 5 min seulement
   if(Date.now()-gatesTimer>300000){gatesTimer=Date.now();
     fetch('api/master/gates',{credentials:'same-origin'}).then(r=>r.json()).then(renderGates).catch(()=>{});}
 }
+setInterval(()=>{
+  if(lastOk)$('lastUpd').textContent='MAJ il y a '+Math.round((Date.now()-lastOk)/1000)+'s';
+},1000);
 $('evtKinds').onchange=refresh;
+window.addEventListener('resize',()=>{if(fleetData)drawCurves(fleetData.curves||{})});
 refresh();cfgReload();
 setInterval(refresh,10000);
 </script>
