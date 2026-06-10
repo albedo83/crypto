@@ -34,7 +34,7 @@ Dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, test 2025-0
 - Validé sur `backtest_rolling` : +91% sur 28m (+$49 687), +63% 12m, +34% 6m, +18% 3m.
 - DD 28m dégradée de ~10pp (swings absolus plus grands sur un capital plus haut), DD améliorée ou inchangée sur toutes les fenêtres récentes.
 - Source : `backtests/backtest_worst_losers.py`, `backtests/backtest_loser_filters.py`.
-- Kill-switch (réactiver un token) : supprimer de `TRADE_BLACKLIST` dans `analysis/bot/config.py`.
+- Kill-switch (réactiver un token) : supprimer de `trade_blacklist` dans `alfred/settings.py`.
 
 ## Résumé par fenêtre
 
@@ -85,9 +85,9 @@ Dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, test 2025-0
 
 ## Méthodologie
 
-- **Source** : candles 4h Hyperliquid, 28 tokens traded + BTC/ETH référence.
-- **Features** : `backtests.backtest_genetic.build_features` + secteurs via `backtest_sector`.
-- **Params** : importés directement depuis `analysis.bot.config` (`SIZE_PCT`, `SIGNAL_MULT`, `STOP_LOSS_BPS`, etc.). Tout changement du bot est automatiquement reflété au prochain run.
+- **Source** : candles 4h Hyperliquid, 34 tokens traded + BTC/ETH référence.
+- **Features** : `backtests.backtest_genetic.build_features` + secteurs via `backtest_sector` (parité validée vs `alfred.features`, 800/800 tirages — `backtests/test_feature_parity.py`).
+- **Params & règles** : noyau ALFRED partagé bot/backtest — `alfred/settings.py` (`DEFAULT_PARAMS`) + `alfred/rules.py` (exits/sizing) + `alfred/signals.py`. Tout changement du bot est automatiquement reflété au prochain run.
 - **Entry timing** : open de la bougie suivante (no look-ahead).
 - **Exit** : stop détecté sur low/high de la bougie, sinon timeout au hold configuré. S9 early exit si unrealized < -500 bps après 8h.
 - **Positions restantes** en fin de fenêtre : mark-to-market au dernier close.
