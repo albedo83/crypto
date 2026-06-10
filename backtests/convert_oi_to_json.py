@@ -1,10 +1,13 @@
 """Build per-coin `*_oi_4h.json` files used by `backtest_rolling`.
 
-Two data sources, merged in priority order:
+Three data sources, merged in priority order (later wins per 4h bucket):
     1. `backtests/output/oi_history.db` — long history from Hyperliquid S3 archive
        (typically 12-day lag from current — refresh via fetch_oi_history.py)
-    2. `analysis/output_live/reversal_ticks.db` `market_snapshots` — recent
-       hourly OI captured live by the running bot (fills the lag of source #1)
+    2. `analysis/output_live/reversal_ticks.db` `market_snapshots` — hourly OI
+       captured by the legacy live bot. FROZEN at 2026-06-10 (bot migrated to
+       Alfred) — kept for the history between the S3 lag and Alfred's start.
+    3. `alfred/data/market.db` `market_snapshots` — hourly OI from Alfred's
+       MarketDataMaster (since 2026-06-10). The live, growing source.
 
 Output: 4h-aligned series at UTC 00, 04, 08, 12, 16, 20.
 
@@ -27,6 +30,7 @@ from .backtest_genetic import TOKENS, REF_TOKENS
 DATA_DIR = os.path.join(os.path.dirname(__file__), "output", "pairs_data")
 ARCHIVE_DB = os.path.join(os.path.dirname(__file__), "output", "oi_history.db")
 LIVE_DB = "/home/crypto/analysis/output_live/reversal_ticks.db"
+ALFRED_DB = "/home/crypto/alfred/data/market.db"
 INTERVAL_S = 4 * 3600
 
 
@@ -60,6 +64,21 @@ def load_live(coin: str) -> list:
     return [(int(r[0]), float(r[1])) for r in rows]
 
 
+def load_alfred(coin: str) -> list:
+    """Return [(ts_s, oi)] from Alfred's market.db (same schema as legacy)."""
+    if not os.path.exists(ALFRED_DB):
+        return []
+    con = sqlite3.connect(f"file:{ALFRED_DB}?mode=ro", uri=True)
+    try:
+        rows = con.execute(
+            "SELECT ts, oi FROM market_snapshots WHERE symbol = ? AND oi > 0 ORDER BY ts",
+            (coin,)).fetchall()
+    except sqlite3.OperationalError:
+        rows = []
+    con.close()
+    return [(int(r[0]), float(r[1])) for r in rows]
+
+
 def downsample_4h(rows: list) -> list:
     """Snap each (ts_s, oi) to its 4h-aligned bucket; keep the latest per bucket.
 
@@ -73,10 +92,12 @@ def downsample_4h(rows: list) -> list:
 
 
 def merge_sources(coin: str) -> list:
-    """Archive (long history) + live (recent days), merged & deduped 4h-aligned."""
-    archive = load_archive(coin)
-    live = load_live(coin)
-    combined = archive + live
+    """Archive (deep) + legacy live (gelé) + Alfred (vivant), dédupliqués 4h.
+
+    downsample_4h garde la DERNIÈRE valeur par bucket après sort() — sur un
+    bucket couvert par plusieurs sources, le ts le plus tardif gagne (Alfred
+    snapshote en continu, donc il prime naturellement sur le legacy gelé)."""
+    combined = load_archive(coin) + load_live(coin) + load_alfred(coin)
     if not combined:
         return []
     combined.sort()
@@ -95,7 +116,8 @@ def main():
 
     print(f"Merging OI sources for {len(symbols)} tokens...")
     print(f"  archive: {ARCHIVE_DB}")
-    print(f"  live:    {LIVE_DB}")
+    print(f"  live:    {LIVE_DB} (gelé 2026-06-10)")
+    print(f"  alfred:  {ALFRED_DB}")
     written = 0
     for coin in symbols:
         rows = merge_sources(coin)

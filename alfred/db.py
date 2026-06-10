@@ -92,12 +92,25 @@ _MARKET_SCHEMA = [
         result TEXT
     )""",
     "CREATE INDEX IF NOT EXISTS idx_audit_ts ON admin_audit(ts)",
+    # Funding horaire RÉALISÉ (REST fundingHistory, canonique — différent du
+    # champ `funding` des ticks qui est le taux instantané prédit). Sync
+    # horaire par le master (resume par symbole, plancher 7j) ; le deep
+    # history pré-Alfred reste dans backtests/output/funding_history.db,
+    # mergé par alfred/tools/export_history.py. ts en MS (clé API HL).
+    """CREATE TABLE IF NOT EXISTS funding_hourly (
+        symbol TEXT NOT NULL,
+        ts INTEGER NOT NULL,
+        rate REAL NOT NULL,
+        premium REAL,
+        PRIMARY KEY (symbol, ts)
+    ) WITHOUT ROWID""",
     # Versioning de schéma (A5) — posé à la rupture pour les migrations futures.
     """CREATE TABLE IF NOT EXISTS schema_meta (
         key TEXT PRIMARY KEY,
         value TEXT
     ) WITHOUT ROWID""",
-    "INSERT OR IGNORE INTO schema_meta VALUES ('version', '1')",
+    "INSERT OR IGNORE INTO schema_meta VALUES ('version', '2')",
+    "UPDATE schema_meta SET value='2' WHERE key='version'",
 ]
 
 _BOT_SCHEMA = [

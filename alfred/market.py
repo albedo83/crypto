@@ -90,6 +90,39 @@ def closed_candles(candles_iter) -> list:
     return [c for c in candles_iter if c["t"] + PERIOD_MS <= now_ms]
 
 
+def sync_funding_hourly(db: Database, symbols, floor_days: int = 7,
+                        sleep_s: float = 0.25) -> int:
+    """Funding horaire RÉALISÉ (REST fundingHistory) → table funding_hourly.
+
+    Resume par symbole depuis le dernier ts stocké (plancher now−floor_days :
+    le deep history pré-Alfred vit dans funding_history.db côté backtests).
+    Une page API = 500 rows max — un trou plus large se résorbe sur les
+    appels suivants (resume). Retourne le nombre de rows insérées.
+    """
+    total = 0
+    now_ms = int(time.time() * 1000)
+    for sym in sorted(symbols):
+        try:
+            with db.lock:   # connexion partagée entre threads
+                last = db.conn.execute(
+                    "SELECT MAX(ts) FROM funding_hourly WHERE symbol=?",
+                    (sym,)).fetchone()[0] or 0
+            start = max(last + 1, now_ms - floor_days * 86400_000)
+            payload = json.dumps({"type": "fundingHistory", "coin": sym,
+                                  "startTime": start}).encode()
+            raw = json.loads(http_fetch(INFO_URL, payload))
+            rows = [(sym, int(r["time"]), float(r["fundingRate"]),
+                     float(r.get("premium") or 0)) for r in raw]
+            if rows:
+                db.write("INSERT OR IGNORE INTO funding_hourly VALUES (?,?,?,?)",
+                         rows)
+                total += len(rows)
+        except Exception as e:
+            log.warning("Funding sync %s: %s", sym, e)
+        time.sleep(sleep_s)
+    return total
+
+
 def fetch_dxy(degraded: list, dxy_cache_path: str) -> float:
     """DXY 7-day return (bps) via Yahoo Finance with 3-tier fallback:
     fresh cache (<6h) → live fetch → stale cache (6-48h) → 0.0."""
@@ -660,6 +693,11 @@ class MarketDataMaster:
                 # two period rolls is then covered by DB + boot gap repair).
                 await asyncio.to_thread(self.persist_in_progress)
                 await self.audit_candles()
+                n_funding = await asyncio.to_thread(
+                    sync_funding_hourly, self.db, self.p.all_symbols)
+                if n_funding > len(self.p.all_symbols) * 3:
+                    # backfill inhabituel (boot après downtime) — trace event
+                    self.db.log_event("FUNDING_SYNC", None, {"rows": n_funding})
                 fresh = sum(1 for st in self.states.values()
                             if time.time() - st.updated_at < 120)
                 snap = self.snapshot
