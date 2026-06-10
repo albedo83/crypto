@@ -95,7 +95,11 @@ class BotInstance:
         self._lock_floor_alerted: set[str] = set()
         self._regime_alert_last_ts = 0.0
         self._basket_metrics: dict | None = None
-        self._last_entry_scan_4h_close = 0
+        # Bot neuf (pas de state) : la période 4h courante est marquée déjà
+        # consommée — la première entrée attend la prochaine frontière 4h au
+        # lieu de fire au boot sur un prix intra-bougie (cas live 2026-06-10 :
+        # CRV/COMP entrés à T+2h09 du close). Un state existant override via load().
+        self._last_entry_scan_4h_close = (int(time.time()) // 14400) * 14400
         self._last_scan: float = 0.0
         self._last_daily_report: float = 0.0
         self._perf_track_start_ts = 0.0
