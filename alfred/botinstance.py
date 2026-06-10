@@ -606,6 +606,9 @@ class BotInstance:
             with self._pos_lock:
                 if sym in self._inflight_open:
                     continue
+                # réserve le symbole : ferme la course avec api_manual_open
+                # (qui checke positions + _inflight_open sous le même lock)
+                self._inflight_open.add(sym)
 
             size = rules.position_size(sig["strategy"], sig["direction"],
                                        capital, self._btc_z, self.p)
@@ -626,6 +629,8 @@ class BotInstance:
                     self.notifier.send(
                         f"❌ Open failed {sym} {sig['strategy']}: {e}",
                         category="trade", actionable=True)
+                with self._pos_lock:
+                    self._inflight_open.discard(sym)
                 continue
             entry_price, filled_size = fill.avg_px, fill.size_usdt
 
@@ -643,6 +648,11 @@ class BotInstance:
                     entry_crowding=int(ctx.get("crowding", 0) or 0),
                     entry_confluence=int(ctx.get("confluence", 0) or 0),
                     entry_session=ctx.get("session", "") or "")
+                self._inflight_open.discard(sym)
+            # Persiste tout de suite : un crash entre le fill exchange et le
+            # save de fin de scan laisserait une position réelle non trackée
+            # (orphan au boot_reconcile, jamais auto-importée).
+            self._save_state()
             esi = features.compute_entry_side_imbalance(
                 sig["direction"], st.price, st.impact_bid, st.impact_ask)
             self.db.log_event("OPEN", sym, {

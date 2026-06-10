@@ -13,6 +13,7 @@ backoff, logout revocation epoch, mutation rate-limit, security headers.
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -711,7 +712,10 @@ def create_app(bots: dict, master) -> FastAPI:
                                     status_code=400)
             bot._inflight_open.add(sym)
         try:
-            fill = bot.broker.open(sym, direction, size, st.price)
+            # SDK bloquant (timeout 20s + retries 429 ~20s) — JAMAIS sur
+            # l'event loop : il porte les ticks d'exit de tous les bots.
+            fill = await asyncio.to_thread(
+                bot.broker.open, sym, direction, size, st.price)
             entry_price, filled_size = fill.avg_px, fill.size_usdt
             target_exit = now + timedelta(hours=hold_h)
             with bot._pos_lock:

@@ -434,6 +434,14 @@ class MarketDataMaster:
                 out.append(sym)
         return out
 
+    async def _safe_repair(self, reason: str):
+        """Wrapper pour les lancements fire-and-forget (create_task) — sans
+        lui, une exception du repair serait silencieusement perdue."""
+        try:
+            await self.repair_gaps(reason)
+        except Exception:
+            log.exception("repair_gaps(%s) failed", reason)
+
     async def repair_gaps(self, reason: str):
         gaps = self._gap_symbols()
         if not gaps:
@@ -566,7 +574,7 @@ class MarketDataMaster:
                                           {"attempt": attempt})
                         # candles may have moved while we were away
                         asyncio.get_running_loop().create_task(
-                            self.repair_gaps("ws_reconnect"))
+                            self._safe_repair("ws_reconnect"))
                     attempt = 0
                     async for raw in ws:
                         msg = orjson.loads(raw)
