@@ -4,6 +4,19 @@ Taken from analysis/bot/signals.py (v12.17.3), parameterized by
 `settings.Params` (no module-level config) so the same detection code is
 called by BotInstances (each with its own Params) and by the backtests.
 
+`detect_squeeze_at` is the indexed core (shared with the backtest engine,
+which scans historical candles by index without slicing).
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+
+import numpy as np
+
+from .settings import Params
+
+
 # ── S10 Squeeze Detection ──────────────────────────────────────────
 
 

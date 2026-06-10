@@ -56,8 +56,19 @@ class BotInstance:
             categories=cfg.tg_categories, label=cfg.label,
             public_url=cfg.public_url)
         if cfg.mode == "live":
-            raise NotImplementedError("LiveBroker lands in Alfred phase 4")
-        self.broker = PaperBroker(self.p)
+            from .hl import HLAccount
+            from .brokers import LiveBroker
+            key = os.environ.get(cfg.private_key_env or "", "")
+            if not key:
+                raise ValueError(
+                    f"[{cfg.id}] live mode but env var "
+                    f"{cfg.private_key_env!r} is empty/unset")
+            account = HLAccount(key, cfg.account_address,
+                                self.p.trade_symbols, self.p.leverage,
+                                self.p.min_fill_abort_usdt)
+            self.broker = LiveBroker(self.p, account)
+        else:
+            self.broker = PaperBroker(self.p)
 
         # ── Per-bot mutable state (names mirror MultiSignalBot) ──
         self.positions: dict[str, Position] = {}
@@ -315,10 +326,42 @@ class BotInstance:
             pos = self.positions.get(sym)
             if pos is None:
                 return
-        fill = self.broker.close(sym, pos.direction, exit_price, mark)
+        # Execute on the exchange FIRST (live) — only pop if it succeeded.
+        # On failure: keep the position tracked, flag it for the next-tick
+        # retry, alert. Paper broker never raises.
+        try:
+            fill = self.broker.close(sym, pos.direction, exit_price, mark)
+        except Exception as e:
+            with self._pos_lock:
+                self._failed_closes.add(sym)
+            self.db.log_event("CLOSE_FAILED", sym,
+                              {"reason": reason, "error": str(e)[:200]})
+            log.error("[%s] EXEC CLOSE FAILED %s: %s — keeping position, "
+                      "retry next tick", self.id, sym, e)
+            self.notifier.send(f"❌ Close failed {sym}: {e} — will retry",
+                               category="trade", actionable=True)
+            return
+        with self._pos_lock:
+            self._failed_closes.discard(sym)
         exit_price = fill.avg_px
+        # Live partial-fill coin reconcile (legacy v12.5.25): if the closed
+        # coin count differs >1% from what we tracked, scale size_usdt to
+        # `coins × open_price` (preserves open-notional P&L semantics).
+        if self.broker.is_live and fill.size_usdt > 0 and pos.entry_price > 0:
+            expected_coins = pos.size_usdt / pos.entry_price
+            actual_coins = fill.size_usdt          # LiveBroker.close: sz in coins
+            if expected_coins > 0 and abs(actual_coins - expected_coins) / expected_coins > 0.01:
+                log.warning("[%s] CLOSE coin reconcile %s: expected=%.4f "
+                            "filled=%.4f — partial fill?", self.id, sym,
+                            expected_coins, actual_coins)
+                with self._pos_lock:
+                    if sym in self.positions:
+                        self.positions[sym].size_usdt = actual_coins * pos.entry_price
+                        pos = self.positions[sym]
         funding_adj = self.broker.trade_funding_usdt(
-            sym, pos.direction, pos.size_usdt, accrued=0.0)
+            sym, pos.direction, pos.size_usdt, accrued=0.0,
+            entry_ms=int(pos.entry_time.timestamp() * 1000),
+            exit_ms=int(now.timestamp() * 1000))
 
         with self._pos_lock:
             if sym not in self.positions:
@@ -512,7 +555,20 @@ class BotInstance:
                                         self._btc_z, self.p)
             hold_h = sig.get("hold_hours", self.p.hold_hours_default)
             target_exit = now + timedelta(hours=hold_h)
-            fill = self.broker.open(sym, sig["direction"], size, st.price)
+            try:
+                fill = self.broker.open(sym, sig["direction"], size, st.price)
+            except Exception as e:
+                log.error("[%s] EXEC OPEN FAILED %s %s: %s",
+                          self.id, sym, sig["strategy"], e)
+                # Insufficient-margin cascades at a saturated boundary are
+                # normal — don't page for each one (legacy v12.13.9).
+                _es = str(e).lower()
+                if ("insufficient margin" not in _es
+                        and "margin to place order" not in _es):
+                    self.notifier.send(
+                        f"❌ Open failed {sym} {sig['strategy']}: {e}",
+                        category="trade", actionable=True)
+                continue
             entry_price, filled_size = fill.avg_px, fill.size_usdt
 
             ctx = sig.get("ctx", {})
@@ -615,6 +671,76 @@ class BotInstance:
         n_new = self._rank_and_enter(sigs, now, m)
         self._save_state()
         return n_new
+
+    # ── Live-only duties (phase 4) ───────────────────────────────────
+
+    def refresh_equity(self, full: bool = False) -> None:
+        """Refresh self._exchange_account from HL. `full` adds fees/funding
+        diagnostics (4 SDK calls vs 2) — called at the slower scan cadence;
+        the cheap variant runs every equity tick. No-op on paper."""
+        if not self.broker.is_live:
+            return
+        fees_start = (int(self._perf_track_start_ts * 1000)
+                      if self._perf_track_start_ts else None)
+        acct = (self.broker.account.account_state(fees_start) if full
+                else self.broker.account.equity_only())
+        if acct:
+            if self._exchange_account and not full:
+                # keep the slow diagnostic fields from the last full refresh
+                merged = dict(self._exchange_account)
+                merged.update(acct)
+                acct = merged
+            self._exchange_account = acct
+
+    def reconcile(self) -> None:
+        """Hourly bot-vs-exchange position reconcile. No-op on paper."""
+        if not self.broker.is_live:
+            return
+        with self._pos_lock:
+            pos_snapshot = dict(self.positions)
+        self.broker.account.reconcile(pos_snapshot, self.notifier.send)
+
+    def boot_reconcile(self) -> None:
+        """Once at boot (after load): drop ghost positions (in the bot but
+        absent on the exchange — e.g. manually closed in the HL UI while the
+        bot was down). Orphans are alerted, never auto-imported. No-op paper."""
+        if not self.broker.is_live:
+            return
+        try:
+            exch = self.broker.account.exchange_positions()
+        except Exception as e:
+            log.warning("[%s] boot reconcile fetch failed: %s — keeping all "
+                        "positions, hourly reconcile will flag", self.id, e)
+            return
+        with self._pos_lock:
+            ghosts = [s for s in self.positions if s not in exch]
+            for sym in ghosts:
+                pos = self.positions.pop(sym)
+                log.warning("[%s] boot reconcile: dropping ghost %s %s "
+                            "(absent on exchange)", self.id, sym, pos.strategy)
+        if ghosts:
+            self.notifier.send(
+                f"🧹 Boot reconcile: dropped ghost positions {ghosts} "
+                f"(absent on exchange)", category="reconcile")
+            self._save_state()
+        orphans = [s for s in exch if s not in self.positions]
+        if orphans:
+            self.notifier.send(
+                f"⚠️ Boot reconcile: orphan positions on exchange {orphans} "
+                f"(not tracked — manage manually)", category="reconcile",
+                actionable=True)
+
+    def safe_refresh_equity(self, full: bool = False) -> None:
+        try:
+            self.refresh_equity(full=full)
+        except Exception:
+            log.exception("[%s] refresh_equity failed", self.id)
+
+    def safe_reconcile(self) -> None:
+        try:
+            self.reconcile()
+        except Exception:
+            log.exception("[%s] reconcile failed", self.id)
 
     # ── Safe wrappers (scheduler entry points) ───────────────────────
 

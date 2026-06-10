@@ -67,6 +67,11 @@ async def scheduler(master, bots: dict, shutdown: asyncio.Event):
                 continue
             for b in bots.values():
                 await asyncio.to_thread(b.safe_on_tick)
+            # Live bots: cheap equity refresh at the tick cadence (2 SDK
+            # calls per live bot — phase 4).
+            for b in bots.values():
+                if b.broker.is_live:
+                    await asyncio.to_thread(b.safe_refresh_equity)
 
             now_t = time.time()
             last_4h = (int(now_t) // 14400) * 14400
@@ -81,6 +86,11 @@ async def scheduler(master, bots: dict, shutdown: asyncio.Event):
                 await asyncio.to_thread(master.log_market_snapshot)
                 for b in bots.values():
                     await asyncio.to_thread(b.safe_on_scan)
+                # Live bots: hourly reconcile + full account diagnostics
+                for b in bots.values():
+                    if b.broker.is_live:
+                        await asyncio.to_thread(b.safe_reconcile)
+                        await asyncio.to_thread(b.safe_refresh_equity, True)
                 last_scan = now_t
         except asyncio.CancelledError:
             return
@@ -161,6 +171,11 @@ async def run():
              master.snapshot.alt_index)
     for b in bots.values():
         b.load()
+        # Live bots (phase 4): drop ghosts / flag orphans once, then prime
+        # the equity card so the dashboard isn't blank until the first tick.
+        if b.broker.is_live:
+            await asyncio.to_thread(b.boot_reconcile)
+            await asyncio.to_thread(b.safe_refresh_equity, True)
 
     # ── Web app ──
     import uvicorn
