@@ -43,7 +43,7 @@ from analysis.bot.config import (
     HOLD_HOURS_S8, MAX_NOTIONAL_PER_TRADE, COOLDOWN_HOURS,
 )
 
-VARIANTS = ["baseline", "robust", "multi", "robust_multi"]
+VARIANTS = ["baseline", "winsorize", "adaptive_window"]
 
 WINDOWS = [
     ("28m", "2024-02-04"),

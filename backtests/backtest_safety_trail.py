@@ -26,7 +26,7 @@ END_DT = datetime(2026, 6, 1, tzinfo=timezone.utc)
 START_CAP = 1000.0
 ARM_HOURS = 8.0
 MIN_MFE_BPS = 100.0  # need real upside before trail arms
-TRAIL_RATIOS = [0.30, 0.50, 0.70]
+TRAIL_RATIOS = [0.05, 0.30, 0.50, 0.70, 0.95]
 
 
 def make_hook(trail_ratio: float, counter: dict):

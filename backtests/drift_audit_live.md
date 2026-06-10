@@ -4,18 +4,18 @@ _Generated 2026-05-16. Wallet `0x6E2aE12f1F093CAA9710F15f933516B9b6fA2d5d`. Wind
 
 ## TL;DR
 
-- Trades bot dans la fenêtre : **95**
-- Trades matched avec close-fills HL : **95**
+- Trades bot dans la fenêtre : **146**
+- Trades matched avec close-fills HL : **146**
 - Trades unmatched (close fills introuvables) : **0**
-- **Bot tracked gross PnL** : `$+8.91`
-- **HL closed_pnl sum (matched)** : `$+6.07`
-- **Δ total (bot − HL)** : **`$+2.84`** ← le drift recherché
+- **Bot tracked gross PnL** : `$+32.75`
+- **HL closed_pnl sum (matched)** : `$+29.89`
+- **Δ total (bot − HL)** : **`$+2.85`** ← le drift recherché
 
 Décomposition vs alerte EQUITY_DRIFT actuelle :
-- Drift sur fills (gross discrepancy) : `$+2.84`
+- Drift sur fills (gross discrepancy) : `$+2.85`
 - Funding diff (bot $-3.53 vs HL $-4.01) : `+$0.48`
 - Fees diff (bot $11.48 estimé vs HL $10.56 réel) : `+$0.92`
-- Total expliqué : `$+4.24` (vs alerte `+$6.88`)
+- Total expliqué : `$+4.25` (vs alerte `+$6.88`)
 
 ## Top 20 trades par |Δ| absolu
 
@@ -46,32 +46,34 @@ Décomposition vs alerte EQUITY_DRIFT actuelle :
 
 | Symbol | n trades | Σ delta | avg / trade |
 |---|---:|---:|---:|
-| INJ | 4 | **+7.66** | +1.914 |
-| WLD | 7 | **-5.16** | -0.737 |
-| SEI | 5 | **-3.19** | -0.638 |
-| BLUR | 7 | **-2.66** | -0.381 |
+| INJ | 9 | **+7.66** | +0.851 |
+| WLD | 14 | **-5.16** | -0.369 |
+| SEI | 7 | **-3.19** | -0.456 |
+| BLUR | 8 | **-2.66** | -0.333 |
 | GALA | 4 | **+1.81** | +0.452 |
-| OP | 2 | **+1.54** | +0.770 |
-| SNX | 4 | **+1.48** | +0.371 |
-| DYDX | 6 | **+1.10** | +0.183 |
-| DOGE | 7 | **+0.92** | +0.132 |
+| OP | 3 | **+1.53** | +0.511 |
+| SNX | 5 | **+1.48** | +0.297 |
+| DYDX | 7 | **+1.12** | +0.160 |
+| DOGE | 9 | **+0.92** | +0.102 |
 | LDO | 5 | **-0.78** | -0.155 |
-| AAVE | 7 | **-0.69** | -0.098 |
+| AAVE | 8 | **-0.69** | -0.086 |
 | SUI | 2 | **+0.56** | +0.279 |
-| NEAR | 4 | **+0.44** | +0.111 |
-| COMP | 6 | **-0.33** | -0.055 |
+| NEAR | 10 | **+0.44** | +0.044 |
+| COMP | 8 | **-0.33** | -0.041 |
 | IMX | 2 | **+0.19** | +0.094 |
-| ARB | 4 | **-0.18** | -0.046 |
-| PENDLE | 3 | **+0.16** | +0.055 |
-| SOL | 1 | **-0.04** | -0.039 |
-| CRV | 2 | **+0.01** | +0.005 |
-| APT | 3 | **-0.00** | -0.001 |
-| PYTH | 3 | **-0.00** | -0.001 |
+| ARB | 7 | **-0.18** | -0.025 |
+| PENDLE | 4 | **+0.17** | +0.041 |
+| SOL | 2 | **-0.04** | -0.019 |
+| CRV | 3 | **+0.01** | +0.003 |
+| MINA | 5 | **+0.01** | +0.001 |
+| APT | 5 | **-0.00** | -0.001 |
+| PYTH | 5 | **-0.00** | -0.001 |
+| BCH | 5 | **+0.00** | +0.001 |
+| ENA | 1 | **-0.00** | -0.001 |
 | SAND | 2 | **-0.00** | -0.000 |
 | TON | 2 | **+0.00** | +0.000 |
 | AVAX | 1 | **-0.00** | -0.000 |
-| MINA | 1 | **+0.00** | +0.000 |
-| GMX | 1 | **+0.00** | +0.000 |
+| GMX | 3 | **+0.00** | +0.000 |
 
 ## Unmatched trades (no HL close fills found within ±5min)
 
@@ -79,6 +81,6 @@ _Tous les trades ont matched des fills HL. Aucun trade fantôme._
 
 ## Trades avec multi-fills à la clôture (partial fills)
 
-- **16** trades sur 95 ont eu &gt;1 fill HL à la clôture.
-- Σ Δ sur multi-fill : `$+8.11` (16 trades, avg `$+0.507`/trade)
-- Σ Δ sur single-fill : `$-5.28` (79 trades, avg `$-0.067`/trade)
+- **35** trades sur 146 ont eu &gt;1 fill HL à la clôture.
+- Σ Δ sur multi-fill : `$+8.14` (35 trades, avg `$+0.233`/trade)
+- Σ Δ sur single-fill : `$-5.29` (111 trades, avg `$-0.048`/trade)
