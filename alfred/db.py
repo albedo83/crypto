@@ -67,6 +67,37 @@ _MARKET_SCHEMA = [
     )""",
     "CREATE INDEX IF NOT EXISTS idx_events_ts ON events(ts)",
     "CREATE INDEX IF NOT EXISTS idx_events_type ON events(event)",
+    # Candles 4h — store canonique (A1). Écrit par le WS (bougie en cours,
+    # closed=0→1 à la finalisation) et le REST backfill/gap repair (closed=1).
+    # Le boot recharge les deques depuis cette table (reprise hors-ligne) ;
+    # à terme (phase 6) les backtests sourceront ici.
+    """CREATE TABLE IF NOT EXISTS candles (
+        symbol TEXT NOT NULL,
+        interval TEXT NOT NULL DEFAULT '4h',
+        t INTEGER NOT NULL,
+        close_t INTEGER NOT NULL,
+        o REAL, h REAL, l REAL, c REAL, v REAL, n INTEGER,
+        closed INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (symbol, interval, t)
+    ) WITHOUT ROWID""",
+    "CREATE INDEX IF NOT EXISTS idx_candles_closed ON candles(symbol, interval, closed, t)",
+    # Audit des actions d'administration (A5) — table dédiée, pas mélangée
+    # aux events système.
+    """CREATE TABLE IF NOT EXISTS admin_audit (
+        ts INTEGER NOT NULL,
+        ip TEXT,
+        route TEXT NOT NULL,
+        bot_id TEXT,
+        payload TEXT,
+        result TEXT
+    )""",
+    "CREATE INDEX IF NOT EXISTS idx_audit_ts ON admin_audit(ts)",
+    # Versioning de schéma (A5) — posé à la rupture pour les migrations futures.
+    """CREATE TABLE IF NOT EXISTS schema_meta (
+        key TEXT PRIMARY KEY,
+        value TEXT
+    ) WITHOUT ROWID""",
+    "INSERT OR IGNORE INTO schema_meta VALUES ('version', '1')",
 ]
 
 _BOT_SCHEMA = [
@@ -153,6 +184,65 @@ class Database:
         self.write("INSERT INTO events VALUES (?,?,?,?)",
                    [(int(time.time()), event, symbol,
                      json.dumps(data) if data else None)])
+
+    # ── Candles (market DB only, A1) ─────────────────────────────────
+
+    def upsert_candles(self, symbol: str, candles: list[dict],
+                       closed: bool, interval: str = "4h") -> None:
+        """Upsert HL-format candles ({t,T,o,h,l,c,v,n}). closed=True marks
+        finalized bars (REST backfill, or WS bar superseded by the next).
+        A closed bar is never downgraded back to in-progress."""
+        rows = []
+        for c in candles:
+            try:
+                rows.append((symbol, interval, int(c["t"]), int(c["T"]),
+                             float(c["o"]), float(c["h"]), float(c["l"]),
+                             float(c["c"]), float(c.get("v", 0) or 0),
+                             int(c.get("n", 0) or 0), 1 if closed else 0))
+            except (KeyError, TypeError, ValueError):
+                continue
+        self.write(
+            """INSERT INTO candles VALUES (?,?,?,?,?,?,?,?,?,?,?)
+               ON CONFLICT(symbol, interval, t) DO UPDATE SET
+                 close_t=excluded.close_t, o=excluded.o, h=excluded.h,
+                 l=excluded.l, c=excluded.c, v=excluded.v, n=excluded.n,
+                 closed=MAX(candles.closed, excluded.closed)""", rows)
+
+    def load_candles(self, symbol: str, limit: int,
+                     interval: str = "4h") -> list[dict]:
+        """Latest `limit` candles (HL dict format, ascending t). Read path —
+        short lock hold, used only at boot."""
+        try:
+            with self.lock:
+                rows = self.conn.execute(
+                    """SELECT t, close_t, o, h, l, c, v, n FROM candles
+                       WHERE symbol=? AND interval=?
+                       ORDER BY t DESC LIMIT ?""",
+                    (symbol, interval, limit)).fetchall()
+        except Exception as e:
+            log.warning("load_candles failed (%s): %s", symbol, e)
+            return []
+        rows.reverse()
+        return [{"t": r[0], "T": r[1], "s": symbol, "i": interval,
+                 "o": r[2], "h": r[3], "l": r[4], "c": r[5],
+                 "v": r[6], "n": r[7]} for r in rows]
+
+    def last_closed_candle_ts(self, interval: str = "4h") -> int:
+        """max(close_t) over all closed candles — downtime detection anchor."""
+        try:
+            with self.lock:
+                row = self.conn.execute(
+                    "SELECT MAX(close_t) FROM candles WHERE closed=1 AND interval=?",
+                    (interval,)).fetchone()
+            return int(row[0]) if row and row[0] else 0
+        except Exception:
+            return 0
+
+    def log_admin_action(self, ip: str, route: str, bot_id: str | None,
+                         payload: dict | None, result: str) -> None:
+        self.write("INSERT INTO admin_audit VALUES (?,?,?,?,?,?)",
+                   [(int(time.time()), ip, route, bot_id,
+                     json.dumps(payload) if payload else None, result)])
 
     def close(self) -> None:
         try:

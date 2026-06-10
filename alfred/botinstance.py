@@ -131,7 +131,61 @@ class BotInstance:
                      self.id, len(self.positions), self._capital, self._total_pnl)
         for t in persistence.load_trades(self.db):
             self.trades.append(t)
+        self._catch_up_excursions()
         self.started_at = datetime.now(timezone.utc)
+
+    def _catch_up_excursions(self) -> None:
+        """A3 — après un downtime, les MAE/MFE des positions ouvertes ignorent
+        les extrêmes traversés pendant la coupure. Replay des candles CLOSED
+        de la fenêtre [max(entry, downtime_from), now] pour les corriger —
+        sinon les règles MFE-based (s10_trailing, s8_inlife, prop_trail,
+        runner_ext, dead_timeout) raisonnent sur des excursions fausses.
+
+        Un stop/trail qui aurait dû partir pendant la coupure fire au premier
+        tick post-boot, au mark courant (sémantique legacy, documentée)."""
+        dt_info = getattr(self.master, "last_downtime", None)
+        if not dt_info or not self.positions:
+            return
+        from_ms = dt_info["from_ms"]
+        n_adj = 0
+        with self._pos_lock:
+            for sym, pos in self.positions.items():
+                st = self.states.get(sym)
+                if not st or not st.candles_4h or pos.entry_price <= 0:
+                    continue
+                entry_ms = int(pos.entry_time.timestamp() * 1000)
+                lo_ms = max(entry_ms, from_ms)
+                now_ms = int(time.time() * 1000)
+                old_mfe, old_mae = pos.mfe_bps, pos.mae_bps
+                for c in st.candles_4h:
+                    # candles closed uniquement, dans la fenêtre du gap
+                    if c["t"] + 14_400_000 > now_ms:
+                        continue
+                    if c["t"] + 14_400_000 < lo_ms or c["t"] > now_ms:
+                        continue
+                    best, worst = rules.candle_excursions(
+                        pos.direction, pos.entry_price, c["h"], c["l"])
+                    if best > pos.mfe_bps:
+                        pos.mfe_bps = best
+                    if worst < pos.mae_bps:
+                        pos.mae_bps = worst
+                if pos.mfe_bps != old_mfe or pos.mae_bps != old_mae:
+                    n_adj += 1
+                    self.db.log_event("EXCURSION_CATCHUP", sym, {
+                        "mfe_before": round(old_mfe, 1),
+                        "mfe_after": round(pos.mfe_bps, 1),
+                        "mae_before": round(old_mae, 1),
+                        "mae_after": round(pos.mae_bps, 1),
+                        "downtime_s": dt_info["seconds"]})
+                    log.info("[%s] excursion catch-up %s: mfe %+.0f→%+.0f "
+                             "mae %+.0f→%+.0f", self.id, sym,
+                             old_mfe, pos.mfe_bps, old_mae, pos.mae_bps)
+        if n_adj:
+            self._save_state()
+            self.notifier.send(
+                f"🩹 Excursion catch-up post-downtime "
+                f"({dt_info['seconds']/3600:.1f}h) : {n_adj} position(s) "
+                f"MAE/MFE corrigées", category="system")
 
     def _save_state(self) -> None:
         persistence.save_state(self)

@@ -174,6 +174,10 @@ class MarketDataMaster:
         self.ws_connected: bool = False
         self.ws_reconnects: int = 0
         self.ws_candle_updates: int = 0
+        # A2 — downtime détecté au boot ({from_ms, to_ms, seconds} | None).
+        # Lu par BotInstance.load() pour le rattrapage d'excursions (A3) et
+        # par la vue /master (couverture données).
+        self.last_downtime: dict | None = None
         self._degraded: list[str] = []
         self._dxy_cache: tuple[float, float] = (0.0, 0.0)  # (value, fetched_at)
         self._audit_cycle = itertools.cycle(sorted(p.all_symbols))
@@ -250,8 +254,16 @@ class MarketDataMaster:
             "h": float(c["h"]), "l": float(c["l"]), "v": float(c.get("v", 0)),
         } for c in raw]
 
-    def _refill_symbol(self, symbol: str, days: int) -> bool:
-        """Replace a symbol's candle deque from a REST snapshot (atomic swap)."""
+    def _refill_symbol(self, symbol: str, days: int,
+                       merge: bool = False) -> bool:
+        """Refresh a symbol's candles from a REST snapshot.
+
+        merge=False : atomic swap of the whole deque (full backfill).
+        merge=True  : union with the existing deque keyed by t — used by the
+        boot repair when fetching a window SHORTER than the restored history
+        (a swap would wipe the DB-restored candles down to the fetch window).
+
+        A1 — persists the fetched bars (closed flag derived per bar)."""
         try:
             candles = self._fetch_candle_snapshot(symbol, days)
         except Exception as e:
@@ -260,27 +272,113 @@ class MarketDataMaster:
         if not candles:
             return False
         st = self.states[symbol]
-        new_deque: deque = deque(candles, maxlen=st.candles_4h.maxlen)
-        st.candles_4h = new_deque
-        st.last_candle_ts = candles[-1]["t"]
+        if merge and st.candles_4h:
+            by_t = {c["t"]: c for c in st.candles_4h}
+            by_t.update({c["t"]: c for c in candles})
+            merged = [by_t[t] for t in sorted(by_t)]
+            st.candles_4h = deque(merged, maxlen=st.candles_4h.maxlen)
+        else:
+            st.candles_4h = deque(candles, maxlen=st.candles_4h.maxlen)
+        st.last_candle_ts = st.candles_4h[-1]["t"]
+        now_ms = int(time.time() * 1000)
+        done = [c for c in candles if c["t"] + PERIOD_MS <= now_ms]
+        cur = [c for c in candles if c["t"] + PERIOD_MS > now_ms]
+        if done:
+            self._persist_candles(symbol, done, closed=True)
+        if cur:
+            self._persist_candles(symbol, cur, closed=False)
         return True
 
     def _days_for(self, symbol: str) -> int:
         # BTC needs 30d lookback + 180d z-window for the macro modulator.
         return 250 if symbol == "BTC" else 45
 
-    async def backfill(self):
-        """Boot backfill, sequenced to avoid bursting the shared IP."""
-        t0 = time.time()
+    def _load_from_db(self) -> int:
+        """A2 — fill the deques from the candles table. Returns the number of
+        symbols restored. Instant and offline-capable."""
         ok = 0
         for sym in self.p.all_symbols:
-            if await asyncio.to_thread(self._refill_symbol, sym, self._days_for(sym)):
-                ok += 1
-            await asyncio.sleep(self.candle_fetch_sleep)
-        log.info("Backfill: %d/%d symbols in %.0fs",
-                 ok, len(self.p.all_symbols), time.time() - t0)
+            st = self.states[sym]
+            candles = self.db.load_candles(sym, st.candles_4h.maxlen)
+            if not candles:
+                continue
+            # In-memory format drops T (derived where needed)
+            rows = [{"t": c["t"], "o": c["o"], "c": c["c"],
+                     "h": c["h"], "l": c["l"], "v": c["v"]} for c in candles]
+            st.candles_4h = deque(rows, maxlen=st.candles_4h.maxlen)
+            st.last_candle_ts = rows[-1]["t"]
+            ok += 1
+        return ok
+
+    def _detect_downtime(self):
+        """A2 — compare the freshest closed candle in DB to now. A gap larger
+        than one full period + margin = the process was down (or the WS dead
+        without repair) over that window. Logged + kept on self for the
+        excursion catch-up (A3) and the /master data-coverage panel."""
+        last_close_ms = self.db.last_closed_candle_ts()
+        if not last_close_ms:
+            return  # empty table = first boot, no downtime concept
+        now_ms = int(time.time() * 1000)
+        gap_ms = now_ms - last_close_ms
+        # One full 4h period can legitimately be "open" — beyond
+        # PERIOD_MS + 10 min, candles that should have closed are missing.
+        if gap_ms > PERIOD_MS + 600_000:
+            self.last_downtime = {
+                "from_ms": last_close_ms, "to_ms": now_ms,
+                "seconds": round(gap_ms / 1000),
+            }
+            log.warning("DOWNTIME detected: %.1fh without closed candles "
+                        "(since %s)", gap_ms / 3_600_000,
+                        time.strftime("%F %T", time.gmtime(last_close_ms / 1000)))
+            self.db.log_event("DOWNTIME", None, self.last_downtime)
+
+    async def backfill(self):
+        """A2 — boot recovery: DB first, REST only for what's missing.
+
+        1. Restore deques from the candles table (instant, offline OK).
+        2. Detect downtime (gap between last closed candle and now).
+        3. REST repair, scoped: full-history fetch ONLY for symbols absent
+           from the DB (first boot); for the rest, fetch a window sized to
+           the actual gap (gap repair semantics).
+        """
+        t0 = time.time()
+        restored = self._load_from_db()
+        self._detect_downtime()
+
+        fetched = 0
+        if restored:
+            # Targeted repair: only the missing window per symbol.
+            gap_days_default = 2
+            if self.last_downtime:
+                gap_days_default = max(
+                    2, int(self.last_downtime["seconds"] / 86400) + 1)
+            for sym in self.p.all_symbols:
+                st = self.states[sym]
+                if not st.candles_4h:
+                    days, merge = self._days_for(sym), False   # absent from DB
+                elif sym == "BTC" and len(st.candles_4h) < 220 * 6:
+                    days, merge = self._days_for(sym), False   # macro window incomplete
+                else:
+                    days = min(gap_days_default, self._days_for(sym))
+                    merge = True                               # partial window
+                if await asyncio.to_thread(self._refill_symbol, sym, days, merge):
+                    fetched += 1
+                await asyncio.sleep(self.candle_fetch_sleep)
+            mode = "db-restore+repair"
+        else:
+            # First boot: full REST backfill (legacy behavior).
+            for sym in self.p.all_symbols:
+                if await asyncio.to_thread(
+                        self._refill_symbol, sym, self._days_for(sym)):
+                    fetched += 1
+                await asyncio.sleep(self.candle_fetch_sleep)
+            mode = "full-rest"
+
+        log.info("Backfill (%s): %d restored from DB, %d REST-refreshed in %.0fs",
+                 mode, restored, fetched, time.time() - t0)
         self.db.log_event("BACKFILL", None, {
-            "ok": ok, "total": len(self.p.all_symbols),
+            "mode": mode, "restored_db": restored, "fetched_rest": fetched,
+            "total": len(self.p.all_symbols),
             "seconds": round(time.time() - t0, 1)})
 
     def _gap_symbols(self) -> list[str]:
@@ -376,10 +474,38 @@ class MarketDataMaster:
         if st.candles_4h and st.candles_4h[-1]["t"] == row["t"]:
             st.candles_4h[-1] = row          # in-progress candle update
         elif not st.candles_4h or row["t"] > st.candles_4h[-1]["t"]:
+            # A1 — period roll: the previous in-memory bar just became final.
+            # Persist it closed=1 (immutable) + the new bar closed=0. The
+            # in-progress refinements between rolls are persisted by the
+            # hourly loop (persist_in_progress) — a crash in between is
+            # repaired at boot by the REST gap repair.
+            if st.candles_4h:
+                self._persist_candles(sym, [st.candles_4h[-1]], closed=True)
             st.candles_4h.append(row)        # new period opened
+            self._persist_candles(sym, [row], closed=False)
         # older-than-last updates are ignored (REST backfill owns history)
         st.last_candle_ts = row["t"]
         self.ws_candle_updates += 1
+
+    def _persist_candles(self, sym: str, rows: list[dict], closed: bool):
+        """A1 — upsert in-memory format candles ({t,o,h,l,c,v}) to the DB,
+        deriving close_t (the in-memory rows don't carry HL's 'T')."""
+        self.db.upsert_candles(sym, [
+            {**r, "T": r.get("T", r["t"] + PERIOD_MS - 1)} for r in rows
+        ], closed=closed)
+
+    def persist_in_progress(self):
+        """A1 — hourly checkpoint of every symbol's in-progress bar (and a
+        safety re-upsert of the latest closed one)."""
+        now_ms = int(time.time() * 1000)
+        for sym, st in self.states.items():
+            if not st.candles_4h:
+                continue
+            last = st.candles_4h[-1]
+            is_closed = last["t"] + PERIOD_MS <= now_ms
+            self._persist_candles(sym, [last], closed=is_closed)
+            if len(st.candles_4h) >= 2:
+                self._persist_candles(sym, [st.candles_4h[-2]], closed=True)
 
     async def ws_loop(self):
         """Single WS connection, re-subscribe + gap repair after reconnect."""
@@ -530,6 +656,9 @@ class MarketDataMaster:
         while self.running:
             try:
                 await self.repair_gaps("hourly")
+                # A1 — checkpoint the in-progress bars (crash window between
+                # two period rolls is then covered by DB + boot gap repair).
+                await asyncio.to_thread(self.persist_in_progress)
                 await self.audit_candles()
                 fresh = sum(1 for st in self.states.values()
                             if time.time() - st.updated_at < 120)
