@@ -255,9 +255,14 @@ def create_app(bots: dict, master) -> FastAPI:
             resp.set_cookie("alfred_session", token, httponly=True, samesite="strict",
                             max_age=_SESSION_MAX_AGE)
             log.info("LOGIN OK: user=%s role=%s ip=%s", username, role, client_ip)
-            master.notifier.send(f"🔑 Login OK Alfred — user={username} "
-                                 f"role={role} ip={client_ip}",
-                                 category="security")
+            # Les sentinelles cron (hedge_monitor 5 min, regime_alert horaire,
+            # supervisor quotidien) se loguent depuis 127.0.0.1 — pas de TG
+            # pour ces logins locaux, sinon spam. Un humain passe par nginx
+            # (X-Forwarded-For → vraie IP). Les FAIL restent tous notifiés.
+            if client_ip != "127.0.0.1":
+                master.notifier.send(f"🔑 Login OK Alfred — user={username} "
+                                     f"role={role} ip={client_ip}",
+                                     category="security")
             return resp
         n_fails, _ = _login_failures.get(client_ip, (0, 0.0))
         _login_failures[client_ip] = (n_fails + 1, time.time())
