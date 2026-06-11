@@ -1753,6 +1753,21 @@ function initChart(){
   });
   _lwSeries=_lwChart.addLineSeries({color:'#58a6ff',lineWidth:2,crosshairMarkerRadius:4,
     priceFormat:{type:'price',minMove:0.0001,precision:4}});
+  // Ligne verticale d'entrée : div fin superposé au canvas (largeur
+  // constante 2px, indépendante de la densité de données).
+  container.style.position='relative';
+  const vl=document.createElement('div');
+  vl.style.cssText='position:absolute;top:0;bottom:22px;width:2px;display:none;pointer-events:none;z-index:3;opacity:.8';
+  container.appendChild(vl);
+  window._positionVline=()=>{
+    if(window._vlineTs==null){vl.style.display='none';return}
+    const x=_lwChart.timeScale().timeToCoordinate(_vlineTs);
+    if(x==null){vl.style.display='none';return}
+    vl.style.left=(x-1)+'px';
+    vl.style.background=window._vlineColor||'#3fb950';
+    vl.style.display='block';
+  };
+  _lwChart.timeScale().subscribeVisibleLogicalRangeChange(_positionVline);
   // v12.5.35: track height as well as width so the chart resizes when the
   // block toggles visible (0→200/300 height) or when a mobile orientation
   // change resizes the container.
@@ -1780,7 +1795,7 @@ function refreshChart(){
     if(_lwPriceLine){try{_lwSeries.removePriceLine(_lwPriceLine)}catch(e){}_lwPriceLine=null}
     if(window._lwExtraLines){_lwExtraLines.forEach(l=>{try{_lwSeries.removePriceLine(l)}catch(e){}});}
     window._lwExtraLines=[];
-    if(window._lwVertSeries){try{_lwChart.removeSeries(_lwVertSeries)}catch(e){}window._lwVertSeries=null}
+    window._vlineTs=null;if(window._positionVline)_positionVline();
     // Position entry line + marker + barre verticale + lignes de stop
     if(d.position){
       const isLong=d.position.direction==='LONG';
@@ -1792,20 +1807,17 @@ function refreshChart(){
         title:d.position.strategy+' '+d.position.direction,
       });
       // Barre verticale à l'instant d'entrée (la flèche seule est imprécise).
-      // Un segment 2-points est rendu OBLIQUE par l'échelle à slots de
-      // lightweight-charts (les temps deviennent des index) → histogramme à
-      // barre unique (colonne lo→hi) posé sur le temps du graphe le plus
-      // proche de l'entrée. La flèche est snappée au même temps.
+      // Ni segment 2-points (rendu oblique par l'échelle à slots) ni
+      // histogramme (largeur = un slot entier → énorme quand peu de
+      // données) : un div fin superposé au canvas, positionné via
+      // timeToCoordinate et resnappé à chaque pan/zoom (initChart).
       const t0=data[0].time, t1=data[data.length-1].time;
       let snapTs=d.position.entry_ts;
       if(d.position.entry_ts>=t0&&d.position.entry_ts<=t1){
         snapTs=data.reduce((b,p)=>Math.abs(p.time-d.position.entry_ts)<Math.abs(b-d.position.entry_ts)?p.time:b,t0);
-        const lo=Math.min(...d.points.map(p=>p.price)), hi=Math.max(...d.points.map(p=>p.price));
-        _lwVertSeries=_lwChart.addHistogramSeries({color:col+'88',base:lo,
-          lastValueVisible:false,priceLineVisible:false,
-          autoscaleInfoProvider:()=>null});
-        _lwVertSeries.setData([{time:snapTs,value:hi}]);
-      }
+        window._vlineTs=snapTs;window._vlineColor=col;
+      } else {window._vlineTs=null}
+      if(window._positionVline)_positionVline();
       // Stop catastrophe : rouge continu
       if(d.position.stop_price!=null){
         _lwExtraLines.push(_lwSeries.createPriceLine({price:d.position.stop_price,
