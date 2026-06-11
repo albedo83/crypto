@@ -49,6 +49,7 @@ class Position:
     entry_session: str = ""
     extended: bool = False
     manual_stop_usdt: float | None = None
+    opp_floor_bps: float | None = None  # plancher armé par signal opposé (v1.2.0)
 
 
 @dataclass

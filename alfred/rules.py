@@ -51,6 +51,7 @@ class PosView:
     mfe_at_h: float                   # hours_held when MFE was last updated
     extended: bool = False
     manual_stop_usdt: float | None = None
+    opp_floor_bps: float | None = None   # plancher armé par signal opposé (v1.2.0)
 
 
 @dataclass
@@ -144,6 +145,34 @@ def catastrophe_stop_rule(pos: PosView, trigger_bps: float, p: Params,
     if trigger_bps < stop:
         return ExitDecision("exit", "catastrophe_stop", _synth(pos, stop))
     return None
+
+
+def opp_floor_rule(pos: PosView, trigger_bps: float, p: Params) -> ExitDecision | None:
+    """v1.2.0 — plancher armé par signal opposé : quand un signal de direction
+    contraire est détecté sur un token détenu GAGNANT (armement au scan 4h,
+    côté bot/BT), un plancher à `opp_floor_lock_ratio` × gain courant est posé
+    (cliquet : jamais abaissé). Ici on ne fait que le déclencher — stop-first
+    sur le worst de la période, prix synthétique du niveau.
+
+    Validation 2026-06-11 : walk-forward strict 4/4 (+167/+389/+268/+137 $ à
+    0.70 ; +681/+326/+392/+257 $ à 0.80), ΔDD +8pp, test nul destructeur
+    (le même plancher SANS condition de signal détruit tout le P&L → c'est
+    le signal qui porte l'information). Source : backtest_opposite_cut.py.
+    """
+    if pos.opp_floor_bps is None:
+        return None
+    if trigger_bps <= pos.opp_floor_bps:
+        return ExitDecision("exit", "opp_floor", _synth(pos, pos.opp_floor_bps))
+    return None
+
+
+def opp_floor_level(ur_bps: float, p: Params) -> float | None:
+    """Niveau de plancher à armer quand un signal opposé apparaît sur une
+    position gagnante — None si l'armement ne s'applique pas (kill-switch :
+    `opp_floor_lock_ratio` ≤ 0, ou gain insuffisant)."""
+    if p.opp_floor_lock_ratio <= 0 or ur_bps < p.opp_floor_min_gain_bps:
+        return None
+    return p.opp_floor_lock_ratio * ur_bps
 
 
 def manual_stop_rule(pos: PosView, ur: float, p: Params) -> ExitDecision | None:
@@ -285,6 +314,9 @@ def evaluate_exit(pos: PosView, unrealized_bps: float, m: MarketCtx, p: Params,
     if d:
         return d
     d = catastrophe_stop_rule(pos, worst_bps if worst_bps is not None else ur, p)
+    if d:
+        return d
+    d = opp_floor_rule(pos, worst_bps if worst_bps is not None else ur, p)
     if d:
         return d
     if pos.hours_to_timeout <= 0:

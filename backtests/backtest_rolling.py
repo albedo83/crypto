@@ -315,6 +315,7 @@ def run_window(features, data, sector_features, dxy_data,
                btc_z_variant: str = "baseline",
                max_notional_fn=None,
                opposite_cut: dict | None = None,
+               take_profit: dict | None = None,
                aligned: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -713,9 +714,16 @@ def run_window(features, data, sector_features, dxy_data,
 
     sorted_ts = sorted(ts for ts in all_ts if start_ts_ms <= ts <= end_ts_ms)
 
-    # opposite_cut R&D : signaux détectés au close de la bougie précédente
-    # sur les tokens DÉTENUS (le flux candidats les skippe) — utilisés par
-    # les exits de la bougie courante. {coin: {"dirs": set, "ur_bps": float}}
+    # opposite_cut : signaux détectés au close de la bougie précédente sur
+    # les tokens DÉTENUS (le flux candidats les skippe) — utilisés par les
+    # exits de la bougie courante. Run officiel aligné : l'armement
+    # opp_floor (v1.2.0) est piloté par Params ; le hook explicite reste
+    # l'override R&D.
+    if aligned and opposite_cut is None and _P.opp_floor_lock_ratio > 0:
+        opposite_cut = {"mode": "floor",
+                        "lock_ratio": _P.opp_floor_lock_ratio,
+                        "min_gain_bps": _P.opp_floor_min_gain_bps,
+                        "held_strats": None}
     _opp_sigs_prev: dict = {}
 
     for ts in sorted_ts:
@@ -876,6 +884,7 @@ def run_window(features, data, sector_features, dxy_data,
                 hours_to_timeout=(pos["hold"] - held) * interval_hours,
                 mfe_at_h=pos.get("mfe_held", 0) * interval_hours,
                 extended=pos.get("extended", False),
+                opp_floor_bps=pos.get("opp_floor"),
             )
 
             # ── ALIGNED MODE (phase 6) ────────────────────────────────
@@ -894,13 +903,38 @@ def run_window(features, data, sector_features, dxy_data,
             # était gagnante → cut à l'OPEN de cette bougie (même timing
             # d'exécution qu'une entrée prise sur ce signal).
             if opposite_cut is not None:
-                _o = _opp_sigs_prev.get(coin)
+                if opposite_cut.get("null_always"):
+                    # NULL TEST : arme le plancher sans condition de signal
+                    # (trail permanent) — si ça marche aussi, le signal
+                    # opposé ne porte aucune information.
+                    _ur_now = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                    _o = ({"dirs": {-pos["dir"]}, "ur_bps": _ur_now}
+                          if _ur_now >= opposite_cut["min_gain_bps"] else None)
+                else:
+                    _o = _opp_sigs_prev.get(coin)
                 if (_o and (-pos["dir"]) in _o["dirs"]
                         and _o["ur_bps"] >= opposite_cut["min_gain_bps"]
                         and (opposite_cut.get("held_strats") is None
                              or pos["strat"] in opposite_cut["held_strats"])):
-                    exit_reason = "opposite_cut"
-                    exit_price = candle["o"] if candle["o"] > 0 else current
+                    if opposite_cut.get("mode", "cut") == "floor":
+                        # mode "floor" : le signal opposé ne coupe pas, il
+                        # pose un plancher à lock_ratio × gain courant —
+                        # rehaussé (cliquet) si le signal persiste plus haut.
+                        _fl = opposite_cut["lock_ratio"] * _o["ur_bps"]
+                        if _fl > pos.get("opp_floor", float("-inf")):
+                            pos["opp_floor"] = _fl
+                    else:
+                        exit_reason = "opposite_cut"
+                        exit_price = candle["o"] if candle["o"] > 0 else current
+            # (déclenchement du plancher : canonique via rules.opp_floor_rule
+            # dans evaluate_exit — une seule implémentation bot/BT.)
+            # take_profit R&D : encaisse dès que la bougie touche +X bps
+            # (prix synthétique du niveau, comme les stops côté défavorable).
+            if take_profit is not None and not exit_reason:
+                _tp = take_profit.get(pos["strat"], take_profit.get("ALL"))
+                if _tp is not None and best_bps >= _tp:
+                    exit_reason = "take_profit"
+                    exit_price = pos["entry"] * (1 + pos["dir"] * _tp / 1e4)
             if aligned and not exit_reason:
                 _dec = _rules.evaluate_exit(pv, cur_bps, _mctx, _p_run,
                                             worst_bps=worst_bps)

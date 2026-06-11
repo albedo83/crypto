@@ -340,7 +340,8 @@ class BotInstance:
                     hours_held=hours_held,
                     hours_to_timeout=(pos.target_exit - now).total_seconds() / 3600,
                     mfe_at_h=pos.mfe_at_h, extended=pos.extended,
-                    manual_stop_usdt=pos.manual_stop_usdt)
+                    manual_stop_usdt=pos.manual_stop_usdt,
+                    opp_floor_bps=pos.opp_floor_bps)
 
             dec = rules.evaluate_exit(pv, unrealized, m, self.p)
             if dec is None:
@@ -742,9 +743,62 @@ class BotInstance:
         m = self._market_ctx()
         sigs = self._build_token_signals(now, btc_f, cross_ctx)
         signals.track_signal_age(sigs, self._signal_first_seen, time.time())
+        self._arm_opp_floors(btc_f, cross_ctx)
         n_new = self._rank_and_enter(sigs, now, m)
         self._save_state()
         return n_new
+
+    def _arm_opp_floors(self, btc_f: dict, cross_ctx: dict) -> None:
+        """v1.2.0 — détection des signaux sur les tokens DÉTENUS (le flux
+        candidats les skippe) : un signal de direction opposée sur une
+        position gagnante arme un plancher cliquet à
+        `opp_floor_lock_ratio` × gain courant (déclenché au tick par
+        rules.opp_floor_rule). Même cadence que les entrées (scan 4h)."""
+        if self.p.opp_floor_lock_ratio <= 0:
+            return
+        with self._pos_lock:
+            held = list(self.positions.items())
+        for sym, pos in held:
+            st = self.states.get(sym)
+            f = self._feature_cache.get(sym)
+            if not st or st.price <= 0 or not f or pos.entry_price <= 0:
+                continue
+            ur = pos.direction * (st.price / pos.entry_price - 1) * 1e4
+            level = rules.opp_floor_level(ur, self.p)
+            if level is None or level <= (pos.opp_floor_bps or float("-inf")):
+                continue
+            sd = self._compute_sector_divergence(sym)
+            sq = self._detect_squeeze(sym)
+            try:
+                sigs = signals.detect_token_signals(
+                    sym, f, btc_f, sd, sq, "", {}, self.p)
+            except Exception:
+                log.exception("[%s] opp_floor signal detection failed %s",
+                              self.id, sym)
+                continue
+            if not any(s["direction"] == -pos.direction for s in sigs):
+                continue
+            with self._pos_lock:
+                cur = self.positions.get(sym)
+                if cur is None:
+                    continue
+                old = cur.opp_floor_bps
+                cur.opp_floor_bps = level
+            opp = [s["strategy"] for s in sigs if s["direction"] == -pos.direction]
+            log.info("[%s] 🛡 OPP_FLOOR %s %s: signal opposé %s à ur %+.0f bps "
+                     "→ plancher %+.0f bps%s", self.id, pos.strategy, sym,
+                     "/".join(opp), ur, level,
+                     f" (était {old:+.0f})" if old is not None else "")
+            self.db.log_event("OPP_FLOOR", sym, {
+                "strategy": pos.strategy,
+                "opp_signals": opp,
+                "ur_bps": round(ur, 1),
+                "floor_bps": round(level, 1),
+                "prev_floor_bps": round(old, 1) if old is not None else None})
+            self.notifier.send(
+                f"🛡 {sym} {pos.strategy}: signal opposé ({'/'.join(opp)}) — "
+                f"plancher posé à {level:+.0f} bps (gain {ur:+.0f})",
+                category="trade")
 
     # ── Live-only duties (phase 4) ───────────────────────────────────
 

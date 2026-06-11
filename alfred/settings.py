@@ -129,6 +129,13 @@ class Params:
     # v12.15.0 BTC drop cut (LONG in loss + BTC 4h dump)
     btc_drop_cut_ret_4h_bps: float = -300.0
     btc_drop_cut_ur_max_bps: float = 0.0
+    # v1.2.0 opp_floor : signal opposé détecté sur token détenu gagnant →
+    # plancher cliquet à lock_ratio × gain courant (armement au scan 4h,
+    # déclenchement rules.opp_floor_rule). Walk-forward strict 4/4 + test
+    # nul destructeur (backtest_opposite_cut.py, 2026-06-11).
+    # Kill-switch : opp_floor_lock_ratio = 0.0
+    opp_floor_lock_ratio: float = 0.80
+    opp_floor_min_gain_bps: float = 300.0
     # v11.7.2 dead-timeout early exit
     dead_timeout_lead_hours: float = 12.0
     dead_timeout_mfe_cap_bps: float = 150.0

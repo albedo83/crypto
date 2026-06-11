@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.2.0 — 2026-06-11
+
+- **Trading engine**: nouveau mécanisme de protection des gains — quand le marché contredit objectivement une position gagnante, un plancher automatique verrouille l'essentiel du gain acquis sans plafonner la suite.
+
 ## v1.1.0 — 2026-06-11
 
 - **Admin**: authentification par rôles (accès limité par bot pour les opérateurs non-admin), supervision unifiée sur un seul écran `/master` (vue globale + système + flotte + admin), migration du bot JUNIOR.
