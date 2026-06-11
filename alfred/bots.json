@@ -12,7 +12,7 @@
     },
     {
       "id": "live",
-      "label": "LIVE-ALFRED",
+      "label": "SENIOR",
       "color": "#f0883e",
       "mode": "live",
       "private_key_env": "HL_PRIVATE_KEY",
