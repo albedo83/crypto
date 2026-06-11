@@ -466,11 +466,13 @@ def create_app(bots: dict, master) -> FastAPI:
     def _bot_html(bot) -> str:
         if bot.id not in _html_cache:
             syms_json = json.dumps(["BTC", "ETH"] + list(bot.p.trade_symbols))
+            sectors_json = json.dumps({k: list(v) for k, v in bot.p.sectors.items()})
             _html_cache[bot.id] = ((_STATIC / "reversal.html").read_text()
                                    .replace("{{VERSION}}", bot.version)
                                    .replace("{{MODE}}", bot.label)
                                    .replace("{{MODE_COLOR}}", bot.color or "#58a6ff")
-                                   .replace("{{TRADE_SYMBOLS_JSON}}", syms_json))
+                                   .replace("{{TRADE_SYMBOLS_JSON}}", syms_json)
+                                   .replace("{{SECTORS_JSON}}", sectors_json))
         return _html_cache[bot.id]
 
     NOT_FOUND = JSONResponse({"error": "unknown bot"}, status_code=404)
@@ -591,10 +593,26 @@ def create_app(bots: dict, master) -> FastAPI:
         pos_info = None
         pos = bot.positions.get(symbol)
         if pos:
+            from .. import rules as _rules
+            _stop_bps = _rules.effective_stop(_rules.PosView(
+                strategy=pos.strategy, direction=pos.direction,
+                entry_price=pos.entry_price, size_usdt=pos.size_usdt,
+                stop_bps=pos.stop_bps, mfe_bps=pos.mfe_bps, mae_bps=pos.mae_bps,
+                hours_held=0, hours_to_timeout=0, mfe_at_h=0), bot.p)
+            _px = lambda bps: pos.entry_price * (1 + pos.direction * bps / 1e4)
+            ms_price = None
+            if pos.manual_stop_usdt is not None and pos.size_usdt > 0:
+                # prix où le P&L NET touche le stop manuel ($) : gross = ms/size + coûts
+                ms_price = _px(pos.manual_stop_usdt / pos.size_usdt * 1e4
+                               + bot.p.cost_bps)
             pos_info = {"entry_price": pos.entry_price,
                         "direction": "LONG" if pos.direction == 1 else "SHORT",
                         "strategy": pos.strategy,
-                        "entry_ts": int(pos.entry_time.timestamp())}
+                        "entry_ts": int(pos.entry_time.timestamp()),
+                        "stop_price": _px(_stop_bps),
+                        "manual_stop_price": ms_price,
+                        "opp_floor_price": (_px(pos.opp_floor_bps)
+                                            if pos.opp_floor_bps is not None else None)}
         return JSONResponse({"symbol": symbol, "points": pts, "position": pos_info})
 
     @app.get("/bot/{bot_id}/api/changelog")
