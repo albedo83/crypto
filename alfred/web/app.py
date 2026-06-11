@@ -538,8 +538,11 @@ def create_app(bots: dict, master) -> FastAPI:
 
     @app.get("/bot/{bot_id}/api/changelog")
     def api_changelog(bot_id: str):
+        # Changelog propre à Alfred (remis à zéro à la v1.0.0) — l'historique
+        # legacy v10-v12 reste dans le CHANGELOG.md racine.
         try:
-            return JSONResponse({"content": (_REPO_ROOT / "CHANGELOG.md").read_text()})
+            return JSONResponse({"content": (
+                _REPO_ROOT / "alfred" / "CHANGELOG.md").read_text()})
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
