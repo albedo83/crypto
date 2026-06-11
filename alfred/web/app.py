@@ -595,9 +595,17 @@ def create_app(bots: dict, master) -> FastAPI:
             for ts in range(start, now_ts + 1, bucket_s):
                 price = tickmap.get(ts)
                 if price is None and candles:
+                    # interpolation linéaire entre closes 4h : préserve le
+                    # rendu en diagonales de l'ère pré-ticks (un forward-fill
+                    # plat donnait des marches toutes les 4h).
                     i = _bi.bisect_right(c_ts, ts) - 1
                     if i >= 0:
-                        price = candles[i][1]
+                        t0c, p0c = candles[i]
+                        if i + 1 < len(candles):
+                            t1c, p1c = candles[i + 1]
+                            price = p0c + (p1c - p0c) * (ts - t0c) / (t1c - t0c)
+                        else:
+                            price = p0c
                 if price is not None:
                     pts.append({"ts": ts, "price": price})
             return pts
