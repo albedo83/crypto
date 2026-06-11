@@ -314,6 +314,7 @@ def run_window(features, data, sector_features, dxy_data,
                early_dead_check: dict[str, tuple[float, float]] | None = None,
                btc_z_variant: str = "baseline",
                max_notional_fn=None,
+               opposite_cut: dict | None = None,
                aligned: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -712,6 +713,11 @@ def run_window(features, data, sector_features, dxy_data,
 
     sorted_ts = sorted(ts for ts in all_ts if start_ts_ms <= ts <= end_ts_ms)
 
+    # opposite_cut R&D : signaux détectés au close de la bougie précédente
+    # sur les tokens DÉTENUS (le flux candidats les skippe) — utilisés par
+    # les exits de la bougie courante. {coin: {"dirs": set, "ur_bps": float}}
+    _opp_sigs_prev: dict = {}
+
     for ts in sorted_ts:
         # basket_haircut_eda: snapshot pre-exit basket state for risk-side EDA.
         # Captures effective_n on 3 windows + unrealized basket P&L + capital
@@ -883,7 +889,19 @@ def run_window(features, data, sector_features, dxy_data,
             _ALIGNED_HOLD = "__aligned_hold__"
             exit_reason = None
             exit_price = current
-            if aligned:
+            # ── opposite_cut R&D : un signal de direction opposée est apparu
+            # au close précédent sur ce token détenu, alors que la position
+            # était gagnante → cut à l'OPEN de cette bougie (même timing
+            # d'exécution qu'une entrée prise sur ce signal).
+            if opposite_cut is not None:
+                _o = _opp_sigs_prev.get(coin)
+                if (_o and (-pos["dir"]) in _o["dirs"]
+                        and _o["ur_bps"] >= opposite_cut["min_gain_bps"]
+                        and (opposite_cut.get("held_strats") is None
+                             or pos["strat"] in opposite_cut["held_strats"])):
+                    exit_reason = "opposite_cut"
+                    exit_price = candle["o"] if candle["o"] > 0 else current
+            if aligned and not exit_reason:
                 _dec = _rules.evaluate_exit(pv, cur_bps, _mctx, _p_run,
                                             worst_bps=worst_bps)
                 if _dec and _dec.action == "extend":
@@ -1257,6 +1275,32 @@ def run_window(features, data, sector_features, dxy_data,
         if extra_candidate_fn is not None:
             candidates.extend(extra_candidate_fn(ts, coins, feat_by_ts, data,
                                                   coin_by_ts, positions, cooldown))
+
+        # opposite_cut R&D : signaux sur les tokens DÉTENUS (jamais calculés
+        # par le flux candidats). Positions pré-entrées de ce ts uniquement —
+        # une position qui s'ouvre à l'open suivant ne peut pas être cutée
+        # par le signal qui l'a créée. Cooldown ignoré : le signal "apparaît"
+        # dans le monde même si ce bot ne pourrait pas le trader.
+        if opposite_cut is not None:
+            _opp_sigs_prev = {}
+            for _hcoin, _hpos in positions.items():
+                _hf = feat_by_ts.get(ts, {}).get(_hcoin)
+                _hci = coin_by_ts.get(_hcoin, {}).get(ts)
+                if not _hf or _hci is None:
+                    continue
+                _hsq = _alf_signals.detect_squeeze_at(
+                    data[_hcoin], _hci, _hf.get("vol_ratio", 2), _P,
+                    candle_scale=int(_scale))
+                _hsigs = _alf_signals.detect_token_signals(
+                    _hcoin, _rules.adapt_bt_features(_hf), _btc_f,
+                    sector_features.get((ts, _hcoin)), _hsq, "", {}, _P)
+                if _hsigs:
+                    _hpx = data[_hcoin][_hci]["c"]
+                    _hur = (_hpos["dir"] * (_hpx / _hpos["entry"] - 1) * 1e4
+                            if _hpx > 0 and _hpos["entry"] > 0 else 0.0)
+                    _opp_sigs_prev[_hcoin] = {
+                        "dirs": {s["direction"] for s in _hsigs},
+                        "ur_bps": _hur}
 
         candidates.sort(key=lambda x: (x["z"], x["strength"]), reverse=True)
         seen = set()
