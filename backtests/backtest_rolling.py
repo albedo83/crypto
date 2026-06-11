@@ -313,6 +313,7 @@ def run_window(features, data, sector_features, dxy_data,
                margin_max_util: float = 0.95,
                early_dead_check: dict[str, tuple[float, float]] | None = None,
                btc_z_variant: str = "baseline",
+               max_notional_fn=None,
                aligned: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -1316,8 +1317,19 @@ def run_window(features, data, sector_features, dxy_data,
                 # #5/#6/#7). Le btc_z vient de la map (fenêtre corrigée si
                 # btc_z_variant le demande).
                 _z = btc_z_map.get(ts) if (btc_z_map and apply_adaptive_modulator) else None
-                size = _rules.position_size(cand["strat"], cand["dir"],
-                                            capital, _z, _P)
+                if max_notional_fn is not None:
+                    # R&D liquidity-aware cap : même ordre d'application que
+                    # rules.position_size (cap EN DERNIER, post-arrondi) —
+                    # on calcule sans cap puis on écrête via le hook.
+                    size = _rules.position_size(
+                        cand["strat"], cand["dir"], capital, _z,
+                        _dc.replace(_P, max_notional_per_trade=0.0))
+                    _cap = max_notional_fn(coin, ts, capital)
+                    if 0 < _cap < size:
+                        size = _cap
+                else:
+                    size = _rules.position_size(cand["strat"], cand["dir"],
+                                                capital, _z, _P)
                 if size < 10:
                     continue  # modulator_floor (live SKIP)
             else:
