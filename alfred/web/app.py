@@ -58,6 +58,18 @@ def create_app(bots: dict, master) -> FastAPI:
                            "to start (auth would accept any password)")
     _SECRET = (hashlib.sha256((DASHBOARD_PASS + AUTH_SALT).encode()).digest()
                if DASHBOARD_PASS else b"")
+    # ── Comptes & rôles ───────────────────────────────────────────────
+    # "admin" voit tout ; "bot:<id>" est scopé au dashboard de SON bot
+    # (parité avec ce que le testeur Junior avait sur le legacy :8099).
+    # Mapping en dur JUNIOR_* → bot:junior — généraliser si un jour un
+    # testeur Apprenti etc. (les credentials restent des NOMS d'env).
+    _ACCOUNTS: dict[str, tuple[str, str]] = {}   # user → (pass, role)
+    if DASHBOARD_USER:
+        _ACCOUNTS[DASHBOARD_USER] = (DASHBOARD_PASS, "admin")
+    _junior_user = os.environ.get("JUNIOR_USER", "")
+    _junior_pass = os.environ.get("JUNIOR_PASS", "")
+    if _junior_user and _junior_pass and "junior" in bots:
+        _ACCOUNTS[_junior_user] = (_junior_pass, "bot:junior")
     _login_failures: dict[str, tuple[int, float]] = {}
     _revoked_before = {"ts": 0.0}
     _mutation_log: dict[str, deque] = {}
@@ -65,28 +77,41 @@ def create_app(bots: dict, master) -> FastAPI:
 
     from .. import ALFRED_VERSION
 
-    def _sign_token(ts: float) -> str:
-        msg = str(int(ts)).encode()
+    def _sign_token(ts: float, role: str = "admin") -> str:
+        """Token v2 : ts:role:sig — le rôle est DANS la charge signée."""
+        msg = f"{int(ts)}:{role}".encode()
         sig = hmac.new(_SECRET, msg, hashlib.sha256).hexdigest()[:16]
-        return f"{int(ts)}:{sig}"
+        return f"{int(ts)}:{role}:{sig}"
 
-    def _verify_token(token: str) -> bool:
-        if not token or ":" not in token:
-            return False
-        parts = token.split(":", 1)
-        if len(parts) != 2:
-            return False
-        ts_str, sig = parts
+    def _verify_token(token: str) -> str | None:
+        """Retourne le rôle ("admin" | "bot:<id>") ou None si invalide.
+        L'ancien format ts:sig (2 champs) est rejeté → simple re-login."""
+        if not token:
+            return None
+        parts = token.split(":")
+        if len(parts) == 3:
+            ts_str, role, sig = parts
+        elif len(parts) == 4 and parts[1] == "bot":   # ts:bot:<id>:sig
+            ts_str, role, sig = parts[0], f"{parts[1]}:{parts[2]}", parts[3]
+        else:
+            return None
         try:
             ts = int(ts_str)
         except ValueError:
-            return False
+            return None
         if time.time() - ts > _SESSION_MAX_AGE:
-            return False
+            return None
         if ts < _revoked_before["ts"]:
-            return False
-        expected = hmac.new(_SECRET, ts_str.encode(), hashlib.sha256).hexdigest()[:16]
-        return hmac.compare_digest(sig, expected)
+            return None
+        expected = hmac.new(_SECRET, f"{ts_str}:{role}".encode(),
+                            hashlib.sha256).hexdigest()[:16]
+        return role if hmac.compare_digest(sig, expected) else None
+
+    def _role_home(role: str) -> str:
+        """Page d'atterrissage par rôle."""
+        if role.startswith("bot:"):
+            return f"{ROOT_PATH}/bot/{role[4:]}/"
+        return f"{ROOT_PATH}/master"
 
     def _client_ip(request: Request) -> str:
         xff = request.headers.get("x-forwarded-for", "")
@@ -157,10 +182,31 @@ def create_app(bots: dict, master) -> FastAPI:
                 if path in ("/login", "/favicon.ico") or path.startswith("/auth"):
                     return await call_next(request)
                 token = request.cookies.get("alfred_session")
-                if not token or not _verify_token(token):
+                role = _verify_token(token) if token else None
+                if role is None:
                     if "/api/" in path:
                         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
                     return RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
+                # ── Scope par rôle : bot:<id> ne voit QUE son bot ─────
+                if role.startswith("bot:"):
+                    bot_id = role[4:]
+                    allowed = (path.startswith(f"/bot/{bot_id}/")
+                               or path == "/logout")
+                    if not allowed:
+                        if "/api/" in path:
+                            return JSONResponse(
+                                {"detail": f"Forbidden — role limited to bot {bot_id}"},
+                                status_code=403)
+                        return RedirectResponse(_role_home(role), status_code=303)
+                    # journal d'audit : toute mutation d'un rôle non-admin
+                    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+                        try:
+                            master.db.log_admin_action(
+                                _client_ip(request), path, bot_id, None,
+                                f"role={role}")
+                        except Exception:
+                            pass
+                request.state.role = role
                 return await call_next(request)
         app.add_middleware(_AuthMiddleware)
     app.add_middleware(_MutationRateLimitMiddleware)
@@ -172,8 +218,9 @@ def create_app(bots: dict, master) -> FastAPI:
 
     @app.get("/auth")
     async def auth_bridge(token: str = ""):
-        if _verify_token(token):
-            resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
+        role = _verify_token(token)
+        if role:
+            resp = RedirectResponse(_role_home(role), status_code=303)
             resp.set_cookie("alfred_session", token, httponly=True, samesite="strict",
                             max_age=_SESSION_MAX_AGE)
             return resp
@@ -194,15 +241,17 @@ def create_app(bots: dict, master) -> FastAPI:
                     .replace("{{MODE}}", "ALFRED")
                     .replace("{{ERROR}}", f"Too many failed attempts — retry in {int(delay)}s"))
             return HTMLResponse(html, status_code=429)
-        if (_secrets.compare_digest(username, DASHBOARD_USER)
-                and _secrets.compare_digest(password, DASHBOARD_PASS)):
+        acct = _ACCOUNTS.get(username)
+        if acct and _secrets.compare_digest(password, acct[0]):
+            role = acct[1]
             _login_failures.pop(client_ip, None)
-            token = _sign_token(time.time())
-            resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
+            token = _sign_token(time.time(), role)
+            resp = RedirectResponse(_role_home(role), status_code=303)
             resp.set_cookie("alfred_session", token, httponly=True, samesite="strict",
                             max_age=_SESSION_MAX_AGE)
-            log.info("LOGIN OK: user=%s ip=%s", username, client_ip)
-            master.notifier.send(f"🔑 Login OK Alfred — user={username} ip={client_ip}",
+            log.info("LOGIN OK: user=%s role=%s ip=%s", username, role, client_ip)
+            master.notifier.send(f"🔑 Login OK Alfred — user={username} "
+                                 f"role={role} ip={client_ip}",
                                  category="security")
             return resp
         n_fails, _ = _login_failures.get(client_ip, (0, 0.0))

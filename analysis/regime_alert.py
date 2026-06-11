@@ -39,8 +39,10 @@ from datetime import datetime, timezone
 ROOT = "/home/crypto"
 ENV_FILE = os.path.join(ROOT, ".env")
 STATE_FILE = os.path.join(ROOT, "analysis", "output", "regime_alert_state.json")
-DB_PATH = os.path.join(ROOT, "analysis", "output_live", "reversal_ticks.db")
-BOT_HOST = "http://127.0.0.1:8098"
+# Depuis 2026-06-11 : SENIOR vit dans Alfred (:8101, préfixe /bot/live)
+DB_PATH = os.path.join(ROOT, "alfred", "data", "market.db")
+BOT_HOST = "http://127.0.0.1:8101"
+BOT_PREFIX = "/bot/live"
 HTTP_TIMEOUT = 10
 DIGEST_HOUR_UTC = 8  # send a forced digest at 08:xx UTC
 
@@ -92,7 +94,7 @@ def make_authed_opener(env: dict):
 
 
 def fetch_bot_state(opener) -> dict:
-    with opener.open(f"{BOT_HOST}/api/state", timeout=HTTP_TIMEOUT) as r:
+    with opener.open(f"{BOT_HOST}{BOT_PREFIX}/api/state", timeout=HTTP_TIMEOUT) as r:
         return json.loads(r.read())
 
 
@@ -101,7 +103,7 @@ def fetch_btc_price(opener) -> float | None:
     v12.17.0: reuses the opener from make_authed_opener instead of re-logging in.
     """
     try:
-        with opener.open(f"{BOT_HOST}/api/chart/BTC?hours=2", timeout=HTTP_TIMEOUT) as r:
+        with opener.open(f"{BOT_HOST}{BOT_PREFIX}/api/chart/BTC?hours=2", timeout=HTTP_TIMEOUT) as r:
             d = json.loads(r.read())
         pts = d.get("points", [])
         return float(pts[-1]["price"]) if pts else None

@@ -16,7 +16,10 @@ Design rules:
 - No import from analysis.bot.* — total runtime isolation from the live bot.
 - Read-only: reads /api/state, /api/trades, /api/health, /api/pnl via HTTP.
 - Kill-switch: set SUPERVISOR_ENABLED=0 in .env to disable without editing cron.
-- Audit: every report is logged into analysis/output/reversal_ticks.db (events).
+- Audit: every report is logged into alfred/data/market.db (events) — INSERT
+  court inter-process, sûr en WAL (timeout=5s).
+- Depuis 2026-06-11 : cible les bots Alfred (:8101/bot/<id>) — SENIOR (live),
+  JUNIOR, PAPER-ALFRED. Le legacy :8097-8100 n'est plus interrogé.
 """
 
 from __future__ import annotations
@@ -34,7 +37,7 @@ from typing import Any
 
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(REPO_ROOT, ".env")
-LOG_DB = os.path.join(REPO_ROOT, "analysis", "output", "reversal_ticks.db")
+LOG_DB = os.path.join(REPO_ROOT, "alfred", "data", "market.db")
 
 STATIC_CONTEXT_FILES = [
     "CLAUDE.md",
@@ -48,9 +51,19 @@ STATIC_CONTEXT_FILES = [
 # `notes` is a free-form status string passed to Claude so it can frame
 # anomalies correctly. Use it to flag idle / disabled / test instances
 # that would otherwise look suspicious (e.g. low trade count, 100% WR).
+# Depuis 2026-06-11 les bots vivent dans Alfred (:8101, un process, un bot
+# par préfixe /bot/<id>). SENIOR = cible principale du rapport.
+ALFRED_HOST = "http://127.0.0.1:8101"
 BOTS = [
-    {"port": 8098, "label": "Live",  "mode": "live",
-     "notes": "real capital $300 (270 initial + 30 DCA), full production config"},
+    {"id": "live", "label": "SENIOR", "mode": "live",
+     "notes": "bot perso de l'admin, capital réel $680.58 au reset du "
+              "2026-06-10 (migration Alfred, remise à zéro de l'historique)"},
+    {"id": "junior", "label": "JUNIOR", "mode": "live",
+     "notes": "bot piloté par un testeur non-admin, capital réel $332.76 au "
+              "reset du 2026-06-11, capital_cap $500 — faible historique, "
+              "ne pas sur-interpréter les stats"},
+    {"id": "paper", "label": "PAPER-ALFRED", "mode": "paper",
+     "notes": "simulation $1000, baseline de comparaison du live"},
 ]
 
 HTTP_TIMEOUT = 6  # seconds
@@ -171,8 +184,9 @@ class BotClient:
     the HMAC-signed session cookie, then reuses it for /api/* GETs.
     """
 
-    def __init__(self, port: int, user: str, password: str) -> None:
-        self.base = f"http://127.0.0.1:{port}"
+    def __init__(self, bot_id: str, user: str, password: str) -> None:
+        self.host = ALFRED_HOST                  # login à la racine d'Alfred
+        self.base = f"{ALFRED_HOST}/bot/{bot_id}"  # APIs sous /bot/<id>/
         self.user = user
         self.password = password
         self.cookie: str | None = None
@@ -193,7 +207,7 @@ class BotClient:
             {"username": self.user, "password": self.password}
         ).encode()
         req = urllib.request.Request(
-            f"{self.base}/login",
+            f"{self.host}/login",
             data=data,
             headers={"Content-Type": "application/x-www-form-urlencoded"},
         )
@@ -202,7 +216,7 @@ class BotClient:
         except urllib.error.HTTPError as e:
             if e.code in (301, 302, 303, 307, 308):
                 for header in (e.headers.get_all("Set-Cookie") or []):
-                    if header.startswith("session="):
+                    if header.startswith("alfred_session="):
                         self.cookie = header.split(";", 1)[0].split("=", 1)[1]
                         return True
             # 401 bad creds or 5xx: fall through to return False
@@ -219,7 +233,7 @@ class BotClient:
                 return None
         req = urllib.request.Request(
             f"{self.base}{path}",
-            headers={"Cookie": f"session={self.cookie}"},
+            headers={"Cookie": f"alfred_session={self.cookie}"},
         )
         try:
             with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
@@ -237,10 +251,10 @@ class BotClient:
 def fetch_bot_state(bot: dict, user: str, password: str) -> dict:
     """Fetch all relevant endpoints for one bot. Returns a dict with any
     keys that could be retrieved (the bot may be offline or auth broken)."""
-    client = BotClient(bot["port"], user, password)
+    client = BotClient(bot["id"], user, password)
     out = {
         "label": bot["label"],
-        "port": bot["port"],
+        "id": bot["id"],
         "mode": bot["mode"],
         "notes": bot.get("notes", ""),
         "online": False,
@@ -338,7 +352,7 @@ def compress_bot_state(bot_data: dict) -> dict:
     """
     compressed = {
         "label": bot_data["label"],
-        "port": bot_data["port"],
+        "id": bot_data["id"],
         "mode": bot_data["mode"],
         "notes": bot_data.get("notes", ""),
         "online": bot_data["online"],
@@ -659,7 +673,7 @@ def main() -> int:
         data = fetch_bot_state(bot, user, password)
         raw_states.append(data)
         status = "ONLINE" if data.get("online") else "OFFLINE"
-        print(f"  {bot['label']:<6} :{bot['port']} {status}")
+        print(f"  {bot['label']:<12} ({bot['id']}) {status}")
 
     compressed = [compress_bot_state(s) for s in raw_states]
 

@@ -40,6 +40,14 @@ conflits de nonce). supervisor.py/strategy_review.py lisent encore les DB legacy
 ~34× inflatés archivés dans `docs/backtests_legacy_pre_phase6.md`) ·
 **7** corrections paper engine (slippage 4 bps, gap fills — flags dans settings.py, OFF).
 
+**JUNIOR migré le 2026-06-11** (bot `junior` de bots.json, modèle agent
+JUNIOR_HL_PRIVATE_KEY → master 0xb65d…56Fe, capital = equity $332.76 au reset,
+capital_cap $500 — legacy :8099 ARRÊTÉ, bloc commenté). **Auth par rôles** :
+`admin` (DASHBOARD_USER → tout) et `bot:junior` (JUNIOR_USER → uniquement
+/bot/junior/*, token `ts:rôle:sig`, mutations auditées dans admin_audit).
+Les 4 sentinelles cron (supervisor, strategy_review, regime_alert,
+hedge_monitor) sont portées sur Alfred le 2026-06-11.
+
 Couche données (2026-06-10) : table `candles` persistée dans market.db (store canonique,
 boot-reprise depuis la DB + event DOWNTIME + excursion catch-up des positions ouvertes),
 `admin_audit`, export BT `alfred/tools/export_candles.py` (même source bot/BT).
@@ -232,13 +240,13 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - `S9F_OBS` events (±3% / 2h) are logged but not traded — need 6+ months of live data.
 
 ### Supervisor (v11.3.5)
-`supervisor.py` at the repo root is a standalone Python process (~590 lines) launched once a day by crontab (08:00 UTC = 10:00 Paris summer / 09:00 winter). It reads `/api/state`, `/api/trades`, `/api/health`, `/api/pnl` from each bot via authenticated HTTP on `127.0.0.1`, assembles a static context from `CLAUDE.md`, `docs/bot.md` and `docs/backtests.md` (~30 kB / ~7.5k tokens, flagged `cache_control: ephemeral`), calls the Anthropic SDK (`claude-haiku-4-5` default), parses a strict JSON report and ships it as plain text via Telegram. **Observation + suggestions only — never writes to the bot's config or state.**
+`supervisor.py` at the repo root is a standalone Python process (~590 lines) launched once a day by crontab (08:00 UTC = 10:00 Paris summer / 09:00 winter). **Depuis le 2026-06-11 il cible les bots Alfred** (`:8101/bot/<id>` : SENIOR/JUNIOR/PAPER-ALFRED) via HTTP authentifié sur `127.0.0.1`, assembles a static context from `CLAUDE.md`, `docs/bot.md` and `docs/backtests.md` (~30 kB / ~7.5k tokens, flagged `cache_control: ephemeral`), calls the Anthropic SDK (`claude-haiku-4-5` default), parses a strict JSON report and ships it as plain text via Telegram. **Observation + suggestions only — never writes to the bot's config or state.**
 - Config in `.env`: `ANTHROPIC_API_KEY` (required), `SUPERVISOR_MODEL=claude-haiku-4-5` (default), `SUPERVISOR_ENABLED=1` (kill-switch)
 - Zero runtime coupling: no imports from `analysis/bot/*`, only stdlib + `anthropic` SDK
 - Bot-level scoping: `BOTS` list in `supervisor.py` with a `notes` field per instance. Junior is marked `DISABLED` (low capital, recent activation) — to enable, flip its flag in `supervisor.py`. Live is the primary target of the Telegram report; Paper is kept as a comparison baseline.
 - Report language is French, format is strict JSON parsed into a plain-text Telegram message (no `parse_mode` — LLM content routinely contains underscores and asterisks that break Markdown parsing; `send_telegram` also now checks `ok: true` in the response body instead of trusting HTTP status alone).
 - Kill-switch: `SUPERVISOR_ENABLED=0` in `.env` or `crontab -l | grep -v supervisor.py | crontab -`
-- Audit: every run writes a `SUPERVISOR_REPORT` event (full JSON payload) into the `events` table of `analysis/output/reversal_ticks.db`. Query via `SELECT datetime(ts,'unixepoch'), json_extract(data,'$.health'), json_extract(data,'$.summary') FROM events WHERE event='SUPERVISOR_REPORT' ORDER BY ts DESC LIMIT 10;`
+- Audit: every run writes a `SUPERVISOR_REPORT` event (full JSON payload) into the `events` table of `alfred/data/market.db`. Query via `SELECT datetime(ts,'unixepoch'), json_extract(data,'$.health'), json_extract(data,'$.summary') FROM events WHERE event='SUPERVISOR_REPORT' ORDER BY ts DESC LIMIT 10;`
 - Testing: `supervisor.py --dry-run` (context fetch + prompt assembly, no API), `--no-telegram` (real API, stdout), `--model X` (override default)
 - Crontab line (installed, absolute paths so it runs correctly from any cwd):
   ```
@@ -247,7 +255,7 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - Cost measured in practice: first run ~$0.036 (cache creation), subsequent runs ~$0.017 (cache hit, 10k cached tokens). Daily cadence ≈ **$0.50/month**.
 
 ### Strategy drift monitor (v12.0.0)
-`analysis/strategy_review.py` is a stdlib-only script (no Anthropic API call) that runs **weekly on Monday at 8h UTC** via crontab (cadence tightened from monthly in v12.1.0 to react faster). It reads `analysis/output_live/reversal_ticks.db`, computes per-(strategy, token, direction) statistics over rolling 30/90/365-day windows, and flags 5 categories of drift:
+`analysis/strategy_review.py` is a stdlib-only script (no Anthropic API call) that runs **weekly on Monday at 8h UTC** via crontab. **Depuis le 2026-06-11 il lit `alfred/data/bots/<id>/bot.db`** (`--bot live` par défaut, capital depuis le state.json du bot), computes per-(strategy, token, direction) statistics over rolling 30/90/365-day windows, and flags 5 categories of drift:
 1. **STRAT_DRIFT** — per-strategy WR drop ≥12pp recent vs lifetime (configurable `WR_DRIFT_PP`)
 2. **TOKEN_TOXIC** — (token, direction, strategy) with recent sum < −$8 over 90d (configurable `RECENT_PNL_TOXIC_USD`)
 3. **TOKEN_REVIVAL** — previously-bad pair showing recent positive WR ≥18pp gain

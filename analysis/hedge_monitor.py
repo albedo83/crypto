@@ -1,21 +1,22 @@
 #!/usr/bin/env python3
-"""Hedge conflict monitor — alerts when Live and Junior hold opposing positions.
+"""Hedge conflict monitor — alerte quand deux bots LIVE tiennent des positions
+opposées sur le même token (hedge partiel : funding payé 2× sans edge net).
 
-Detects when both bots have a position on the same token in opposite directions
-(LONG on one, SHORT on the other), which results in a partial portfolio hedge
-that costs funding without net edge.
+Depuis 2026-06-11 les bots vivent dans Alfred (:8101) : UN login admin + UN
+appel /api/admin suffisent — la détection couvre N'IMPORTE quelle paire de
+bots live (SENIOR×JUNIOR aujourd'hui, extensible sans modification), le
+paper est exclu.
 
-Run via cron every 5 minutes. Telegram alert sent ONCE per unique conflict pair
-(deduplicated via state file using entry_time of both positions).
+Cron toutes les 5 minutes. Alerte Telegram UNE fois par paire de conflit
+unique (dedup via state file sur les entry_time des deux positions), envoyée
+sur les deux canaux (principal + Junior).
 
-Both Live and Junior Telegram channels get the alert (so the user sees it
-regardless of which app they have open).
-
-Kill-switch: comment out the crontab line.
+Kill-switch : commenter la ligne crontab.
 """
 from __future__ import annotations
 
 import http.cookiejar
+import itertools
 import json
 import logging
 import time
@@ -23,8 +24,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-LIVE_URL = "http://127.0.0.1:8098"
-JUNIOR_URL = "http://127.0.0.1:8099"
+ALFRED_URL = "http://127.0.0.1:8101"
 STATE_FILE = Path("/home/crypto/analysis/output/hedge_monitor_state.json")
 LOG_FILE = Path("/home/crypto/analysis/output/hedge_monitor.log")
 ENV_FILE = Path("/home/crypto/.env")
@@ -48,8 +48,8 @@ def load_env() -> dict:
     return env
 
 
-def fetch_state(base_url: str, user: str, pwd: str) -> dict | None:
-    """POST /login then GET /api/state with session cookie. Returns None on error."""
+def fetch_bots(user: str, pwd: str) -> list | None:
+    """POST /login (Alfred, rôle admin) puis GET /api/admin. None si erreur."""
     jar = http.cookiejar.CookieJar()
     opener = urllib.request.build_opener(
         urllib.request.HTTPCookieProcessor(jar),
@@ -58,14 +58,14 @@ def fetch_state(base_url: str, user: str, pwd: str) -> dict | None:
     try:
         body = urllib.parse.urlencode({"username": user, "password": pwd}).encode()
         login_req = urllib.request.Request(
-            f"{base_url}/login", data=body, method="POST",
+            f"{ALFRED_URL}/login", data=body, method="POST",
             headers={"Content-Type": "application/x-www-form-urlencoded"})
         opener.open(login_req, timeout=5)
-        state_req = urllib.request.Request(f"{base_url}/api/state")
-        resp = opener.open(state_req, timeout=5)
+        resp = opener.open(urllib.request.Request(f"{ALFRED_URL}/api/admin"),
+                           timeout=5)
         return json.loads(resp.read())
     except Exception as e:
-        log.warning("fetch %s failed: %s", base_url, e)
+        log.warning("fetch Alfred failed: %s", e)
         return None
 
 
@@ -90,21 +90,25 @@ def send_telegram(token: str, chat_id: str, msg: str) -> bool:
 
 def main() -> None:
     env = load_env()
-    live = fetch_state(LIVE_URL, env.get("DASHBOARD_USER", ""), env.get("DASHBOARD_PASS", ""))
-    junior = fetch_state(JUNIOR_URL, env.get("JUNIOR_USER", ""), env.get("JUNIOR_PASS", ""))
-    if not live or not junior:
-        log.info("at least one bot unreachable — skip")
+    bots = fetch_bots(env.get("DASHBOARD_USER", ""), env.get("DASHBOARD_PASS", ""))
+    if not bots:
+        log.info("Alfred unreachable — skip")
         return
 
-    live_pos = {p["symbol"]: p for p in live.get("positions", []) or []}
-    junior_pos = {p["symbol"]: p for p in junior.get("positions", []) or []}
+    live_bots = [b for b in bots
+                 if b.get("mode") == "live" and b.get("online")]
+    if len(live_bots) < 2:
+        log.info("moins de 2 bots live en ligne — rien à comparer")
+        return
 
-    conflicts = []
-    for sym in set(live_pos) & set(junior_pos):
-        L = live_pos[sym]
-        J = junior_pos[sym]
-        if L.get("direction") != J.get("direction"):
-            conflicts.append((sym, L, J))
+    conflicts = []   # (sym, (label_a, pos_a), (label_b, pos_b))
+    for a, b in itertools.combinations(live_bots, 2):
+        pos_a = {p["symbol"]: p for p in a.get("positions", []) or []}
+        pos_b = {p["symbol"]: p for p in b.get("positions", []) or []}
+        for sym in set(pos_a) & set(pos_b):
+            if pos_a[sym].get("direction") != pos_b[sym].get("direction"):
+                conflicts.append((sym, (a["label"], pos_a[sym]),
+                                  (b["label"], pos_b[sym])))
 
     prev_state = {}
     if STATE_FILE.exists():
@@ -115,36 +119,33 @@ def main() -> None:
 
     new_state = {}
     alerts_sent = 0
-    for sym, L, J in conflicts:
-        key = f"{sym}|{L.get('entry_time','')}|{J.get('entry_time','')}"
+    for sym, (la, A), (lb, B) in conflicts:
+        key = f"{sym}|{la}:{A.get('entry_time','')}|{lb}:{B.get('entry_time','')}"
         new_state[key] = int(time.time())
         if key in prev_state:
             continue
-        L_dir = L.get("direction", "?")
-        J_dir = J.get("direction", "?")
-        L_sz = float(L.get("size_usdt", 0))
-        J_sz = float(J.get("size_usdt", 0))
-        L_signed = L_sz if L_dir == "LONG" else -L_sz
-        J_signed = J_sz if J_dir == "LONG" else -J_sz
-        net = L_signed + J_signed
+        a_dir, b_dir = A.get("direction", "?"), B.get("direction", "?")
+        a_sz, b_sz = float(A.get("size_usdt", 0)), float(B.get("size_usdt", 0))
+        net = (a_sz if a_dir == "LONG" else -a_sz) + (b_sz if b_dir == "LONG" else -b_sz)
         net_dir = "LONG" if net > 0 else "SHORT" if net < 0 else "FLAT"
         msg = (
             f"⚠️ HEDGE CONFLICT {sym}\n"
-            f"LIVE   {L.get('strategy','?'):>3} {L_dir:>5} ${L_sz:>5.0f} "
-            f"ur={L.get('unrealized_bps',0):+.0f}bps\n"
-            f"JUNIOR {J.get('strategy','?'):>3} {J_dir:>5} ${J_sz:>5.0f} "
-            f"ur={J.get('unrealized_bps',0):+.0f}bps\n"
+            f"{la:<8} {A.get('strategy','?'):>3} {a_dir:>5} ${a_sz:>5.0f} "
+            f"ur={A.get('unrealized_bps',0):+.0f}bps\n"
+            f"{lb:<8} {B.get('strategy','?'):>3} {b_dir:>5} ${b_sz:>5.0f} "
+            f"ur={B.get('unrealized_bps',0):+.0f}bps\n"
             f"Net exposure: {net_dir} ${abs(net):.0f}\n"
             f"Funding paye 2x. Close l'un des deux manuellement."
         )
         send_telegram(env.get("TG_BOT_TOKEN", ""), env.get("TG_CHAT_ID", ""), msg)
         send_telegram(env.get("JUNIOR_TG_BOT_TOKEN", ""), env.get("JUNIOR_TG_CHAT_ID", ""), msg)
-        log.info("ALERT %s Live=%s%s Junior=%s%s", sym, L_dir, L_sz, J_dir, J_sz)
+        log.info("ALERT %s %s=%s$%.0f %s=%s$%.0f", sym, la, a_dir, a_sz, lb, b_dir, b_sz)
         alerts_sent += 1
 
     STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
     STATE_FILE.write_text(json.dumps(new_state, indent=2))
-    log.info("scan done: %d conflicts, %d new alerts", len(conflicts), alerts_sent)
+    log.info("scan done: %d bots live, %d conflicts, %d new alerts",
+             len(live_bots), len(conflicts), alerts_sent)
 
 
 if __name__ == "__main__":

@@ -133,6 +133,12 @@ class BotInstance:
             self.positions = st.get("positions", {})
             log.info("[%s] restored: %d positions, capital $%.2f, P&L $%.2f",
                      self.id, len(self.positions), self._capital, self._total_pnl)
+        else:
+            # Bot neuf : l'ancre perf/fees démarre à sa naissance — sinon les
+            # diagnostics fees/funding (account_state) remontent 90 j dans
+            # l'historique du wallet, qui peut précéder le bot (migration).
+            self._perf_track_start_ts = time.time()
+            self._capital_at_perf_reset = self._capital
         for t in persistence.load_trades(self.db):
             self.trades.append(t)
         self._catch_up_excursions()

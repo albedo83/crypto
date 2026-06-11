@@ -35,7 +35,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 # ── Config ────────────────────────────────────────────────────────────
-DEFAULT_DB = "/home/crypto/analysis/output_live/reversal_ticks.db"
+# Depuis 2026-06-11 : trades du bot Alfred (schéma identique au legacy).
+DEFAULT_BOT = "live"   # SENIOR ; --bot junior pour le testeur
+DEFAULT_DB = "/home/crypto/alfred/data/bots/{bot}/bot.db"
+DEFAULT_STATE = "/home/crypto/alfred/data/bots/{bot}/state.json"
 ENV_FILE = "/home/crypto/.env"
 HTTP_TIMEOUT = 15
 
@@ -224,22 +227,33 @@ def detect_live_vs_bt(trades: list[dict], capital: float = 500.0) -> list[dict]:
         return []  # too early
     live_pnl = sum(t["pnl_usdt"] for t in trades)
     live_pct = live_pnl / capital * 100
-    # Backtest expectation: read docs/backtests.md if available
+    # Attente backtest : la fenêtre ancrée de docs/backtests.md dont la date
+    # de départ est la plus proche du déploiement live (re-baseline phase 6 :
+    # le live SENIOR repart du 2026-06-10 — les ancres mensuelles glissent,
+    # on prend la plus récente ≤ déploiement, sinon la plus proche).
     bt_path = "/home/crypto/docs/backtests.md"
     bt_pnl_pct = None
+    deploy_dt = parse_iso(first_entry)
+    best_gap_days = None
     if os.path.exists(bt_path):
+        import re as _re
         with open(bt_path) as f:
             for line in f:
-                # Match anchored window "depuis YYYY-MM-DD" with cap matching
-                # Just take depuis 2026-03-26 / $500 if present (live anchor)
-                if "depuis 2026-03-26" in line and "$500" in line:
-                    parts = [p.strip() for p in line.strip("|").split("|")]
-                    if len(parts) >= 6:
-                        try:
-                            bt_pnl_pct = float(parts[5].replace("%", "").replace("+", ""))
-                        except ValueError:
-                            pass
-                    break
+                m = _re.match(r"\|\s*depuis (\d{4}-\d{2}-\d{2})\s*\|", line)
+                if not m:
+                    continue
+                try:
+                    anchor_dt = datetime.fromisoformat(m.group(1) + "T00:00:00+00:00")
+                except ValueError:
+                    continue
+                gap_days = abs((deploy_dt - anchor_dt).days)
+                parts = [p.strip() for p in line.strip("|").split("|")]
+                if len(parts) >= 6 and (best_gap_days is None or gap_days < best_gap_days):
+                    try:
+                        bt_pnl_pct = float(parts[4].replace("%", "").replace("+", "").replace(" ", ""))
+                        best_gap_days = gap_days
+                    except ValueError:
+                        pass
     if bt_pnl_pct is None:
         return []
     gap = live_pct - bt_pnl_pct
@@ -374,12 +388,23 @@ def log_event(db_path: str, alerts: list[dict], report: str) -> None:
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    p.add_argument("--db", default=DEFAULT_DB, help="SQLite DB path")
+    p.add_argument("--bot", default=DEFAULT_BOT,
+                   help="Bot Alfred ciblé (live|junior|paper)")
+    p.add_argument("--db", default=None, help="SQLite DB path (override --bot)")
     p.add_argument("--dry-run", action="store_true", help="No Telegram, no DB log")
     p.add_argument("--no-telegram", action="store_true", help="Skip Telegram, keep DB log")
-    p.add_argument("--capital", type=float, default=500.0,
-                   help="Live capital reference for live-vs-bt comparison")
+    p.add_argument("--capital", type=float, default=None,
+                   help="Capital de référence (défaut : capital du state.json du bot)")
     args = p.parse_args()
+    if args.db is None:
+        args.db = DEFAULT_DB.format(bot=args.bot)
+    if args.capital is None:
+        # Source de vérité = state.json du bot (capital post-reset migration)
+        try:
+            with open(DEFAULT_STATE.format(bot=args.bot)) as fh:
+                args.capital = float(json.load(fh).get("capital", 500.0))
+        except Exception:
+            args.capital = 500.0
 
     env = load_env(ENV_FILE)
     tg_token = env.get("TG_BOT_TOKEN", os.environ.get("TG_BOT_TOKEN", ""))
