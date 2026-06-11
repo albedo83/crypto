@@ -699,8 +699,15 @@ def run_window(features, data, sector_features, dxy_data,
             runner_ext_min_mfe_bps=float(runner_extension.get("min_mfe_bps", 500)),
             runner_ext_min_cur_to_mfe=float(runner_extension.get("min_cur_to_mfe", 0.5)),
         )
-    else:
+    elif not aligned:
+        # legacy : runner_ext n'existe que via le hook R&D
         _p_run = _dc.replace(_P, runner_ext_strategies=frozenset())
+    else:
+        # aligné : les Params canoniques (live) s'appliquent tels quels —
+        # bug de parité corrigé 2026-06-11 (l'audit d'ablation a montré des
+        # contributions $0.00 : dead_timeout et runner_ext étaient strippés
+        # du run officiel alors que le bot live les exécute).
+        _p_run = _P
     if early_exit_params is not None:
         _p_run = _dc.replace(
             _p_run,
@@ -709,7 +716,7 @@ def run_window(features, data, sector_features, dxy_data,
             dead_timeout_mae_floor_bps=float(early_exit_params["mae_floor_bps"]),
             dead_timeout_slack_bps=float(early_exit_params["slack_bps"]),
         )
-    else:
+    elif not aligned:
         _p_run = _dc.replace(_p_run, dead_timeout_lead_hours=float("-inf"))
 
     sorted_ts = sorted(ts for ts in all_ts if start_ts_ms <= ts <= end_ts_ms)
