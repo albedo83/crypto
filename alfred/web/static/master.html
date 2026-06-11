@@ -446,7 +446,11 @@ function renderAudit(rows){
 // ── refresh ──
 let gatesTimer=0,lastOk=0;
 function refresh(){
-  fetch('api/master/health',{credentials:'same-origin'}).then(r=>r.json()).then(h=>{
+  fetch('api/master/health',{credentials:'same-origin'}).then(r=>{
+    if(r.status===401){location.reload();return null;}  // session perdue → login
+    return r.json();
+  }).then(h=>{
+    if(!h)return;
     renderHealth(h);lastOk=Date.now();
   }).catch(()=>{
     $('sysPill').className='syspill bad';$('sysPillTxt').textContent='INJOIGNABLE';

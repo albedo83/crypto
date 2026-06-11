@@ -156,7 +156,7 @@ def create_app(bots: dict, master) -> FastAPI:
                 path = request.url.path
                 if path in ("/login", "/favicon.ico") or path.startswith("/auth"):
                     return await call_next(request)
-                token = request.cookies.get("session")
+                token = request.cookies.get("alfred_session")
                 if not token or not _verify_token(token):
                     if "/api/" in path:
                         return JSONResponse({"detail": "Unauthorized"}, status_code=401)
@@ -174,7 +174,7 @@ def create_app(bots: dict, master) -> FastAPI:
     async def auth_bridge(token: str = ""):
         if _verify_token(token):
             resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
-            resp.set_cookie("session", token, httponly=True, samesite="strict",
+            resp.set_cookie("alfred_session", token, httponly=True, samesite="strict",
                             max_age=_SESSION_MAX_AGE)
             return resp
         return RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
@@ -199,7 +199,7 @@ def create_app(bots: dict, master) -> FastAPI:
             _login_failures.pop(client_ip, None)
             token = _sign_token(time.time())
             resp = RedirectResponse(f"{ROOT_PATH}/", status_code=303)
-            resp.set_cookie("session", token, httponly=True, samesite="strict",
+            resp.set_cookie("alfred_session", token, httponly=True, samesite="strict",
                             max_age=_SESSION_MAX_AGE)
             log.info("LOGIN OK: user=%s ip=%s", username, client_ip)
             master.notifier.send(f"🔑 Login OK Alfred — user={username} ip={client_ip}",
@@ -219,7 +219,7 @@ def create_app(bots: dict, master) -> FastAPI:
     async def logout():
         _revoked_before["ts"] = time.time()
         resp = RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
-        resp.delete_cookie("session")
+        resp.delete_cookie("alfred_session")
         return resp
 
     # ── Admin view ────────────────────────────────────────────────────
