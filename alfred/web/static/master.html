@@ -546,6 +546,8 @@ function renderPositions(positions){
     const msUsdt=p.manual_stop_usdt;
     const msBadge=(msUsdt!=null)?`<span class="pos-mini-ms" title="Manual stop : ferme si unrealized ≤ $${msUsdt.toFixed(2)}">🎯$${msUsdt.toFixed(0)}</span>`:'';
     if(msUsdt!=null)tooltipParts.push(`manual_stop $${msUsdt.toFixed(2)}`);
+    const ofBadge=(p.opp_floor_bps!=null)?`<span class="pos-mini-ms" title="Plancher auto (signal opposé) : ferme si le gain retombe à ${p.opp_floor_bps.toFixed(0)} bps">🛡${p.opp_floor_bps.toFixed(0)}</span>`:'';
+    if(p.opp_floor_bps!=null)tooltipParts.push(`opp_floor ${p.opp_floor_bps.toFixed(0)}bp`);
     const tooltip=tooltipParts.join(' | ')+' bps · '+rem+' left';
     return `<div class="pos-mini-row ${rowClass}" title="${tooltip}">
       <span class="pos-mini-sym">${p.symbol}</span>
@@ -553,7 +555,7 @@ function renderPositions(positions){
       <span class="pos-mini-strat">${p.strategy||'?'}</span>
       <span class="pos-mini-pnl ${pnlClass}">${fmt(p.pnl_usdt,2)}</span>
       <span class="pos-mini-bps">${bpsSign}${(p.unrealized_bps||0).toFixed(0)}bp</span>
-      ${msBadge}
+      ${msBadge}${ofBadge}
       <span class="pos-mini-rem ${remClass}">${rem}</span>
       ${positionStrip(p)}
     </div>`;

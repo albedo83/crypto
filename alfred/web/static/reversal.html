@@ -1119,6 +1119,7 @@ function refresh(){
       // 13-column desktop table cell branch was removed.
       const pnlSign=p.pnl_usdt>=0?'+':'-';
       const mstopBadge=p.manual_stop_usdt!=null?`<span class="m-mstop">🎯 $${p.manual_stop_usdt.toFixed(2)}</span>`:'';
+      const ofloorBadge=p.opp_floor_bps!=null?`<span class="m-mstop" title="Plancher auto (signal opposé détecté) : ferme si le gain retombe à ce niveau">🛡 ${p.opp_floor_bps>=0?'+':''}${p.opp_floor_bps.toFixed(0)}bp</span>`:'';
       // v12.7.13: status badge (at-a-glance category: danger/decide/wait/profit/early)
       const statusBadge = p.status ? `<span class="m-status ${p.status.key}" title="${p.status.tip}">${p.status.icon} ${p.status.label}</span>` : '';
       tr.innerHTML=`<td class="m-card-wrap" colspan="13"><div class="m-card ${p.pnl_usdt>=0?'pos-profit':'pos-loss'}">
@@ -1127,7 +1128,7 @@ function refresh(){
           <span class="m-side ${p.direction}">${p.direction}</span>
           <span class="m-strat">${p.strategy||'?'}</span>
           ${statusBadge}
-          <span class="m-pnl ${cls(p.pnl_usdt)}"><span class="m-pnl-num">${pnlSign}$${Math.abs(p.pnl_usdt).toFixed(2)}${mobileEmoji?`<span class="m-emoji" title="${mobileEmojiTitle}">${mobileEmoji}</span>`:''}</span><span class="m-bps">${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}</span>
+          <span class="m-pnl ${cls(p.pnl_usdt)}"><span class="m-pnl-num">${pnlSign}$${Math.abs(p.pnl_usdt).toFixed(2)}${mobileEmoji?`<span class="m-emoji" title="${mobileEmojiTitle}">${mobileEmoji}</span>`:''}</span><span class="m-bps">${fmt(p.unrealized_bps,0)}bps</span>${mstopBadge}${ofloorBadge}</span>
         </div>
         <div class="m-progress">${holdViz}</div>
         <div class="m-mid">

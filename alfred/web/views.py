@@ -295,6 +295,8 @@ def build_state_response(bot) -> dict:
             "win_prob": win_prob,
             "manual_stop_usdt": (round(pos.manual_stop_usdt, 2)
                                  if pos.manual_stop_usdt is not None else None),
+            "opp_floor_bps": (round(pos.opp_floor_bps, 0)
+                              if pos.opp_floor_bps is not None else None),
             "status": status,
         })
 
