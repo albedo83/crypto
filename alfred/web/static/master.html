@@ -127,6 +127,57 @@ textarea:focus{outline:none;border-color:var(--blue)}
 
 .empty{color:var(--dim2);text-align:center;padding:18px;font-size:13px}
 .mt{margin-top:14px}
+
+/* ── Vue globale (cartes bots, ex-admin.html) — scopé #p-global ── */
+.gscreens{display:grid;grid-template-columns:repeat(auto-fill,minmax(360px,1fr));gap:14px}
+#p-global .screen{background:var(--card);border:1px solid var(--border);border-top:3px solid var(--border);border-radius:12px;padding:16px}
+#p-global .screen-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;gap:8px}
+#p-global .screen-title{font-size:16px;font-weight:600;display:inline-flex;align-items:center;gap:8px;min-width:0;overflow:hidden;text-overflow:ellipsis}
+#p-global .status-dot{display:inline-block;width:9px;height:9px;border-radius:50%;flex-shrink:0}
+#p-global .status-dot.ok{background:var(--green)}
+#p-global .status-dot.degraded,#p-global .status-dot.paused{background:var(--yellow)}
+#p-global .status-dot.paused{animation:pulse 2s infinite}
+#p-global .status-dot.stale{background:var(--red)}
+#p-global .status-dot.offline{background:var(--dim2)}
+#p-global .badges{display:flex;gap:5px;align-items:center;flex-shrink:0}
+#p-global .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:10px}
+#p-global .stat{background:var(--bg);border-radius:6px;padding:7px 8px;min-width:0}
+#p-global .stat-label{font-size:9px;color:var(--dim);text-transform:uppercase;letter-spacing:.3px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#p-global .stat-value{font-size:14px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#p-global .stat-value.green{color:var(--green)}
+#p-global .stat-value.red{color:var(--red)}
+#p-global .stat-value.blue{color:var(--blue)}
+#p-global .stat-value.tiny{font-size:11px}
+#p-global .stat-sub{font-size:9px;color:var(--dim);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#p-global .section-title{font-size:10px;color:var(--dim);text-transform:uppercase;letter-spacing:.4px;margin:10px 0 6px;display:flex;justify-content:space-between;align-items:center}
+#p-global .pos-mini-empty{font-size:11px;color:var(--dim2);padding:6px 0;text-align:center;font-style:italic}
+#p-global .pos-mini-row{display:grid;grid-template-columns:auto auto auto 1fr auto auto;gap:8px;font-size:12px;padding:7px 8px 7px 6px;border-radius:5px;align-items:center;margin-bottom:3px;border-left:3px solid transparent;background:var(--bg)}
+#p-global .pos-mini-row.pos-win{background:#3fb9501a;border-left-color:var(--green)}
+#p-global .pos-mini-row.pos-loss{background:#f851491a;border-left-color:var(--red)}
+#p-global .pos-mini-row.pos-flat{border-left-color:var(--border)}
+#p-global .pos-mini-sym{font-weight:600;min-width:36px;font-size:13px}
+#p-global .pos-mini-side{font-weight:700;font-size:10px;width:14px;text-align:center;border-radius:3px;padding:1px 0}
+#p-global .pos-mini-side.green{background:#3fb95044;color:var(--green)}
+#p-global .pos-mini-side.red{background:#f8514944;color:var(--red)}
+#p-global .pos-mini-strat{color:var(--dim);font-size:10px;font-weight:500}
+#p-global .pos-mini-pnl{text-align:right;font-weight:700;font-size:13px}
+#p-global .pos-mini-pnl.green{color:var(--green)}
+#p-global .pos-mini-pnl.red{color:var(--red)}
+#p-global .pos-mini-bps{color:var(--dim);font-size:10px;text-align:right;min-width:48px}
+#p-global .pos-mini-rem{font-size:13px;font-weight:700;text-align:right;min-width:42px;color:#c9d1d9;letter-spacing:.2px}
+#p-global .pos-mini-rem.urgent{color:var(--red)}
+#p-global .pos-mini-rem.soon{color:var(--yellow)}
+#p-global .pos-mini-ms{font-size:10px;font-weight:700;color:var(--yellow);background:rgba(210,153,34,.12);padding:1px 4px;border-radius:3px;border:1px solid rgba(210,153,34,.30);white-space:nowrap}
+#p-global .pos-mini-strip{grid-column:1/-1;height:10px;margin-top:4px}
+#p-global .signals{font-size:11px;color:var(--dim);margin-bottom:10px;line-height:1.45;min-height:14px}
+#p-global .signals span{color:#c9d1d9}
+#p-global .screen-foot{display:flex;justify-content:space-between;align-items:center;padding-top:10px;border-top:1px solid var(--border2);gap:6px;flex-wrap:wrap}
+#p-global .version{font-size:10px;color:var(--dim)}
+#p-global .btn-open{background:#238636;color:#fff;border:none;padding:5px 12px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;text-decoration:none}
+#p-global .btn-open:hover{background:#2ea043;text-decoration:none}
+#p-global .offline-card{opacity:.55}
+#p-global .offline-msg{text-align:center;padding:40px 14px;color:var(--dim2);font-size:13px}
+
 @media(max-width:700px){.panel{padding:12px}.header{padding:12px 14px}.header .meta{display:none}.bigrow{gap:16px}}
 </style>
 </head>
@@ -136,16 +187,22 @@ textarea:focus{outline:none;border-color:var(--blue)}
   <span class="syspill" id="sysPill"><span class="beat"></span><span id="sysPillTxt">connexion…</span></span>
   <span class="meta" id="lastUpd"></span>
   <div class="spacer"></div>
-  <div class="links"><a href="./">Carousel</a><a href="logout">Logout</a></div>
+  <div class="links"><a href="logout">Logout</a></div>
 </div>
 <div class="tabs">
-  <div class="tab active" data-p="sys">Système</div>
+  <div class="tab active" data-p="global">Vue globale</div>
+  <div class="tab" data-p="sys">Système</div>
   <div class="tab" data-p="fleet">Flotte <span class="count" id="cntBots">–</span></div>
   <div class="tab" data-p="admin">Admin</div>
 </div>
 
+<!-- ════ VUE GLOBALE (ex-carousel admin.html) ════ -->
+<div class="panel active" id="p-global">
+  <div class="gscreens" id="gScreens"><div class="empty">chargement…</div></div>
+</div>
+
 <!-- ════ SYSTÈME ════ -->
-<div class="panel active" id="p-sys">
+<div class="panel" id="p-sys">
   <div id="pendingBanner" class="banner"></div>
   <div class="grid g2">
     <div class="card"><h3><span class="ico">📡</span>WebSocket & données</h3><div id="wsCard"></div></div>
@@ -443,6 +500,121 @@ function renderAudit(rows){
   }).join('')||'<div class="empty">aucune action admin</div>';
 }
 
+// ── VUE GLOBALE (cartes bots, porté de admin.html) ──
+const cls=v=>v>=0?'green':'red';
+function fmtTime(s){
+  if(!s||s<0)return '--';
+  const d=Math.floor(s/86400),h=Math.floor((s%86400)/3600),m=Math.floor((s%3600)/60);
+  if(d>0)return d+'d '+h+'h';
+  if(h>0)return h+'h '+m+'m';
+  return m+'m';
+}
+function positionStrip(p,w=240,h=12){
+  if(p.stop_bps===undefined||p.stop_bps==null||p.stop_bps>=0)return '';
+  const stopBps=p.stop_bps,mfe=p.mfe_bps||0,cur=p.unrealized_bps||0,mae=p.mae_bps||0;
+  const right=Math.max(mfe+100,500),left=stopBps,range=Math.max(right-left,100);
+  const xOf=v=>Math.max(0,Math.min(1,(v-left)/range));
+  const x=v=>(xOf(v)*w).toFixed(1);
+  const xZero=x(0),xCur=x(cur),xMae=x(mae),xMfe=x(mfe);
+  const xTrail=p.trailing_active&&p.trailing_floor_bps!=null?x(p.trailing_floor_bps):null;
+  const curCol=cur>=0?'#3fb950':(cur>=stopBps*0.5?'#d29922':'#f85149');
+  const id='ms-'+p.symbol+'-'+Math.floor(Math.random()*9999);
+  let svg=`<svg class="pos-mini-strip" width="100%" height="${h}" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
+  svg+=`<defs><linearGradient id="${id}" x1="0" x2="1" y1="0" y2="0"><stop offset="0%" stop-color="#f85149" stop-opacity="0.22"/><stop offset="${(xOf(0)*100).toFixed(0)}%" stop-color="#30363d" stop-opacity="0.4"/><stop offset="100%" stop-color="#3fb950" stop-opacity="0.22"/></linearGradient></defs>`;
+  svg+=`<rect x="0" y="${h/2-1.5}" width="${w}" height="3" rx="1.5" fill="url(#${id})"/>`;
+  svg+=`<line x1="0.5" y1="1" x2="0.5" y2="${h-1}" stroke="#f85149" stroke-width="1.2"/>`;
+  svg+=`<line x1="${xZero}" y1="2" x2="${xZero}" y2="${h-2}" stroke="#7d8590" stroke-width="0.8"/>`;
+  if(mae<-20)svg+=`<circle cx="${xMae}" cy="${h-1.5}" r="1.8" fill="#f85149" opacity="0.85"/>`;
+  if(mfe>20)svg+=`<circle cx="${xMfe}" cy="1.5" r="1.8" fill="#3fb950" opacity="0.85"/>`;
+  if(xTrail!==null)svg+=`<line x1="${xTrail}" y1="2" x2="${xTrail}" y2="${h-2}" stroke="#d29922" stroke-width="1.2" stroke-dasharray="2,2"/>`;
+  svg+=`<line x1="${xCur}" y1="0.5" x2="${xCur}" y2="${h-0.5}" stroke="${curCol}" stroke-width="1.6"/>`;
+  return svg+'</svg>';
+}
+function renderPositions(positions){
+  if(!positions||!positions.length)return '<div class="pos-mini-empty">No open positions</div>';
+  return positions.map(p=>{
+    const sideClass=p.direction==='LONG'?'green':'red';
+    const sideTxt=p.direction==='LONG'?'L':'S';
+    const pnlClass=cls(p.pnl_usdt);
+    const rowClass=p.pnl_usdt>0.1?'pos-win':(p.pnl_usdt<-0.1?'pos-loss':'pos-flat');
+    const bpsSign=p.unrealized_bps>=0?'+':'';
+    const rh=p.remaining_hours||0;
+    const remClass=rh<=6?'urgent':(rh<=12?'soon':'');
+    const rem=p.remaining||(Math.floor(rh)+'h');
+    const tooltipParts=[`stop ${p.stop_bps}`,`mae ${p.mae_bps>=0?'+':''}${p.mae_bps.toFixed(0)}`,`cur ${p.unrealized_bps>=0?'+':''}${p.unrealized_bps.toFixed(0)}`,`mfe ${p.mfe_bps>=0?'+':''}${p.mfe_bps.toFixed(0)}`];
+    if(p.trailing_active)tooltipParts.push('trail '+(p.trailing_floor_bps>=0?'+':'')+p.trailing_floor_bps);
+    const msUsdt=p.manual_stop_usdt;
+    const msBadge=(msUsdt!=null)?`<span class="pos-mini-ms" title="Manual stop : ferme si unrealized ≤ $${msUsdt.toFixed(2)}">🎯$${msUsdt.toFixed(0)}</span>`:'';
+    if(msUsdt!=null)tooltipParts.push(`manual_stop $${msUsdt.toFixed(2)}`);
+    const tooltip=tooltipParts.join(' | ')+' bps · '+rem+' left';
+    return `<div class="pos-mini-row ${rowClass}" title="${tooltip}">
+      <span class="pos-mini-sym">${p.symbol}</span>
+      <span class="pos-mini-side ${sideClass}">${sideTxt}</span>
+      <span class="pos-mini-strat">${p.strategy||'?'}</span>
+      <span class="pos-mini-pnl ${pnlClass}">${fmt(p.pnl_usdt,2)}</span>
+      <span class="pos-mini-bps">${bpsSign}${(p.unrealized_bps||0).toFixed(0)}bp</span>
+      ${msBadge}
+      <span class="pos-mini-rem ${remClass}">${rem}</span>
+      ${positionStrip(p)}
+    </div>`;
+  }).join('');
+}
+function renderGlobal(d){
+  const bots=d.bots||[];
+  if(!bots.length){$('gScreens').innerHTML='<div class="offline-msg">No bots configured</div>';return}
+  $('gScreens').innerHTML=bots.map(b=>{
+    const online=b.online;
+    const status=b.paused?'paused':(b.status||'offline');
+    const balance=b.balance||0,capital=b.capital||0;
+    const wr=b.win_rate?Math.round(b.win_rate*100):0;
+    const dd=b.drawdown_pct||0;
+    const ddClass=dd<-1?'red':(dd<0?'':'green');
+    const ea=b.exchange_account;
+    const closeFeesEst=(b.positions||[]).reduce((a,p)=>a+(p.size_usdt||0)*0.0009,0);
+    const equity=ea?(ea.equity-closeFeesEst):balance;
+    const pnl=ea?(ea.equity-capital):(b.total_pnl||0);
+    const pnlPct=capital>0?(pnl/capital*100):0;
+    const stateBadge=online?(b.paused?'<span class="badge paused">paused</span>':'<span class="badge running">running</span>'):'';
+    const borderStyle=online&&b.bot_label_color?`style="border-top-color:${b.bot_label_color}"`:'';
+    const sigs=online&&b.active_signals&&b.active_signals.length?b.active_signals.map(s=>`<span>${s}</span>`).join(' &middot; '):'<i>No active signals</i>';
+    const stats=online?`
+      <div class="stat"><div class="stat-label">Equity</div><div class="stat-value">$${equity.toFixed(0)}</div>
+        ${ea?`<div class="stat-sub ${ea.unrealized>=0?'green':'red'}">${fmt(ea.unrealized,0)} unr.</div>`:''}</div>
+      <div class="stat"><div class="stat-label">P&L</div><div class="stat-value ${cls(pnl)}">${fmt(pnl,0)}</div>
+        <div class="stat-sub ${cls(pnlPct)}">${fmt(pnlPct,1)}%</div></div>
+      <div class="stat"><div class="stat-label">DD</div><div class="stat-value ${ddClass}">${fmt(dd,1)}%</div>
+        <div class="stat-sub">peak $${(b.peak_balance||0).toFixed(0)}</div></div>
+      <div class="stat"><div class="stat-label">Pos</div><div class="stat-value blue">${b.n_positions||0}/${b.max_positions||6}</div>
+        ${ea?`<div class="stat-sub">marg $${ea.margin_used.toFixed(0)}</div>`:''}</div>
+      <div class="stat"><div class="stat-label">WR</div><div class="stat-value">${wr}%</div>
+        <div class="stat-sub">${b.total_trades||0} trades</div></div>
+      <div class="stat"><div class="stat-label">Capital</div><div class="stat-value">$${capital.toFixed(0)}</div></div>
+      <div class="stat"><div class="stat-label">Uptime</div><div class="stat-value tiny">${fmtTime(b.uptime_s)}</div>
+        ${b.first_trade_date?`<div class="stat-sub">since ${new Date(b.first_trade_date).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})}</div>`:''}</div>
+      <div class="stat"><div class="stat-label">${ea?'Available':'Price age'}</div>
+        <div class="stat-value tiny">${ea?'$'+ea.available.toFixed(0):(b.price_age_s!==undefined?Math.floor(b.price_age_s)+'s':'--')}</div>
+        ${ea&&ea.taker_fees!==undefined?`<div class="stat-sub red">fees $${ea.taker_fees.toFixed(0)}</div>`:''}</div>
+    `:'<div class="offline-msg" style="grid-column:1/-1">Bot offline</div>';
+    return `<div class="screen ${online?'':'offline-card'}" ${borderStyle}>
+      <div class="screen-head">
+        <span class="screen-title"><span class="status-dot ${online?status:'offline'}"></span>${esc(b.label)}</span>
+        <span class="badges"><span class="badge ${b.mode}">${b.mode}</span>${stateBadge}</span>
+      </div>
+      <div class="stats">${stats}</div>
+      ${online?`
+        <div class="section-title">Open positions <span style="font-weight:400">${(b.positions||[]).length}/${b.max_positions||6}</span></div>
+        ${renderPositions(b.positions)}
+        <div class="section-title">Active signals</div>
+        <div class="signals">${sigs}</div>
+      `:''}
+      <div class="screen-foot">
+        <span class="version">${online?'v'+(b.version||'?'):esc(b.error||'erreur')}</span>
+        <div class="btn-row"><a class="btn-open" href="bot/${b.id}/">Open</a></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
 // ── refresh ──
 let gatesTimer=0,lastOk=0;
 function refresh(){
@@ -455,6 +627,7 @@ function refresh(){
   }).catch(()=>{
     $('sysPill').className='syspill bad';$('sysPillTxt').textContent='INJOIGNABLE';
   });
+  fetch('api/admin',{credentials:'same-origin'}).then(r=>r.json()).then(renderGlobal).catch(()=>{});
   fetch('api/master/events?limit=40&kinds='+($('evtKinds').value||''),{credentials:'same-origin'}).then(r=>r.json()).then(renderEvents).catch(()=>{});
   fetch('api/fleet',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{renderFleet(d);renderAdmins(d)}).catch(()=>{});
   fetch('api/admin/audit?limit=50',{credentials:'same-origin'}).then(r=>r.json()).then(renderAudit).catch(()=>{});

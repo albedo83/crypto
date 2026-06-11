@@ -224,9 +224,11 @@ def create_app(bots: dict, master) -> FastAPI:
 
     # ── Admin view ────────────────────────────────────────────────────
 
-    @app.get("/", response_class=HTMLResponse)
+    @app.get("/")
     async def admin_index():
-        return (_STATIC / "admin.html").read_text()
+        # L'ancien carousel (admin.html) est fusionné dans /master
+        # (onglet "Vue globale") — un seul écran de supervision.
+        return RedirectResponse(f"{ROOT_PATH}/master", status_code=303)
 
     @app.get("/api/admin")
     def api_admin():
