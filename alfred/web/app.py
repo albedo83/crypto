@@ -566,27 +566,41 @@ def create_app(bots: dict, master) -> FastAPI:
         MAX_POINTS = 200
 
         def _build_chart():
-            pts = []
+            """Grille temporelle UNIFORME (un point par bucket sur toute la
+            fenêtre). lightweight-charts espace les points par INDEX : mixer
+            bougies 4h et buckets ticks 21 min rendait l'axe non-linéaire en
+            temps (l'entrée paraissait au mauvais endroit). Les buckets sans
+            tick héritent du dernier close de bougie connu (marches plates
+            sur l'ère pré-ticks / les trous)."""
             st = master.states.get(symbol)
-            if st and st.candles_4h:
-                cutoff = time.time() - hours * 3600
-                for c in st.candles_4h:
-                    if c["t"] / 1000 >= cutoff:
-                        pts.append({"ts": c["t"] // 1000, "price": c["c"]})
+            now_ts = int(time.time())
+            cutoff_ts = now_ts - hours * 3600
+            bucket_s = max(60, (hours * 3600) // MAX_POINTS)
+            tickmap = {}
             try:
-                cutoff_ts = int(time.time() - hours * 3600)
-                bucket_s = max(60, (hours * 3600) // MAX_POINTS)
                 rows = master.db.conn.execute(
                     """SELECT (ts / ?) * ? AS bucket, AVG(mark_px)
                        FROM ticks WHERE symbol = ? AND ts > ?
                        GROUP BY bucket ORDER BY bucket""",
                     (bucket_s, bucket_s, symbol, cutoff_ts)).fetchall()
-                tick_start = rows[0][0] if rows else 0
-                pts_filtered = [p for p in pts if p["ts"] < tick_start]
-                pts_filtered.extend({"ts": r[0], "price": r[1]} for r in rows)
-                return pts_filtered
+                tickmap = {int(r[0]): float(r[1]) for r in rows}
             except Exception:
-                return pts
+                pass
+            candles = ([(c["t"] // 1000, c["c"]) for c in st.candles_4h]
+                       if st and st.candles_4h else [])
+            import bisect as _bi
+            c_ts = [c[0] for c in candles]
+            pts = []
+            start = ((cutoff_ts // bucket_s) + 1) * bucket_s
+            for ts in range(start, now_ts + 1, bucket_s):
+                price = tickmap.get(ts)
+                if price is None and candles:
+                    i = _bi.bisect_right(c_ts, ts) - 1
+                    if i >= 0:
+                        price = candles[i][1]
+                if price is not None:
+                    pts.append({"ts": ts, "price": price})
+            return pts
 
         import asyncio
         pts = await asyncio.to_thread(_build_chart)
