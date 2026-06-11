@@ -20,6 +20,19 @@
       "telegram": {"token_env": "TG_BOT_TOKEN", "chat_id_env": "TG_CHAT_ID"},
       "overrides": {},
       "enabled": true
+    },
+    {
+      "id": "junior",
+      "label": "JUNIOR",
+      "color": "#3fb950",
+      "mode": "live",
+      "private_key_env": "JUNIOR_HL_PRIVATE_KEY",
+      "account_address": "0xb65d5e52f229B1dAA6534034d7805A82dB7956Fe",
+      "capital_initial": 332.76,
+      "capital_cap": 500,
+      "telegram": {"token_env": "JUNIOR_TG_BOT_TOKEN", "chat_id_env": "JUNIOR_TG_CHAT_ID"},
+      "overrides": {},
+      "enabled": true
     }
   ]
 }

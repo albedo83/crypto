@@ -32,21 +32,20 @@ echo "Paper bot started (PID: $!)"
 #     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live/reversal_v10.log 2>&1 &
 # echo "Live bot started (PID: $!)"
 
-# Junior bot (:8099) — paper mode until private key is set.
-# Separate credentials + own Telegram bot. Capital capped at JUNIOR_CAPITAL_CAP
-# (see analysis/bot/config.py). Starts at $0 capital and PAUSED. User must
-# DCA via /api/capital then /api/resume to activate. Empty JUNIOR_TG_* = muted.
-# Served behind nginx at /junior/.
-TG_BOT_TOKEN="$JUNIOR_TG_BOT_TOKEN" TG_CHAT_ID="$JUNIOR_TG_CHAT_ID" \
-    TG_CATEGORIES="trade,daily,system" \
-    DASHBOARD_USER="$JUNIOR_USER" DASHBOARD_PASS="$JUNIOR_PASS" \
-    HL_PRIVATE_KEY="$JUNIOR_HL_PRIVATE_KEY" HL_MODE=live \
-    HL_ACCOUNT_ADDRESS=0xb65d5e52f229B1dAA6534034d7805A82dB7956Fe \
-    BOT_LABEL="JUNIOR" BOT_LABEL_COLOR="#3fb950" \
-    HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 HL_ROOT_PATH=/junior \
-    BOT_PUBLIC_URL=https://echonym.fr/junior \
-    nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
-echo "Junior bot started (PID: $!)"
+# Junior bot legacy (:8099) — MIGRÉ VERS ALFRED le 2026-06-11 (bot "junior"
+# dans alfred/bots.json, capital = equity $332.76 au reset, 0 position à la
+# bascule). Ne pas relancer : même clé signataire JUNIOR_HL_PRIVATE_KEY que
+# le bot Alfred → double-trading + conflits de nonce.
+# TG_BOT_TOKEN="$JUNIOR_TG_BOT_TOKEN" TG_CHAT_ID="$JUNIOR_TG_CHAT_ID" \
+#     TG_CATEGORIES="trade,daily,system" \
+#     DASHBOARD_USER="$JUNIOR_USER" DASHBOARD_PASS="$JUNIOR_PASS" \
+#     HL_PRIVATE_KEY="$JUNIOR_HL_PRIVATE_KEY" HL_MODE=live \
+#     HL_ACCOUNT_ADDRESS=0xb65d5e52f229B1dAA6534034d7805A82dB7956Fe \
+#     BOT_LABEL="JUNIOR" BOT_LABEL_COLOR="#3fb950" \
+#     HL_CAPITAL=0 WEB_PORT=8099 HL_OUTPUT_DIR=analysis/output_live2 HL_ROOT_PATH=/junior \
+#     BOT_PUBLIC_URL=https://echonym.fr/junior \
+#     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_live2/reversal_v10.log 2>&1 &
+# echo "Junior bot started (PID: $!)"
 
 # Apprenti bot (:8100) — INACTIF. Pour activer :
 # 1) Renseigner les APPRENTI_* dans .env (suivre docs/setup_new_bot.md)
