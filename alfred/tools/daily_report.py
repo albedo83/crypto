@@ -82,6 +82,24 @@ def parallel_run_summary() -> tuple[str, bool]:
         return f"parallel-run: erreur ({e})", False
 
 
+def notional_cap_review() -> str:
+    """Déclencheur de re-test du cap notionnel $500 (R&D 2026-06-11,
+    `backtests/backtest_liquidity_cap.py`) : quand la balance SENIOR
+    atteint ~2× le capital du reset ($680.58), le cap mord la majorité
+    des entrées et le cap liquidity-aware doit être re-validé."""
+    try:
+        with open(os.path.join(_REPO, "alfred", "data", "bots", "live",
+                               "state.json")) as fh:
+            st = json.load(fh)
+        balance = st.get("capital", 0) + st.get("total_pnl", 0)
+        if balance >= 1400:
+            return (f"\n📐 Balance SENIOR ${balance:.0f} ≥ $1400 — re-tester le "
+                    f"cap notionnel (python3 -m backtests.backtest_liquidity_cap)")
+    except Exception:
+        pass
+    return ""
+
+
 def main() -> int:
     _load_env()
     dry = "--dry-run" in sys.argv
@@ -92,7 +110,8 @@ def main() -> int:
     status = "✅" if (obs_ok and pr_ok) else "⚠️"
     msg = (f"{status} ALFRED refacto — digest quotidien\n"
            f"Phase 2 (observation) : {'✓' if obs_ok else '✗'} {obs_line}\n"
-           f"Phase 3 (parallel-run): {'✓ gate OK' if pr_ok else '✗ LOGIC divergences'} — {pr_line}")
+           f"Phase 3 (parallel-run): {'✓ gate OK' if pr_ok else '✗ LOGIC divergences'} — {pr_line}"
+           + notional_cap_review())
 
     if dry:
         print(msg)

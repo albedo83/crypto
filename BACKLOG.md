@@ -87,3 +87,4 @@ Items de mémoire long-terme, sans deadline.
 - Sessions Claude : lire ce fichier en début de session si le sujet est de la R&D ou un refactor. Pas besoin de le lire pour une intervention ciblée (bug fix, ajout simple, restart).
 - Sessions humaines : checklist quand on se demande "qu'est-ce qu'il restait à faire ?".
 - Quand on traite un item → suppression + mention dans `CHANGELOG.md` ou `docs/synthese.md` selon que c'est trading-impacting ou doc-seulement.
+- [ ] **Re-test cap notionnel liquidity-aware** (R&D 2026-06-11, `backtests/backtest_liquidity_cap.py`) — $500 confirmé optimal au genou de la frontière (grille flat 250-1000 + 12 variantes k_liq×vol24h, 0 PASS strict, régime bear punit la taille marginale). Re-run (~3 min) si : balance SENIOR ≥ $1400 (alerte auto dans le digest 08:30), btc_z 30j durablement > 0, ou échéance trimestrielle (~2026-09). Option $350 documentée pour l'agenda DD-reduction (−9pp DD moyen contre −27% PnL long).
