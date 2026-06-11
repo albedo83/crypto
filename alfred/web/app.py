@@ -179,6 +179,11 @@ def create_app(bots: dict, master) -> FastAPI:
         class _AuthMiddleware(BaseHTTPMiddleware):
             async def dispatch(self, request: Request, call_next):
                 path = request.url.path
+                # Accès port direct : les redirects portent le ROOT_PATH
+                # (/alfred/...) alors que nginx le strippe — normalise pour
+                # que les contrôles de scope voient le même chemin partout.
+                if ROOT_PATH and path.startswith(ROOT_PATH):
+                    path = path[len(ROOT_PATH):] or "/"
                 if path in ("/login", "/favicon.ico") or path.startswith("/auth"):
                     return await call_next(request)
                 token = request.cookies.get("alfred_session")
