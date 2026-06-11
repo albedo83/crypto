@@ -283,7 +283,10 @@ def build_state_response(bot) -> dict:
             "stop_bps": round(effective_stop, 0),
             "stop_progress": round(stop_progress, 3),
             "hold_progress": hold_progress,
-            "trajectory": list(pos.trajectory),
+            # + point LIVE en fin de trajectoire : les points sont horaires,
+            # sans lui la sparkline (courbe ET couleur) retarde jusqu'à 1h
+            # sur le P&L réel (vu sur le short CRV de JUNIOR, 2026-06-11).
+            "trajectory": list(pos.trajectory) + [(round(hold_h, 2), round(ur, 1))],
             "trailing_active": bool(pos.strategy == "S10"
                                     and pos.mfe_bps >= p.s10_trailing_trigger),
             "trailing_floor_bps": (round(pos.mfe_bps - p.s10_trailing_offset, 0)
