@@ -1792,15 +1792,19 @@ function refreshChart(){
         title:d.position.strategy+' '+d.position.direction,
       });
       // Barre verticale à l'instant d'entrée (la flèche seule est imprécise).
-      // lightweight-charts n'a pas de ligne verticale native : segment quasi
-      // vertical sur une série dédiée, exclue de l'autoscale.
+      // Un segment 2-points est rendu OBLIQUE par l'échelle à slots de
+      // lightweight-charts (les temps deviennent des index) → histogramme à
+      // barre unique (colonne lo→hi) posé sur le temps du graphe le plus
+      // proche de l'entrée. La flèche est snappée au même temps.
       const t0=data[0].time, t1=data[data.length-1].time;
+      let snapTs=d.position.entry_ts;
       if(d.position.entry_ts>=t0&&d.position.entry_ts<=t1){
+        snapTs=data.reduce((b,p)=>Math.abs(p.time-d.position.entry_ts)<Math.abs(b-d.position.entry_ts)?p.time:b,t0);
         const lo=Math.min(...d.points.map(p=>p.price)), hi=Math.max(...d.points.map(p=>p.price));
-        _lwVertSeries=_lwChart.addLineSeries({color:col,lineWidth:2,
-          lastValueVisible:false,priceLineVisible:false,crosshairMarkerVisible:false,
+        _lwVertSeries=_lwChart.addHistogramSeries({color:col+'88',base:lo,
+          lastValueVisible:false,priceLineVisible:false,
           autoscaleInfoProvider:()=>null});
-        _lwVertSeries.setData([{time:d.position.entry_ts,value:lo},{time:d.position.entry_ts+1,value:hi}]);
+        _lwVertSeries.setData([{time:snapTs,value:hi}]);
       }
       // Stop catastrophe : rouge continu
       if(d.position.stop_price!=null){
@@ -1818,7 +1822,7 @@ function refreshChart(){
           color:'#ffa3d7',lineWidth:1,lineStyle:2,axisLabelVisible:true,title:'🛡 plancher'}));
       }
       _lwSeries.setMarkers([{
-        time:d.position.entry_ts,
+        time:snapTs,
         position:isLong?'belowBar':'aboveBar',
         color:col, shape:isLong?'arrowUp':'arrowDown',
         text:d.position.strategy+' @ $'+d.position.entry_price.toFixed(prec),
