@@ -560,7 +560,7 @@ function renderPositions(positions){
   }).join('');
 }
 function renderGlobal(d){
-  const bots=d.bots||[];
+  const bots=Array.isArray(d)?d:(d.bots||[]);  // /api/admin renvoie un tableau
   if(!bots.length){$('gScreens').innerHTML='<div class="offline-msg">No bots configured</div>';return}
   $('gScreens').innerHTML=bots.map(b=>{
     const online=b.online;
