@@ -338,6 +338,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <label><input type="checkbox" data-toggle="strategy-performance"> Strategy Performance</label>
   <label><input type="checkbox" data-toggle="pnl-curve"> P&L Curve</label>
   <label><input type="checkbox" data-toggle="trade-history"> Trade History</label>
+  <label><input type="checkbox" data-toggle="intervention-impact"> Impact interventions</label>
   <h3>MARKET CONTEXT</h3>
   <label><input type="checkbox" data-toggle="sector-overview"> Sector overview</label>
   <label><input type="checkbox" data-toggle="oi-grid"> OI delta 24h</label>
@@ -518,6 +519,23 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   </div>
 </div>
 
+<div class="section" data-block="intervention-impact" hidden>
+  <h2>Impact des interventions
+    <span class="dim" style="font-size:12px;font-weight:400">— P&L contrefactuel si tenu jusqu'au timeout (plancher catastrophe-stop)</span>
+    <button class="btn-small" style="margin-left:10px" onclick="refreshInterventionImpact()">↻ Refresh</button>
+  </h2>
+  <div class="dim" style="font-size:11px;margin-bottom:8px">
+    Trades clos hors timeout naturel. <b>Impact = réel − contrefactuel</b> : positif (vert) = l'intervention a aidé.
+    Le contrefactuel exclut le funding du hold prolongé. Statut « en cours » = timeout encore dans le futur (estimation au prix courant).
+  </div>
+  <div id="ci-summary" class="dim" style="font-size:13px;margin-bottom:8px">—</div>
+  <div class="trades-scroll">
+    <table class="trades-table"><thead><tr>
+      <th>Exit</th><th>Sym</th><th>St</th><th>Side</th><th>Reason</th><th>Réel $</th><th>CF $</th><th>Impact $</th><th>Statut</th>
+    </tr></thead><tbody id="ci-body"></tbody></table>
+  </div>
+</div>
+
 <div class="section" data-block="sector-overview" hidden>
   <h2>Sector overview</h2>
   <div class="sector-grid" id="sector-grid"></div>
@@ -569,6 +587,7 @@ const fmt=(v,d=2)=>(v>=0?'+':'')+v.toFixed(d);
 // persisted in localStorage. Default state = all hidden (only Open Positions
 // is always visible since it has no toggle).
 const BLOCKS=['strategy-performance','pnl-curve','trade-history',
+              'intervention-impact',
               'sector-overview','oi-grid','capital-flow',
               'next-scan-preview','signals-cards','signal-proximity',
               'event-timeline','price-chart'];
@@ -598,6 +617,7 @@ function onToggleBlock(ev){
   // Trigger renderers for newly-visible blocks so they populate immediately
   if(ev.target.checked){
     if(id==='pnl-curve'||id==='trade-history')refreshTrades();
+    if(id==='intervention-impact')refreshInterventionImpact();
     if(id==='signals-cards'||id==='signal-proximity')refreshSignals();
     if(id==='event-timeline')refreshEvents();
     if(id==='price-chart')refreshChart();
@@ -1693,6 +1713,47 @@ function refreshTrades(){
     const lastB=bals[bals.length-1];
     ctx.fillText('$'+fmt(lastB),w-60,lastB>=baseline?14:h+8);
   }).catch(e=>console.warn('pnl fetch error:',e));
+}
+
+// ── Impact des interventions (P&L contrefactuel, refresh manuel) ──────
+function refreshInterventionImpact(){
+  const tb=document.getElementById('ci-body');
+  const sm=document.getElementById('ci-summary');
+  if(!tb)return;
+  sm.textContent='Calcul…';
+  fetch('api/intervention_impact',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
+    const s=d.summary||{};
+    const _tf=iso=>{const x=new Date(iso);return `${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')} ${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`;};
+    const _ca=s.computed_at?new Date(s.computed_at):null;
+    const at=_ca?`${String(_ca.getHours()).padStart(2,'0')}:${String(_ca.getMinutes()).padStart(2,'0')}:${String(_ca.getSeconds()).padStart(2,'0')}`:'—';
+    sm.innerHTML=`<b>${s.n_trades||0}</b> interventions · réel <b>$${fmt(s.sum_actual||0)}</b> vs contrefactuel <b>$${fmt(s.sum_cf||0)}</b> · `+
+      `impact net <b class="${cls(s.net_impact||0)}">$${fmt(s.net_impact||0)}</b>`+
+      (s.n_live?` · ${s.n_live} en cours`:'')+(s.n_skipped_no_data?` · ${s.n_skipped_no_data} sans données`:'')+
+      ` <span style="float:right">calculé ${at}</span>`;
+    tb.innerHTML='';
+    const STATUS={stopped:'cata-stop',timeout:'timeout',live:'⏳ en cours','no_data':'—','n/a':'—'};
+    (d.trades||[]).forEach(t=>{
+      const tr=document.createElement('tr');
+      const hasDelta=(t.delta!==null&&t.delta!==undefined);
+      tr.className=hasDelta?(t.delta>=0?'trade-win':'trade-loss'):'';
+      const sc=t.direction==='LONG'?'green':'red';
+      const cfTxt=(t.cf_pnl!==null&&t.cf_pnl!==undefined)?`$${fmt(t.cf_pnl)}`:'—';
+      const dTxt=hasDelta?`$${fmt(t.delta)}`:'—';
+      tr.innerHTML=`
+        <td data-label="Exit" class="dim">${_tf(t.exit_time)}</td>
+        <td data-label="Symbol"><b>${t.symbol}</b></td>
+        <td data-label="Strat" class="dim">${t.strategy||'?'}</td>
+        <td data-label="Side" class="${sc}">${t.direction}</td>
+        <td data-label="Reason" class="dim">${t.reason}</td>
+        <td data-label="Réel" class="${cls(t.actual_pnl)}">$${fmt(t.actual_pnl)}</td>
+        <td data-label="CF">${cfTxt}</td>
+        <td data-label="Impact" class="${hasDelta?cls(t.delta):'dim'}"><b>${dTxt}</b></td>
+        <td data-label="Statut" class="dim">${STATUS[t.cf_status]||t.cf_status}</td>`;
+      tb.appendChild(tr);
+    });
+    if(!(d.trades||[]).length)
+      tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:#7d8590">Aucune intervention</td></tr>';
+  }).catch(e=>{console.warn('intervention_impact fetch error:',e);sm.textContent='Erreur de calcul';});
 }
 
 // ── Price Chart (Lightweight Charts) ────────────────────

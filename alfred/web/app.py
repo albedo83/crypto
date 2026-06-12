@@ -568,6 +568,16 @@ def create_app(bots: dict, master) -> FastAPI:
             return NOT_FOUND
         return JSONResponse(views.build_trades_list(bot.trades, limit))
 
+    @app.get("/bot/{bot_id}/api/intervention_impact")
+    async def api_intervention_impact(bot_id: str):
+        bot = _bot(bot_id)
+        if not bot:
+            return NOT_FOUND
+        # scan DB par trade → hors event loop (comme api_chart)
+        payload = await asyncio.to_thread(
+            views.build_intervention_impact, bot, master)
+        return JSONResponse(payload)
+
     @app.get("/bot/{bot_id}/api/pnl")
     async def api_pnl(bot_id: str):
         bot = _bot(bot_id)

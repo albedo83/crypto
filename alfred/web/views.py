@@ -6,8 +6,9 @@ module-level config. The reversal.html dashboard consumes these unchanged.
 from __future__ import annotations
 
 import logging
+import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from ..analytics import (is_bot_trade, compute_signal_drift,
                          compute_signal_drift_by_dir, get_recent_regime_alerts,
@@ -517,6 +518,150 @@ def build_signals_response(bot) -> dict:
 def build_trades_list(trades, limit: int = 50) -> list:
     tl = list(trades)
     return [t.__dict__ for t in tl[-limit:][::-1]]
+
+
+# ── Counterfactual P&L — impact des interventions ────────────────────
+# Trades clos AUTREMENT que par timeout naturel : on rejoue le P&L qu'aurait
+# eu la position si on l'avait laissée courir jusqu'au timeout (avec plancher
+# catastrophe-stop). Sert à mesurer l'impact des sorties anticipées.
+_CF_EXCLUDE = frozenset({"timeout", "runner_ext", "stale_price", "retry_close"})
+_RE_S9_STOP = re.compile(r"stop=(-?\d+)")
+_RE_S9_R24H = re.compile(r"r24h=([+-]?\d+)")
+
+
+def _parse_s9_stop(info: str, p) -> float:
+    """Niveau catastrophe-stop adaptatif S9. Stocké dans signal_info
+    ('… stop=-625 …', signals.py). Fallback: recalcul depuis r24h, puis défaut."""
+    m = _RE_S9_STOP.search(info or "")
+    if m:
+        return float(m.group(1))
+    m = _RE_S9_R24H.search(info or "")
+    if m:
+        return max(p.stop_loss_bps, -500 - abs(float(m.group(1))) / 8)
+    return p.stop_loss_bps
+
+
+def _cf_stop_bps(t, p) -> float:
+    """Reconstruit le niveau catastrophe-stop d'un trade clos (mirroir de
+    rules.effective_stop, mais stop_bps n'est pas persisté → reconstruction)."""
+    if t.strategy == "S8":
+        return p.stop_loss_s8
+    if t.strategy == "S9":
+        return _parse_s9_stop(t.signal_info, p)
+    return p.stop_loss_bps
+
+
+def build_intervention_impact(bot, master) -> dict:
+    """Pour chaque trade clos hors timeout naturel, calcule le P&L
+    contrefactuel (tenu jusqu'au timeout, plancher catastrophe-stop) et le
+    delta réel−contrefactuel. Delta>0 = l'intervention a aidé."""
+    p = bot.p
+    now_ms = int(time.time() * 1000)
+    out = []
+    sum_actual = sum_cf = 0.0
+    n_no_data = n_live = 0
+
+    for t in bot.trades:
+        if t.reason in _CF_EXCLUDE:
+            continue
+        dir_i = 1 if t.direction == "LONG" else -1
+        try:
+            entry_dt = datetime.fromisoformat(t.entry_time)
+            exit_dt = datetime.fromisoformat(t.exit_time)
+        except (ValueError, TypeError):
+            continue
+        hold = p.hold_hours_for(t.strategy)
+        timeout_dt = entry_dt + timedelta(hours=hold)
+        exit_ms = int(exit_dt.timestamp() * 1000)
+        timeout_ms = int(timeout_dt.timestamp() * 1000)
+
+        stop_bps = _cf_stop_bps(t, p)
+        stop_price = t.entry_price * (1 + dir_i * stop_bps / 1e4)
+        cost_bps = t.gross_bps - t.net_bps
+        cf_note = None
+
+        row = {"symbol": t.symbol, "strategy": t.strategy,
+               "direction": t.direction, "reason": t.reason,
+               "entry_time": t.entry_time, "exit_time": t.exit_time,
+               "actual_pnl": round(t.pnl_usdt, 2), "stop_bps": round(stop_bps),
+               "hold_hours": hold}
+
+        # Garde : sortie déjà au-delà du timeout (anormal pour une intervention)
+        if exit_ms >= timeout_ms:
+            row.update(cf_exit_price=t.exit_price, cf_pnl=round(t.pnl_usdt, 2),
+                       cf_status="n/a", delta=0.0, cf_note=cf_note)
+            out.append(row)
+            sum_actual += t.pnl_usdt
+            sum_cf += t.pnl_usdt
+            continue
+
+        # Fenêtre de bougies 4h après la sortie réelle, jusqu'au timeout (borné à now)
+        upper_ms = min(timeout_ms, now_ms)
+        try:
+            with master.db.lock:
+                rows = master.db.conn.execute(
+                    "SELECT t, close_t, h, l, c FROM candles "
+                    "WHERE symbol=? AND interval='4h' AND closed=1 "
+                    "AND close_t > ? AND t <= ? ORDER BY t",
+                    (t.symbol, exit_ms, upper_ms)).fetchall()
+        except Exception as e:
+            log.warning("intervention_impact candle query failed (%s): %s",
+                        t.symbol, e)
+            rows = []
+
+        cf_exit_price = None
+        cf_status = "no_data"
+        for _t, _ct, h, l, c in rows:
+            breached = (l <= stop_price) if dir_i == 1 else (h >= stop_price)
+            if breached:
+                cf_exit_price = stop_price
+                cf_status = "stopped"
+                break
+        else:
+            if rows:
+                if timeout_ms <= now_ms:
+                    cf_exit_price = rows[-1][4]   # close de la bougie du timeout
+                    cf_status = "timeout"
+                    if rows[-1][1] < timeout_ms:
+                        cf_note = "partial_window"
+                else:
+                    st = master.states.get(t.symbol)
+                    cf_exit_price = (st.price if st and st.price > 0
+                                     else rows[-1][4])
+                    cf_status = "live"
+
+        if cf_exit_price is None:
+            row.update(cf_exit_price=None, cf_pnl=None, cf_status="no_data",
+                       delta=None, cf_note=cf_note)
+            out.append(row)
+            n_no_data += 1
+            continue
+
+        _, _, cf_pnl = rules.compute_trade_pnl(
+            dir_i, t.entry_price, cf_exit_price, t.size_usdt, cost_bps, 0.0)
+        delta = t.pnl_usdt - cf_pnl
+        if cf_status == "live":
+            n_live += 1
+        row.update(cf_exit_price=round(cf_exit_price, 6),
+                   cf_pnl=round(cf_pnl, 2), cf_status=cf_status,
+                   delta=round(delta, 2), cf_note=cf_note)
+        out.append(row)
+        sum_actual += t.pnl_usdt
+        sum_cf += cf_pnl
+
+    out.sort(key=lambda r: r["exit_time"], reverse=True)
+    return {
+        "summary": {
+            "n_trades": len(out) - n_no_data,
+            "sum_actual": round(sum_actual, 2),
+            "sum_cf": round(sum_cf, 2),
+            "net_impact": round(sum_actual - sum_cf, 2),
+            "n_skipped_no_data": n_no_data,
+            "n_live": n_live,
+            "computed_at": datetime.now(timezone.utc).isoformat(),
+        },
+        "trades": out,
+    }
 
 
 def build_pnl_curve(trades, baseline: float, perf_track_start_ts: float = 0.0,
