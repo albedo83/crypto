@@ -16,12 +16,12 @@ sleep 5
 # Ensure output dirs exist
 mkdir -p analysis/output/pairs_data analysis/output_live/pairs_data
 
-# Paper bot (:8097, no Telegram) — served behind nginx at /paper/
-# v12.17.2 : CANDLE_FETCH_SLEEP=1.0 (vs 0.5 default for live/junior) to reduce
-# the 4-bot shared-IP burst at 4h close. Paper is entry-time-insensitive.
-TG_BOT_TOKEN= TG_CHAT_ID= HL_ROOT_PATH=/paper CANDLE_FETCH_SLEEP=1.0 \
-    nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
-echo "Paper bot started (PID: $!)"
+# Paper bot legacy (:8097) — DÉCOMMISSIONNÉ le 2026-06-12. Remplacé par le bot
+# "paper" d'Alfred (alfred/bots.json, :8101/bot/paper). Le tracker paper-vs-BT
+# lit désormais l'état Alfred paper. Ne pas relancer.
+# TG_BOT_TOKEN= TG_CHAT_ID= HL_ROOT_PATH=/paper CANDLE_FETCH_SLEEP=1.0 \
+#     nohup .venv/bin/python3 -m analysis.reversal > analysis/output/reversal_v10.log 2>&1 &
+# echo "Paper bot started (PID: $!)"
 
 # Live bot legacy (:8098) — MIGRÉ VERS ALFRED le 2026-06-10 (bot "live" dans
 # alfred/bots.json, capital = equity $680.58, état legacy archivé dans
@@ -67,9 +67,10 @@ echo "Paper bot started (PID: $!)"
 #     nohup .venv/bin/python3 -m analysis.reversal > analysis/output_apprenti/reversal_v10.log 2>&1 &
 # echo "Apprenti bot started (PID: $!)"
 
-# Admin panel (:8090) — served behind nginx at /crypto/
-ADMIN_ROOT_PATH=/crypto nohup .venv/bin/python3 admin.py > analysis/output/admin.log 2>&1 &
-echo "Admin panel started (PID: $!)"
+# Admin panel legacy (:8090) — DÉCOMMISSIONNÉ le 2026-06-12. Remplacé par la
+# page /master d'Alfred (:8101). Ne pas relancer.
+# ADMIN_ROOT_PATH=/crypto nohup .venv/bin/python3 admin.py > analysis/output/admin.log 2>&1 &
+# echo "Admin panel started (PID: $!)"
 
 # Alfred (:8101) — la refacto : MarketDataMaster + bots (alfred/bots.json).
 # Le lock alfred/data/alfred.lock fail-bind proprement si déjà lancé

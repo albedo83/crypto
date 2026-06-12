@@ -64,7 +64,7 @@ Crypto trading bot for Hyperliquid DEX (accessible from France). Paper/live trad
 
 **The bot is 12 modules** in `analysis/bot/` + `analysis/reversal.html` (dashboard). `analysis/reversal.py` is a 6-line backward-compat shim. Backtests are in `backtests/`.
 
-Version in `analysis/bot/config.py` `VERSION` constant (currently 12.7.13). Paper dashboard on `:8097`, Junior on `:8099`, Apprenti on `:8100`, admin panel on `:8090`. **Le LIVE est migré sur Alfred (:8101) depuis le 2026-06-10 — legacy :8098 arrêté définitivement.**
+Version in `analysis/bot/config.py` `VERSION` constant (currently 12.7.13). **TOUT LE STACK LEGACY EST DÉCOMMISSIONNÉ depuis le 2026-06-12** : paper :8097, apprenti :8100, admin :8090 arrêtés (en plus de live :8098 et junior :8099 déjà migrés). Tous les bots tournent désormais dans Alfred (:8101 — `paper`/`live`/`junior` dans `bots.json`). Les routes nginx legacy (`/paper/`, `/crypto/`, `/apprenti/`) redirigent vers Alfred (301) ou renvoient 410. Le code `analysis/bot/` reste pour référence/backtests mais aucune instance ne tourne. Le watchdog cron ne surveille plus qu'Alfred. Le tracker paper-vs-BT (`backtests/paper_vs_bt_tracker.py`) lit l'état du paper Alfred (re-baseliné sur son inception 2026-06-10).
 
 ### Execution Modes
 

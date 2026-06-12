@@ -18,8 +18,8 @@ sys.path.insert(0, "/home/crypto")
 
 CONFIG_PATH = "/home/crypto/analysis/output/paper_tracker_config.json"
 LOG_PATH = "/home/crypto/analysis/output/paper_vs_bt_tracker.log"
-STATE_PATH = "/home/crypto/analysis/output/reversal_state.json"
-DB_PATH = "/home/crypto/analysis/output/reversal_ticks.db"
+STATE_PATH = "/home/crypto/alfred/data/bots/paper/state.json"
+DB_PATH = "/home/crypto/alfred/data/market.db"
 ENV_PATH = "/home/crypto/.env"
 
 QUIET = "--quiet" in sys.argv
