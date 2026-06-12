@@ -513,7 +513,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <h2>Trade History <span class="dim" style="font-size:12px;font-weight:400">— 20 derniers</span></h2>
   <div class="trades-scroll">
     <table class="trades-table"><thead><tr>
-      <th>Time</th><th>Sym</th><th>St</th><th>Side</th><th>P&L</th><th>Gross</th><th>Net</th><th>Hold</th><th>Exit</th>
+      <th>Entry</th><th>Exit</th><th>Sym</th><th>St</th><th>Side</th><th>In $</th><th>Out $</th><th>P&L</th><th>Gross</th><th>Net</th><th>Hold</th><th>Reason</th>
     </tr></thead><tbody id="trades-body"></tbody></table>
   </div>
 </div>
@@ -1593,21 +1593,25 @@ function refreshTrades(){
       // v12.5.33: subtle background tint by win/loss for at-a-glance scanning.
       tr.className=t.pnl_usdt>=0?'trade-win':'trade-loss';
       const sc=t.direction==='LONG'?'green':'red';
-      const _d=new Date(t.exit_time);const time=`${String(_d.getMonth()+1).padStart(2,'0')}-${String(_d.getDate()).padStart(2,'0')} ${String(_d.getHours()).padStart(2,'0')}:${String(_d.getMinutes()).padStart(2,'0')}`;
+      const _tf=iso=>{const d=new Date(iso);return `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;};
+      const valOut=t.size_usdt+t.pnl_usdt;
       tr.innerHTML=`
-        <td data-label="Time" class="dim">${time}</td>
+        <td data-label="Entry" class="dim">${_tf(t.entry_time)}</td>
+        <td data-label="Exit" class="dim">${_tf(t.exit_time)}</td>
         <td data-label="Symbol"><b>${t.symbol}</b></td>
         <td data-label="Strat" class="dim">${t.strategy||'?'}</td>
         <td data-label="Side" class="${sc}">${t.direction}</td>
+        <td data-label="In $">$${t.size_usdt.toFixed(0)}</td>
+        <td data-label="Out $" class="${cls(t.pnl_usdt)}">$${valOut.toFixed(0)}</td>
         <td data-label="P&L" class="${cls(t.pnl_usdt)}"><b>$${fmt(t.pnl_usdt)}</b></td>
         <td data-label="Gross">${fmt(t.gross_bps,1)}</td>
         <td data-label="Net" class="${cls(t.net_bps)}">${fmt(t.net_bps,1)}</td>
         <td data-label="Hold">${t.hold_hours.toFixed(0)}h</td>
-        <td data-label="Exit">${t.reason}</td>`;
+        <td data-label="Reason">${t.reason}</td>`;
       tb.appendChild(tr);
     });
     if(!trades.length)
-      tb.innerHTML='<tr><td colspan="9" style="text-align:center;color:#7d8590">No trades yet</td></tr>';
+      tb.innerHTML='<tr><td colspan="12" style="text-align:center;color:#7d8590">No trades yet</td></tr>';
   }).catch(e=>console.warn('trades fetch error:',e));
 
   // P&L curve
