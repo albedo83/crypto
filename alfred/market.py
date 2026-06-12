@@ -588,6 +588,15 @@ class MarketDataMaster:
                                 self._ingest_candle(data)
                         elif channel == "trades":
                             self.flow.ingest(msg["data"])
+                # `async for` se termine SANS exception quand le serveur
+                # ferme proprement (HL recycle ses connexions ~3h) — il faut
+                # repasser par la même comptabilité que le chemin d'erreur
+                # (event WS_RECONNECT + gap repair au reconnect suivant).
+                self.ws_connected = False
+                if self.running:
+                    log.info("WS closed by server — reconnecting")
+                    attempt = max(attempt, 1)
+                    await asyncio.sleep(1)
             except asyncio.CancelledError:
                 self.flow.flush_all()
                 log.info("WS loop stopped")

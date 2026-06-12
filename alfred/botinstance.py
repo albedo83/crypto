@@ -584,6 +584,14 @@ class BotInstance:
         entries = 0
         seen: set[str] = set()
         capital = self._capital + self._total_pnl
+        # Marge réellement disponible sur l'exchange (live only) : sert à
+        # clamper le notionnel avant l'ordre au lieu de laisser HL rejeter
+        # ("Insufficient margin", junior 2026-06-11 — compte plus petit que
+        # le sizing modulé). Décrémentée au fil des fills du scan (le cache
+        # equity n'est rafraîchi qu'au tick de 20s).
+        avail_margin = None
+        if self.broker.is_live and self._exchange_account:
+            avail_margin = self._exchange_account.get("available")
         for sig in sigs:
             sym = sig["symbol"]
             side = "LONG" if sig["direction"] == 1 else "SHORT"
@@ -619,6 +627,24 @@ class BotInstance:
 
             size = rules.position_size(sig["strategy"], sig["direction"],
                                        capital, self._btc_z, self.p)
+            if avail_margin is not None:
+                max_notional = max(0.0, (avail_margin - 5.0) * self.p.leverage)
+                if size > max_notional:
+                    if max_notional < 50.0:
+                        log.info("[%s] SKIP %s %s: marge dispo $%.0f "
+                                 "insuffisante (sizing $%.0f)",
+                                 self.id, sym, sig["strategy"],
+                                 avail_margin, size)
+                        self.db.log_event("SKIP", sym, {
+                            "strategy": sig["strategy"], "dir": side,
+                            "reason": "insufficient_margin"})
+                        with self._pos_lock:
+                            self._inflight_open.discard(sym)
+                        continue
+                    log.info("[%s] %s %s réduit $%.0f → $%.0f (marge dispo "
+                             "$%.0f)", self.id, sym, sig["strategy"],
+                             size, max_notional, avail_margin)
+                    size = max_notional
             mult = rules.modulator_mult(sig["strategy"], sig["direction"],
                                         self._btc_z, self.p)
             hold_h = sig.get("hold_hours", self.p.hold_hours_default)
@@ -640,6 +666,8 @@ class BotInstance:
                     self._inflight_open.discard(sym)
                 continue
             entry_price, filled_size = fill.avg_px, fill.size_usdt
+            if avail_margin is not None:
+                avail_margin -= filled_size / self.p.leverage
 
             ctx = sig.get("ctx", {})
             with self._pos_lock:
