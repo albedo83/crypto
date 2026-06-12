@@ -29,6 +29,8 @@ body{background:#0d1117;color:#e6edf3;font-family:-apple-system,BlinkMacSystemFo
   <input type="text" id="username" name="username" autocomplete="username" required autofocus>
   <label for="password">Password</label>
   <input type="password" id="password" name="password" autocomplete="current-password" required>
+  <label for="totp">2FA code</label>
+  <input type="text" id="totp" name="totp" autocomplete="one-time-code" inputmode="numeric" maxlength="7" placeholder="6 digits">
   <button type="submit">Sign in</button>
 </form>
 <script>if(document.getElementById('err').textContent.trim())document.getElementById('err').style.display='block'</script>

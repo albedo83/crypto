@@ -14,6 +14,7 @@ backoff, logout revocation epoch, mutation rate-limit, security headers.
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import hmac
 import json
@@ -21,6 +22,7 @@ import logging
 import math
 import os
 import secrets as _secrets
+import struct
 import time
 from collections import deque
 from datetime import datetime, timezone, timedelta
@@ -63,13 +65,19 @@ def create_app(bots: dict, master) -> FastAPI:
     # (parité avec ce que le testeur Junior avait sur le legacy :8099).
     # Mapping en dur JUNIOR_* → bot:junior — généraliser si un jour un
     # testeur Apprenti etc. (les credentials restent des NOMS d'env).
-    _ACCOUNTS: dict[str, tuple[str, str]] = {}   # user → (pass, role)
+    # TOTP (RFC 6238) optionnel par compte : secret base32 dans .env
+    # (DASHBOARD_TOTP_SECRET / JUNIOR_TOTP_SECRET). Vide = pas de 2FA pour
+    # ce compte (kill-switch). Exigé seulement pour les requêtes passées
+    # par nginx — les sentinelles cron en 127.0.0.1 direct sont exemptées.
+    _ACCOUNTS: dict[str, tuple[str, str, str]] = {}  # user → (pass, role, totp)
     if DASHBOARD_USER:
-        _ACCOUNTS[DASHBOARD_USER] = (DASHBOARD_PASS, "admin")
+        _ACCOUNTS[DASHBOARD_USER] = (DASHBOARD_PASS, "admin",
+                                     os.environ.get("DASHBOARD_TOTP_SECRET", ""))
     _junior_user = os.environ.get("JUNIOR_USER", "")
     _junior_pass = os.environ.get("JUNIOR_PASS", "")
     if _junior_user and _junior_pass and "junior" in bots:
-        _ACCOUNTS[_junior_user] = (_junior_pass, "bot:junior")
+        _ACCOUNTS[_junior_user] = (_junior_pass, "bot:junior",
+                                   os.environ.get("JUNIOR_TOTP_SECRET", ""))
     _login_failures: dict[str, tuple[int, float]] = {}
     _revoked_before = {"ts": 0.0}
     _mutation_log: dict[str, deque] = {}
@@ -117,6 +125,34 @@ def create_app(bots: dict, master) -> FastAPI:
         xff = request.headers.get("x-forwarded-for", "")
         direct_ip = request.client.host if request.client else "unknown"
         return xff.split(",")[0].strip() if xff and direct_ip == "127.0.0.1" else direct_ip
+
+    def _is_local_direct(request: Request) -> bool:
+        """Vrai pour une connexion 127.0.0.1 SANS X-Forwarded-For = sentinelle
+        cron locale. Tout ce qui passe par nginx porte un XFF (proxy_add_…
+        APPEND au header client, donc non-vide même si le client le forge) —
+        ne PAS utiliser _client_ip() ici, son premier élément est spoofable."""
+        direct_ip = request.client.host if request.client else ""
+        return direct_ip == "127.0.0.1" and not request.headers.get("x-forwarded-for")
+
+    def _verify_totp(secret_b32: str, code: str) -> bool:
+        """RFC 6238 (SHA-1, 6 chiffres, pas de 30s), fenêtre ±1 pas."""
+        code = code.strip().replace(" ", "")
+        if not code.isdigit() or len(code) != 6:
+            return False
+        try:
+            key = base64.b32decode(secret_b32.strip().upper()
+                                   + "=" * (-len(secret_b32.strip()) % 8))
+        except Exception:
+            return False
+        now = int(time.time())
+        for off in (-30, 0, 30):
+            h = hmac.new(key, struct.pack(">Q", (now + off) // 30),
+                         hashlib.sha1).digest()
+            o = h[19] & 0x0F
+            expected = (struct.unpack(">I", h[o:o + 4])[0] & 0x7FFFFFFF) % 1_000_000
+            if hmac.compare_digest(f"{expected:06d}", code):
+                return True
+        return False
 
     def _check_mutation_rate(ip: str) -> bool:
         now = time.time()
@@ -238,7 +274,7 @@ def create_app(bots: dict, master) -> FastAPI:
 
     @app.post("/login")
     async def login_submit(request: Request, username: str = Form(...),
-                           password: str = Form(...)):
+                           password: str = Form(...), totp: str = Form("")):
         client_ip = _client_ip(request)
         delay = _backoff_delay(client_ip)
         if delay > 0:
@@ -247,7 +283,14 @@ def create_app(bots: dict, master) -> FastAPI:
                     .replace("{{ERROR}}", f"Too many failed attempts — retry in {int(delay)}s"))
             return HTMLResponse(html, status_code=429)
         acct = _ACCOUNTS.get(username)
-        if acct and _secrets.compare_digest(password, acct[0]):
+        pass_ok = bool(acct) and _secrets.compare_digest(password, acct[0])
+        # TOTP exigé si le compte a un secret ET que la requête vient de
+        # l'extérieur (via nginx). Vérifié même si le password est faux
+        # (pas d'oracle sur lequel des deux facteurs a échoué).
+        totp_ok = True
+        if acct and acct[2] and not _is_local_direct(request):
+            totp_ok = _verify_totp(acct[2], totp)
+        if pass_ok and totp_ok:
             role = acct[1]
             _login_failures.pop(client_ip, None)
             token = _sign_token(time.time(), role)
@@ -259,7 +302,7 @@ def create_app(bots: dict, master) -> FastAPI:
             # supervisor quotidien) se loguent depuis 127.0.0.1 — pas de TG
             # pour ces logins locaux, sinon spam. Un humain passe par nginx
             # (X-Forwarded-For → vraie IP). Les FAIL restent tous notifiés.
-            if client_ip != "127.0.0.1":
+            if not _is_local_direct(request):
                 master.notifier.send(f"🔑 Login OK Alfred — user={username} "
                                      f"role={role} ip={client_ip}",
                                      category="security")
@@ -271,7 +314,7 @@ def create_app(bots: dict, master) -> FastAPI:
                              f"(attempt #{n_fails + 1})", category="security")
         html = (_LOGIN_HTML.replace("{{VERSION}}", ALFRED_VERSION)
                 .replace("{{MODE}}", "ALFRED")
-                .replace("{{ERROR}}", "Invalid username or password"))
+                .replace("{{ERROR}}", "Invalid credentials"))
         return HTMLResponse(html, status_code=401)
 
     @app.get("/logout")
