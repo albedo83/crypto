@@ -28,6 +28,18 @@ sys.path.insert(0, _REPO)
 MARKET_DB = os.path.join(_REPO, "alfred", "data", "market.db")
 PAPER_DB = os.path.join(_REPO, "alfred", "data", "bots", "paper", "bot.db")
 
+def dashboard_footer() -> str:
+    """Liens cliquables vers la supervision + le dashboard de chaque bot.
+    Base publique = nginx root_path /alfred ; override via ALFRED_PUBLIC_URL
+    (.env). Telegram linkifie les URL nues automatiquement. Lu ici (pas à
+    l'import) pour que l'override .env, chargé dans main(), soit pris."""
+    base = os.environ.get("ALFRED_PUBLIC_URL",
+                          "https://echonym.fr/alfred").rstrip("/")
+    return (f"\n🔗 Supervision : {base}/master"
+            f"\n   SENIOR {base}/bot/live/"
+            f" · JUNIOR {base}/bot/junior/"
+            f" · PAPER {base}/bot/paper/")
+
 
 def _load_env():
     path = os.path.join(_REPO, ".env")
@@ -111,7 +123,8 @@ def main() -> int:
     msg = (f"{status} ALFRED refacto — digest quotidien\n"
            f"Phase 2 (observation) : {'✓' if obs_ok else '✗'} {obs_line}\n"
            f"Phase 3 (parallel-run): {'✓ gate OK' if pr_ok else '✗ LOGIC divergences'} — {pr_line}"
-           + notional_cap_review())
+           + notional_cap_review()
+           + dashboard_footer())
 
     if dry:
         print(msg)
