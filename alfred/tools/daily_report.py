@@ -1,8 +1,14 @@
-"""Daily Alfred refacto digest — phase gates status via Telegram.
+"""Daily Alfred digest — santé données + flotte via Telegram.
 
-Runs the two gate checks and ships a compact summary :
-  - phase 2 (observation) : check_observation criteria from market.db
-  - phase 3 (parallel-run): compare_paper LOGIC divergence count
+Ships a compact summary :
+  - Données     : fraîcheur ticks / WS reconnects / audits depuis market.db
+  - Flotte      : balance, P&L réalisé/latent, positions par bot (state.json
+                  + dernier mark des ticks market.db)
+  - Cap notionnel: déclencheur de re-test quand SENIOR ≥ $1400
+  - Liens dashboards
+
+(La phase 3 « parallel-run vs legacy paper :8097 » a été retirée le 2026-06-12
+avec le décommission du stack legacy — plus de bot legacy à comparer.)
 
 Cron (08:30 UTC, après le digest régime de 08:15) :
     30 8 * * * /home/crypto/.venv/bin/python3 -m alfred.tools.daily_report \
@@ -14,19 +20,17 @@ same as the legacy bots' main alerts). --dry-run prints without sending.
 
 from __future__ import annotations
 
-import io
 import json
 import os
 import sqlite3
 import sys
 import time
-from contextlib import redirect_stdout
 
 _REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, _REPO)
 
 MARKET_DB = os.path.join(_REPO, "alfred", "data", "market.db")
-PAPER_DB = os.path.join(_REPO, "alfred", "data", "bots", "paper", "bot.db")
+BOTS_CONFIG = os.path.join(_REPO, "alfred", "bots.json")
 
 def dashboard_footer() -> str:
     """Liens cliquables vers la supervision + le dashboard de chaque bot.
@@ -77,21 +81,49 @@ def observation_summary() -> tuple[str, bool]:
         return f"obs: erreur lecture market.db ({e})", False
 
 
-def parallel_run_summary() -> tuple[str, bool]:
-    """(one-line summary, gate_ok) by running compare_paper in-process."""
+def fleet_summary() -> tuple[str, bool]:
+    """Résumé santé de la flotte (balance, P&L réalisé/latent, positions par
+    bot). fleet_ok=False si un bot est en pause ou son état illisible. Le
+    latent est calculé au dernier mark des ticks (gross, comme le dashboard)."""
     try:
-        from alfred.tools import compare_paper
-        buf = io.StringIO()
-        sys.argv = ["compare_paper", "--hours", "48"]
-        with redirect_stdout(buf):
-            rc = compare_paper.main()
-        out = buf.getvalue()
-        # Pull the counters line for the digest
-        counters = next((l.strip() for l in out.splitlines()
-                         if "entrées divergentes" in l), "")
-        return (counters or "parallel-run: pas de données"), rc == 0
+        cfg = json.load(open(BOTS_CONFIG))
+        bots = cfg.get("bots", []) if isinstance(cfg, dict) else cfg
     except Exception as e:
-        return f"parallel-run: erreur ({e})", False
+        return f"💼 Flotte : erreur lecture bots.json ({e})", False
+    mk = sqlite3.connect(f"file:{MARKET_DB}?mode=ro", uri=True)
+
+    def mark(sym: str):
+        r = mk.execute("SELECT mark_px FROM ticks WHERE symbol=? "
+                       "ORDER BY ts DESC LIMIT 1", (sym,)).fetchone()
+        return r[0] if r and r[0] else None
+
+    lines = ["💼 Flotte :"]
+    all_ok = True
+    for b in bots:
+        bid, label = b["id"], b.get("label", b["id"])
+        try:
+            st = json.load(open(os.path.join(
+                _REPO, "alfred", "data", "bots", bid, "state.json")))
+        except Exception:
+            lines.append(f"  {label} : état illisible")
+            all_ok = False
+            continue
+        realized = st.get("total_pnl", 0.0)
+        bal = st.get("capital", 0.0) + realized
+        positions = st.get("positions", [])
+        unreal = 0.0
+        for p in positions:
+            m = mark(p.get("symbol", ""))
+            ep = p.get("entry_price", 0.0)
+            if m and ep > 0:
+                unreal += p.get("size_usdt", 0.0) * p.get("direction", 0) * (m / ep - 1)
+        paused = st.get("paused", False)
+        if paused:
+            all_ok = False
+        lines.append(f"  {label} : ${bal:.0f}  réal {realized:+.0f}$  "
+                     f"lat {unreal:+.0f}$  · {len(positions)} pos"
+                     + (" ⏸PAUSE" if paused else ""))
+    return "\n".join(lines), all_ok
 
 
 def notional_cap_review() -> str:
@@ -117,12 +149,12 @@ def main() -> int:
     dry = "--dry-run" in sys.argv
 
     obs_line, obs_ok = observation_summary()
-    pr_line, pr_ok = parallel_run_summary()
+    fleet_line, fleet_ok = fleet_summary()
 
-    status = "✅" if (obs_ok and pr_ok) else "⚠️"
-    msg = (f"{status} ALFRED refacto — digest quotidien\n"
-           f"Phase 2 (observation) : {'✓' if obs_ok else '✗'} {obs_line}\n"
-           f"Phase 3 (parallel-run): {'✓ gate OK' if pr_ok else '✗ LOGIC divergences'} — {pr_line}"
+    status = "✅" if (obs_ok and fleet_ok) else "⚠️"
+    msg = (f"{status} ALFRED — digest quotidien\n"
+           f"🩺 Données : {'✓' if obs_ok else '✗'} {obs_line}\n"
+           f"{fleet_line}"
            + notional_cap_review()
            + dashboard_footer())
 
