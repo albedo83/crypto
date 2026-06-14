@@ -32,17 +32,18 @@ sys.path.insert(0, _REPO)
 MARKET_DB = os.path.join(_REPO, "alfred", "data", "market.db")
 BOTS_CONFIG = os.path.join(_REPO, "alfred", "bots.json")
 
-def dashboard_footer() -> str:
-    """Liens cliquables vers la supervision + le dashboard de chaque bot.
-    Base publique = nginx root_path /alfred ; override via ALFRED_PUBLIC_URL
-    (.env). Telegram linkifie les URL nues automatiquement. Lu ici (pas à
-    l'import) pour que l'override .env, chargé dans main(), soit pris."""
-    base = os.environ.get("ALFRED_PUBLIC_URL",
+def _public_base() -> str:
+    """Base publique des dashboards (nginx root_path /alfred), override via
+    ALFRED_PUBLIC_URL (.env). Lu ici (pas à l'import) pour que l'override,
+    chargé dans main(), soit pris. Telegram linkifie les URL nues."""
+    return os.environ.get("ALFRED_PUBLIC_URL",
                           "https://echonym.fr/alfred").rstrip("/")
-    return (f"\n🔗 Supervision : {base}/master"
-            f"\n   SENIOR {base}/bot/live/"
-            f" · JUNIOR {base}/bot/junior/"
-            f" · PAPER {base}/bot/paper/")
+
+
+def dashboard_footer() -> str:
+    """Lien vers la supervision globale (le lien du bot concerné est sur
+    la ligne de chaque bot, cf. fleet_summary)."""
+    return f"\n🔗 Supervision flotte : {_public_base()}/master"
 
 
 def _load_env():
@@ -123,6 +124,8 @@ def fleet_summary() -> tuple[str, bool]:
         lines.append(f"  {label} : ${bal:.0f}  réal {realized:+.0f}$  "
                      f"lat {unreal:+.0f}$  · {len(positions)} pos"
                      + (" ⏸PAUSE" if paused else ""))
+        # Lien vers le dashboard du bot concerné (sur sa propre ligne)
+        lines.append(f"     {_public_base()}/bot/{bid}/")
     return "\n".join(lines), all_ok
 
 
