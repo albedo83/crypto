@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.2.8 — 2026-06-14
+
+- **Infra**: les écritures SQLite de bougies sont sorties de la boucle WebSocket (flush en thread) — évite tout blocage de l'ingestion marché lors des rolls 4h, quand de nombreux symboles basculent en même temps.
+
 ## v1.2.7 — 2026-06-14
 
 - **Infra**: correction de deux références mortes laissées par le retrait de la phase parallel-run (page de supervision et digest quotidien) qui provoquaient une erreur — détectées en revue de code.

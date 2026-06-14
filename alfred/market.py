@@ -501,17 +501,21 @@ class MarketDataMaster:
 
     # ── WebSocket: candle + trades ───────────────────────────────────
 
-    def _ingest_candle(self, c: dict):
+    def _ingest_candle(self, c: dict) -> list[tuple]:
+        """MAJ mémoire (rapide, sur l'event loop). Retourne les opérations de
+        persistance DB [(sym, rows, closed), …] à flusher HORS event loop par
+        l'appelant — vide pour les updates in-progress, non-vide aux rolls."""
         sym = c.get("s")
         st = self.states.get(sym)
         if st is None:
-            return
+            return []
         try:
             row = {"t": int(c["t"]), "o": float(c["o"]), "c": float(c["c"]),
                    "h": float(c["h"]), "l": float(c["l"]),
                    "v": float(c.get("v", 0))}
         except (KeyError, TypeError, ValueError):
-            return
+            return []
+        pending: list[tuple] = []
         if st.candles_4h and st.candles_4h[-1]["t"] == row["t"]:
             st.candles_4h[-1] = row          # in-progress candle update
         elif not st.candles_4h or row["t"] > st.candles_4h[-1]["t"]:
@@ -520,13 +524,24 @@ class MarketDataMaster:
             # in-progress refinements between rolls are persisted by the
             # hourly loop (persist_in_progress) — a crash in between is
             # repaired at boot by the REST gap repair.
+            # Les écritures DB sont RETOURNÉES (pas exécutées ici) pour être
+            # flushées hors de l'event loop : au close 4h ~34 symboles rollent
+            # en quelques secondes et un commit SQLite synchrone bloquerait
+            # l'ingestion WS pile au moment des entrées (peer-review 2026-06-14).
             if st.candles_4h:
-                self._persist_candles(sym, [st.candles_4h[-1]], closed=True)
+                pending.append((sym, [st.candles_4h[-1]], True))
             st.candles_4h.append(row)        # new period opened
-            self._persist_candles(sym, [row], closed=False)
+            pending.append((sym, [row], False))
         # older-than-last updates are ignored (REST backfill owns history)
         st.last_candle_ts = row["t"]
         self.ws_candle_updates += 1
+        return pending
+
+    def _persist_batch(self, pending: list[tuple]):
+        """Flush des persists de candle hors de l'event loop (appelé via
+        asyncio.to_thread depuis ws_loop). Chaque item = (sym, rows, closed)."""
+        for sym, rows, closed in pending:
+            self._persist_candles(sym, rows, closed)
 
     def _persist_candles(self, sym: str, rows: list[dict], closed: bool):
         """A1 — upsert in-memory format candles ({t,o,h,l,c,v}) to the DB,
@@ -581,11 +596,15 @@ class MarketDataMaster:
                         channel = msg.get("channel")
                         if channel == "candle":
                             data = msg.get("data")
+                            pend: list[tuple] = []
                             if isinstance(data, list):
                                 for c in data:
-                                    self._ingest_candle(c)
+                                    pend += self._ingest_candle(c)
                             elif isinstance(data, dict):
-                                self._ingest_candle(data)
+                                pend = self._ingest_candle(data)
+                            # commits SQLite hors event loop (rolls uniquement)
+                            if pend:
+                                await asyncio.to_thread(self._persist_batch, pend)
                         elif channel == "trades":
                             self.flow.ingest(msg["data"])
                 # `async for` se termine SANS exception quand le serveur
