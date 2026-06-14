@@ -274,7 +274,8 @@ Testing: `python3 -m analysis.strategy_review --dry-run` (console only, no DB lo
 Cost: zero (no LLM calls). Uses only stdlib + the trade DB.
 
 ## Related docs
-- `docs/bot.md` — detailed bot description (French): signals, parameters, protections, research, architecture.
+- `docs/architecture.md` — **document de référence de l'architecture Alfred (runtime + signaux + cadences + exits + données + sécurité + supervision), à jour avec le code. À lire en premier pour une vue d'ensemble.**
+- `docs/bot.md` — detailed bot description (French): signals, parameters, protections, research. NB : son cadrage *architecture* décrit le legacy `analysis/bot/` (périmé) ; la logique de trading reste valide. Voir `docs/architecture.md` pour le runtime Alfred.
 - `docs/synthese.md` — pedagogical synthesis (French): "for-dummies" walkthrough of strategies, modulator, exits, observability features.
 - `docs/backtests.md` — rolling backtest results for the current parameters, regenerated via `python3 -m backtests.backtest_rolling`.
 - `CHANGELOG.md` — release history, maintained via `/release` skill.
