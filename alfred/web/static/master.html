@@ -317,13 +317,12 @@ function renderHealth(h){
 }
 
 function renderGates(g){
-  const p2=g.phase2_observation||{},p3=g.phase3_parallel_run||{};
+  const p2=g.phase2_observation||{};
   $('gatesCard').innerHTML=
     `<div class="bigrow">
-      <div class="cell"><div class="lbl">Phase 2 · observation</div><div class="bignum ${p2.ok?'green':'red'}">${p2.ok?'✓':'✗'}</div></div>
-      <div class="cell"><div class="lbl">Phase 3 · parallel-run</div><div class="bignum ${p3.ok?'green':'red'}">${p3.ok?'✓':'✗'}</div></div>
+      <div class="cell"><div class="lbl">Santé données</div><div class="bignum ${p2.ok?'green':'red'}">${p2.ok?'✓':'✗'}</div></div>
     </div>`+
-    `<div class="dim" style="font-size:12px;line-height:1.6">${esc(p2.summary)}<br>${esc(p3.summary)}</div>`;
+    `<div class="dim" style="font-size:12px;line-height:1.6">${esc(p2.summary)}</div>`;
 }
 
 function renderEvents(evts){

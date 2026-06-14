@@ -179,7 +179,7 @@ def main() -> int:
                 sent = bool(json.loads(resp.read()).get("ok"))
         except Exception as e:
             print(f"telegram error: {e}", file=sys.stderr)
-    print(f"{time.strftime('%F %T')} sent={sent} obs_ok={obs_ok} pr_ok={pr_ok}")
+    print(f"{time.strftime('%F %T')} sent={sent} obs_ok={obs_ok} fleet_ok={fleet_ok}")
     return 0
 
 

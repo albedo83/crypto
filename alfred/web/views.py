@@ -790,13 +790,12 @@ def build_master_health(master, bots: dict, bots_cfg_path: str) -> dict:
 
 
 def build_gates_status() -> dict:
-    """Niveau 1 — gates de la refacto (phase 2 observation, phase 3
-    parallel-run). Réutilise les fonctions du digest quotidien."""
-    from ..tools.daily_report import observation_summary, parallel_run_summary
+    """Niveau 1 — santé données (ex-phase 2 observation). La phase 3
+    (parallel-run vs legacy paper) a été retirée le 2026-06-12 avec le
+    décommission du legacy — plus de bot legacy à comparer."""
+    from ..tools.daily_report import observation_summary
     obs_line, obs_ok = observation_summary()
-    pr_line, pr_ok = parallel_run_summary()
-    return {"phase2_observation": {"ok": obs_ok, "summary": obs_line},
-            "phase3_parallel_run": {"ok": pr_ok, "summary": pr_line}}
+    return {"phase2_observation": {"ok": obs_ok, "summary": obs_line}}
 
 
 def build_fleet_response(bots: dict, master) -> dict:
