@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.2.10 — 2026-06-14
+
+- **Dashboard**: le tableau d'impact des interventions sépare désormais l'impact des stops manuels (contrôlable) de celui des règles automatiques et du stop catastrophe, et isole les positions encore en cours (provisoire) du total finalisé. Colonne « CF » renommée « Au timeout ».
+
 ## v1.2.9 — 2026-06-14
 
 - **Telegram**: dans le digest quotidien, le lien du dashboard est désormais placé sous la ligne de chaque bot (lien direct vers le bot concerné), plutôt que regroupé en pied de page.

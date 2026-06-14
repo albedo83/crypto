@@ -531,7 +531,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <div id="ci-summary" class="dim" style="font-size:13px;margin-bottom:8px">—</div>
   <div class="trades-scroll">
     <table class="trades-table"><thead><tr>
-      <th>Exit</th><th>Sym</th><th>St</th><th>Side</th><th>Reason</th><th>Réel $</th><th>CF $</th><th>Impact $</th><th>Statut</th>
+      <th>Exit</th><th>Sym</th><th>St</th><th>Side</th><th>Reason</th><th>Réel $</th><th>Au timeout $</th><th>Impact $</th><th>Statut</th>
     </tr></thead><tbody id="ci-body"></tbody></table>
   </div>
 </div>
@@ -1726,10 +1726,14 @@ function refreshInterventionImpact(){
     const _tf=iso=>{const x=new Date(iso);return `${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')} ${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`;};
     const _ca=s.computed_at?new Date(s.computed_at):null;
     const at=_ca?`${String(_ca.getHours()).padStart(2,'0')}:${String(_ca.getMinutes()).padStart(2,'0')}:${String(_ca.getSeconds()).padStart(2,'0')}`:'—';
-    sm.innerHTML=`<b>${s.n_trades||0}</b> interventions · réel <b>$${fmt(s.sum_actual||0)}</b> vs contrefactuel <b>$${fmt(s.sum_cf||0)}</b> · `+
-      `impact net <b class="${cls(s.net_impact||0)}">$${fmt(s.net_impact||0)}</b>`+
-      (s.n_live?` · ${s.n_live} en cours`:'')+(s.n_skipped_no_data?` · ${s.n_skipped_no_data} sans données`:'')+
-      ` <span style="float:right">calculé ${at}</span>`;
+    const bc=s.by_category||{}, mn=bc.manual||{}, al=bc.algo||{}, ca=bc.catastrophe||{};
+    sm.innerHTML=`<b>${s.n_trades||0}</b> interventions · impact finalisé <b class="${cls(s.impact_final||0)}">$${fmt(s.impact_final||0)}</b>`+
+      `<span style="float:right">calculé ${at}</span>`+
+      `<br>&nbsp;&nbsp;🖐 manuel <b class="${cls(mn.impact||0)}">$${fmt(mn.impact||0)}</b> (${mn.n||0})`+
+      ` · ⚙️ règles algo <b class="${cls(al.impact||0)}">$${fmt(al.impact||0)}</b> (${al.n||0})`+
+      ` · 🛑 catastrophe <b class="${cls(ca.impact||0)}">$${fmt(ca.impact||0)}</b> (${ca.n||0})`+
+      (s.n_live?`<br>&nbsp;&nbsp;⏳ ${s.n_live} en cours — provisoire ${fmt(s.impact_live||0)}$ (non compté dans le finalisé)`:'')+
+      (s.n_skipped_no_data?` · ${s.n_skipped_no_data} sans données`:'');
     tb.innerHTML='';
     const STATUS={stopped:'cata-stop',timeout:'timeout',live:'⏳ en cours','no_data':'—','n/a':'—'};
     (d.trades||[]).forEach(t=>{
@@ -1746,7 +1750,7 @@ function refreshInterventionImpact(){
         <td data-label="Side" class="${sc}">${t.direction}</td>
         <td data-label="Reason" class="dim">${t.reason}</td>
         <td data-label="Réel" class="${cls(t.actual_pnl)}">$${fmt(t.actual_pnl)}</td>
-        <td data-label="CF">${cfTxt}</td>
+        <td data-label="Au timeout">${cfTxt}</td>
         <td data-label="Impact" class="${hasDelta?cls(t.delta):'dim'}"><b>${dTxt}</b></td>
         <td data-label="Statut" class="dim">${STATUS[t.cf_status]||t.cf_status}</td>`;
       tb.appendChild(tr);

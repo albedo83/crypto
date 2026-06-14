@@ -525,8 +525,22 @@ def build_trades_list(trades, limit: int = 50) -> list:
 # eu la position si on l'avait laissée courir jusqu'au timeout (avec plancher
 # catastrophe-stop). Sert à mesurer l'impact des sorties anticipées.
 _CF_EXCLUDE = frozenset({"timeout", "runner_ext", "stale_price", "retry_close"})
+# Catégorie de la sortie → permet de séparer l'impact CONTRÔLABLE (stops
+# manuels de l'utilisateur) du NON-CONTRÔLABLE (règles algo + catastrophe-stop).
+_CF_MANUAL = frozenset({"manual_stop_set"})
+_CF_CATASTROPHE = frozenset({"catastrophe_stop"})
 _RE_S9_STOP = re.compile(r"stop=(-?\d+)")
 _RE_S9_R24H = re.compile(r"r24h=([+-]?\d+)")
+
+
+def _cf_category(reason: str) -> str:
+    """manual = stop manuel (contrôlable) · catastrophe = filet de sécurité ·
+    algo = toute autre règle de coupe anticipée du bot."""
+    if reason in _CF_MANUAL:
+        return "manual"
+    if reason in _CF_CATASTROPHE:
+        return "catastrophe"
+    return "algo"
 
 
 def _parse_s9_stop(info: str, p) -> float:
@@ -558,7 +572,10 @@ def build_intervention_impact(bot, master) -> dict:
     p = bot.p
     now_ms = int(time.time() * 1000)
     out = []
-    sum_actual = sum_cf = 0.0
+    # impact FINALISÉ (timeout passé) par catégorie ; le provisoire (live) à part
+    cat_impact = {"manual": 0.0, "algo": 0.0, "catastrophe": 0.0}
+    cat_n = {"manual": 0, "algo": 0, "catastrophe": 0}
+    impact_live = 0.0
     n_no_data = n_live = 0
 
     for t in bot.trades:
@@ -586,13 +603,13 @@ def build_intervention_impact(bot, master) -> dict:
                "actual_pnl": round(t.pnl_usdt, 2), "stop_bps": round(stop_bps),
                "hold_hours": hold}
 
+        cat = _cf_category(t.reason)
         # Garde : sortie déjà au-delà du timeout (anormal pour une intervention)
         if exit_ms >= timeout_ms:
             row.update(cf_exit_price=t.exit_price, cf_pnl=round(t.pnl_usdt, 2),
                        cf_status="n/a", delta=0.0, cf_note=cf_note)
             out.append(row)
-            sum_actual += t.pnl_usdt
-            sum_cf += t.pnl_usdt
+            cat_n[cat] += 1
             continue
 
         # Fenêtre de bougies 4h après la sortie réelle, jusqu'au timeout (borné à now)
@@ -640,24 +657,32 @@ def build_intervention_impact(bot, master) -> dict:
         _, _, cf_pnl = rules.compute_trade_pnl(
             dir_i, t.entry_price, cf_exit_price, t.size_usdt, cost_bps, 0.0)
         delta = t.pnl_usdt - cf_pnl
-        if cf_status == "live":
-            n_live += 1
         row.update(cf_exit_price=round(cf_exit_price, 6),
                    cf_pnl=round(cf_pnl, 2), cf_status=cf_status,
                    delta=round(delta, 2), cf_note=cf_note)
         out.append(row)
-        sum_actual += t.pnl_usdt
-        sum_cf += cf_pnl
+        if cf_status == "live":
+            # timeout encore futur → impact provisoire, hors du finalisé
+            impact_live += delta
+            n_live += 1
+        else:
+            cat_impact[cat] += delta
+            cat_n[cat] += 1
 
     out.sort(key=lambda r: r["exit_time"], reverse=True)
+    impact_final = round(sum(cat_impact.values()), 2)
     return {
         "summary": {
             "n_trades": len(out) - n_no_data,
-            "sum_actual": round(sum_actual, 2),
-            "sum_cf": round(sum_cf, 2),
-            "net_impact": round(sum_actual - sum_cf, 2),
-            "n_skipped_no_data": n_no_data,
+            "by_category": {
+                "manual": {"n": cat_n["manual"], "impact": round(cat_impact["manual"], 2)},
+                "algo": {"n": cat_n["algo"], "impact": round(cat_impact["algo"], 2)},
+                "catastrophe": {"n": cat_n["catastrophe"], "impact": round(cat_impact["catastrophe"], 2)},
+            },
+            "impact_final": impact_final,
+            "impact_live": round(impact_live, 2),
             "n_live": n_live,
+            "n_skipped_no_data": n_no_data,
             "computed_at": datetime.now(timezone.utc).isoformat(),
         },
         "trades": out,

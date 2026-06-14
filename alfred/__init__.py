@@ -7,4 +7,4 @@ Phase 1 scope: pure shared core (settings/models/features/signals/rules)
 consumed by both the runtime and the backtests.
 """
 
-ALFRED_VERSION = "1.2.9"
+ALFRED_VERSION = "1.2.10"
