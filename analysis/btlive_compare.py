@@ -36,10 +36,11 @@ import time
 from collections import defaultdict
 
 
+# Repointé sur Alfred le 2026-06-14 (legacy décommissionné). (dir, clé, capital).
 BOTS = {
-    "paper":  ("analysis/output",       "paper"),
-    "live":   ("analysis/output_live",  "live"),
-    "junior": ("analysis/output_live2", "junior"),
+    "paper":  ("alfred/data/bots/paper",  "paper",  1000.0),
+    "live":   ("alfred/data/bots/live",   "live",    680.58),
+    "junior": ("alfred/data/bots/junior", "junior",  332.76),
 }
 
 DATA_STALENESS_THRESHOLD_HOURS = 2.0  # refresh if BTC candle older than this
@@ -208,13 +209,15 @@ def run_backtest_for_period(start_dt: dt.datetime, start_cap: float, project_roo
 
     start_ms = int(start_dt.timestamp() * 1000)
     print(f"  → running backtest_rolling.run_window {start_dt.date()} → {end_dt.date()} cap=${start_cap:.0f}...", flush=True)
+    # Sémantique ALIGNED (phase 6) — exits/sizing via alfred/rules.py, identique
+    # au bot Alfred live ; + plafond de marge (réaliste). Les hooks legacy
+    # (early_exit_params/runner_ext) sont redondants en aligned (dans evaluate_exit).
     res = backtest_rolling.run_window(
         features, data, sector_features, dxy_data,
         start_ms, latest_ts, start_capital=start_cap,
         oi_data=oi_data, funding_data=funding_data,
-        early_exit_params=early_exit_params,
-        runner_extension=runner_ext_cfg,
         apply_adaptive_modulator=True,
+        aligned=True, margin_check=True,
     )
     res["_end_dt"] = end_dt
 
@@ -281,10 +284,10 @@ def main():
     args = parser.parse_args()
 
     project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    output_rel, bot_key = BOTS[args.bot]
+    output_rel, bot_key, _defcap = BOTS[args.bot]
     output_dir = os.path.join(project_root, output_rel)
-    db_path = os.path.join(output_dir, "reversal_ticks.db")
-    state_path = os.path.join(output_dir, "reversal_state.json")
+    db_path = os.path.join(output_dir, "bot.db")
+    state_path = os.path.join(output_dir, "state.json")
 
     if not os.path.exists(db_path):
         sys.exit(f"DB not found: {db_path}")
@@ -351,9 +354,8 @@ def main():
                 start_source = "earliest trade in DB"
     except Exception:
         pass
-    # v12.10.12 — live default = $641 (post-soft-reset baseline 2026-05-31)
-    default_caps = {"paper": 1000.0, "live": 641.0, "junior": 300.0}
-    start_cap = args.start_cap if args.start_cap else default_caps[bot_key]
+    # Capital par défaut = celui de la map BOTS (Alfred : equity au reset/migration)
+    start_cap = args.start_cap if args.start_cap else _defcap
     print(f"  Period start: {start_dt.date()} ({start_source})")
     print(f"  Starting capital: ${start_cap:.0f}")
 
