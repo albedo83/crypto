@@ -131,3 +131,24 @@ Items de mémoire long-terme, sans deadline.
 - **comment** : hook `reserve_highz_frac` + `reserve_z_threshold` dans
   `run_window` (off par défaut), instrument `skip_log` pour compter les skips
   par stratégie/raison. Harness : voir l'historique de cette session.
+
+---
+
+## Cap notionnel PLUS BAS pour libérer les slots des petits comptes (2026-06-14)
+
+- **quoi** : le cap notionnel ($500) ne mord qu'au-dessus de ~$850 de capital
+  (un S5 = 0.18×cap×3.25 atteint $500 à cap≈$855). En dessous il est DORMANT —
+  inactif pour junior ($333, S5=$195) et senior ($680, S5=$398). Or c'est le cap
+  qui libère les slots (en rapetissant les S5 → place pour S8/S9). Idée : un cap
+  plus bas ($250→mord à ~$430 ; $300→~$510) clipperait les S5 de senior/junior
+  DÈS MAINTENANT → diversification + capture S8/S9 à petit capital. Serait le fix
+  propre que la réservation-marge cherchait (cf. [[slot-priority-2026-06]], 4/7).
+- **pourquoi** : user a révélé que $500 a été choisi « au pif » (peur des gros
+  trades). Le walk-forward du cap n'a testé que $500 vs valeurs PLUS HAUTES
+  ($1000/$1500/no-cap, validé 4/4) — la zone < $500 est vierge.
+- **arbitrage** : un cap plus bas plafonne aussi les GAGNANTS plus tôt (upside
+  écrêté). À trancher au walk-forward (PnL ET DD).
+- **quand** : différé (user a dit non pour l'instant, 2026-06-14). Prêt à lancer.
+- **comment** : balayer `max_notional_per_trade` ∈ {250,300,400,500} en
+  walk-forward dates glissantes (cf. harness slot-priority), spécifiquement à
+  $333 et $680 (capitaux réels) en plus de $500. Vérifier DD en priorité.
