@@ -89,3 +89,21 @@ Items de mémoire long-terme, sans deadline.
 - Quand on traite un item → suppression + mention dans `CHANGELOG.md` ou `docs/synthese.md` selon que c'est trading-impacting ou doc-seulement.
 - [ ] **Re-test cap notionnel liquidity-aware** (R&D 2026-06-11, `backtests/backtest_liquidity_cap.py`) — $500 confirmé optimal au genou de la frontière (grille flat 250-1000 + 12 variantes k_liq×vol24h, 0 PASS strict, régime bear punit la taille marginale). Re-run (~3 min) si : balance SENIOR ≥ $1400 (alerte auto dans le digest 08:30), btc_z 30j durablement > 0, ou échéance trimestrielle (~2026-09). Option $350 documentée pour l'agenda DD-reduction (−9pp DD moyen contre −27% PnL long).
 - [ ] **Re-tests issus de l'audit d'ablation 2026-06-11** (`backtests/backtest_rule_audit.py`, sémantique alignée post-fix parité) : (1) **whitelist S10** (v11.3.4, validée 02/2026) — la retirer donne +610/+121/+22/−2 $ (ΔDD +2.4pp), quasi-PASS, à confirmer par walk-forward dédié + fenêtres glissantes (LONGs S10 restent toxiques : −431/−759 $) ; (2) **dead_timeout + runner_ext** (v11.7.2/v11.7.32) — contribution marginale −238/+94/−210/−231 $ : probablement doublonnés par traj_cut/btc_drop_cut/s8_dead qui coupent plus tôt — ablation combinée + walk-forward avant tout retrait. Pattern : l'audit 1-à-1 est un détecteur, pas un juge (path-dependence).
+
+---
+
+## Idempotence des ordres live sur retry 429 (hl#1, revue 2026-06-14)
+
+- **quoi** : `_sdk_retry` (alfred/hl.py) retente les ordres `market_open`/`market_close`
+  sur une HTTP 429. Si HL fille puis renvoie 429, l'ordre est re-soumis →
+  position en double. Pas de clé d'idempotence (`cloid`).
+- **pourquoi** : finding HIGH de la revue de code multi-agents. Réel mais
+  **faible probabilité** (HL renvoie 429 surtout AVANT process, pas après fill)
+  et le reconcile horaire détecte le mismatch de taille. Non corrigé à chaud :
+  toucher la soumission d'ordres réels est risqué, et le fix propre demande de
+  vérifier le support `cloid` du SDK + un test soigné.
+- **quand** : prêt, mais à traiter dans une passe dédiée (pas en urgence).
+- **comment** : (a) passer un `cloid` déterministe à `exchange.market_open/close`
+  si le SDK le supporte (HL dédupe alors) ; OU (b) sur 429 d'un open, checker
+  `user_fills_by_time` AVANT de re-soumettre, et abandonner si un fill a déjà
+  atterri. Tester en paper-équivalent / dry-run avant tout déploiement live.
