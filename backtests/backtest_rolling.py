@@ -1670,16 +1670,14 @@ def run_window(features, data, sector_features, dxy_data,
 # Update when a bot is reset/redeployed (date of first entry, OR date of
 # soft/hard reset → it becomes the new fair-comparison baseline).
 #
-# v12.10.12 (2026-05-31): live baseline moved from 2026-03-26 (original
-# deployment) to 2026-05-31 (post-soft-reset). The pre-reset period had
-# substantial config drift (disp_gate retired v12.8.0, entry gate v12.9.0,
-# universe align v12.9.7) making BT regen incomparable to those old live
-# trades. Starting fresh from 2026-05-31 with capital $641 (actual HL
-# equity at soft reset time) makes BT vs live directly comparable.
+# Alfred (2026-06-10) : paper + live (SENIOR) démarrent à la migration Alfred le
+# 2026-06-10 ; junior un jour après (2026-06-11). Les dates legacy pré-décommission
+# sont caduques — aucun bot Alfred n'existait avant le 2026-06-10. Capitaux = equity
+# au reset : paper $1000, live $680.58, junior $332.76 (cf. BOTS dans btlive_compare).
 BOT_DEPLOYMENTS = [
-    ("paper",  "2026-03-25"),
-    ("live",   "2026-05-31"),   # v12.10.12 — reset baseline
-    ("junior", "2026-04-29"),
+    ("paper",  "2026-06-10"),
+    ("live",   "2026-06-10"),
+    ("junior", "2026-06-11"),
 ]
 
 
