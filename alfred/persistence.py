@@ -25,7 +25,7 @@ log = logging.getLogger("alfred")
 # ── Trade & Trajectory Writing ────────────────────────────────────────
 
 def write_trade(trade: Trade, db: Database) -> None:
-    db.write("""INSERT INTO trades
+    db.write_critical("""INSERT INTO trades
         (symbol, direction, strategy, entry_time, exit_time, entry_price,
          exit_price, hold_hours, size_usdt, signal_info, gross_bps, net_bps,
          pnl_usdt, mae_bps, mfe_bps, reason, entry_oi_delta, entry_crowding,

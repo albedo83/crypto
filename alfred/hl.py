@@ -236,8 +236,14 @@ class HLAccount:
                           / total_sz)
                 return self._abort_if_micro_fill(sym, avg_px, total_sz, size_usdt)
         except Exception as e:
-            log.warning("Fill lookup failed: %s — using market price", e)
-        return {"avgPx": price, "sz": sz}
+            log.warning("Fill lookup failed for %s: %s", sym, e)
+        # Ne PAS fabriquer un fill au prix demandé : ça ancrerait un faux
+        # entry_price (P&L/stops faussés à vie) et court-circuiterait le garde
+        # micro-fill. On lève → le caller skip l'entrée ; si l'ordre a malgré
+        # tout fillé, le reconcile horaire le détecte comme orphan (alerté).
+        raise RuntimeError(
+            f"{sym}: ordre soumis mais fill introuvable (réponse sans filled "
+            f"+ user_fills KO) — entrée annulée, reconcile gérera tout fill réel")
 
     def _abort_if_micro_fill(self, sym: str, avg_px: float, actual_sz: float,
                              requested_usdt: float) -> dict:

@@ -463,8 +463,18 @@ class BotInstance:
             entry_oi_delta=pos.entry_oi_delta, entry_crowding=pos.entry_crowding,
             entry_confluence=pos.entry_confluence, entry_session=pos.entry_session,
             funding_usdt=round(funding_adj, 4))
-        self.trades.append(trade)
-        persistence.write_trade(trade, self.db)
+        self.trades.append(trade)   # en mémoire d'abord : survit à un échec DB
+        try:
+            persistence.write_trade(trade, self.db)
+        except Exception as e:
+            # Perte d'écriture de trade = registre P&L canonique incomplet.
+            # Ne plus avaler en silence (finding revue db#1) : alerter fort.
+            log.error("[%s] ÉCHEC écriture trade %s en bot.db: %s — gardé en "
+                      "mémoire, registre incomplet", self.id, sym, e)
+            self.notifier.send(
+                f"⚠️ Échec écriture trade {sym} ({self.id}) en bot.db — P&L "
+                f"réalisé non persisté, vérifier la DB", category="system",
+                actionable=True)
         persistence.write_trajectory(sym, pos, self.db)
         self.db.log_event("CLOSE", sym, {
             "strategy": pos.strategy, "dir": trade.direction,

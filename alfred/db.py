@@ -192,6 +192,16 @@ class Database:
         except Exception as e:
             log.warning("DB write failed (%s): %s", self.path, e)
 
+    def write_critical(self, sql: str, rows: list[tuple]) -> None:
+        """Comme write() mais RELÈVE l'erreur au lieu de l'avaler — pour les
+        écritures qu'on ne peut pas perdre silencieusement (trades = registre
+        P&L canonique). Le caller DOIT catch + alerter + garder en mémoire."""
+        if not rows:
+            return
+        with self.lock:
+            self.conn.executemany(sql, rows)
+            self.conn.commit()
+
     def log_event(self, event: str, symbol: str | None = None,
                   data: dict | None = None) -> None:
         self.write("INSERT INTO events VALUES (?,?,?,?)",

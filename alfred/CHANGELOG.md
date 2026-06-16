@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.2.11 — 2026-06-14
+
+- **Trading engine**: à l'ouverture live, si la confirmation du fill est introuvable, l'entrée est annulée proprement au lieu de booker un prix fictif (la réconciliation récupère tout ordre réellement passé) ; un échec d'écriture d'un trade en base déclenche désormais une alerte au lieu d'être silencieux. Détecté en revue de code.
+
 ## v1.2.10 — 2026-06-14
 
 - **Dashboard**: le tableau d'impact des interventions sépare désormais l'impact des stops manuels (contrôlable) de celui des règles automatiques et du stop catastrophe, et isole les positions encore en cours (provisoire) du total finalisé. Colonne « CF » renommée « Au timeout ».
