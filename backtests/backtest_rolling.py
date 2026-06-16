@@ -1971,7 +1971,8 @@ def main():
                            runner_extension=None if aligned_run else runner_ext_cfg,
                            funding_data=funding_data,
                            apply_adaptive_modulator=True,
-                           aligned=aligned_run)
+                           aligned=aligned_run,
+                           margin_check=True)  # mime le plafond de marge HL (réaliste)
             r["label"] = label
             r["start_date"] = start_dt.strftime("%Y-%m-%d")
             results.append(r)
