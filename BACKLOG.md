@@ -107,3 +107,27 @@ Items de mémoire long-terme, sans deadline.
   si le SDK le supporte (HL dédupe alors) ; OU (b) sur 429 d'un open, checker
   `user_fills_by_time` AVANT de re-soumettre, et abandonner si un fill a déjà
   atterri. Tester en paper-équivalent / dry-run avant tout déploiement live.
+
+---
+
+## Réservation de budget marge pour stratégies high-z (slot priority, 2026-06-14)
+
+- **quoi** : à petit/moyen capital, les S8/S9 (haute espérance) sont souvent
+  skippés par saturation de MARGE quand les slots sont pleins de S5 (premise
+  EDA confirmée : take-rate S8/S9 ≈ 23% sur 3m / 41% sur 6m à $500). Idée :
+  réserver une fraction du budget de marge aux high-z (S8/S9/S1) — un candidat
+  low-z (S5/S10) ne peut consommer que (1-frac) du budget.
+- **résultat** : walk-forward 7 tranches glissantes 6m, $500, margin ON.
+  frac 25% = meilleur (+$764 agrégé, ΔDD +3.33pp = DD meilleur) MAIS **4/7
+  seulement**, perd sur la tranche la plus récente (2025-12→06 −$66). 15% =
+  +$301/4-7/DD pire. 40% = −$708/3-7. **Edge régime-dépendant, PAS strict 4/4
+  → non shippé.** (NB : la priorité intra-scan S8/S9>S5 existe déjà via le
+  tri par z — bot:580 + BT:1346. Ce test ne porte que sur la réservation
+  cross-scan.)
+- **quand** : re-tester si le capital grossit (à $1000 la contention chute :
+  take-rate S8/S9 ≈ 77-100% sur les fenêtres longues) OU régime-conditionner
+  la réservation (réserver seulement en bear, où S8/S9 sont amplifiés/valent
+  le plus) — piste non testée.
+- **comment** : hook `reserve_highz_frac` + `reserve_z_threshold` dans
+  `run_window` (off par défaut), instrument `skip_log` pour compter les skips
+  par stratégie/raison. Harness : voir l'historique de cette session.

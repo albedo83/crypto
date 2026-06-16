@@ -316,6 +316,9 @@ def run_window(features, data, sector_features, dxy_data,
                max_notional_fn=None,
                opposite_cut: dict | None = None,
                take_profit: dict | None = None,
+               skip_log: list | None = None,
+               reserve_highz_frac: float = 0.0,
+               reserve_z_threshold: float = 5.0,
                aligned: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -1374,6 +1377,8 @@ def run_window(features, data, sector_features, dxy_data,
                               if oi_data is not None else None),
                 check_size_floor=aligned)
             if _reason == "max_positions":
+                if skip_log is not None:
+                    skip_log.append((ts, cand["strat"], cand["dir"], "max_positions"))
                 break
             if _reason:
                 continue
@@ -1450,8 +1455,17 @@ def run_window(features, data, sector_features, dxy_data,
                 open_margin = sum(p["size"] / LEVERAGE for p in positions.values())
                 new_margin = size / LEVERAGE
                 margin_budget = capital * margin_max_util
+                # R&D : réserver une fraction du budget de marge pour les
+                # stratégies à forte espérance — un candidat low-z (S5/S10) ne
+                # peut consommer que (1-frac) du budget, le reste reste libre
+                # pour un futur S8/S9/S1. À $500 c'est la marge (pas le compteur
+                # de slots) qui sature → on réserve la bonne ressource.
+                if reserve_highz_frac and cand["z"] < reserve_z_threshold:
+                    margin_budget *= (1.0 - reserve_highz_frac)
                 if open_margin + new_margin > margin_budget:
                     n_margin_skip[0] += 1
+                    if skip_log is not None:
+                        skip_log.append((ts, cand["strat"], cand["dir"], "margin"))
                     continue
             # EDA hook (feature_modulator_eda): record entry features for
             # post-hoc analysis. Partial confluence = 4 of the 5 live components
