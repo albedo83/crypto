@@ -136,6 +136,13 @@ Items de mémoire long-terme, sans deadline.
 
 ## Cap notionnel PLUS BAS pour libérer les slots des petits comptes (2026-06-14)
 
+> ✅ **TRANCHÉ 2026-06-17** — walk-forward lancé à $80/$100 (cap ∈ {500,50,40,30},
+> `backtests/backtest_small_cap_notional.py`). Mécanique confirmée (le cap bas
+> libère les slots : margin-skips 4328→121, S8+S9 155→232) et réduit le DD, MAIS
+> rogne le PnL sur les fenêtres de tendance → **aucune config ne passe strict 4/4**
+> (PnL bloquant). Décision : nouveau bot `baby` (<$100) déployé en sizing STANDARD
+> sans override. Détails : `backtests/small_cap_notional_results.md`.
+
 - **quoi** : le cap notionnel ($500) ne mord qu'au-dessus de ~$850 de capital
   (un S5 = 0.18×cap×3.25 atteint $500 à cap≈$855). En dessous il est DORMANT —
   inactif pour junior ($333, S5=$195) et senior ($680, S5=$398). Or c'est le cap
@@ -152,3 +159,20 @@ Items de mémoire long-terme, sans deadline.
 - **comment** : balayer `max_notional_per_trade` ∈ {250,300,400,500} en
   walk-forward dates glissantes (cf. harness slot-priority), spécifiquement à
   $333 et $680 (capitaux réels) en plus de $500. Vérifier DD en priorité.
+
+
+---
+
+## Stop S5 LONG serré à −500 bps — indice à creuser (2026-06-17)
+
+- **quoi** : lors du test slow-bleed (réfuté, cf. `backtests/s5_slow_bleed_results.md`),
+  l'ablation null `abl_hold0_l500` — couper S5 LONG dès que cur ≤ −500 bps, SANS
+  condition de hold ni de régime — est la SEULE config à passer strict 4/4 en aligned
+  (+177 pp sumΔ, DD intact). C'est en pratique un **stop catastrophe S5 LONG abaissé**.
+- **pourquoi prudence** : pick post-hoc parmi 11 configs, magnitude faible (+32 pp sur
+  base +820 % ≈ +4 % relatif). Preuve faible — ne PAS adopter sur cette base.
+- **comment** : test DÉDIÉ pré-enregistré — sweep du stop catastrophe S5 LONG
+  ∈ {−400,−500,−600} en aligned (flag Params, OFF défaut), 4 fenêtres glissantes,
+  + null-shuffle (comme `backtest_trajectory_cut_r2_stability.py`) pour écarter le bruit.
+  Vérifier qu'il ne rogne pas les runners (CRV-type, MAE −361 → +1990).
+- **quand** : différé (priorité basse, signal faible). Prêt si on veut serrer le tail S5 LONG.
