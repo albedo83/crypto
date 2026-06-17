@@ -316,6 +316,7 @@ def run_window(features, data, sector_features, dxy_data,
                max_notional_fn=None,
                opposite_cut: dict | None = None,
                take_profit: dict | None = None,
+               prop_trail_override: dict | None = None,
                skip_log: list | None = None,
                reserve_highz_frac: float = 0.0,
                reserve_z_threshold: float = 5.0,
@@ -721,6 +722,12 @@ def run_window(features, data, sector_features, dxy_data,
         )
     elif not aligned:
         _p_run = _dc.replace(_p_run, dead_timeout_lead_hours=float("-inf"))
+    # prop_trail R&D : merge un override de prop_trail_params (ex. ajouter S5).
+    # Sinon défaut (S9 seul) → OFF pour tout le reste, zéro impact.
+    if prop_trail_override is not None:
+        _merged = dict(_p_run.prop_trail_params)
+        _merged.update(prop_trail_override)
+        _p_run = _dc.replace(_p_run, prop_trail_params=_merged)
 
     sorted_ts = sorted(ts for ts in all_ts if start_ts_ms <= ts <= end_ts_ms)
 

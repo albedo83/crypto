@@ -118,6 +118,11 @@ class Params:
     # v12.11.0 proportional trail: strat → {regime: (arm_bps, lock_ratio) | None}
     prop_trail_params: dict = field(default_factory=lambda: {
         "S9": {"bear": None, "neutral": None, "bull": (100, 0.65)},
+        # S5 : verrou proportionnel tous régimes (arm 200, lock 0.65). Capture le
+        # MFE que les gagnants S5 rendaient (WR 47→75, book ×2.6 en BT 28m, DD
+        # amélioré sur tous les tests). Validé aligned strict 4/4 (6/9 plateau) +
+        # OOS DD 4/4 / PnL 3/4. Kill-switch : retirer cette entrée.
+        "S5": {"bear": (200, 0.65), "neutral": (200, 0.65), "bull": (200, 0.65)},
     })
     prop_trail_z_threshold: float = 0.5
     # v12.6.0 S8 dead-in-water
