@@ -78,6 +78,11 @@ def create_app(bots: dict, master) -> FastAPI:
     if _junior_user and _junior_pass and "junior" in bots:
         _ACCOUNTS[_junior_user] = (_junior_pass, "bot:junior",
                                    os.environ.get("JUNIOR_TOTP_SECRET", ""))
+    _baby_user = os.environ.get("BABY_USER", "")
+    _baby_pass = os.environ.get("BABY_PASS", "")
+    if _baby_user and _baby_pass and "baby" in bots:
+        _ACCOUNTS[_baby_user] = (_baby_pass, "bot:baby",
+                                 os.environ.get("BABY_TOTP_SECRET", ""))
     _login_failures: dict[str, tuple[int, float]] = {}
     _revoked_before = {"ts": 0.0}
     _mutation_log: dict[str, deque] = {}

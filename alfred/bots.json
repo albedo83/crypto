@@ -33,6 +33,19 @@
       "telegram": {"token_env": "JUNIOR_TG_BOT_TOKEN", "chat_id_env": "JUNIOR_TG_CHAT_ID"},
       "overrides": {},
       "enabled": true
+    },
+    {
+      "id": "baby",
+      "label": "BABY",
+      "color": "#a371f7",
+      "mode": "live",
+      "private_key_env": "BABY_HL_PRIVATE_KEY",
+      "account_address": "0xda4008f900d2E13DD8B3c3eb2FBFf765073b014c",
+      "capital_initial": 57.84,
+      "capital_cap": 100,
+      "telegram": {"token_env": "BABY_TG_BOT_TOKEN", "chat_id_env": "BABY_TG_CHAT_ID"},
+      "overrides": {},
+      "enabled": true
     }
   ]
 }
