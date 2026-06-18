@@ -248,6 +248,7 @@ class BotConfig:
     color: str = ""
     private_key_env: str = ""      # env var name holding the signer key
     account_address: str = ""      # master wallet (agent model); "" = key IS wallet
+    agent_expiry: str = ""         # ISO date expiration agent wallet ; "" = clé directe (pas d'expiration)
     capital_initial: float = 1000.0
     capital_cap: float = 0.0       # 0 = no cap (replaces JUNIOR_CAPITAL_CAP)
     tg_token_env: str = ""
@@ -283,6 +284,7 @@ def parse_bots_config(raw: dict) -> list[BotConfig]:
             mode=b.get("mode", "paper"), color=b.get("color", ""),
             private_key_env=b.get("private_key_env", ""),
             account_address=b.get("account_address", ""),
+            agent_expiry=b.get("agent_expiry", ""),
             capital_initial=float(b.get("capital_initial", 1000.0)),
             capital_cap=float(b.get("capital_cap", 0.0)),
             tg_token_env=tg.get("token_env", ""),

@@ -346,10 +346,17 @@ function renderFleet(d){
     const x=a[sortKey],y=b[sortKey];
     return (x<y?-1:x>y?1:0)*(sortAsc?1:-1);
   });
+  const keyExp=iso=>{
+    if(!iso)return '';
+    const days=Math.floor((new Date(iso)-new Date())/86400000);
+    const col=days<0?'#f85149':(days<30?'#d29922':'var(--dim)');
+    const txt=days<0?'🔑 clé EXPIRÉE':`🔑 clé exp ${iso} (${days}j)`;
+    return `<div style="font-size:9px;color:${col};margin-top:2px">${txt}</div>`;
+  };
   $('fleetTable').querySelector('tbody').innerHTML=rows.map(b=>{
     if(!b.online)return `<tr><td>${esc(b.label)}</td><td>${b.mode}</td><td class="red">ERREUR</td><td colspan="6">${esc(b.error)}</td></tr>`;
     return `<tr>
-      <td style="color:${b.bot_label_color||'var(--txt)'};font-weight:600">${esc(b.label)}</td>
+      <td style="color:${b.bot_label_color||'var(--txt)'};font-weight:600">${esc(b.label)}${keyExp(b.agent_expiry)}</td>
       <td><span class="badge ${b.mode}">${b.mode}</span></td>
       <td><span class="badge ${b.status==='ok'?'running':b.status}">${b.status}</span></td>
       <td class="num">${fmtUsd(b.balance)}</td>

@@ -365,6 +365,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <span class="tag live" id="tag"><span class="pulse" id="pulse"></span> LIVE</span>
   <span class="info" id="uptime"></span>
   <span class="info" id="params"></span>
+  <span class="info" id="key-exp"></span>
   <div class="header-actions" style="margin-left:auto;display:flex;gap:6px;align-items:center">
     <button class="btn-small" onclick="showChangelog()">Release notes</button>
     <button class="btn-small" onclick="showBacktests()">Backtests</button>
@@ -1087,6 +1088,15 @@ function refresh(){
     document.getElementById('uptime').textContent=upText;
     document.getElementById('params').textContent=
       'Hold: '+s.params.hold_h+'h | Stop: '+s.params.stop_bps+'bps | Cost: '+s.params.cost_bps+'bps | Max: '+s.params.max_pos+'pos';
+    // Expiration de la clé agent (modèle agent : junior/baby). Clé directe = rien.
+    const keEl=document.getElementById('key-exp');
+    if(keEl){
+      if(s.agent_expiry){
+        const days=Math.floor((new Date(s.agent_expiry)-new Date())/86400000);
+        keEl.textContent=(days<0?'🔑 clé EXPIRÉE':'🔑 clé exp '+s.agent_expiry+' ('+days+'j)');
+        keEl.style.color=days<0?'#f85149':(days<30?'#d29922':'#8b949e');
+      } else { keEl.textContent=''; }
+    }
     // Capital / cap display next to DCA button. Junior shows "$cap / $max",
     // Live/Paper show "$cap" (no hard cap).
     const capEl=document.getElementById('cap-display');

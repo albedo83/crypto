@@ -3,6 +3,15 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.3.1 — 2026-06-18
+
+- **Admin**: la date d'expiration de la clé agent (bots en modèle agent) est affichée sur la page de supervision et le tableau de bord de chaque bot, avec alerte couleur à l'approche de l'échéance.
+
+## v1.3.0 — 2026-06-17
+
+- **Trading engine**: le verrou de gains proportionnel est étendu à une seconde stratégie (protège les gains des positions gagnantes).
+- **Admin**: ajout d'un 4e bot (BABY, petit capital, opéré par une tierce personne).
+
 ## v1.2.11 — 2026-06-14
 
 - **Trading engine**: à l'ouverture live, si la confirmation du fill est introuvable, l'entrée est annulée proprement au lieu de booker un prix fictif (la réconciliation récupère tout ordre réellement passé) ; un échec d'écriture d'un trade en base déclenche désormais une alerte au lieu d'être silencieux. Détecté en revue de code.
