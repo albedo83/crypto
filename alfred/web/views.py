@@ -64,7 +64,12 @@ def _strategy_dashboard_extras(bot) -> dict:
     """Per-(strat, dir) advice/drift bundle for the dashboard pause toggles."""
     drift = compute_signal_drift_by_dir(bot.trades, bot._perf_track_start_ts,
                                         recent_n=10)
-    alerts = get_recent_regime_alerts(bot.db.conn, hours=48)
+    # Lecture sérialisée : bot.db.conn est partagé avec les threads scan/exits
+    # qui y écrivent — sans le lock, accès concurrent SQLite → lignes corrompues
+    # ('unpack expected 2 got 0', /master qui échoue par intermittence, surtout
+    # avec 4 bots). Les autres reads de views passent déjà par le lock.
+    with bot.db.lock:
+        alerts = get_recent_regime_alerts(bot.db.conn, hours=48)
     cross = bot._cross_ctx_cache or {}
     disp_7d = cross.get("disp_7d")
     disp_24h = cross.get("disp_24h")
