@@ -1840,7 +1840,20 @@ function initChart(){
   container.appendChild(vl);
   window._positionVline=()=>{
     if(window._vlineTs==null){vl.style.display='none';return}
-    const x=_lwChart.timeScale().timeToCoordinate(_vlineTs);
+    const ts=window._vlineTs, b=window._vlineBefore, a=window._vlineAfter;
+    const scale=_lwChart.timeScale();
+    let x;
+    if(b!=null && a!=null && a>b){
+      // Position EXACTE de l'entrée : interpolation entre les 2 bougies
+      // encadrantes (LW espace les barres par index, mais entre 2 barres
+      // consécutives la fraction temporelle est linéaire) — corrige le
+      // décalage ~grille de l'ancien snap-à-la-bougie-la-plus-proche.
+      const xb=scale.timeToCoordinate(b), xa=scale.timeToCoordinate(a);
+      if(xb==null||xa==null){vl.style.display='none';return}
+      x=xb+(xa-xb)*((ts-b)/(a-b));
+    } else {
+      x=scale.timeToCoordinate(b!=null?b:ts);
+    }
     if(x==null){vl.style.display='none';return}
     vl.style.left=(x-1)+'px';
     vl.style.background=window._vlineColor||'#3fb950';
@@ -1891,10 +1904,17 @@ function refreshChart(){
       // données) : un div fin superposé au canvas, positionné via
       // timeToCoordinate et resnappé à chaque pan/zoom (initChart).
       const t0=data[0].time, t1=data[data.length-1].time;
-      let snapTs=d.position.entry_ts;
-      if(d.position.entry_ts>=t0&&d.position.entry_ts<=t1){
-        snapTs=data.reduce((b,p)=>Math.abs(p.time-d.position.entry_ts)<Math.abs(b-d.position.entry_ts)?p.time:b,t0);
-        window._vlineTs=snapTs;window._vlineColor=col;
+      const ets=d.position.entry_ts;
+      let snapTs=ets;
+      if(ets>=t0&&ets<=t1){
+        // marqueur (flèche) : doit être sur une bougie → la plus proche
+        snapTs=data.reduce((b,p)=>Math.abs(p.time-ets)<Math.abs(b-ets)?p.time:b,t0);
+        // barre verticale : timestamp EXACT + bougies encadrantes pour
+        // interpolation (cf. _positionVline) → plus de snap à la grille
+        let before=t0, after=null;
+        for(const p of data){ if(p.time<=ets) before=p.time; else { after=p.time; break; } }
+        window._vlineTs=ets; window._vlineBefore=before;
+        window._vlineAfter=(after!=null?after:before); window._vlineColor=col;
       } else {window._vlineTs=null}
       if(window._positionVline)_positionVline();
       // Stop catastrophe : rouge continu

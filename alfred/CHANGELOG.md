@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.3.3 — 2026-06-18
+
+- **Dashboard**: la ligne verticale d'entrée de position sur le graphique de prix est désormais positionnée à l'instant exact de l'entrée (interpolée entre les bougies) au lieu d'être calée sur la bougie la plus proche.
+
 ## v1.3.2 — 2026-06-18
 
 - **Infra**: correction d'une lecture de base non sérialisée dans la page de supervision qui pouvait la faire échouer par intermittence (accès concurrent à la base d'un bot). Détecté en production.
