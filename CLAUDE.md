@@ -51,7 +51,7 @@ hedge_monitor) sont portées sur Alfred le 2026-06-11.
 **BABY ajouté le 2026-06-17** (4ᵉ bot `baby` de bots.json, géré par une tierce
 personne distincte — modèle agent `BABY_HL_PRIVATE_KEY` → master
 `0xda4008f9…b014c`, agent public `0x726E…25fA` expire le **2026-12-08** à
-régénérer avant). Petit capital : `capital_initial` $57.84, `capital_cap` $100
+régénérer avant). Petit capital : `capital_initial` $57.84, `capital_cap` $400
 (DCA prévu, montée progressive). Config de sizing **standard** (`overrides: {}`) :
 le walk-forward d'un cap notionnel bas pour libérer les slots à <$100
 (`backtests/backtest_small_cap_notional.py`, résultats

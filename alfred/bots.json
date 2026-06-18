@@ -44,7 +44,7 @@
       "account_address": "0xda4008f900d2E13DD8B3c3eb2FBFf765073b014c",
       "agent_expiry": "2026-12-08",
       "capital_initial": 57.84,
-      "capital_cap": 100,
+      "capital_cap": 400,
       "telegram": {"token_env": "BABY_TG_BOT_TOKEN", "chat_id_env": "BABY_TG_CHAT_ID"},
       "overrides": {},
       "enabled": true
