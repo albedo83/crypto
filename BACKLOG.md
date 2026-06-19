@@ -176,3 +176,24 @@ Items de mémoire long-terme, sans deadline.
   + null-shuffle (comme `backtest_trajectory_cut_r2_stability.py`) pour écarter le bruit.
   Vérifier qu'il ne rogne pas les runners (CRV-type, MAE −361 → +1990).
 - **quand** : différé (priorité basse, signal faible). Prêt si on veut serrer le tail S5 LONG.
+
+---
+
+## Gate trend/chop (Efficiency Ratio) sur traj_cut (2026-06-18)
+
+- **quoi** : idée — traj_cut nuit en bear-CHOPPY (whipsaw, sell-the-dip) mais aide
+  en bear-TRENDING. L'ajouter un filtre Efficiency Ratio (ER de BTC) pour ne firer
+  qu'en trending. Origine : senior −$82 sur 5 traj_cut en régime choppy actuel.
+- **résultat premise EDA** (ON vs OFF, 28m, 19 fires appariés, ER n=6/24h) :
+  corrélation ER↔impact = **+0.41** (bon sens) MAIS trop mince — le seul bucket
+  clairement perdant est ER<0.2 (n=2, −56$/fire) ; ER 0.2-0.4 est POSITIF ;
+  traj_cut net +$11 sur 28m. Régime récent OSCILLE (ER 0.05→0.68/jour, pas
+  choppy soutenu) et un loser live (PYTH) a firé à ER=0.68 trending → l'ER ne
+  prédit pas l'issue. **Premise trop faible → sweep NON lancé (overfit sur 2
+  fires).** Cohérent avec le prior « filtres de régime échouent ».
+- **quand** : ne pas re-tester tel quel. Pistes restantes si on y revient :
+  discriminateur trend/chop plus fin (ADX, autocorrélation des returns), ou par
+  TOKEN plutôt que BTC. Mais attente faible.
+- **comment** : harness premise = run ON vs OFF (dc.replace traj_cut_strategies),
+  apparier trades traj_cut par (coin,entry_t), bucket impact par ER. ER =
+  |Δnet|/Σ|Δstep| sur n bougies BTC.
