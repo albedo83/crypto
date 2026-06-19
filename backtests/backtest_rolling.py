@@ -318,6 +318,7 @@ def run_window(features, data, sector_features, dxy_data,
                take_profit: dict | None = None,
                prop_trail_override: dict | None = None,
                skip_log: list | None = None,
+               opp_block_log: list | None = None,
                reserve_highz_frac: float = 0.0,
                reserve_z_threshold: float = 5.0,
                aligned: bool = False) -> dict:
@@ -1326,6 +1327,36 @@ def run_window(features, data, sector_features, dxy_data,
         if extra_candidate_fn is not None:
             candidates.extend(extra_candidate_fn(ts, coins, feat_by_ts, data,
                                                   coin_by_ts, positions, cooldown))
+
+        # opp_block_log R&D : recense les signaux RENTABLES bloqués par
+        # already_in_position alors que la position détenue est de sens OPPOSÉ
+        # (premise EDA du levier "autoriser LONG+SHORT même coin"). Détecte les
+        # signaux sur les coins détenus et logge ceux de direction opposée, avec
+        # de quoi reconstituer leur PnL (forward-walk dans le script EDA).
+        # Actif uniquement quand opp_block_log est fourni → zéro impact runtime.
+        if opp_block_log is not None:
+            for _bcoin, _bpos in positions.items():
+                _bf = feat_by_ts.get(ts, {}).get(_bcoin)
+                _bci = coin_by_ts.get(_bcoin, {}).get(ts)
+                if not _bf or _bci is None:
+                    continue
+                _bsq = _alf_signals.detect_squeeze_at(
+                    data[_bcoin], _bci, _bf.get("vol_ratio", 2), _P,
+                    candle_scale=int(_scale))
+                _bsigs = _alf_signals.detect_token_signals(
+                    _bcoin, _rules.adapt_bt_features(_bf), _btc_f,
+                    sector_features.get((ts, _bcoin)), _bsq, "", {}, _P)
+                for _bsig in _bsigs:
+                    if _bsig["direction"] != _bpos["dir"]:
+                        opp_block_log.append({
+                            "ts": ts, "coin": _bcoin,
+                            "dir": _bsig["direction"], "strat": _bsig["strategy"],
+                            "z": _bsig["z"],
+                            "hold_candles": int((_bsig["hold_hours"] // 4) * _scale),
+                            "stop_bps": _bsig.get("stop_bps"),
+                            "entry_idx": _bci + 1,
+                            "held_dir": _bpos["dir"], "held_strat": _bpos["strat"],
+                        })
 
         # opposite_cut R&D : signaux sur les tokens DÉTENUS (jamais calculés
         # par le flux candidats). Positions pré-entrées de ce ts uniquement —
