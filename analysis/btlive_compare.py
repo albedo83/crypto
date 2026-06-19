@@ -123,6 +123,15 @@ def read_live_trades(db_path: str) -> list[dict]:
     return out
 
 
+def _cooldown_hours() -> float:
+    """Cooldown duration the bot/BT use (shared core default)."""
+    try:
+        from alfred.settings import Params
+        return float(Params().cooldown_hours)
+    except Exception:
+        return 24.0
+
+
 def read_skip_events(db_path: str, start_ts_sec: float) -> dict:
     """Return SKIP events grouped by reason in the window."""
     conn = sqlite3.connect(db_path)
@@ -136,16 +145,77 @@ def read_skip_events(db_path: str, start_ts_sec: float) -> dict:
     by_reason: dict = defaultdict(int)
     by_reason_strat: dict = defaultdict(int)
     by_coin: dict = defaultdict(int)
+    raw: list = []
     for reason, strat, dirn, sym, ts in rows:
         by_reason[reason] += 1
         by_reason_strat[(reason, strat, dirn)] += 1
         by_coin[(sym, reason)] += 1
+        raw.append({"reason": reason, "strat": strat, "dir": dirn,
+                    "coin": sym, "ts_ms": int(ts * 1000)})
     return {
         "total": len(rows),
         "by_reason": dict(by_reason),
         "by_reason_strat": dict(by_reason_strat),
         "by_coin": dict(by_coin),
+        "rows": raw,
     }
+
+
+def classify_bt_only_misses(bt_only: list[dict], live: list[dict],
+                            cooldown_hours: float, skip: dict) -> dict:
+    """Attribute each BT-only trade (BT took, bot didn't) to a precise cause.
+
+    Reconstructs what the bot was doing on that coin at the BT entry time:
+      - already_in_position_OPPOSITE_dir : bot held the coin in the opposite
+        direction at that instant  → CAPTURABLE by allowing LONG+SHORT same coin
+      - already_in_position_SAME_dir     : bot held the coin same direction
+      - cooldown                         : a live trade on the coin exited within
+        cooldown_hours before the BT entry
+      - <skip reason>                    : a SKIP event on (coin, ±4h) with that
+        reason (insufficient_margin, max_*, oi_gate, disp_gate, ...)
+      - not_skipped / unexplained        : no trace — pure path divergence
+        (signal-state differed: feature/timing made the signal not fire live)
+    """
+    cd_ms = int(cooldown_hours * 3600 * 1000)
+    slack_ms = 4 * 3600 * 1000
+    held: dict = defaultdict(list)  # coin -> [(entry_ms, exit_ms, dir)]
+    for t in live:
+        held[t["coin"]].append((t["entry_ts"], t["exit_ts"], t["dir"]))
+    skip_rows = skip.get("rows", [])
+    buckets: dict = defaultdict(lambda: {"n": 0, "pnl": 0.0, "examples": []})
+    for b in bt_only:
+        coin, T, D = b["coin"], b["entry_ts"], b["dir"]
+        cause = None
+        # 1. Held at T?
+        for (e, x, d) in held.get(coin, []):
+            if e <= T < x:
+                cause = ("already_in_position_OPPOSITE_dir" if d != D
+                         else "already_in_position_SAME_dir")
+                break
+        # 2. Cooldown: a live trade on coin exited within cooldown window before T
+        if cause is None:
+            for (e, x, d) in held.get(coin, []):
+                if 0 <= (T - x) <= cd_ms:
+                    cause = "cooldown"
+                    break
+        # 3. SKIP event on this coin near T (margin / max_* / gates)
+        if cause is None:
+            best = None
+            for s in skip_rows:
+                if s["coin"] == coin and abs(s["ts_ms"] - T) <= slack_ms:
+                    if best is None or abs(s["ts_ms"] - T) < abs(best["ts_ms"] - T):
+                        best = s
+            if best is not None:
+                cause = best["reason"] or "skip_unknown"
+        # 4. Unexplained — signal simply didn't fire live (feature/timing drift)
+        if cause is None:
+            cause = "not_skipped_signal_drift"
+        buckets[cause]["n"] += 1
+        buckets[cause]["pnl"] += b["pnl"]
+        if len(buckets[cause]["examples"]) < 4:
+            buckets[cause]["examples"].append(
+                f"{coin} {b['strat']} {'L' if D == 1 else 'S'} {b['pnl']:+.0f}")
+    return dict(buckets)
 
 
 def equity_curve(trades: list[dict], start_cap: float) -> tuple[float, float]:
@@ -475,20 +545,42 @@ def main():
         for reason, n in sorted(skip["by_reason"].items(), key=lambda x: -x[1])[:8]:
             pct = n / skip["total"] * 100
             print(f"      {reason:<20}  n={n:>4}  ({pct:.0f}%)")
-        # Cross-ref BT-only trades against SKIP events: how many BT-only trades
-        # match a SKIP event reason at approximately the same time?
-        bt_only_skip_matched = 0
-        for t in bt_only:
-            ts_sec = t["entry_ts"] / 1000
-            for (sym, reason), _ in skip["by_coin"].items():
-                if sym == t["coin"]:
-                    bt_only_skip_matched += 1
-                    break
-        if bt_only:
-            pct_explained = bt_only_skip_matched / len(bt_only) * 100
-            print(f"    BT-only trades with matching SKIP event on same coin: "
-                  f"{bt_only_skip_matched}/{len(bt_only)} ({pct_explained:.0f}%)")
-            print(f"    → that explains ~${bt_only_pnl * pct_explained/100:+.2f} of the BT-only miss")
+
+    # ── Margin model: BT idealization vs live reality ──
+    print(f"\n  MARGIN MODEL (BT capital×0.95 vs live real avail_margin):")
+    print(f"  ─────────────────────────")
+    bt_margin_skip = bt_summary.get("n_margin_skip", None)
+    live_margin_skip = skip["by_reason"].get("insufficient_margin", 0)
+    bt_ms_str = str(bt_margin_skip) if bt_margin_skip is not None else "n/a"
+    print(f"    BT margin skips (capital×0.95 ceiling): {bt_ms_str}")
+    print(f"    Live insufficient_margin SKIPs:         {live_margin_skip}")
+    if bt_margin_skip is not None and bt_margin_skip < live_margin_skip:
+        print(f"    → BT is MORE lenient (skipped fewer) → BT target slightly inflated")
+    elif bt_margin_skip is not None and bt_margin_skip > live_margin_skip:
+        print(f"    → BT margin model stricter than live this window (rare)")
+    else:
+        print(f"    → margin not a material driver this window")
+
+    # ── Precise attribution of BT-only misses (why did the bot miss each one?) ──
+    print(f"\n  BT-ONLY MISS ATTRIBUTION (per cause, reconciles to ${bt_only_pnl:+.2f}):")
+    print(f"  ─────────────────────────")
+    if not bt_only:
+        print(f"    No BT-only trades (live captured every BT entry).")
+    else:
+        cd_h = _cooldown_hours()
+        miss = classify_bt_only_misses(bt_only, live, cd_h, skip)
+        # Order: opposite-dir (the testable lever) first, then by |pnl|
+        order = sorted(miss.items(),
+                       key=lambda kv: (kv[0] != "already_in_position_OPPOSITE_dir",
+                                       -abs(kv[1]["pnl"])))
+        for cause, d in order:
+            tag = "  ← CAPTURABLE (Track 2)" if cause == "already_in_position_OPPOSITE_dir" else ""
+            print(f"    {cause:<34} n={d['n']:>2}  ${d['pnl']:>+8.2f}{tag}")
+            if d["examples"]:
+                print(f"        e.g. {', '.join(d['examples'])}")
+        opp = miss.get("already_in_position_OPPOSITE_dir", {"n": 0, "pnl": 0.0})
+        print(f"\n    → opposite-direction block (capturable): "
+              f"n={opp['n']}, ${opp['pnl']:+.2f} of the ${bt_only_pnl:+.2f} miss")
 
     # Manual interventions
     print(f"\n  MANUAL INTERVENTIONS (live's own actions):")
@@ -535,16 +627,22 @@ def main():
         print(f"\n  SIZING DIVERGENCE (matched pairs):")
         print(f"  ─────────────────────────")
         size_ratios = []
+        size_pnl_gap = 0.0  # $ PnL live forfeited by sizing smaller than BT
         for li, bi in pairs:
             L = live[li]
             B = bt_trades[bi]
             if B["size"] > 0:
                 size_ratios.append(L["size"] / B["size"])
+            if L["size"] > 0:
+                # If live had been sized like BT, its PnL would scale by size ratio
+                # (same % return). Isolates the pure-size effect from px/exit drift.
+                size_pnl_gap += L["pnl"] * (B["size"] / L["size"] - 1.0)
         if size_ratios:
             import statistics as stat
             med = stat.median(size_ratios)
             mean = stat.mean(size_ratios)
             print(f"    Live/BT size ratio on {len(size_ratios)} matched: median={med:.3f}, mean={mean:.3f}")
+            print(f"    Est. $ PnL gap from sizing (live@BT-size − live): ${size_pnl_gap:+.2f}")
             if med < 0.85:
                 print(f"    → live sized DOWN: backtest path led to bigger capital base at signal times")
             elif med > 1.15:
