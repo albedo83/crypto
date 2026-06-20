@@ -139,11 +139,15 @@ def run_bt(reset_ts, start_capital):
     start_ts_ms = int(reset_ts * 1000)
     log(f"Running BT {datetime.fromtimestamp(reset_ts, tz=timezone.utc).isoformat()} "
         f"→ {datetime.fromtimestamp(latest_ts/1000, tz=timezone.utc).isoformat()}")
+    # v1.4.0 : config canonique = aligné (exits via evaluate_exit/_P, dead_timeout
+    # retirée), plafond marge HL, et MFE sur le mark (mfe_on_close) — identique au
+    # rapport docs/backtests.md et au bot live. Les hooks legacy early_exit/runner_ext
+    # sont redondants en aligned (ignorés), on les laisse None.
     r = run_window(features, data, sector_features, dxy,
                    start_ts_ms, latest_ts, start_capital=start_capital,
-                   oi_data=oi, early_exit_params=early_exit,
-                   runner_extension=runner_ext, funding_data=funding,
-                   apply_adaptive_modulator=True)
+                   oi_data=oi, funding_data=funding,
+                   apply_adaptive_modulator=True,
+                   aligned=True, margin_check=True, mfe_on_close=True)
     return {"end_capital": round(r["end_capital"], 2),
             "pnl": round(r["end_capital"] - start_capital, 2),
             "pnl_pct": round(r["pnl_pct"], 2),

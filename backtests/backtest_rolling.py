@@ -2038,7 +2038,10 @@ def main():
                            funding_data=funding_data,
                            apply_adaptive_modulator=True,
                            aligned=aligned_run,
-                           margin_check=True)  # mime le plafond de marge HL (réaliste)
+                           margin_check=True,   # mime le plafond de marge HL (réaliste)
+                           mfe_on_close=aligned_run)  # v1.4.0 : MFE sur le mark (close),
+                           # pas les mèches high/low — le BT cessait de surévaluer les
+                           # exits MFE (prop_trail/etc). Aligné sur le tracking du bot live.
             r["label"] = label
             r["start_date"] = start_dt.strftime("%Y-%m-%d")
             results.append(r)

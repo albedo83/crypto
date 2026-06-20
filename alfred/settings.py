@@ -141,9 +141,15 @@ class Params:
     # Kill-switch : opp_floor_lock_ratio = 0.0
     opp_floor_lock_ratio: float = 0.80
     opp_floor_min_gain_bps: float = 300.0
-    # v11.7.2 dead-timeout early exit
+    # v11.7.2 dead-timeout early exit — RETIRÉE v1.4.0 (kill-switch cap=-99999).
+    # Le cap 150 bps avait été calibré sur le MFE du backtest, qui lit les mèches
+    # de bougie (high/low) alors que le bot live track le MFE sur le mark. Sous MFE
+    # réaliste, bien plus de trades tombent sous le cap → la règle coupait des
+    # positions récupérables. Walk-forward dédié dates glissantes (mfe_on_close) :
+    # retrait gagnant 6/7 tranches, ΣΔPnL +$798, DD meilleur. Réactiver = remettre 150.
+    # Cf. memory bt-mfe-wick-bias-2026-06.
     dead_timeout_lead_hours: float = 12.0
-    dead_timeout_mfe_cap_bps: float = 150.0
+    dead_timeout_mfe_cap_bps: float = -99999.0
     dead_timeout_mae_floor_bps: float = -500.0
     dead_timeout_slack_bps: float = 300.0
     # v12.7.1 trajectory cut (regime-conditioned, S5)

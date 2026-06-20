@@ -288,6 +288,8 @@ def run_backtest_for_period(start_dt: dt.datetime, start_cap: float, project_roo
         oi_data=oi_data, funding_data=funding_data,
         apply_adaptive_modulator=True,
         aligned=True, margin_check=True,
+        mfe_on_close=True,  # v1.4.0 : MFE sur le mark (comme le bot live), pas les
+                            # mèches — sinon le BT surévalue les exits et l'écart est faux.
     )
     res["_end_dt"] = end_dt
 

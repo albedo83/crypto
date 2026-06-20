@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.4.0 — 2026-06-20
+
+- **Trading engine**: retrait d'une règle de sortie anticipée dont le réglage reposait sur une mesure trop optimiste du backtest ; revue confirmée en validation glissante.
+- **Infra**: le backtest de référence mesure désormais la performance des sorties sur le prix réellement observé par le bot (et non les extrêmes de bougie), rapprochant le backtest du comportement live ; `docs/backtests.md` régénéré sur cette base.
+
 ## v1.3.3 — 2026-06-18
 
 - **Dashboard**: la ligne verticale d'entrée de position sur le graphique de prix est désormais positionnée à l'instant exact de l'entrée (interpolée entre les bougies) au lieu d'être calée sur la bougie la plus proche.
