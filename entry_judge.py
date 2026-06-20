@@ -429,7 +429,7 @@ def main() -> int:
                     lines.append(f"  {v['reason']}")
             try:
                 from ai_notify import send_telegram
-                if send_telegram("\n".join(lines)):
+                if send_telegram("\n".join(lines), source="verdict_veto"):
                     print(f"[entry_judge] Telegram SENIOR envoyé ({len(vetoes)} VETO)")
             except Exception as e:
                 print(f"[entry_judge] Telegram échec: {e}", file=sys.stderr)

@@ -592,7 +592,7 @@ def main() -> int:
         print("[supervisor] SUPERVISOR_REPORT loggé")
         try:
             from ai_notify import send_telegram
-            if send_telegram(format_supervisor_tg(report)):
+            if send_telegram(format_supervisor_tg(report), source="superviseur"):
                 print("[supervisor] Telegram SENIOR envoyé")
         except Exception as e:
             print(f"[supervisor] Telegram échec: {e}", file=sys.stderr)

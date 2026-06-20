@@ -722,6 +722,30 @@ def create_app(bots: dict, master) -> FastAPI:
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
+    @app.get("/bot/{bot_id}/api/ai_history")
+    def api_ai_history(bot_id: str, limit: int = 100):
+        """Historique des messages IA envoyés sur Telegram (event AI_TG).
+        Peuplé pour SENIOR uniquement (canal live). Purge ultérieure."""
+        bot = _bot(bot_id)
+        if not bot:
+            return NOT_FOUND
+        limit = max(1, min(limit, 500))
+        try:
+            cur = bot.db.conn.execute(
+                "SELECT ts, data FROM events WHERE event='AI_TG' "
+                "ORDER BY ts DESC LIMIT ?", (limit,))
+            out = []
+            for ts, data in cur:
+                try:
+                    d = json.loads(data) if data else {}
+                except Exception:
+                    d = {}
+                out.append({"ts": ts, "text": d.get("text", ""),
+                            "source": d.get("source", "")})
+            return JSONResponse(out)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
     @app.get("/bot/{bot_id}/api/chart/{symbol}")
     async def api_chart(bot_id: str, symbol: str, hours: int = 24):
         bot = _bot(bot_id)

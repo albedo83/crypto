@@ -557,6 +557,11 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <div id="preview-list"></div>
 </div>
 
+<div class="section" id="ai-history-section" style="display:none">
+  <h2>Historique IA <span class="dim" style="font-size:12px;font-weight:400">— messages envoyés sur Telegram (datés)</span></h2>
+  <div id="ai-history"></div>
+</div>
+
 <div class="section" data-block="event-timeline" hidden>
   <h2>Event timeline <span class="dim" style="font-size:12px;font-weight:400">— 30 most recent events</span></h2>
   <div class="event-strip" id="event-strip"></div>
@@ -1979,12 +1984,32 @@ function refreshEvents(){
   }).catch(e=>console.warn('events fetch:',e));
 }
 
-refresh();refreshSignals();refreshTrades();refreshChart();refreshEvents();
+function refreshAIHistory(){
+  fetch('api/ai_history?limit=100',{credentials:'same-origin'}).then(r=>r.json()).then(rows=>{
+    const sec=document.getElementById('ai-history-section');
+    const el=document.getElementById('ai-history');
+    if(!el)return;
+    if(!Array.isArray(rows)||!rows.length){if(sec)sec.style.display='none';return}
+    if(sec)sec.style.display='';
+    const esc=(s)=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const srcLabel={superviseur:'Superviseur',revue_positions:'Revue positions',verdict_veto:'Verdict VETO'};
+    el.innerHTML=rows.map(r=>{
+      const d=new Date(r.ts*1000).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const src=srcLabel[r.source]||r.source||'IA';
+      return `<div style="border-left:2px solid #30363d;padding:6px 10px;margin-bottom:8px">`+
+        `<div style="font-size:12px;margin-bottom:3px"><b>${esc(src)}</b> <span class="dim">${d}</span></div>`+
+        `<div style="white-space:pre-wrap;font-size:13px;line-height:1.45">${esc(r.text||'')}</div></div>`;
+    }).join('');
+  }).catch(e=>console.warn('ai_history fetch:',e));
+}
+
+refresh();refreshSignals();refreshTrades();refreshChart();refreshEvents();refreshAIHistory();
 setInterval(refresh,5000);
 setInterval(refreshSignals,15000);
 setInterval(refreshTrades,30000);
 setInterval(refreshChart,60000);
 setInterval(refreshEvents,20000);
+setInterval(refreshAIHistory,30000);
 setInterval(tickCounters,1000);
 </script>
 </body>

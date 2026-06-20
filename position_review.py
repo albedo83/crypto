@@ -278,7 +278,7 @@ def main() -> int:
                     lines.append(f"  {r['reason']}")
             try:
                 from ai_notify import send_telegram
-                if send_telegram("\n".join(lines)):
+                if send_telegram("\n".join(lines), source="revue_positions"):
                     print(f"[position_review] Telegram SENIOR envoyé "
                           f"({len(actionable)} actionnable)")
             except Exception as e:
