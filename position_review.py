@@ -261,10 +261,28 @@ def main() -> int:
         "_model": result.get("_model"),
     }
     if args.no_write:
-        print("[position_review] --no-write: rien écrit en DB")
+        print("[position_review] --no-write: rien écrit en DB, pas d'envoi TG")
     else:
         log_event(SENIOR_DB, "POSITION_REVIEW", None, snapshot)
         print(f"[position_review] POSITION_REVIEW loggé ({len(reviews)} avis)")
+        # Telegram SENIOR uniquement si action conseillée (pas les HOLD).
+        actionable = [r for r in reviews if r["advice"] in ("STOP", "TRIM", "WATCH")]
+        if actionable:
+            lines = ["⚠️ Revue positions SENIOR"]
+            for r in actionable:
+                stop = (f" → stop ${r['suggested_stop_usdt']:.0f}"
+                        if r.get("suggested_stop_usdt") is not None else "")
+                lines.append(f"{r['advice']} {r['symbol']} "
+                             f"{r.get('strategy', '')} {r.get('dir', '')}{stop}")
+                if r.get("reason"):
+                    lines.append(f"  {r['reason']}")
+            try:
+                from ai_notify import send_telegram
+                if send_telegram("\n".join(lines)):
+                    print(f"[position_review] Telegram SENIOR envoyé "
+                          f"({len(actionable)} actionnable)")
+            except Exception as e:
+                print(f"[position_review] Telegram échec: {e}", file=sys.stderr)
     return 0
 
 

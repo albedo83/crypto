@@ -467,6 +467,29 @@ def log_event(db_path: str, event: str, data: dict) -> None:
         print(f"[supervisor] Event log failed: {e}", file=sys.stderr)
 
 
+def format_supervisor_tg(report: dict) -> str:
+    """Message Telegram condensé (SENIOR). Texte brut, pas de markdown."""
+    emoji = {"green": "🟢", "yellow": "🟡", "red": "🔴"}.get(report.get("health", ""), "⚪")
+    lines = [f"{emoji} SUPERVISOR SENIOR"]
+    s = (report.get("summary") or "").strip()
+    if s:
+        lines.append(s)
+    b = report.get("bilan") or {}
+    if b:
+        lines.append(f"Jour {b.get('days_live', '?')} · live {b.get('pnl_pct', '?')}% · "
+                     f"BT {b.get('backtest_expected_pct', '?')}% · ratio "
+                     f"{b.get('vs_backtest_ratio', '?')}")
+        if b.get("regime_note"):
+            lines.append(b["regime_note"])
+    sev = {"info": "ℹ️", "warn": "⚠️", "alert": "🚨"}
+    for p in (report.get("points") or [])[:4]:
+        lines.append(f"{sev.get(p.get('severity', ''), '•')} {p.get('text', '')}")
+        if p.get("action"):
+            lines.append(f"   → {p['action']}")
+    msg = "\n".join(lines)
+    return msg[:3990] + ("\n…" if len(msg) > 3990 else "")
+
+
 # ── Orchestration ──────────────────────────────────────────────────────
 
 
@@ -539,10 +562,16 @@ def main() -> int:
 
     # Output: persist as SUPERVISOR_REPORT (read by admin /master). No Telegram.
     if args.no_write:
-        print("[supervisor] --no-write: rien écrit en DB")
+        print("[supervisor] --no-write: rien écrit en DB, pas d'envoi TG")
     else:
         log_event(LOG_DB, "SUPERVISOR_REPORT", report)
         print("[supervisor] SUPERVISOR_REPORT loggé")
+        try:
+            from ai_notify import send_telegram
+            if send_telegram(format_supervisor_tg(report)):
+                print("[supervisor] Telegram SENIOR envoyé")
+        except Exception as e:
+            print(f"[supervisor] Telegram échec: {e}", file=sys.stderr)
     return 0
 
 

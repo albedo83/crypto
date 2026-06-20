@@ -393,6 +393,7 @@ def main() -> int:
     print(f"[entry_judge] modèle {model}")
 
     written = 0
+    vetoes: list[dict] = []
     for c in pending:
         sym = c["symbol"]
         et = c["data"].get("entry_time")
@@ -411,11 +412,27 @@ def main() -> int:
         if not args.no_write:
             log_event(SENIOR_DB, "ENTRY_VERDICT", sym, verdict)
             written += 1
+            if verdict["decision"] == "VETO":
+                vetoes.append(verdict)
 
     if args.no_write:
-        print("[entry_judge] --no-write: rien écrit en DB")
+        print("[entry_judge] --no-write: rien écrit en DB, pas d'envoi TG")
     else:
         print(f"[entry_judge] {written} verdict(s) écrit(s) dans {SENIOR_DB}")
+        # Telegram SENIOR uniquement pour les VETO (les GO restent admin-only).
+        if vetoes:
+            lines = ["🚫 entry_judge — VETO SENIOR"]
+            for v in vetoes:
+                lines.append(f"{v['symbol']} {v.get('strategy', '')} {v.get('dir', '')} "
+                             f"(conf {v.get('confidence')})")
+                if v.get("reason"):
+                    lines.append(f"  {v['reason']}")
+            try:
+                from ai_notify import send_telegram
+                if send_telegram("\n".join(lines)):
+                    print(f"[entry_judge] Telegram SENIOR envoyé ({len(vetoes)} VETO)")
+            except Exception as e:
+                print(f"[entry_judge] Telegram échec: {e}", file=sys.stderr)
     return 0
 
 
