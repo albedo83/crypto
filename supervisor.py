@@ -103,12 +103,20 @@ FORMAT — réponds EXCLUSIVEMENT en JSON valide, rien avant, rien après:
     "vs_backtest_ratio": <float>,
     "regime_note": "<=120 chars FR — régime actuel vs attentes"
   },
+  "positions": [
+    {"symbol": "<TOKEN>",
+     "etat": "<=160 chars FR concis — direction + stratégie, P&L latent $ et %, "
+             "durée, situation vs stop, tendance. Termes techniques OK (MFE/MAE/bps/div)"}
+  ],
   "points": [
     {"severity": "info|warn|alert", "text": "<=180 chars FR",
      "action": "<=160 chars FR, ou null si rien à faire"}
   ],
   "next_check": "daily" | "hourly"
 }
+
+`positions` : UNE entrée par position ouverte du state (TOUTES). État concis,
+termes techniques OK (MFE/MAE/bps/div), pas besoin de les traduire.
 
 `points` fusionne anomalies ET suggestions, du plus urgent au moins (max 4).
 Tout le texte des valeurs en français (noms de champs en anglais). Pas d'anglais
@@ -384,6 +392,12 @@ def build_user_prompt(bot_states: list[dict]) -> str:
         "(≈1 aligné, <0.5 sous-perf, >1.5 surperf).\n"
         "- `regime_note` : 1 phrase ; mentionne la dérive vs "
         "`backtest_ref.recent_30d.pnl_pct`.\n\n"
+        "## `positions` — état de CHAQUE position ouverte\n"
+        "Une entrée par position du champ `positions` du state (TOUTES, pas "
+        "seulement la dernière). Pour chacune, état CONCIS : direction + stratégie, "
+        "P&L latent en $ ET %, depuis combien d'heures, situation vs stop "
+        "catastrophe, tendance récente. Termes techniques OK (MFE, MAE, bps, div) — "
+        "pas besoin de les traduire. Si aucune position ouverte : `positions`=[].\n\n"
         "## `points` (max 4, anomalies + suggestions fusionnées)\n"
         "Du plus urgent au moins. `action`=null si rien à faire. "
         "Flag warn si |pnl_pct - backtest_ref.since_start.pnl_pct| > 10pp "
@@ -483,6 +497,12 @@ def format_supervisor_tg(report: dict) -> str:
                      f"{b.get('vs_backtest_ratio', '?')}")
         if b.get("regime_note"):
             lines.append(b["regime_note"])
+    pos = report.get("positions") or []
+    if pos:
+        lines.append("")
+        lines.append("Positions ouvertes :")
+        for p in pos:
+            lines.append(f"• {p.get('symbol', '?')} : {p.get('etat', '')}")
     sev = {"info": "ℹ️", "warn": "⚠️", "alert": "🚨"}
     for p in (report.get("points") or [])[:4]:
         lines.append(f"{sev.get(p.get('severity', ''), '•')} {p.get('text', '')}")

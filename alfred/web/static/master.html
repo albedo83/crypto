@@ -528,11 +528,13 @@ function renderAI(d){
       return `<div class="evt"><span class="type ${c}">${esc(p.severity||'')}</span><span class="data">${esc(p.text||'')}</span>${p.action?`<span class="dim">→ ${esc(p.action)}</span>`:''}</div>`;
     }).join('')||'<div class="empty">aucun point — nominal</div>';
     const ratio=b.vs_backtest_ratio;
+    let posHtml=(r.positions||[]).map(p=>`<div class="evt"><span class="type">${esc(p.symbol||'?')}</span><span class="data">${esc(p.etat||'')}</span></div>`).join('');
+    if(posHtml)posHtml=`<div class="dim" style="margin:8px 0 2px">Positions ouvertes</div>`+posHtml;
     $('aiSupervisor').innerHTML=
       `<div style="margin-bottom:6px">${dot} <b class="${hCls}">${esc((r.health||'?').toUpperCase())}</b> <span class="dim">${when}</span></div>`+
       `<div style="margin-bottom:6px">${esc(r.summary||'')}</div>`+
       `<div class="dim" style="margin-bottom:6px">Jour ${b.days_live??'--'} · live ${fmt(b.pnl_pct,1)}% · BT ${fmt(b.backtest_expected_pct,1)}% · ratio ${ratio!=null?Number(ratio).toFixed(2):'--'}${b.regime_note?' · '+esc(b.regime_note):''}</div>`+
-      pts;
+      posHtml+pts;
   }
   const reviews=d.position_reviews||[];
   if(reviews.length){
