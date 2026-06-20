@@ -319,6 +319,7 @@ def run_window(features, data, sector_features, dxy_data,
                prop_trail_override: dict | None = None,
                skip_log: list | None = None,
                opp_block_log: list | None = None,
+               mfe_on_close: bool = False,
                reserve_highz_frac: float = 0.0,
                reserve_z_threshold: float = 5.0,
                aligned: bool = False) -> dict:
@@ -796,14 +797,29 @@ def run_window(features, data, sector_features, dxy_data,
             if current <= 0:
                 continue
 
-            # Track MFE (best unrealized) and MAE (worst unrealized)
+            # Track MFE (best unrealized) and MAE (worst unrealized).
+            # best_bps/worst_bps (intra-candle high/low) are kept for the
+            # catastrophe-stop (resting order, realistic) and take_profit.
             best_bps, worst_bps = _rules.candle_excursions(
                 pos["dir"], pos["entry"], candle["h"], candle["l"])
-            if best_bps > pos.get("mfe", 0):
-                pos["mfe"] = best_bps
-                pos["mfe_held"] = held
-            if worst_bps < pos.get("mae", 0):
-                pos["mae"] = worst_bps
+            # mfe_on_close: feed the MFE/MAE that the MARK-observed trailing
+            # rules read (prop_trail, traj_cut, dead_timeout, s8_inlife, …) from
+            # the close (mark proxy), NOT the wick high/low — removes the
+            # backtest's intra-candle hindsight bias. Catastrophe-stop unaffected
+            # (it reads worst_bps directly below).
+            if mfe_on_close:
+                _cur_mfe = pos["dir"] * (current / pos["entry"] - 1) * 1e4
+                if _cur_mfe > pos.get("mfe", 0):
+                    pos["mfe"] = _cur_mfe
+                    pos["mfe_held"] = held
+                if _cur_mfe < pos.get("mae", 0):
+                    pos["mae"] = _cur_mfe
+            else:
+                if best_bps > pos.get("mfe", 0):
+                    pos["mfe"] = best_bps
+                    pos["mfe_held"] = held
+                if worst_bps < pos.get("mae", 0):
+                    pos["mae"] = worst_bps
 
             # mid_trade_profiling_eda: per-candle pain counter (count 4h candles
             # where close was below entry). Updated BEFORE checkpoint snapshot
