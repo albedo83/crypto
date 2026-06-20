@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.5.0 — 2026-06-20
+
+- **Admin**: nouvelle section « Analyses IA » sur la page de supervision — synthèse du superviseur, revue des positions ouvertes et verdicts d'entrée (observation, bot SENIOR).
+- **Infra**: superviseur et nouvelles analyses IA remontés dans l'admin au lieu de Telegram ; sortie du superviseur condensée.
+
 ## v1.4.0 — 2026-06-20
 
 - **Trading engine**: retrait d'une règle de sortie anticipée dont le réglage reposait sur une mesure trop optimiste du backtest ; revue confirmée en validation glissante.

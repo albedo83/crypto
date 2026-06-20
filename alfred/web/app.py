@@ -402,6 +402,115 @@ def create_app(bots: dict, master) -> FastAPI:
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
+    @app.get("/api/master/ai")
+    def api_master_ai(verdicts: int = 30):
+        """Analyses IA (admin-only via middleware) : dernier rapport du
+        superviseur (market.db) + derniers verdicts d'entrée SENIOR
+        (live/bot.db, observation-only, écrits par entry_judge.py)."""
+        verdicts = max(1, min(verdicts, 200))
+        out: dict = {"supervisor": None, "verdicts": [], "position_reviews": []}
+        try:
+            with master.db.lock:
+                row = master.db.conn.execute(
+                    "SELECT ts, data FROM events WHERE event='SUPERVISOR_REPORT' "
+                    "ORDER BY ts DESC LIMIT 1").fetchone()
+            if row:
+                try:
+                    data = json.loads(row[1]) if row[1] else {}
+                except Exception:
+                    data = {}
+                out["supervisor"] = {"ts": row[0], "report": data}
+        except Exception as e:
+            out["supervisor_error"] = str(e)
+        senior = _bot("live")
+        if senior is not None:
+            try:
+                cur = senior.db.conn.execute(
+                    "SELECT ts, symbol, data FROM events WHERE event='ENTRY_VERDICT' "
+                    "ORDER BY ts DESC LIMIT ?", (verdicts,))
+                for r in cur:
+                    try:
+                        d = json.loads(r[2]) if r[2] else {}
+                    except Exception:
+                        d = {}
+                    out["verdicts"].append({"ts": r[0], "symbol": r[1], "data": d})
+            except Exception as e:
+                out["verdicts_error"] = str(e)
+            # Dernière revue des positions ouvertes (snapshot le plus récent)
+            try:
+                prow = senior.db.conn.execute(
+                    "SELECT ts, data FROM events WHERE event='POSITION_REVIEW' "
+                    "ORDER BY ts DESC LIMIT 1").fetchone()
+                if prow:
+                    try:
+                        pd = json.loads(prow[1]) if prow[1] else {}
+                    except Exception:
+                        pd = {}
+                    for p in (pd.get("positions") or []):
+                        out["position_reviews"].append(
+                            {"ts": prow[0], "symbol": p.get("symbol"), "data": p})
+            except Exception as e:
+                out["position_reviews_error"] = str(e)
+        # Budget estimé mois-en-cours (couche IA), depuis les tokens loggés.
+        # Estimation seulement — la vérité du compte est dans la console
+        # Anthropic (y poser le vrai plafond + alerte email).
+        try:
+            from datetime import datetime, timezone
+            _now = datetime.now(timezone.utc)
+            month_start = int(datetime(_now.year, _now.month, 1,
+                                       tzinfo=timezone.utc).timestamp())
+            # $/Mtok approximatifs (in, out) ; cache_read=0.1×in, cache_write=1.25×in
+            pricing = {"opus": (15.0, 75.0), "sonnet": (3.0, 15.0), "haiku": (1.0, 5.0)}
+            by_model: dict = {}
+            total = 0.0
+
+            def _rate(model: str):
+                m = (model or "").lower()
+                for k, v in pricing.items():
+                    if k in m:
+                        return v
+                return pricing["sonnet"]
+
+            def _acc(data: dict):
+                nonlocal total
+                u = (data or {}).get("_usage") or {}
+                if not u:
+                    return
+                model = (data or {}).get("_model") or "?"
+                ri, ro = _rate(model)
+                c = (u.get("input_tokens", 0) / 1e6 * ri
+                     + u.get("cache_read_input_tokens", 0) / 1e6 * 0.1 * ri
+                     + u.get("cache_creation_input_tokens", 0) / 1e6 * 1.25 * ri
+                     + u.get("output_tokens", 0) / 1e6 * ro)
+                total += c
+                e = by_model.setdefault(model, {"calls": 0, "usd": 0.0})
+                e["calls"] += 1
+                e["usd"] = round(e["usd"] + c, 4)
+
+            with master.db.lock:
+                for (d,) in master.db.conn.execute(
+                        "SELECT data FROM events WHERE event='SUPERVISOR_REPORT' "
+                        "AND ts>=?", (month_start,)):
+                    try:
+                        _acc(json.loads(d) if d else {})
+                    except Exception:
+                        pass
+            if senior is not None:
+                for (d,) in senior.db.conn.execute(
+                        "SELECT data FROM events WHERE event IN "
+                        "('ENTRY_VERDICT','POSITION_REVIEW') AND ts>=?", (month_start,)):
+                    try:
+                        _acc(json.loads(d) if d else {})
+                    except Exception:
+                        pass
+            cap = float(os.environ.get("AI_BUDGET_MONTHLY_USD", "30") or 30)
+            out["budget"] = {"month": _now.strftime("%Y-%m"),
+                             "est_usd": round(total, 2), "cap_usd": cap,
+                             "over": total >= cap, "by_model": by_model}
+        except Exception as e:
+            out["budget_error"] = str(e)
+        return JSONResponse(out)
+
     @app.get("/api/fleet")
     def api_fleet():
         return JSONResponse(views._to_py(views.build_fleet_response(bots, master)))

@@ -252,6 +252,13 @@ textarea:focus{outline:none;border-color:var(--blue)}
       <button class="ok" onclick="cfgSave()">💾 Sauver</button>
       <button onclick="cfgReload()">↺ Recharger</button>
     </div></div>
+  <div class="card mt"><h3><span class="ico">🤖</span>Analyses IA <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:400">— superviseur (SENIOR) + verdicts d'entrée (observation)</span></h3>
+    <div id="aiBudget"></div>
+    <div id="aiSupervisor"></div>
+    <div class="section-title" style="margin-top:12px">Revue des positions ouvertes SENIOR</div>
+    <div id="aiPosReview"></div>
+    <div class="section-title" style="margin-top:12px">Verdicts d'entrée SENIOR</div>
+    <div id="aiVerdicts"></div></div>
   <div class="card mt"><h3><span class="ico">📜</span>Journal d'audit</h3><div id="auditList"></div></div>
 </div>
 
@@ -499,6 +506,58 @@ function cfgSave(){
   });
 }
 
+function renderAI(d){
+  d=d||{};
+  const sev2cls={info:'',warn:'yellow',alert:'red'};
+  const bg=d.budget;
+  if(bg){
+    const cls=bg.over?'red':'green';
+    const bm=Object.entries(bg.by_model||{}).map(([m,v])=>`${m.replace('claude-','')}: $${Number(v.usd).toFixed(2)} (${v.calls})`).join(' · ');
+    $('aiBudget').innerHTML=`<div style="margin-bottom:8px">💸 Budget IA ${esc(bg.month)} : <b class="${cls}">~$${Number(bg.est_usd).toFixed(2)}</b> <span class="dim">/ alerte $${Number(bg.cap_usd).toFixed(0)}${bg.over?' — DÉPASSÉ':''}</span>${bm?`<br><span class="dim" style="font-size:11px">${esc(bm)} · estimation, vérité = console Anthropic</span>`:''}</div>`;
+  }else{$('aiBudget').innerHTML='';}
+  const sup=d.supervisor;
+  if(!sup||!sup.report){
+    $('aiSupervisor').innerHTML='<div class="empty">aucun rapport superviseur</div>';
+  }else{
+    const r=sup.report,b=r.bilan||{};
+    const when=new Date(sup.ts*1000).toISOString().slice(0,16).replace('T',' ');
+    const hCls=r.health==='green'?'green':(r.health==='yellow'?'yellow':'red');
+    const dot=r.health==='red'?'🔴':(r.health==='yellow'?'🟡':'🟢');
+    let pts=(r.points||[]).map(p=>{
+      const c=sev2cls[p.severity]||'';
+      return `<div class="evt"><span class="type ${c}">${esc(p.severity||'')}</span><span class="data">${esc(p.text||'')}</span>${p.action?`<span class="dim">→ ${esc(p.action)}</span>`:''}</div>`;
+    }).join('')||'<div class="empty">aucun point — nominal</div>';
+    const ratio=b.vs_backtest_ratio;
+    $('aiSupervisor').innerHTML=
+      `<div style="margin-bottom:6px">${dot} <b class="${hCls}">${esc((r.health||'?').toUpperCase())}</b> <span class="dim">${when}</span></div>`+
+      `<div style="margin-bottom:6px">${esc(r.summary||'')}</div>`+
+      `<div class="dim" style="margin-bottom:6px">Jour ${b.days_live??'--'} · live ${fmt(b.pnl_pct,1)}% · BT ${fmt(b.backtest_expected_pct,1)}% · ratio ${ratio!=null?Number(ratio).toFixed(2):'--'}${b.regime_note?' · '+esc(b.regime_note):''}</div>`+
+      pts;
+  }
+  const reviews=d.position_reviews||[];
+  if(reviews.length){
+    $('aiPosReview').innerHTML=reviews.map(pr=>{
+      const data=pr.data||{};
+      const when=new Date(pr.ts*1000).toISOString().slice(5,16).replace('T',' ');
+      const act=String(data.advice||'').toUpperCase();
+      const aCls=act==='STOP'?'red':(act==='TRIM'||act==='WATCH'?'yellow':'green');
+      const stop=data.suggested_stop_usdt!=null?(' 🎯$'+Number(data.suggested_stop_usdt).toFixed(0)):'';
+      return `<div class="evt"><span class="ts">${when}</span><span class="type">${esc(pr.symbol||data.symbol||'?')}</span><span class="dim">${esc(data.strategy||'')} ${esc(data.dir||'')}</span><span class="${aCls}">${esc(act||'?')}${stop}</span><span class="data">${esc(data.reason||'')}</span></div>`;
+    }).join('');
+  }else{
+    $('aiPosReview').innerHTML='<div class="empty">aucune revue de position (position_review pas encore tourné)</div>';
+  }
+  const vs=d.verdicts||[];
+  $('aiVerdicts').innerHTML=vs.length?vs.map(v=>{
+    const data=v.data||{};
+    const when=new Date(v.ts*1000).toISOString().slice(5,16).replace('T',' ');
+    const decCls=data.decision==='GO'?'green':'red';
+    const flags=(data.risk_flags||[]).join(', ');
+    const conf=data.confidence!=null?Number(data.confidence).toFixed(2):'--';
+    return `<div class="evt"><span class="ts">${when}</span><span class="type">${esc(v.symbol||data.symbol||'?')}</span><span class="dim">${esc(data.strategy||'')} ${esc(data.dir||'')}</span><span class="${decCls}">${esc(data.decision||'?')}</span><span class="dim">${conf}</span><span class="data">${esc(data.reason||'')}${flags?' ['+esc(flags)+']':''}</span></div>`;
+  }).join(''):'<div class="empty">aucun verdict (entry_judge pas encore tourné)</div>';
+}
+
 function renderAudit(rows){
   $('auditList').innerHTML=rows.map(r=>{
     const d=new Date(r.ts*1000).toISOString().slice(5,16).replace('T',' ');
@@ -639,6 +698,7 @@ function refresh(){
   fetch('api/master/events?limit=40&kinds='+($('evtKinds').value||''),{credentials:'same-origin'}).then(r=>r.json()).then(renderEvents).catch(()=>{});
   fetch('api/fleet',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{renderFleet(d);renderAdmins(d)}).catch(()=>{});
   fetch('api/admin/audit?limit=50',{credentials:'same-origin'}).then(r=>r.json()).then(renderAudit).catch(()=>{});
+  fetch('api/master/ai?verdicts=30',{credentials:'same-origin'}).then(r=>r.json()).then(renderAI).catch(()=>{});
   if(Date.now()-gatesTimer>300000){gatesTimer=Date.now();
     fetch('api/master/gates',{credentials:'same-origin'}).then(r=>r.json()).then(renderGates).catch(()=>{});}
 }

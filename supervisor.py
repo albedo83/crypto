@@ -1,25 +1,24 @@
 #!/usr/bin/env python3
-"""Supervisor — LLM-based daily review of the Hyperliquid bots.
+"""Supervisor — LLM-based daily review of the Hyperliquid LIVE bot (SENIOR).
 
-Reads /api/state and related endpoints from each running bot, assembles a
-structured context, asks Claude to analyze it, and ships the report via
-Telegram. Observation + suggestions only — never writes anything to the
-bot's config or state.
+Reads /api/state and related endpoints, assembles a structured context, asks
+Claude for a SYNTHETIC analysis and logs it as a SUPERVISOR_REPORT event in
+alfred/data/market.db. The admin page /master surfaces it (no Telegram).
+Observation + suggestions only — never writes to the bot's config or state.
 
 Usage:
-    ./supervisor.py                # daily mode, real API + Telegram
-    ./supervisor.py --dry-run      # fetch + print, no Claude call, no Telegram
-    ./supervisor.py --no-telegram  # Claude call but print to stdout
+    ./supervisor.py                # daily mode, real API + DB log
+    ./supervisor.py --dry-run      # fetch + print, no Claude call, no DB write
+    ./supervisor.py --no-write     # Claude call but print to stdout, no DB write
     ./supervisor.py --model MODEL  # override SUPERVISOR_MODEL
 
 Design rules:
-- No import from analysis.bot.* — total runtime isolation from the live bot.
-- Read-only: reads /api/state, /api/trades, /api/health, /api/pnl via HTTP.
+- No import from analysis.bot.* / alfred.* — total runtime isolation.
+- Read-only on the bot: /api/state, /api/trades, /api/health, /api/pnl via HTTP.
 - Kill-switch: set SUPERVISOR_ENABLED=0 in .env to disable without editing cron.
-- Audit: every report is logged into alfred/data/market.db (events) — INSERT
-  court inter-process, sûr en WAL (timeout=5s).
-- Depuis 2026-06-11 : cible les bots Alfred (:8101/bot/<id>) — SENIOR (live),
-  JUNIOR, PAPER-ALFRED. Le legacy :8097-8100 n'est plus interrogé.
+- Output: SUPERVISOR_REPORT event in alfred/data/market.db (INSERT court
+  inter-process, sûr en WAL, timeout=5s) — lu et affiché par l'admin /master.
+- Cible les bots Alfred (:8101/bot/<id>) ; le rapport ne couvre que SENIOR (live).
 """
 
 from __future__ import annotations
@@ -69,93 +68,51 @@ BOTS = [
 HTTP_TIMEOUT = 6  # seconds
 
 SYSTEM_PROMPT = """\
-Tu supervises un bot de trading automatique sur Hyperliquid DEX (paper + live).
-Ton rôle: détecter dérives, régime shifts, anomalies. Pas micro-optimiser.
+Tu supervises le bot de trading LIVE (SENIOR) sur Hyperliquid (altcoins perp).
+Rôle: détecter dérives, shifts de régime, anomalies. Pas de micro-optimisation.
+Sortie SYNTHÉTIQUE, scannable d'un coup d'œil (affichée dans une console admin).
 
-RÈGLES STRICTES (non négociables):
-1. Ne JAMAIS recommander de réactiver TOTAL_LOSS_CAP, LOSS_STREAK_THRESHOLD,
-   signal quarantine, ou exposure cap. Ces protections ont été explicitement
-   désactivées en v11.3.0 après backtests montrant -65% à -99% de compounding
-   destruction. Tu peux les mentionner seulement si tu cites 3+ métriques
-   concrètes qui contredisent les backtests v11.3.0.
-2. Ne pas paniquer sur 1 mauvaise journée. Les tendances comptent sur 7-30j.
-3. Asymétrie du compounding: retirer des gagnants coûte plus cher que laisser
-   passer quelques perdants. Être conservateur sur les suggestions restrictives.
-4. Toujours citer les valeurs exactes des endpoints. Pas d'estimation.
-5. Les filtres S10 v11.3.4 (SHORT-only + whitelist 13 tokens) sont régime-
-   dépendants: si S10 bleeds 30j consécutifs, flip le kill-switch via
-   S10_ALLOW_LONGS=True + S10_ALLOWED_TOKENS=set(ALL_SYMBOLS) dans config.py.
-6. METRIQUE `last_scan_s` = secondes DEPUIS le dernier scan (pas retard).
-   SCAN_INTERVAL=3600s donc `last_scan_s` oscille naturellement entre 0 et
-   3600. C'est normal si entre 0 et 3700. Signaler une anomalie UNIQUEMENT
-   si `last_scan_s > 5400` (1h30 sans scan) ou si `next_scan_s=0` depuis
-   plusieurs minutes avec positions ouvertes non traitées.
-7. REGISTRE ANTI-REPRISE. La section "Ce qui a ete teste et rejete" de
-   docs/bot.md liste ~40 hypotheses deja testees au walk-forward 4/4. AVANT
-   de proposer une `suggestion`, verifie que l'idee n'y figure pas deja.
-   Si elle y est: ne pas la suggerer, meme reformulee. Exemples d'idees
-   TOUJOURS DEJA REJETEES a ne plus suggerer: filtre regime BTC sur S5,
-   filtre OI delta a l'entree, trailing stop global, breakeven stop, ATR
-   stops adaptatifs, MAE cry-uncle, sizing adaptatif WR/Sharpe, kill-switch
-   drift, S10 pocket de capital, blacklist etendue au-dela de SUI/IMX/LINK,
-   token rotation mensuelle, pause selon regime BTC, exit sur erosion de
-   divergence, reduction sizing S9, vol_z min filter. Si vraiment convaincu
-   qu'une donnee nouvelle change la donne, cite 3+ metriques concretes et
-   demande "re-tester variant X" plutot que "implementer X".
-8. PRECISION DES CHIFFRES. Ne JAMAIS inventer de chiffres backtest. Si tu
-   n'as pas le chiffre exact en memoire, ne le cite pas. Les seules
-   sources de verite: l'etat live (endpoints API), CLAUDE.md (parametres
-   de prod), docs/backtests.md (chiffres WF officiels), docs/bot.md
-   (parametres + registre de rejets). Zero hallucination.
-9. DISTINGUER POSITIONS OUVERTES ET TRADES CLOS. Les positions ouvertes ont
-   des MAE/MFE qui evoluent; elles ne sont pas des resultats. Ne cite pas
-   un MAE d'une position ouverte comme si c'etait un trade perdant ferme.
+GARDE-FOUS (non négociables):
+- Ne JAMAIS recommander de réactiver TOTAL_LOSS_CAP, LOSS_STREAK, signal
+  quarantine, exposure cap (désactivés v11.3.0, -65% à -99% compounding).
+- Ne pas paniquer sur 1 mauvaise journée (tendances sur 7-30j). Asymétrie du
+  compounding: retirer des gagnants coûte plus cher que laisser passer des perdants.
+- Chiffres EXACTS uniquement (endpoints API, CLAUDE.md, docs/backtests.md,
+  docs/bot.md). Zéro hallucination — si tu n'as pas le chiffre, ne le cite pas.
+- `last_scan_s` = secondes depuis le dernier scan (SCAN_INTERVAL=3600), normal
+  entre 0 et ~3700. Anomalie seulement si > 5400.
+- Positions OUVERTES ≠ trades CLOS: leurs MAE/MFE évoluent, ce ne sont pas des
+  résultats. Ne cite pas un MAE de position ouverte comme une perte.
+- REGISTRE ANTI-REPRISE: la section "teste et rejete" de docs/bot.md liste ~40
+  hypothèses déjà rejetées en walk-forward (filtre régime BTC sur S5, OI delta à
+  l'entrée, trailing/breakeven/ATR stops, MAE cry-uncle, sizing adaptatif WR,
+  blacklist étendue, token rotation, pause selon régime, réduction sizing S9,
+  vol_z min, etc.). Ne JAMAIS les re-suggérer, même reformulées. Si convaincu,
+  cite 3+ métriques et dis "re-tester variant X" plutôt que "implémenter X".
 
-FORMAT DE SORTIE — réponds EXCLUSIVEMENT en JSON valide, rien avant, rien après:
+FORMAT — réponds EXCLUSIVEMENT en JSON valide, rien avant, rien après:
 {
   "health": "green" | "yellow" | "red",
-  "summary": "<=500 chars, résumé exécutif EN FRANÇAIS",
+  "summary": "<=280 chars, FR, l'essentiel",
   "bilan": {
     "days_live": <int>,
-    "pnl_realized": <number>,
     "pnl_pct": <number>,
-    "trades": <int>,
-    "wr": <float 0-1>,
-    "positions_open": <int>,
-    "unrealized_bps_sum": <number>,
-    "backtest_expected_pnl": <number>,
     "backtest_expected_pct": <number>,
     "vs_backtest_ratio": <float>,
-    "regime_note": "<=150 chars — regime actuel vs attentes"
+    "regime_note": "<=120 chars FR — régime actuel vs attentes"
   },
-  "key_metrics": {
-    "live_pnl_24h": <number>,
-    "live_balance": <number>,
-    "live_drawdown_pct": <number>,
-    "live_positions": <int>,
-    "live_wr_recent": <float 0-1>
-  },
-  "anomalies": [
-    {"severity": "info|warn|alert", "signal": "S5|S9|etc|global",
-     "detail": "<=200 chars EN FRANÇAIS"}
-  ],
-  "suggestions": [
-    {"action": "<=200 chars EN FRANÇAIS",
-     "rationale": "<=300 chars EN FRANÇAIS",
-     "urgency": "now|this_week|later"}
+  "points": [
+    {"severity": "info|warn|alert", "text": "<=180 chars FR",
+     "action": "<=160 chars FR, ou null si rien à faire"}
   ],
   "next_check": "daily" | "hourly"
 }
 
-**LANGUE : TOUT le contenu textuel doit être en français.** Les noms de champs
-JSON (health, summary, anomalies, etc.) restent en anglais (convention), mais
-les valeurs textuelles (summary, detail, action, rationale) sont obligatoirement
-en français. Pas d'anglais dans les phrases — pas de "dry powder", "monitor",
-"concern", "review", etc. Utilise "cash disponible", "surveiller", "préoccupation",
-"examiner", etc. Termes techniques (bps, P&L, WR, drawdown, S5, S10) autorisés.
-
-Max 5 anomalies, max 3 suggestions. Concision > exhaustivité. Si tout va
-bien: health=green, anomalies=[], suggestions=[].
+`points` fusionne anomalies ET suggestions, du plus urgent au moins (max 4).
+Tout le texte des valeurs en français (noms de champs en anglais). Pas d'anglais
+dans les phrases ("surveiller" pas "monitor", etc.). Termes techniques (bps, P&L,
+WR, drawdown, S5) autorisés. Concision > exhaustivité. Si tout va bien:
+health=green, points=[].
 """
 
 # ── .env loader ────────────────────────────────────────────────────────
@@ -413,47 +370,23 @@ def build_user_prompt(bot_states: list[dict]) -> str:
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
     header = (
         f"Rapport supervisor demandé {now}.\n\n"
-        "État actuel des instances du bot. **Lis le champ `notes` de chaque "
-        "entrée** : il indique le statut opérationnel (production vs "
-        "disabled/test). Les bots marqués DISABLED doivent être exclus des "
-        "métriques et ne pas générer d'anomalies.\n\n"
-        "## Cible du rapport\n\n"
-        "**Ce rapport couvre UNIQUEMENT le bot Live.** Paper/Junior ne sont "
-        "plus fournis et ne doivent être ni mentionnés ni comparés.\n\n"
-        "- `summary` : statut du Live bot\n"
-        "- `key_metrics` : métriques du Live "
-        "(`live_pnl_24h`, `live_balance`, `live_drawdown_pct`, `live_positions`, "
-        "`live_wr_recent`)\n"
-        "- `anomalies` / `suggestions` : ciblent le comportement du Live\n\n"
-        "## Section `bilan` — comparaison live vs backtest\n\n"
-        "**PRIORITÉ : utilise `backtest_ref` du state si présent** "
-        "(injecté à partir de `docs/backtests.md` au capital exact du bot). "
-        "C'est la VRAIE référence pour cette fenêtre de marché. Sinon (fallback) "
-        "extrapole le 28m annualisé.\n\n"
-        "Remplis le champ `bilan` en **calculant** les comparaisons :\n\n"
-        "1. `days_live` : jours depuis le premier trade (utilise `first_trade_date`)\n"
-        "2. `pnl_realized` et `pnl_pct` : valeurs directes du state\n"
-        "3. `unrealized_bps_sum` : somme des MFE actuels des positions ouvertes "
-        "(optionnel, 0 si pas de positions)\n"
-        "4. `backtest_expected_pct` et `backtest_expected_pnl` : utilise "
-        "**`backtest_ref.since_start.pnl_pct`** (anchor de la date de "
-        "déploiement). C'est ce que le backtest aurait produit avec les "
-        "params actuels sur EXACTEMENT la même fenêtre. "
-        "`backtest_expected_pnl = capital * pct / 100`. "
-        "Si `backtest_ref` absent : fallback extrapolation `capital * ((1.091)^(days/30) - 1)`.\n"
-        "5. `vs_backtest_ratio` : `pnl_realized / backtest_expected_pnl`. "
-        "1.0 = aligné, <0.5 = sous-performance, >1.5 = surperformance.\n"
-        "6. `regime_note` : **1 phrase**. Mentionne aussi la dérive vs "
-        "`backtest_ref.recent_30d.pnl_pct` (qui montre ce qu'a fait le marché "
-        "des 30 derniers jours dans le backtest, à comparer avec `pnl_pct` live "
-        "des 30j).\n\n"
-        "**Divergence live↔backtest** : Si `vs_backtest_ratio` est entre 0.5 et 2.0, "
-        "c'est dans la variance normale (sampling 4h vs 1h, fees réelles, etc.). "
-        "Flag une `anomaly` severity=warn si **|pnl_pct - backtest_ref.since_start.pnl_pct| > 10pp** "
-        "ET que cet écart persiste depuis 7+ jours consécutifs. "
-        "Flag severity=alert si l'écart > 20pp OU si drawdown > -20%.\n\n"
-        "Analyse l'activité des 24-48h, détecte anomalies sur le Live, "
-        "propose des suggestions concrètes.\n\n"
+        "Couvre UNIQUEMENT le bot Live (SENIOR). Lis le champ `notes`. "
+        "Paper/Junior, s'ils figurent, ne sont ni mentionnés ni comparés.\n\n"
+        "## `bilan` — live vs backtest (calcule)\n"
+        "- `days_live` : jours depuis `first_trade_date`.\n"
+        "- `pnl_pct` : valeur directe du state.\n"
+        "- `backtest_expected_pct` : **`backtest_ref.since_start.pnl_pct`** "
+        "(anchor déploiement, même fenêtre, capital exact). Fallback si absent : "
+        "extrapolation `((1.091)^(days/30) - 1) * 100`.\n"
+        "- `vs_backtest_ratio` : `pnl_pct / backtest_expected_pct` "
+        "(≈1 aligné, <0.5 sous-perf, >1.5 surperf).\n"
+        "- `regime_note` : 1 phrase ; mentionne la dérive vs "
+        "`backtest_ref.recent_30d.pnl_pct`.\n\n"
+        "## `points` (max 4, anomalies + suggestions fusionnées)\n"
+        "Du plus urgent au moins. `action`=null si rien à faire. "
+        "Flag warn si |pnl_pct - backtest_ref.since_start.pnl_pct| > 10pp "
+        "persistant 7j+. Flag alert si écart > 20pp OU drawdown > -20%. "
+        "Si tout est nominal : `points`=[].\n\n"
     )
     payload = json.dumps(bot_states, indent=2, default=str)
     return header + "```json\n" + payload + "\n```"
@@ -515,114 +448,7 @@ def call_claude(system_static: str, user_prompt: str, model: str) -> dict:
     return report
 
 
-# ── Report formatting & output ──────────────────────────────────────────
-
-
-EMOJI_HEALTH = {"green": "🟢", "yellow": "🟡", "red": "🔴"}
-EMOJI_SEVERITY = {"info": "ℹ️", "warn": "⚠️", "alert": "🚨"}
-EMOJI_URGENCY = {"now": "🔥", "this_week": "📅", "later": "📝"}
-
-
-def format_telegram(report: dict) -> str:
-    """Plain-text Telegram message (no markdown).
-
-    Markdown/HTML parse modes were tried but routinely choke on LLM-
-    generated content that contains underscores (e.g. S10_ALLOW_LONGS),
-    asterisks, or unbalanced formatting. Plain text renders cleanly via
-    emoji + whitespace structure and never fails to parse.
-    """
-    lines = []
-    hdr = EMOJI_HEALTH.get(report.get("health", ""), "⚪")
-    lines.append(f"{hdr} SUPERVISOR DAILY")
-    summary = (report.get("summary") or "").strip()
-    if summary:
-        lines.append("")
-        lines.append(summary)
-
-    bilan = report.get("bilan") or {}
-    if bilan:
-        lines.append("")
-        lines.append("── Bilan ──")
-        days = bilan.get("days_live", 0)
-        pnl = bilan.get("pnl_realized", 0)
-        pct = bilan.get("pnl_pct", 0)
-        n = bilan.get("trades", 0)
-        wr = bilan.get("wr", 0)
-        pos = bilan.get("positions_open", 0)
-        exp = bilan.get("backtest_expected_pnl", 0)
-        exp_pct = bilan.get("backtest_expected_pct", 0)
-        ratio = bilan.get("vs_backtest_ratio", 0)
-        regime = bilan.get("regime_note", "")
-        lines.append(f"  Jour {days} — P&L réalisé: ${pnl:+.2f} ({pct:+.1f}%)")
-        lines.append(f"  {n} trades, WR {wr*100:.0f}%, {pos} positions ouvertes")
-        lines.append(f"  Backtest attendu: ${exp:+.2f} ({exp_pct:+.1f}%) → ratio {ratio:.0%}")
-        if regime:
-            lines.append(f"  Régime: {regime}")
-
-    km = report.get("key_metrics") or {}
-    if km:
-        lines.append("")
-        for k, v in km.items():
-            lines.append(f"  {k} = {v}")
-
-    anomalies = report.get("anomalies") or []
-    if anomalies:
-        lines.append("")
-        lines.append("── Anomalies ──")
-        for a in anomalies[:5]:
-            sev = EMOJI_SEVERITY.get(a.get("severity", ""), "•")
-            sig = a.get("signal", "?")
-            det = a.get("detail", "")
-            lines.append(f"{sev} [{sig}] {det}")
-
-    suggestions = report.get("suggestions") or []
-    if suggestions:
-        lines.append("")
-        lines.append("── Suggestions ──")
-        for s in suggestions[:3]:
-            ur = EMOJI_URGENCY.get(s.get("urgency", ""), "•")
-            act = s.get("action", "")
-            rat = s.get("rationale", "")
-            lines.append(f"{ur} {act}")
-            if rat:
-                lines.append(f"   → {rat}")
-
-    usage = report.get("_usage") or {}
-    if usage:
-        in_tok = usage.get("input_tokens", 0)
-        out_tok = usage.get("output_tokens", 0)
-        cache_read = usage.get("cache_read_input_tokens", 0)
-        lines.append("")
-        lines.append(
-            f"[{in_tok}in / {out_tok}out / cache={cache_read}] "
-            f"{report.get('_model', '?')}"
-        )
-
-    msg = "\n".join(lines)
-    if len(msg) > 4000:
-        msg = msg[:3990] + "\n…(truncated)"
-    return msg
-
-
-def send_telegram(text: str, token: str, chat_id: str) -> bool:
-    """Send a plain-text message. Parses the JSON body to detect silent
-    failures (Telegram returns HTTP 200 with ok:false on parse errors)."""
-    url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode(
-        {"chat_id": chat_id, "text": text}
-    ).encode()
-    req = urllib.request.Request(url, data=data)
-    try:
-        with urllib.request.urlopen(req, timeout=HTTP_TIMEOUT) as resp:
-            body = json.loads(resp.read().decode())
-            if body.get("ok"):
-                return True
-            print(f"[supervisor] Telegram API error: {body.get('description')}",
-                  file=sys.stderr)
-            return False
-    except Exception as e:
-        print(f"[supervisor] Telegram send failed: {e}", file=sys.stderr)
-        return False
+# ── Output (DB log) ─────────────────────────────────────────────────────
 
 
 def log_event(db_path: str, event: str, data: dict) -> None:
@@ -647,9 +473,9 @@ def log_event(db_path: str, event: str, data: dict) -> None:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true",
-                        help="Fetch + print context, no API call, no Telegram")
-    parser.add_argument("--no-telegram", action="store_true",
-                        help="Call Claude but print report to stdout")
+                        help="Fetch + print context, no API call, no DB write")
+    parser.add_argument("--no-write", action="store_true",
+                        help="Call Claude but print report to stdout, no DB write")
     parser.add_argument("--model", default=None,
                         help="Override SUPERVISOR_MODEL")
     args = parser.parse_args()
@@ -704,39 +530,19 @@ def main() -> int:
     try:
         report = call_claude(static_ctx, user_prompt, model)
     except Exception as e:
-        err_msg = f"[supervisor] Claude call failed: {e}"
-        print(err_msg, file=sys.stderr)
-        # Best-effort telegram about the failure
-        tg_token = os.environ.get("TG_BOT_TOKEN", "")
-        tg_chat = os.environ.get("TG_CHAT_ID", "")
-        if tg_token and tg_chat:
-            send_telegram(f"🚨 Supervisor failed: {e}", tg_token, tg_chat)
+        print(f"[supervisor] Claude call failed: {e}", file=sys.stderr)
         log_event(LOG_DB, "SUPERVISOR_ERROR", {"error": str(e)})
         return 1
 
     print(f"[supervisor] report health={report.get('health')}")
+    print(json.dumps(report, indent=2, ensure_ascii=False, default=str))
 
-    # 5. Format and send
-    msg = format_telegram(report)
-    if args.no_telegram:
-        print("\n=== REPORT ===")
-        print(json.dumps(report, indent=2, default=str))
-        print("\n=== TELEGRAM MESSAGE ===")
-        print(msg)
+    # Output: persist as SUPERVISOR_REPORT (read by admin /master). No Telegram.
+    if args.no_write:
+        print("[supervisor] --no-write: rien écrit en DB")
     else:
-        tg_token = os.environ.get("TG_BOT_TOKEN", "")
-        tg_chat = os.environ.get("TG_CHAT_ID", "")
-        if not tg_token or not tg_chat:
-            print("[supervisor] TG_BOT_TOKEN/TG_CHAT_ID missing — printing report to stdout")
-            print(msg)
-        elif send_telegram(msg, tg_token, tg_chat):
-            print("[supervisor] Telegram sent")
-        else:
-            print("[supervisor] Telegram failed — report on stdout:")
-            print(msg)
-
-    # 6. Log event
-    log_event(LOG_DB, "SUPERVISOR_REPORT", report)
+        log_event(LOG_DB, "SUPERVISOR_REPORT", report)
+        print("[supervisor] SUPERVISOR_REPORT loggé")
     return 0
 
 

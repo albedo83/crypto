@@ -710,6 +710,29 @@ class BotInstance:
                 "mult": round(mult, 3) if mult is not None else None,
                 "basket_effective_n": (self._basket_metrics or {}).get("effective_n"),
                 "entry_side_imbalance": esi["esi"] if esi else None})
+            # Observation IA (SENIOR seul) : fige le contexte de décision exact
+            # que le bot a vu, pour jugement asynchrone par entry_judge.py.
+            # Donnée pure et purement additive (aucun réseau/SDK ici) — ne peut
+            # pas affecter l'entrée/sortie ni le backtest. Voir le plan IA SENIOR.
+            if self.id == "live":
+                feat = self._feature_cache.get(sym) or {}
+                self.db.log_event("ENTRY_CONTEXT", sym, {
+                    "entry_time": now.isoformat(),
+                    "strategy": sig["strategy"], "dir": side,
+                    "entry_price": round(entry_price, 6),
+                    "size_usdt": round(filled_size, 2),
+                    "signal_info": sig["info"],
+                    "signal_z": round(sig["z"], 3),
+                    "signal_strength": round(float(sig.get("strength", 0.0)), 3),
+                    "stop_bps": round(sig.get("stop_bps", 0.0), 1),
+                    "btc_z": round(self._btc_z, 3) if self._btc_z is not None else None,
+                    "mult": round(mult, 3) if mult is not None else None,
+                    "entry_oi_delta": round(float(ctx.get("oi_delta", 0.0)), 2),
+                    "entry_crowding": int(ctx.get("crowding", 0) or 0),
+                    "entry_confluence": int(ctx.get("confluence", 0) or 0),
+                    "entry_session": ctx.get("session", "") or "",
+                    "features": {k: round(v, 1) for k, v in feat.items()
+                                 if isinstance(v, (int, float))}})
             self.notifier.send(
                 f"🟢 OPEN {sig['strategy']} {side} {sym} @ ${entry_price:.4f} | ${filled_size:.0f}",
                 category="trade")
