@@ -18,6 +18,7 @@
       "private_key_env": "HL_PRIVATE_KEY",
       "capital_initial": 680.58,
       "telegram": {"token_env": "TG_BOT_TOKEN", "chat_id_env": "TG_CHAT_ID"},
+      "public_url": "https://echonym.fr/alfred/bot/live",
       "overrides": {},
       "enabled": true
     },
@@ -32,6 +33,7 @@
       "capital_initial": 332.76,
       "capital_cap": 500,
       "telegram": {"token_env": "JUNIOR_TG_BOT_TOKEN", "chat_id_env": "JUNIOR_TG_CHAT_ID"},
+      "public_url": "https://echonym.fr/alfred/bot/junior",
       "overrides": {},
       "enabled": true
     },
@@ -46,6 +48,7 @@
       "capital_initial": 57.84,
       "capital_cap": 400,
       "telegram": {"token_env": "BABY_TG_BOT_TOKEN", "chat_id_env": "BABY_TG_CHAT_ID"},
+      "public_url": "https://echonym.fr/alfred/bot/baby",
       "overrides": {},
       "enabled": true
     }

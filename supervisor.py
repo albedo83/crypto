@@ -37,6 +37,8 @@ from typing import Any
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(REPO_ROOT, ".env")
 LOG_DB = os.path.join(REPO_ROOT, "alfred", "data", "market.db")
+SENIOR_DASHBOARD_URL = os.environ.get(
+    "SENIOR_DASHBOARD_URL", "https://echonym.fr/alfred/bot/live/")
 
 STATIC_CONTEXT_FILES = [
     "CLAUDE.md",
@@ -486,6 +488,8 @@ def format_supervisor_tg(report: dict) -> str:
         lines.append(f"{sev.get(p.get('severity', ''), '•')} {p.get('text', '')}")
         if p.get("action"):
             lines.append(f"   → {p['action']}")
+    lines.append("")
+    lines.append(f"📊 {SENIOR_DASHBOARD_URL}")
     msg = "\n".join(lines)
     return msg[:3990] + ("\n…" if len(msg) > 3990 else "")
 
