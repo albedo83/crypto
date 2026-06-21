@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.5.1 — 2026-06-20
+
+- **Dashboard**: les cartes P&L (Realized / Unrealized / Total) dérivent toutes de la comptabilité live du bot et se réconcilient entre elles ; la carte P&L ne dépend plus du cache exchange (qui pouvait être périmé juste après un redémarrage et faire diverger l'affichage). L'equity Hyperliquid reste affichée en cross-check.
+
 ## v1.5.0 — 2026-06-20
 
 - **Admin**: nouvelle section « Analyses IA » sur la page de supervision — synthèse du superviseur, revue des positions ouvertes et verdicts d'entrée (observation, bot SENIOR).

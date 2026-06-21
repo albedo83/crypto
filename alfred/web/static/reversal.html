@@ -457,7 +457,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 <div class="cards">
   <div class="card" id="card-balance" title="Estimated liquidation value: if all open positions close at current price, this is the USDC you keep (after estimated close-side taker fees ~9 bps)"><div class="label">Liquidation value</div><div class="value" id="balance">$--</div><div class="sub dim" id="capital"></div></div>
   <div class="card" id="card-dd" title="Drawdown depuis le pic — % de baisse de la balance par rapport à son sommet historique"><div class="label">Drawdown</div><div class="value" id="dd-pct">--</div><div class="sub dim" id="dd-peak">--</div><div class="dd-bar" style="height:3px;background:#30363d;border-radius:2px;margin-top:4px;overflow:hidden"><div id="dd-bar-fill" style="height:100%;width:0%;background:#3fb950;transition:width .3s,background .3s"></div></div></div>
-  <div class="card"><div class="label">Total P&L</div><div class="value" id="pnl-amt">$0</div><div class="sub" id="pnl-pct">0%</div><div class="sub dim" id="pnl-fees"></div></div>
+  <div class="card"><div class="label">Realized P&L</div><div class="value" id="pnl-amt">$0</div><div class="sub" id="pnl-pct">0%</div><div class="sub dim" id="pnl-fees"></div></div>
   <div class="card" id="card-pnl"><div class="label">Unrealized</div><div class="value" id="unrealized">--</div><div class="sub dim" id="available"></div></div>
   <div class="card"><div class="label">Positions</div><div class="value blue" id="pos-count">0/6</div><div class="sub" id="pos-detail">0L / 0S</div></div>
   <div class="card"><div class="label">Trades</div><div class="value" id="trades-count">0</div><div class="sub" id="win-rate">--</div></div>
@@ -893,9 +893,10 @@ function refresh(){
     if(acct){
       document.getElementById('capital').textContent='Available: $'+acct.available.toFixed(0)+' | Margin: $'+acct.margin_used.toFixed(0);
       const urEl=document.getElementById('unrealized');
-      urEl.textContent='$'+fmt(acct.unrealized);
-      urEl.className='value '+cls(acct.unrealized);
-      document.getElementById('available').textContent='P&L bot: $'+fmt(s.total_pnl);
+      const urBot=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);
+      urEl.textContent='$'+fmt(urBot);
+      urEl.className='value '+cls(urBot);
+      document.getElementById('available').textContent='Equity HL: $'+fmt(acct.equity);
     } else {
       document.getElementById('capital').textContent='Capital: $'+s.capital.toFixed(0);
       const urEl=document.getElementById('unrealized');
@@ -1229,7 +1230,10 @@ function refresh(){
 
     // Drawdown + utilization
     const ea=s.exchange_account;
-    const realPnl=ea?ea.equity-(s.capital||0):(s.total_pnl||0);
+    // Réalisé = compta bot live (somme des trades clos). On n'utilise PLUS
+    // ea.equity ici : le cache exchange (refresh 60s) est périmé juste après
+    // un restart et faisait diverger cette carte des autres (bug 2026-06-20).
+    const realPnl=(s.total_pnl||0);
     const realPct=(s.capital||0)>0?realPnl/(s.capital||1)*100:0;
     const pnlAmtEl=document.getElementById('pnl-amt');
     pnlAmtEl.textContent='$'+fmt(realPnl);
