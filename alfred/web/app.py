@@ -451,6 +451,35 @@ def create_app(bots: dict, master) -> FastAPI:
                             {"ts": prow[0], "symbol": p.get("symbol"), "data": p})
             except Exception as e:
                 out["position_reviews_error"] = str(e)
+            # Arbitrage IA à l'entrée : dernier scorecard + décisions récentes + trip.
+            try:
+                arb = {"scorecard": None, "decisions": [], "tripped": False}
+                srow = senior.db.conn.execute(
+                    "SELECT ts, data FROM events WHERE event='AI_SCORECARD' "
+                    "ORDER BY ts DESC LIMIT 1").fetchone()
+                if srow:
+                    try:
+                        arb["scorecard"] = {"ts": srow[0],
+                                            **(json.loads(srow[1]) if srow[1] else {})}
+                    except Exception:
+                        pass
+                dcur = senior.db.conn.execute(
+                    "SELECT ts, symbol, data FROM events WHERE event='ARBITER_DECISION' "
+                    "ORDER BY ts DESC LIMIT ?", (verdicts,))
+                for r in dcur:
+                    try:
+                        d = json.loads(r[2]) if r[2] else {}
+                    except Exception:
+                        d = {}
+                    arb["decisions"].append({"ts": r[0], "symbol": r[1], "data": d})
+                import os as _os
+                arb["tripped"] = _os.path.exists(_os.path.join(
+                    _os.path.dirname(_os.path.dirname(_os.path.dirname(
+                        _os.path.abspath(__file__)))),
+                    "alfred", "data", "bots", "live", "arbiter_tripped.json"))
+                out["arbiter"] = arb
+            except Exception as e:
+                out["arbiter_error"] = str(e)
         # Budget estimé mois-en-cours (couche IA), depuis les tokens loggés.
         # Estimation seulement — la vérité du compte est dans la console
         # Anthropic (y poser le vrai plafond + alerte email).

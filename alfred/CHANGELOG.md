@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.0 — 2026-06-21
+
+- **Trading engine**: l'IA arbitre désormais les entrées du bot SENIOR (annulation ou réduction de taille), en un appel par scan, avec timeout et repli automatique sur les règles si indisponible. Démarre en mode observation (décide et mesure sans agir) ; bascule en mode actif par configuration.
+- **Admin**: nouvelle section « Arbitrage IA » sur la page de supervision — décisions récentes et scorecard mesurant en continu l'apport de l'IA vs les règles seules, avec disjoncteur automatique. Noyau de backtest inchangé (overlay live-only).
+
 ## v1.5.2 — 2026-06-20
 
 - **Dashboard**: le tableau de bord par bot et la page de supervision affichent désormais la même référence — l'equity réelle Hyperliquid (live) — pour l'equity et le P&L, avec la comptabilité du bot en cross-check. Fin des écarts d'affichage entre les deux pages.

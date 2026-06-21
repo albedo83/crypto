@@ -591,6 +591,53 @@ class BotInstance:
             if _s:
                 c.sector_counts[_s] = c.sector_counts.get(_s, 0) + 1
 
+        # ── Arbitrage IA (SENIOR only) : un seul appel sur le lot, fail-open ──
+        # L'IA peut annuler (veto) ou réduire la taille. Overlay live-only, hors
+        # rules.py (backtest inchangé). Mesuré en live par ai_arbiter_scorecard.
+        arb, arb_mode, arb_cfg = {}, "off", None
+        if self.id == "live":
+            try:
+                import ai_entry_arbiter as _aia
+                arb_cfg = _aia.config()
+                if arb_cfg["mode"] != "off":
+                    arb_mode = "shadow" if _aia.is_tripped() else arb_cfg["mode"]
+                    batch, seen_b = [], set()
+                    for s in sigs:
+                        sy = s["symbol"]
+                        if sy in seen_b or sy in self.positions:
+                            continue
+                        seen_b.add(sy)
+                        cx = s.get("ctx", {})
+                        batch.append({
+                            "symbol": sy, "strategy": s["strategy"],
+                            "dir": "LONG" if s["direction"] == 1 else "SHORT",
+                            "z": round(s.get("z", 0.0), 3),
+                            "signal_info": s.get("info", ""),
+                            "oi_delta": cx.get("oi_delta"),
+                            "crowding": cx.get("crowding"),
+                            "confluence": cx.get("confluence"),
+                            "session": cx.get("session")})
+                    if batch:
+                        cc = getattr(self, "_cross_ctx_cache", None) or {}
+                        market = {"btc_z": self._btc_z,
+                                  "disp_24h": cc.get("disp_24h"),
+                                  "disp_7d": cc.get("disp_7d"),
+                                  "n_stress_global": cc.get("n_stress_global")}
+                        res = _aia.arbitrate_safe(
+                            batch, market, model=arb_cfg["model"],
+                            timeout=arb_cfg["timeout"], factor_min=arb_cfg["factor_min"])
+                        arb = res.get("verdicts", {}) or {}
+                        meta = res.get("meta", {}) or {}
+                        if meta.get("failopen"):
+                            self.db.log_event("ARBITER_FAILOPEN", None,
+                                              {"reason": meta["failopen"], "n": len(batch)})
+                        log.info("[%s] arbiter %s: %d candidats → %d verdicts%s",
+                                 self.id, arb_mode, len(batch), len(arb),
+                                 " FAIL-OPEN" if meta.get("failopen") else "")
+            except Exception as e:
+                log.warning("[%s] arbiter skip: %s", self.id, e)
+                arb, arb_mode = {}, "off"
+
         entries = 0
         seen: set[str] = set()
         capital = self._capital + self._total_pnl
@@ -655,6 +702,44 @@ class BotInstance:
                              "$%.0f)", self.id, sym, sig["strategy"],
                              size, max_notional, avail_margin)
                     size = max_notional
+            # ── Application arbitrage IA (taille post-clamp = "règles seules") ──
+            rules_size = size
+            v = arb.get(sym)
+            if v is not None and arb_mode != "off" and arb_cfg is not None:
+                acted = (arb_mode == "act")
+                hard_veto = (v["decision"] == "VETO"
+                             and v["confidence"] >= arb_cfg["veto_conf_min"])
+                if hard_veto:
+                    eff_factor = 0.0
+                elif v["decision"] == "VETO":      # veto basse-confiance → haircut
+                    eff_factor = arb_cfg["factor_min"]
+                else:                               # GO
+                    eff_factor = v["factor"]
+                applied_size = round(rules_size * eff_factor, 2)
+                self.db.log_event("ARBITER_DECISION", sym, {
+                    "mode": arb_mode, "acted": acted,
+                    "strategy": sig["strategy"], "dir": side,
+                    "decision": v["decision"], "hard_veto": hard_veto,
+                    "factor": round(eff_factor, 3), "confidence": v["confidence"],
+                    "reason": v["reason"], "risk_flags": v["risk_flags"],
+                    "rules_size": round(rules_size, 2),
+                    "applied_size": applied_size if acted else round(rules_size, 2),
+                    "entry_time": now.isoformat(),
+                    # pour le rejeu contrefactuel des vetos (mode act) :
+                    "ref_price": round(st.price, 6),
+                    "entry_ts_ms": int(now.timestamp() * 1000),
+                    "hold_hours": sig.get("hold_hours", self.p.hold_hours_default),
+                    "stop_bps": round(sig.get("stop_bps", 0.0), 1),
+                    "btc_z": round(self._btc_z, 3) if self._btc_z is not None else None})
+                if acted:
+                    if eff_factor <= 0.0:
+                        log.info("[%s] ARBITER VETO %s %s (conf %.2f): %s",
+                                 self.id, sym, sig["strategy"], v["confidence"],
+                                 v["reason"])
+                        with self._pos_lock:
+                            self._inflight_open.discard(sym)
+                        continue
+                    size = applied_size
             mult = rules.modulator_mult(sig["strategy"], sig["direction"],
                                         self._btc_z, self.p)
             hold_h = sig.get("hold_hours", self.p.hold_hours_default)

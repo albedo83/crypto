@@ -254,6 +254,7 @@ textarea:focus{outline:none;border-color:var(--blue)}
     </div></div>
   <div class="card mt"><h3><span class="ico">🤖</span>Analyses IA <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:400">— superviseur (SENIOR) + verdicts d'entrée (observation)</span></h3>
     <div id="aiBudget"></div>
+    <div id="aiArbiter"></div>
     <div id="aiSupervisor"></div>
     <div class="section-title" style="margin-top:12px">Revue des positions ouvertes SENIOR</div>
     <div id="aiPosReview"></div>
@@ -515,6 +516,26 @@ function renderAI(d){
     const bm=Object.entries(bg.by_model||{}).map(([m,v])=>`${m.replace('claude-','')}: $${Number(v.usd).toFixed(2)} (${v.calls})`).join(' · ');
     $('aiBudget').innerHTML=`<div style="margin-bottom:8px">💸 Budget IA ${esc(bg.month)} : <b class="${cls}">~$${Number(bg.est_usd).toFixed(2)}</b> <span class="dim">/ alerte $${Number(bg.cap_usd).toFixed(0)}${bg.over?' — DÉPASSÉ':''}</span>${bm?`<br><span class="dim" style="font-size:11px">${esc(bm)} · estimation, vérité = console Anthropic</span>`:''}</div>`;
   }else{$('aiBudget').innerHTML='';}
+  // Arbitrage IA à l'entrée
+  const ab=d.arbiter;
+  if(ab){
+    const sc=ab.scorecard;
+    let h=`<div style="margin-bottom:6px">🎛️ <b>Arbitrage entrées</b> `+
+      (ab.tripped?'<span class="red">DISJONCTÉ (shadow forcé)</span>':'<span class="dim">actif</span>')+`</div>`;
+    if(sc){
+      const dl=Number(sc.delta_sum||0);
+      h+=`<div class="dim" style="margin-bottom:4px">Δ IA vs règles: <b class="${dl>0?'green':dl<0?'red':''}">${fmt(dl)}$</b> sur ${sc.n_resolved||0} décisions`+
+        (sc.n_pending?` (+${sc.n_pending} en cours)`:'')+
+        (sc.n_veto?` · vetos ${sc.n_veto} (${sc.veto_useful_pct??'--'}% utiles)`:'')+`</div>`;
+    }else{h+=`<div class="dim" style="margin-bottom:4px">scorecard pas encore calculé</div>`;}
+    const ds=(ab.decisions||[]).slice(0,8).map(x=>{
+      const v=x.data||{};const when=new Date(x.ts*1000).toISOString().slice(5,16).replace('T',' ');
+      const dec=v.hard_veto?'VETO':(v.factor<1?('×'+v.factor):'GO');
+      const c=v.hard_veto?'red':(v.factor<1?'yellow':'green');
+      return `<div class="evt"><span class="ts">${when}</span><span class="type">${esc(x.symbol||'?')}</span><span class="dim">${esc(v.strategy||'')} ${esc(v.dir||'')} ${esc(v.mode||'')}</span><span class="${c}">${dec}</span><span class="data">${esc(v.reason||'')}</span></div>`;
+    }).join('');
+    $('aiArbiter').innerHTML=h+(ds||'<div class="empty">aucune décision d\'arbitrage</div>')+'<hr style="border:0;border-top:1px solid #21262d;margin:10px 0">';
+  }else{$('aiArbiter').innerHTML='';}
   const sup=d.supervisor;
   if(!sup||!sup.report){
     $('aiSupervisor').innerHTML='<div class="empty">aucun rapport superviseur</div>';

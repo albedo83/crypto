@@ -1,0 +1,299 @@
+"""Arbitre d'entrée IA — l'IA décide au moment de la prise de position (SENIOR).
+
+Cœur importable, appelé SYNCHRONEMENT par le bot live (botinstance) une fois par
+scan 4h sur le LOT complet des candidats : l'IA renvoie, par symbole, un verdict
+{decision: GO|VETO, factor, confidence, reason, risk_flags}. Le bot applique le
+veto (annule l'entrée) ou le facteur (réduit la taille).
+
+Discipline : un gate LLM est inbacktestable → l'overlay vit ICI et dans
+botinstance UNIQUEMENT (jamais dans rules.py / le backtest). La valeur est
+mesurée en live par ai_arbiter_scorecard.py (contrefactuel règles-seules).
+
+Sécurité : `arbitrate_safe()` borne (factor ∈ [factor_min, 1.0]), applique un
+timeout strict et **fail-open** (toute erreur/timeout ⇒ dict vide ⇒ le bot trade
+selon les règles, aucun veto). Le SDK Anthropic est importé paresseusement.
+
+Usage CLI (test, n'agit sur rien) :
+    ./ai_entry_arbiter.py --dry-run   # assemble le prompt depuis l'état SENIOR
+    ./ai_entry_arbiter.py --no-act    # vrai appel Opus, décisions en stdout
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+import sys
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FTimeout
+
+from ai_doctrine import DOCTRINE_DIGEST
+
+DEFAULT_MODEL = "claude-opus-4-8"
+DEFAULT_TIMEOUT = 12.0
+DEFAULT_FACTOR_MIN = 0.5
+
+_EXECUTOR = ThreadPoolExecutor(max_workers=2, thread_name_prefix="ai-arbiter")
+
+REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+# Disjoncteur : drapeau écrit par ai_arbiter_scorecard.py, lu par le bot. Sa
+# présence dégrade l'arbitre en 'shadow' (n'agit plus). Réarmement = suppression.
+TRIP_FILE = os.path.join(REPO_ROOT, "alfred", "data", "bots", "live",
+                         "arbiter_tripped.json")
+
+
+def is_tripped() -> bool:
+    return os.path.exists(TRIP_FILE)
+
+
+def trip(reason: str, detail: dict | None = None) -> None:
+    try:
+        with open(TRIP_FILE, "w") as f:
+            json.dump({"reason": reason, "detail": detail or {}}, f)
+    except Exception:
+        pass
+
+
+def rearm() -> None:
+    try:
+        os.remove(TRIP_FILE)
+    except FileNotFoundError:
+        pass
+
+
+def config() -> dict:
+    """Lit la config arbitre depuis l'environnement (.env chargé par le bot).
+
+    mode : 'act' (agit) | 'shadow' (décide+logge sans agir) | 'off'.
+    enabled=0 ⇒ kill-switch total. cb_* = disjoncteur (géré par botinstance)."""
+    env = os.environ.get
+    enabled = env("AI_ARBITER_ENABLED", "0") == "1"   # OFF par défaut (opt-in)
+    mode = env("AI_ARBITER_MODE", "shadow").strip().lower()
+    if not enabled:
+        mode = "off"
+    return {
+        "enabled": enabled,
+        "mode": mode,                                  # off|shadow|act
+        "model": env("AI_ARBITER_MODEL", DEFAULT_MODEL),
+        "timeout": float(env("AI_ARBITER_TIMEOUT", str(DEFAULT_TIMEOUT))),
+        "factor_min": float(env("AI_ARBITER_FACTOR_MIN", str(DEFAULT_FACTOR_MIN))),
+        "veto_conf_min": float(env("AI_ARBITER_VETO_CONF_MIN", "0.0")),
+        "cb_min": int(env("AI_ARBITER_CB_MIN", "20")),
+        "cb_loss": float(env("AI_ARBITER_CB_LOSS", "-40")),
+    }
+
+SYSTEM_PROMPT = """\
+Tu es l'arbitre d'entrée d'un bot de trading LIVE (SENIOR) sur Hyperliquid
+(altcoins perp, levier 2×, holds ~24-48h). À CHAQUE scan 4h, le moteur de règles
+(walk-forward validé) propose un lot d'entrées. Tu ARBITRES chaque entrée :
+tu peux l'ANNULER (veto) ou RÉDUIRE sa taille. Tu n'augmentes jamais la taille.
+
+TON RÔLE — apporter ce que les formules NE voient PAS :
+- Danger concret hors-modèle : depeg, incident/hack exchange, unlock/déblocage de
+  tokens imminent, délisting, exploit, gouvernance/news majeure sur le token.
+- Incohérence flagrante setup vs contexte : fade (S9) ou mean-reversion (S5) à
+  contre-courant d'une tendance directionnelle forte et alignée ; LONG en bear
+  marqué / SHORT en bull marqué sur une strat régime-sensible ; structure
+  (funding/OI/dispersion) qui signale une poursuite plutôt qu'un retour.
+- Setup mécaniquement marginal alors que le floor de frais HL ~9 bps RT rend un
+  edge faible fragile.
+
+DISCIPLINE :
+- Le moteur a un EDGE PROUVÉ en agrégat. Ton DÉFAUT est GO pleine taille. Ne mets
+  VETO / facteur < 1 que si tu as une raison CONCRÈTE, ancrée sur le contexte
+  fourni. Ne re-litige pas la stratégie elle-même (elle est validée) ; tu juges CE
+  setup, MAINTENANT, avec l'info que les chiffres n'ont pas.
+- Tu vois le LOT complet : tiens compte de la corrélation / concentration (éviter
+  d'empiler des entrées redondantes dans le même sens/secteur si le risque est
+  concentré).
+- Pas d'hallucination de chiffres : uniquement les valeurs du contexte fourni.
+
+SORTIE — réponds EXCLUSIVEMENT en JSON valide, un objet dont les clés sont les
+symboles du lot, rien avant/après :
+{
+  "<SYMBOL>": {
+    "decision": "GO" | "VETO",
+    "factor": <float 0.5-1.0>,   // taille relative si GO ; ignoré si VETO
+    "confidence": <float 0.0-1.0>,
+    "reason": "<=160 chars FR, factuel",
+    "risk_flags": ["<tag court>", ...]   // 0-4 ex: depeg, unlock, knife, regime_mismatch, crowding, thin_edge, concentration
+  },
+  ...
+}
+Une entrée par symbole du lot. Termes techniques OK (bps, btc_z, MFE, div).
+"""
+
+
+def build_user_prompt(candidates: list[dict], market: dict) -> str:
+    return (
+        "Lot d'entrées proposées par les règles à ce scan 4h. Arbitre CHAQUE "
+        "symbole.\n\nRégime / marché :\n```json\n"
+        + json.dumps(market, indent=2, default=str, ensure_ascii=False)
+        + "\n```\n\nCandidats (déjà triés par priorité z) :\n```json\n"
+        + json.dumps(candidates, indent=2, default=str, ensure_ascii=False)
+        + "\n```\n\nRends ton objet JSON (une clé par symbole)."
+    )
+
+
+def _call_opus(system: str, user: str, model: str) -> dict:
+    """Appel brut Anthropic, parse l'objet JSON. Lève sur erreur."""
+    import anthropic
+
+    client = anthropic.Anthropic()
+    sysblocks = [
+        {"type": "text", "text": system},
+        {"type": "text",
+         "text": "# Référence stratégies & sorties du bot\n\n" + DOCTRINE_DIGEST,
+         "cache_control": {"type": "ephemeral"}},
+    ]
+    resp = client.messages.create(
+        model=model, max_tokens=1500, system=sysblocks,
+        messages=[{"role": "user", "content": user}],
+    )
+    parts = [b.text for b in resp.content if getattr(b, "type", None) == "text"]
+    raw = "".join(parts).strip()
+    match = re.search(r"\{.*\}", raw, re.DOTALL)
+    if not match:
+        raise RuntimeError(f"Pas de JSON:\n{raw[:500]}")
+    data = json.loads(match.group(0))
+    usage = getattr(resp, "usage", None)
+    meta = {"_model": model}
+    if usage:
+        meta["_usage"] = {
+            "input_tokens": getattr(usage, "input_tokens", 0),
+            "output_tokens": getattr(usage, "output_tokens", 0),
+            "cache_read_input_tokens": getattr(usage, "cache_read_input_tokens", 0),
+            "cache_creation_input_tokens": getattr(usage, "cache_creation_input_tokens", 0),
+        }
+    return {"verdicts": data, "meta": meta}
+
+
+def _normalize(v: dict, factor_min: float) -> dict:
+    """Borne et nettoie un verdict par symbole."""
+    dec = str(v.get("decision", "GO")).upper()
+    dec = "VETO" if dec == "VETO" else "GO"
+    try:
+        factor = float(v.get("factor", 1.0))
+    except (TypeError, ValueError):
+        factor = 1.0
+    factor = max(factor_min, min(1.0, factor))
+    try:
+        conf = round(float(v.get("confidence", 0.0)), 3)
+    except (TypeError, ValueError):
+        conf = 0.0
+    flags = v.get("risk_flags")
+    return {
+        "decision": dec,
+        "factor": round(factor, 3),
+        "confidence": conf,
+        "reason": str(v.get("reason", ""))[:200],
+        "risk_flags": flags if isinstance(flags, list) else [],
+    }
+
+
+def arbitrate(candidates: list[dict], market: dict, *,
+              model: str = DEFAULT_MODEL,
+              factor_min: float = DEFAULT_FACTOR_MIN) -> dict:
+    """Appel direct (peut lever / bloquer). Retourne
+    {"verdicts": {sym: {...}}, "meta": {...}}. Préférer arbitrate_safe()."""
+    out = _call_opus(SYSTEM_PROMPT, build_user_prompt(candidates, market), model)
+    syms = {c["symbol"] for c in candidates}
+    norm = {s: _normalize(v, factor_min)
+            for s, v in (out["verdicts"] or {}).items() if s in syms}
+    return {"verdicts": norm, "meta": out["meta"]}
+
+
+def arbitrate_safe(candidates: list[dict], market: dict, *,
+                   model: str = DEFAULT_MODEL,
+                   timeout: float = DEFAULT_TIMEOUT,
+                   factor_min: float = DEFAULT_FACTOR_MIN) -> dict:
+    """Wrapper borné + timeout + FAIL-OPEN.
+
+    Retour : {"verdicts": {sym: verdict}, "meta": {...}} si succès,
+    sinon {"verdicts": {}, "meta": {"failopen": <raison>}} → le bot trade
+    selon les règles (aucun veto, factor=1)."""
+    if not candidates:
+        return {"verdicts": {}, "meta": {"empty": True}}
+    fut = _EXECUTOR.submit(arbitrate, candidates, market,
+                           model=model, factor_min=factor_min)
+    try:
+        return fut.result(timeout=timeout)
+    except FTimeout:
+        fut.cancel()
+        return {"verdicts": {}, "meta": {"failopen": f"timeout>{timeout}s"}}
+    except Exception as e:
+        return {"verdicts": {}, "meta": {"failopen": f"{type(e).__name__}:{str(e)[:80]}"}}
+
+
+# ── CLI (test seulement — n'agit sur rien) ──────────────────────────────
+
+
+def _cli() -> int:
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--dry-run", action="store_true",
+                        help="Assemble le prompt depuis l'état SENIOR, pas d'appel")
+    parser.add_argument("--no-act", action="store_true",
+                        help="Vrai appel Opus, décisions en stdout (n'agit pas)")
+    parser.add_argument("--model", default=os.environ.get("AI_ARBITER_MODEL", DEFAULT_MODEL))
+    args = parser.parse_args()
+
+    # Construit un lot représentatif depuis /api/signals + /api/state de SENIOR.
+    from supervisor import load_env, BotClient
+    load_env()
+    c = BotClient("live", os.environ.get("DASHBOARD_USER", ""),
+                  os.environ.get("DASHBOARD_PASS", ""))
+    st = c.fetch("/api/state") or {}
+    sigs = c.fetch("/api/signals") or []
+    market = {}
+    if isinstance(st, dict):
+        market = {k: (st.get("market") or {}).get(k) for k in
+                  ("btc_30d", "btc_7d", "disp_24h", "disp_7d", "n_stress_global")}
+        market["btc_z"] = st.get("btc_z_30d") or st.get("btc_z")
+    # /api/signals : {"signals": {SYM: {..., "triggered": [...], "proximity": {...}}}}
+    smap = (sigs or {}).get("signals", {}) if isinstance(sigs, dict) else {}
+
+    def _ctx(sym, d):
+        return {"symbol": sym, "strategy": None, "dir": None,
+                "sector": d.get("sector"), "sector_div": d.get("sector_div"),
+                "ret_7d_bps": d.get("ret_7d_bps"), "vol_ratio": d.get("vol_ratio"),
+                "oi_delta_1h": d.get("oi_delta_1h"), "funding_bps": d.get("funding_bps"),
+                "crowding": d.get("crowding")}
+
+    cand = []
+    for sym, d in smap.items():
+        trig = d.get("triggered") or []
+        if trig:
+            for t in trig:
+                e = _ctx(sym, d)
+                e["strategy"] = t.get("strategy") if isinstance(t, dict) else t
+                e["dir"] = t.get("direction") if isinstance(t, dict) else None
+                cand.append(e)
+    if not cand:
+        # Aucun signal déclenché à cet instant (hors close 4h) → échantillon par
+        # proximité pour exercer le prompt/appel (test seulement).
+        ranked = sorted(smap.items(),
+                        key=lambda kv: max((kv[1].get("proximity") or {}).values() or [0]),
+                        reverse=True)[:3]
+        for sym, d in ranked:
+            e = _ctx(sym, d)
+            prox = d.get("proximity") or {}
+            e["strategy"] = max(prox, key=prox.get) if prox else "?"
+            e["_note"] = "ÉCHANTILLON proximité (pas un vrai trigger)"
+            cand.append(e)
+        print("[arbiter] aucun trigger actif → échantillon proximité pour test")
+    if not cand:
+        print("[arbiter] aucun candidat — rien à arbitrer.")
+        return 0
+
+    print(f"[arbiter] {len(cand)} candidat(s) | modèle {args.model}")
+    if args.dry_run:
+        print(build_user_prompt(cand, market)[:2500])
+        print("\n[arbiter] --dry-run: arrêt avant Opus")
+        return 0
+    res = arbitrate_safe(cand, market, model=args.model)
+    print(json.dumps(res, indent=2, ensure_ascii=False))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(_cli())
