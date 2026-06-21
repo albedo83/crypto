@@ -884,25 +884,23 @@ function refresh(){
     // Equity (v12.5.13): use s.equity (deterministic: capital + realized + sum_unrealized).
     // exchange_account.equity stays for the optional HL cross-check footer.
     const acct=s.exchange_account;
-    const equity=(s.equity!=null)?s.equity:s.balance;
-    // v12.5.27: subtract estimated close-side fees so the card shows the
-    // actual "if I close all now" value, not the theoretical mid-price equity.
+    // Référence = equity RÉELLE Hyperliquid si dispo (live), sinon compta bot
+    // (paper). Toutes les cartes P&L dérivent de la MÊME source → cohérence
+    // garantie (plus de mélange bot/exchange qui causait la divergence).
+    const botUnreal=(s.positions||[]).reduce((a,p)=>a+(p.pnl_usdt||0),0);
+    const eqRef=acct?acct.equity:(s.equity!=null?s.equity:s.balance);
+    const unrealRef=acct?acct.unrealized:botUnreal;
     const closeFeesEst=(s.positions||[]).reduce((a,p)=>a+(p.size_usdt||0)*0.0009,0);
-    const stopNowEquity=equity-closeFeesEst;
+    const stopNowEquity=eqRef-closeFeesEst;
     document.getElementById('balance').textContent='$'+stopNowEquity.toFixed(2);
+    const urEl=document.getElementById('unrealized');
+    urEl.textContent='$'+fmt(unrealRef);
+    urEl.className='value '+cls(unrealRef);
     if(acct){
       document.getElementById('capital').textContent='Available: $'+acct.available.toFixed(0)+' | Margin: $'+acct.margin_used.toFixed(0);
-      const urEl=document.getElementById('unrealized');
-      const urBot=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);
-      urEl.textContent='$'+fmt(urBot);
-      urEl.className='value '+cls(urBot);
-      document.getElementById('available').textContent='Equity HL: $'+fmt(acct.equity);
+      document.getElementById('available').textContent='P&L bot: $'+fmt(s.total_pnl);
     } else {
       document.getElementById('capital').textContent='Capital: $'+s.capital.toFixed(0);
-      const urEl=document.getElementById('unrealized');
-      const unrealTotal=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);
-      urEl.textContent='$'+fmt(unrealTotal);
-      urEl.className='value '+cls(unrealTotal);
       document.getElementById('available').textContent='P&L: $'+fmt(s.total_pnl);
     }
     // Drawdown card: % from peak, color-coded by severity
@@ -1222,23 +1220,23 @@ function refresh(){
       }).join(''):'<span class="dim">OI history warming up…</span>';
     }
 
-    // Total P&L (realized + unrealized)
-    const unrealTotal=s.positions.reduce((a,p)=>a+p.pnl_usdt,0);
-    const todayTotal=s.total_pnl+unrealTotal;
+    // Cartes P&L — toutes depuis l'equity RÉELLE Hyperliquid si dispo (live),
+    // sinon compta bot (paper). Réalisé + Latent = Total, et se réconcilient
+    // avec la Liquidation value (même source = pas de divergence inter-cartes).
+    const ea=s.exchange_account;
+    const cap=s.capital||0;
+    const unrealTotal=s.positions.reduce((a,p)=>a+(p.pnl_usdt||0),0);
+    const todayTotal=ea?(ea.equity-cap):(s.total_pnl+unrealTotal);
     document.getElementById('today-pnl').textContent='$'+fmt(todayTotal);
     document.getElementById('today-pnl').className='value '+cls(todayTotal);
 
-    // Drawdown + utilization
-    const ea=s.exchange_account;
-    // Réalisé = compta bot live (somme des trades clos). On n'utilise PLUS
-    // ea.equity ici : le cache exchange (refresh 60s) est périmé juste après
-    // un restart et faisait diverger cette carte des autres (bug 2026-06-20).
-    const realPnl=(s.total_pnl||0);
-    const realPct=(s.capital||0)>0?realPnl/(s.capital||1)*100:0;
+    // Réalisé = (equity − latent) − capital côté HL ; total_pnl côté paper.
+    const realPnl=ea?(ea.equity-ea.unrealized-cap):(s.total_pnl||0);
+    const realPct=cap>0?realPnl/cap*100:0;
     const pnlAmtEl=document.getElementById('pnl-amt');
     pnlAmtEl.textContent='$'+fmt(realPnl);
     pnlAmtEl.className='value '+(realPct<-5?'red':realPct<0?'yellow':'green');
-    document.getElementById('pnl-pct').textContent=fmt(realPct,1)+'% sur $'+(s.capital||0).toFixed(0);
+    document.getElementById('pnl-pct').textContent=fmt(realPct,1)+'% sur $'+cap.toFixed(0);
     document.getElementById('pnl-fees').textContent='';
     const utilEl=document.getElementById('util-pct');
     const util=s.capital_utilization_pct||0;
