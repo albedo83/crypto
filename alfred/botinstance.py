@@ -619,7 +619,13 @@ class BotInstance:
                             "session": cx.get("session")})
                     if batch:
                         cc = getattr(self, "_cross_ctx_cache", None) or {}
+                        _snap = self.master.snapshot
+                        _bf = (_snap.btc_f if _snap else None) or {}
                         market = {"btc_z": self._btc_z,
+                                  # mouvement BTC court terme (réaction rapide) :
+                                  "btc_ret_4h_bps": _snap.btc_ret_4h_bps if _snap else None,
+                                  "btc_7d_bps": _bf.get("btc_7d"),
+                                  "btc_30d_bps": _bf.get("btc_30d"),
                                   "disp_24h": cc.get("disp_24h"),
                                   "disp_7d": cc.get("disp_7d"),
                                   "n_stress_global": cc.get("n_stress_global")}
