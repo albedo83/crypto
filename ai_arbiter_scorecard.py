@@ -220,10 +220,33 @@ def score() -> dict:
     }
 
 
+def format_scorecard_tg(sc: dict, tripped: bool) -> str:
+    """Récap Telegram condensé (canal SENIOR)."""
+    d = sc["delta_sum"]
+    head = "🎛️ Arbitre IA — bilan quotidien"
+    if sc["n_resolved"] == 0:
+        return (f"{head}\nAucune décision résolue encore "
+                f"({sc['n_pending']} en cours). L'arbitre tourne, le scorecard "
+                f"se remplira au fil des trades clos.")
+    verdict = "IA ajoute de la valeur ✅" if d > 0 else ("IA neutre" if d == 0 else "IA en retrait ⚠️")
+    lines = [head,
+             f"Δ IA vs règles: {d:+.2f}$  ({verdict})",
+             f"{sc['n_resolved']} décisions résolues ({sc['n_pending']} en cours)",
+             f"P&L IA {sc['ia_pnl_sum']:+.2f}$ vs règles-seules {sc['rules_pnl_sum']:+.2f}$"]
+    if sc["n_veto"]:
+        lines.append(f"Vetos: {sc['n_veto']} dont {sc['veto_useful']} utiles "
+                     f"({sc['veto_useful_pct']}%)")
+    if tripped:
+        lines.append("🛑 DISJONCTEUR déclenché (arbitre en shadow)")
+    return "\n".join(lines)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--report", action="store_true",
                     help="Console seulement, pas d'écriture DB ni disjoncteur")
+    ap.add_argument("--telegram", action="store_true",
+                    help="Envoie aussi le récap sur Telegram (canal SENIOR)")
     args = ap.parse_args()
     aia  # touch import
     from supervisor import load_env
@@ -276,6 +299,11 @@ def main() -> int:
                f"Réarmer : supprimer {aia.TRIP_FILE}")
         send_telegram(msg, source="arbiter_circuit_break")
         print("[scorecard] DISJONCTEUR déclenché + drapeau écrit")
+
+    if args.telegram:
+        if send_telegram(format_scorecard_tg(sc, aia.is_tripped()),
+                         source="arbiter_scorecard"):
+            print("[scorecard] récap Telegram envoyé")
     return 0
 
 
