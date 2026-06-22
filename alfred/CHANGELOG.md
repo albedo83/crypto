@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.2 — 2026-06-21
+
+- **Trading engine**: l'arbitre IA reçoit le momentum récent du token et applique une règle ferme — veto par défaut d'un SHORT qui combat une hausse alignée token+BTC (et symétrique pour un LONG contre une baisse alignée), sauf preuve claire d'essoufflement.
+
 ## v1.6.1 — 2026-06-21
 
 - **Dashboard**: l'equity et le P&L (page bot + admin) repassent sur la comptabilité interne du bot (capital + réalisé + latent), stable que des positions soient ouvertes ou non. L'equity Hyperliquid, qui sous-compte la marge tant qu'une position est ouverte, n'est plus la référence affichée (gardée en cross-check). Corrige l'equity qui semblait baisser à l'ouverture de positions alors que le bot est gagnant.

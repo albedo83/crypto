@@ -608,11 +608,15 @@ class BotInstance:
                             continue
                         seen_b.add(sy)
                         cx = s.get("ctx", {})
+                        _f = self._feature_cache.get(sy) or {}
                         batch.append({
                             "symbol": sy, "strategy": s["strategy"],
                             "dir": "LONG" if s["direction"] == 1 else "SHORT",
                             "z": round(s.get("z", 0.0), 3),
                             "signal_info": s.get("info", ""),
+                            # momentum du token (pour juger un short qui fight la hausse) :
+                            "ret_24h_bps": round(_f.get("ret_24h", 0.0), 0),
+                            "ret_7d_bps": round(_f.get("ret_42h", 0.0), 0),
                             "oi_delta": cx.get("oi_delta"),
                             "crowding": cx.get("crowding"),
                             "confluence": cx.get("confluence"),

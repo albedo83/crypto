@@ -98,6 +98,13 @@ TON RÔLE — apporter ce que les formules NE voient PAS :
   contre-courant d'une tendance directionnelle forte et alignée ; LONG en bear
   marqué / SHORT en bull marqué sur une strat régime-sensible ; structure
   (funding/OI/dispersion) qui signale une poursuite plutôt qu'un retour.
+- **SHORT qui combat un momentum HAUSSIER aligné (RÈGLE FERME)** : si une entrée
+  SHORT (S5/S9/S10 fades) arrive alors que le token monte nettement (`ret_24h_bps`
+  positif et fort, ou breakout `bo=UP` net dans signal_info) ET que BTC monte sur la
+  bougie (`btc_ret_4h_bps` > +100) → **VETO par défaut**, sauf preuve CLAIRE
+  d'essoufflement (ex. OI en forte baisse, divergence marquée, exhaustion). Shorter
+  une force alignée token+BTC est le cas qui perd le plus. Symétrique pour un LONG
+  qui combat une chute alignée token+BTC.
 - Setup mécaniquement marginal alors que le floor de frais HL ~9 bps RT rend un
   edge faible fragile.
 
