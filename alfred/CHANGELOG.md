@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.1 — 2026-06-21
+
+- **Dashboard**: l'equity et le P&L (page bot + admin) repassent sur la comptabilité interne du bot (capital + réalisé + latent), stable que des positions soient ouvertes ou non. L'equity Hyperliquid, qui sous-compte la marge tant qu'une position est ouverte, n'est plus la référence affichée (gardée en cross-check). Corrige l'equity qui semblait baisser à l'ouverture de positions alors que le bot est gagnant.
+
 ## v1.6.0 — 2026-06-21
 
 - **Trading engine**: l'IA arbitre désormais les entrées du bot SENIOR (annulation ou réduction de taille), en un appel par scan, avec timeout et repli automatique sur les règles si indisponible. Démarre en mode observation (décide et mesure sans agir) ; bascule en mode actif par configuration.

@@ -661,15 +661,17 @@ function renderGlobal(d){
     const ddClass=dd<-1?'red':(dd<0?'':'green');
     const ea=b.exchange_account;
     const closeFeesEst=(b.positions||[]).reduce((a,p)=>a+(p.size_usdt||0)*0.0009,0);
-    const equity=ea?(ea.equity-closeFeesEst):balance;
-    const pnl=ea?(ea.equity-capital):(b.total_pnl||0);
+    // Compta bot (stable) : l'equity exchange sous-compte la marge en position.
+    const botUnreal=(b.positions||[]).reduce((a,p)=>a+(p.pnl_usdt||0),0);
+    const equity=(balance+botUnreal)-closeFeesEst;
+    const pnl=(b.total_pnl||0)+botUnreal;
     const pnlPct=capital>0?(pnl/capital*100):0;
     const stateBadge=online?(b.paused?'<span class="badge paused">paused</span>':'<span class="badge running">running</span>'):'';
     const borderStyle=online&&b.bot_label_color?`style="border-top-color:${b.bot_label_color}"`:'';
     const sigs=online&&b.active_signals&&b.active_signals.length?b.active_signals.map(s=>`<span>${s}</span>`).join(' &middot; '):'<i>No active signals</i>';
     const stats=online?`
       <div class="stat"><div class="stat-label">Equity</div><div class="stat-value">$${equity.toFixed(0)}</div>
-        ${ea?`<div class="stat-sub ${ea.unrealized>=0?'green':'red'}">${fmt(ea.unrealized,0)} unr.</div>`:''}</div>
+        <div class="stat-sub ${botUnreal>=0?'green':'red'}">${fmt(botUnreal,0)} unr.</div></div>
       <div class="stat"><div class="stat-label">P&L</div><div class="stat-value ${cls(pnl)}">${fmt(pnl,0)}</div>
         <div class="stat-sub ${cls(pnlPct)}">${fmt(pnlPct,1)}%</div></div>
       <div class="stat"><div class="stat-label">DD</div><div class="stat-value ${ddClass}">${fmt(dd,1)}%</div>

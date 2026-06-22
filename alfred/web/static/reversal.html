@@ -884,21 +884,21 @@ function refresh(){
     // Equity (v12.5.13): use s.equity (deterministic: capital + realized + sum_unrealized).
     // exchange_account.equity stays for the optional HL cross-check footer.
     const acct=s.exchange_account;
-    // Référence = equity RÉELLE Hyperliquid si dispo (live), sinon compta bot
-    // (paper). Toutes les cartes P&L dérivent de la MÊME source → cohérence
-    // garantie (plus de mélange bot/exchange qui causait la divergence).
+    // Référence = COMPTA BOT (baseline + réalisé + latent) : stable à plat ET en
+    // position. L'equity exchange sous-compte la marge tant que des positions sont
+    // ouvertes (corrigé 2026-06-21) → reléguée en cross-check seulement.
     const botUnreal=(s.positions||[]).reduce((a,p)=>a+(p.pnl_usdt||0),0);
-    const eqRef=acct?acct.equity:(s.equity!=null?s.equity:s.balance);
-    const unrealRef=acct?acct.unrealized:botUnreal;
+    const eqRef=(s.equity!=null)?s.equity:((s.balance||0)+botUnreal);
     const closeFeesEst=(s.positions||[]).reduce((a,p)=>a+(p.size_usdt||0)*0.0009,0);
     const stopNowEquity=eqRef-closeFeesEst;
     document.getElementById('balance').textContent='$'+stopNowEquity.toFixed(2);
     const urEl=document.getElementById('unrealized');
-    urEl.textContent='$'+fmt(unrealRef);
-    urEl.className='value '+cls(unrealRef);
+    urEl.textContent='$'+fmt(botUnreal);
+    urEl.className='value '+cls(botUnreal);
     if(acct){
       document.getElementById('capital').textContent='Available: $'+acct.available.toFixed(0)+' | Margin: $'+acct.margin_used.toFixed(0);
-      document.getElementById('available').textContent='P&L bot: $'+fmt(s.total_pnl);
+      // cross-check : equity HL réelle (sous-compte la marge en position)
+      document.getElementById('available').textContent='Equity HL: $'+fmt(acct.equity)+(s.positions.length?' (sous-compte en pos.)':'');
     } else {
       document.getElementById('capital').textContent='Capital: $'+s.capital.toFixed(0);
       document.getElementById('available').textContent='P&L: $'+fmt(s.total_pnl);
@@ -1220,18 +1220,17 @@ function refresh(){
       }).join(''):'<span class="dim">OI history warming up…</span>';
     }
 
-    // Cartes P&L — toutes depuis l'equity RÉELLE Hyperliquid si dispo (live),
-    // sinon compta bot (paper). Réalisé + Latent = Total, et se réconcilient
-    // avec la Liquidation value (même source = pas de divergence inter-cartes).
+    // Cartes P&L — COMPTA BOT (stable). Réalisé = trades clos ; Total = réalisé +
+    // latent. Se réconcilient avec la Liquidation value. L'equity exchange n'est
+    // PAS utilisée ici (sous-compte la marge en position).
     const ea=s.exchange_account;
     const cap=s.capital||0;
     const unrealTotal=s.positions.reduce((a,p)=>a+(p.pnl_usdt||0),0);
-    const todayTotal=ea?(ea.equity-cap):(s.total_pnl+unrealTotal);
+    const todayTotal=(s.total_pnl||0)+unrealTotal;
     document.getElementById('today-pnl').textContent='$'+fmt(todayTotal);
     document.getElementById('today-pnl').className='value '+cls(todayTotal);
 
-    // Réalisé = (equity − latent) − capital côté HL ; total_pnl côté paper.
-    const realPnl=ea?(ea.equity-ea.unrealized-cap):(s.total_pnl||0);
+    const realPnl=(s.total_pnl||0);
     const realPct=cap>0?realPnl/cap*100:0;
     const pnlAmtEl=document.getElementById('pnl-amt');
     pnlAmtEl.textContent='$'+fmt(realPnl);
