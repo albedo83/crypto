@@ -159,6 +159,7 @@ class Params:
     traj_cut_time_since_mfe_min_h: float = 4.0
     traj_cut_at_mae_slack_bps: float = 100.0
     traj_cut_min_loss_bps: float = -200.0
+    traj_cut_long_only: bool = True   # v1.6.4 : ne jamais couper un SHORT (mean-revert)
     # v11.7.32 runner extension (winners at timeout)
     runner_ext_strategies: frozenset[str] = frozenset({"S9"})
     runner_ext_hours: float = 12.0

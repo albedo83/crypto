@@ -60,6 +60,16 @@ LIVE_BT_GAP_PP = 25.0        # ≥25pp gap = warn
 # Macro regime
 BTC_Z_SHIFT_THRESHOLD = 1.0  # |Δz| over 7d ≥ 1.0 = regime shift
 
+# traj_cut efficacy monitor (realized-vs-counterfactual)
+# Reconstructs, for each closed traj_cut, what holding to the natural exit
+# (timeout OR catastrophe stop) would have realized, from 4h candles.
+# Aggregated across ALL bots so one weekly run gives the consolidated verdict.
+MARKET_DB = "/home/crypto/alfred/data/market.db"
+BOTS_DIR = "/home/crypto/alfred/data/bots"
+HOLD_BY_STRAT = {"S1": 72.0, "S5": 48.0, "S8": 60.0, "S9": 48.0, "S10": 24.0}
+DEFAULT_STOP_BPS = -1250.0   # catastrophe stop (S5 et défaut)
+S8_STOP_BPS = -750.0         # S8 tighter (traj_cut ne tire pas sur S8 aujourd'hui)
+
 
 # ── Helpers ────────────────────────────────────────────────────────────
 def load_env(path: str) -> dict:
@@ -269,6 +279,139 @@ def detect_live_vs_bt(trades: list[dict], capital: float = 500.0) -> list[dict]:
     }]
 
 
+# ── traj_cut efficacy (realized-vs-counterfactual) ─────────────────────
+def _traj_cut_counterfactual(t: dict, market_db: sqlite3.Connection) -> float | None:
+    """PnL qu'aurait réalisé le trade en le gardant jusqu'à sa sortie naturelle
+    (timeout du hold OU stop catastrophe), reconstruit sur candles 4h depuis
+    l'instant de la coupe. Retourne None si la fenêtre n'est pas encore mûre
+    (timeout pas atteint) ou si les candles manquent — l'événement est alors
+    'en attente' et exclu de la comptabilité.
+
+    Cohérence des coûts : on réutilise le delta coût (net−gross) déjà payé sur
+    le trade réel, donc cf_net = cf_gross + (net−gross) → comparable au réalisé.
+    """
+    try:
+        entry_t = parse_iso(t["entry_time"])
+        exit_t = parse_iso(t["exit_time"])
+    except Exception:
+        return None
+    direction = 1 if t["direction"] == "LONG" else -1
+    ep = t["entry_price"]
+    if not ep:
+        return None
+    hold_h = HOLD_BY_STRAT.get(t["strategy"], 72.0)
+    timeout = entry_t + timedelta(hours=hold_h)
+    # Fenêtre pas encore mûre → pas de verdict possible
+    if datetime.now(timezone.utc) < timeout:
+        return None
+    stop_bps = S8_STOP_BPS if t["strategy"] == "S8" else DEFAULT_STOP_BPS
+    rows = market_db.execute(
+        "SELECT h, l, c FROM candles WHERE symbol=? AND interval='4h' AND closed=1 "
+        "AND close_t>=? AND t<=? ORDER BY t",
+        (t["symbol"], int(exit_t.timestamp() * 1000), int(timeout.timestamp() * 1000)),
+    ).fetchall()
+    if not rows:
+        return None
+    last_c = t["exit_price"]
+    cf_gross = None
+    for h, l, c in rows:
+        lo_bps = direction * (l / ep - 1) * 1e4
+        hi_bps = direction * (h / ep - 1) * 1e4
+        if min(lo_bps, hi_bps) <= stop_bps:
+            cf_gross = stop_bps
+            break
+        last_c = c
+    if cf_gross is None:  # survécu jusqu'au timeout
+        cf_gross = direction * (last_c / ep - 1) * 1e4
+    cost_delta = (t["net_bps"] or 0.0) - (t["gross_bps"] or 0.0)
+    cf_net = cf_gross + cost_delta
+    return t["size_usdt"] * cf_net / 1e4
+
+
+def detect_traj_cut_efficacy() -> list[dict]:
+    """Comptabilise, par bot et agrégé, le Δ réalisé-vs-contrefactuel des
+    traj_cut (effet DIRECT par trade — n'inclut PAS l'effet de compounding que
+    le backtest capture). Δ>0 = la coupe a sauvé de l'argent vs garder.
+    Verdict cumulatif pour trancher en live ce que le backtest ne tranche pas.
+    """
+    if not os.path.exists(MARKET_DB) or not os.path.isdir(BOTS_DIR):
+        return []
+    try:
+        mkt = sqlite3.connect(f"file:{MARKET_DB}?mode=ro", uri=True)
+    except Exception:
+        return []
+    alerts = []
+    agg_n = agg_saved = 0
+    agg_real = agg_cf = 0.0
+    per_bot = []
+    for bot in sorted(os.listdir(BOTS_DIR)):
+        db_path = os.path.join(BOTS_DIR, bot, "bot.db")
+        if not os.path.exists(db_path):
+            continue
+        try:
+            db = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
+            db.row_factory = sqlite3.Row
+            rows = db.execute(
+                "SELECT symbol, strategy, direction, entry_time, exit_time, "
+                "entry_price, exit_price, size_usdt, net_bps, gross_bps, pnl_usdt "
+                "FROM trades WHERE reason='traj_cut' AND exit_time IS NOT NULL "
+                "ORDER BY exit_time"
+            ).fetchall()
+        except Exception:
+            continue
+        n = saved = pending = 0
+        sum_real = sum_cf = 0.0
+        recent_cut = datetime.now(timezone.utc) - timedelta(days=RECENT_DAYS)
+        n_recent = 0
+        for r in rows:
+            t = dict(r)
+            cf = _traj_cut_counterfactual(t, mkt)
+            if cf is None:
+                pending += 1
+                continue
+            n += 1
+            sum_real += t["pnl_usdt"]
+            sum_cf += cf
+            if t["pnl_usdt"] - cf > 0:
+                saved += 1
+            try:
+                if parse_iso(t["exit_time"]) >= recent_cut:
+                    n_recent += 1
+            except Exception:
+                pass
+        if n == 0 and pending == 0:
+            continue
+        delta = sum_real - sum_cf
+        agg_n += n; agg_saved += saved; agg_real += sum_real; agg_cf += sum_cf
+        per_bot.append((bot, n, saved, delta, pending, n_recent))
+    mkt.close()
+    if not per_bot:
+        return []
+    agg_delta = agg_real - agg_cf
+    # Verdict : Δ cumulatif < 0 = la coupe coûte (effet direct), à surveiller.
+    sev = "warning" if agg_delta < 0 else "info"
+    detail = " | ".join(
+        f"{b}: {ns}/{nn} sauvés, Δ={d:+.0f}$"
+        + (f" ({pe} en attente)" if pe else "")
+        for b, nn, ns, d, pe, _ in per_bot if nn or pe
+    )
+    verdict = ("effet direct NÉGATIF (cohérent backtest 28m : −$/trade ; "
+               "gain backtest = compounding non réalisable ici)"
+               if agg_delta < 0 else
+               "effet direct positif — la coupe paie en live")
+    n_recent_tot = sum(x[5] for x in per_bot)
+    alerts.append({
+        "type": "TRAJ_CUT_EFF",
+        "strat": "S5",
+        "msg": (f"traj_cut effet direct cumulé : {agg_saved}/{agg_n} sauvés, "
+                f"réalisé {agg_real:+.0f}$ vs garder {agg_cf:+.0f}$ → "
+                f"Δ={agg_delta:+.0f}$ ({n_recent_tot} coupes sur {RECENT_DAYS}j). "
+                f"{verdict}. {detail}"),
+        "severity": sev,
+    })
+    return alerts
+
+
 def detect_regime_shift(btc_candles_path: str = "/home/crypto/backtests/output/pairs_data/BTC_4h_3y.json") -> list[dict]:
     """Compute current btc_z from BTC 4h candles (independent of bot state)."""
     if not os.path.exists(btc_candles_path):
@@ -327,6 +470,7 @@ def format_report(alerts: list[dict], n_trades: int) -> str:
         ("TOKEN_TOXIC",   "🟡 Tokens toxiques (token, direction, strat)"),
         ("TOKEN_REVIVAL", "🟢 Revivals (token précédemment perdant qui remonte)"),
         ("LIVE_VS_BT",    "📐 Live vs Backtest"),
+        ("TRAJ_CUT_EFF",  "✂️ traj_cut efficacité (réalisé vs garder)"),
         ("REGIME_SHIFT",  "🌐 Régime macro"),
     ]
     any_alerts = False
@@ -419,6 +563,7 @@ def main() -> int:
     alerts.extend(detect_token_toxic(trades))
     alerts.extend(detect_token_revival(trades))
     alerts.extend(detect_live_vs_bt(trades, capital=args.capital))
+    alerts.extend(detect_traj_cut_efficacy())
     alerts.extend(detect_regime_shift())
 
     report = format_report(alerts, len(trades))

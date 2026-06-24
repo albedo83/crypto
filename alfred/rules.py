@@ -249,8 +249,11 @@ def prop_trail_rule(pos: PosView, ur: float, m: MarketCtx, p: Params) -> ExitDec
 
 
 def traj_cut_rule(pos: PosView, ur: float, m: MarketCtx, p: Params) -> ExitDecision | None:
-    """v12.7.1 — bear-regime trajectory cut (steep MFE→cur decline, pinned at MAE)."""
+    """v12.7.1 — bear-regime trajectory cut (steep MFE→cur decline, pinned at MAE).
+    v1.6.4 — LONG-only par défaut : les S5 SHORT pinnés mean-revertent (77% de
+    récupération en EDA 28m, couper coûte −140 bps moy), on ne les coupe plus."""
     if (pos.strategy in p.traj_cut_strategies
+            and not (p.traj_cut_long_only and pos.direction != 1)
             and m.btc_z is not None
             and m.btc_z < p.traj_cut_btc_z_threshold
             and ur <= p.traj_cut_min_loss_bps

@@ -3,6 +3,15 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.4 — 2026-06-24
+
+- **Trading engine**: `traj_cut` passe en **LONG-only** (`traj_cut_long_only=True`). On ne coupe plus jamais un S5 SHORT pinné. Motivation : audit live tous bots (−$233 / 2 sem, effet direct par trade négatif) + EDA 28m sur la population complète des positions « cuttables » — les S5 SHORT pinnés mean-revertent (77% de récupération si gardés, couper coûte −140 bps moy), alors que `btc_z` ne discrimine pas (AUC 0.50) et qu'aucun indicateur externe décorrélé ne sépare. Walk-forward 4 fenêtres : PnL ≥ base partout (28m +161$, 12m +86$, 6m/3m neutres car aucun SHORT cut récent), DD ≤ base partout. Kill-switch : `traj_cut_long_only=False`.
+- **Supervision**: `analysis/strategy_review.py` gagne un détecteur `TRAJ_CUT_EFF` — récap hebdo par bot du Δ réalisé-vs-contrefactuel des traj_cut (contrefactuel reconstruit sur candles 4h), pour mesurer en continu l'effet direct par trade que le backtest masque (son gain = compounding non réalisable sur petits books).
+
+## v1.6.3 — 2026-06-23
+
+- **Admin**: nouveau classement de la flotte sur la page de supervision — equity de chaque bot rapportée à son capital de départ (latent inclus), trié par performance.
+
 ## v1.6.2 — 2026-06-21
 
 - **Trading engine**: l'arbitre IA reçoit le momentum récent du token et applique une règle ferme — veto par défaut d'un SHORT qui combat une hausse alignée token+BTC (et symétrique pour un LONG contre une baisse alignée), sauf preuve claire d'essoufflement.
