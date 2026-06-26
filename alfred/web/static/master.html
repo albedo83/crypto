@@ -224,7 +224,12 @@ textarea:focus{outline:none;border-color:var(--blue)}
 
 <!-- ════ FLOTTE ════ -->
 <div class="panel" id="p-fleet">
-  <div class="card"><h3><span class="ico">🤖</span>Bots</h3>
+  <div class="card"><h3><span class="ico">🏆</span>Classement <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:400">— equity vs capital de départ (latent inclus)</span></h3>
+    <div style="overflow-x:auto"><table id="rankTable"><thead><tr>
+      <th>#</th><th>Bot</th><th class="num">Capital investi</th><th class="num">Equity</th>
+      <th class="num">P&L</th><th class="num">Score</th>
+    </tr></thead><tbody></tbody></table></div></div>
+  <div class="card mt"><h3><span class="ico">🤖</span>Bots</h3>
     <div style="overflow-x:auto"><table id="fleetTable"><thead><tr>
       <th data-s="label">Bot</th><th data-s="mode">Mode</th><th data-s="status">Statut</th>
       <th data-s="balance" class="num">Equity</th><th data-s="total_pnl" class="num">P&L</th>
@@ -361,6 +366,16 @@ function renderFleet(d){
     const txt=days<0?'🔑 clé EXPIRÉE':`🔑 clé exp ${iso} (${days}j)`;
     return `<div style="font-size:9px;color:${col};margin-top:2px">${txt}</div>`;
   };
+  $('rankTable').querySelector('tbody').innerHTML=(d.ranking||[]).map((r,i)=>{
+    const medal=['🥇','🥈','🥉'][i]||(i+1);
+    return `<tr>
+      <td style="font-weight:600">${medal}</td>
+      <td style="color:${r.color||'var(--txt)'};font-weight:600">${esc(r.label)}</td>
+      <td class="num">${fmtUsd(r.capital)}</td>
+      <td class="num">${fmtUsd(r.equity)}</td>
+      <td class="num ${r.pnl_abs>=0?'green':'red'}">${fmt(r.pnl_abs)}</td>
+      <td class="num ${r.score_pct>=0?'green':'red'}" style="font-weight:600">${fmt(r.score_pct,1)}%</td></tr>`;
+  }).join('')||'<tr><td colspan="6" class="empty">aucun bot</td></tr>';
   $('fleetTable').querySelector('tbody').innerHTML=rows.map(b=>{
     if(!b.online)return `<tr><td>${esc(b.label)}</td><td>${b.mode}</td><td class="red">ERREUR</td><td colspan="6">${esc(b.error)}</td></tr>`;
     return `<tr>

@@ -740,6 +740,7 @@ def build_admin_summary(bots: dict, master) -> list:
                 "version": st["version"],
                 "bot_label_color": bot.color,
                 "balance": st["balance"], "capital": st["capital"],
+                "equity": st["equity"],
                 "agent_expiry": st["agent_expiry"],
                 "total_pnl": st["total_pnl"], "total_trades": st["total_trades"],
                 "win_rate": st["win_rate"], "drawdown_pct": st["drawdown_pct"],
@@ -869,14 +870,33 @@ def build_fleet_response(bots: dict, master) -> dict:
         pts = build_pnl_curve(list(bot.trades), bot._capital,
                               bot._perf_track_start_ts,
                               bot._total_pnl_at_perf_reset)
-        cap0 = bot.cfg.capital_initial if hasattr(bot, "cfg") else bot._capital
+        cap0 = bot._capital  # principal vivant (inclut le DCA) — courbe neutre au DCA
         curve = [{"time": p["time"],
                   "pct": round((p["balance"] / cap0 - 1) * 100, 2)}
                  for p in (pts.get("points", []) if isinstance(pts, dict) else pts)]
         curves[bot.id] = {"label": bot.label, "color": bot.color,
                           "points": curve}
 
+    # Classement performance : equity vs capital INVESTI (principal vivant
+    # bot._capital = capital de départ + DCA net), latent inclus. On normalise
+    # par le principal, jamais par capital_initial figé, pour que le score
+    # reste neutre au DCA (une injection n'est pas du gain). Meilleur→pire.
+    ranking = []
+    for c in cards:
+        cap0 = c.get("capital")
+        eq = c.get("equity")
+        if not cap0 or eq is None:
+            continue
+        ranking.append({
+            "id": c["id"], "label": c["label"], "color": c.get("bot_label_color"),
+            "capital": round(cap0, 2), "equity": round(eq, 2),
+            "pnl_abs": round(eq - cap0, 2),
+            "score_pct": round((eq / cap0 - 1) * 100, 2),
+        })
+    ranking.sort(key=lambda r: -r["score_pct"])
+
     return {"bots": cards,
+            "ranking": ranking,
             "exposures": exposures,
             "by_sector": {k: round(v, 2) for k, v in
                           sorted(by_sector.items(), key=lambda kv: -kv[1])},

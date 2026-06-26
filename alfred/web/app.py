@@ -727,12 +727,12 @@ def create_app(bots: dict, master) -> FastAPI:
         if not bot:
             return NOT_FOUND
         perf_ts = bot._perf_track_start_ts
-        if perf_ts > 0:
-            baseline = bot._capital_at_perf_reset or bot._capital
-            total_at_reset = bot._total_pnl_at_perf_reset
-        else:
-            baseline = bot.cfg.capital_initial
-            total_at_reset = 0.0
+        # Baseline = principal vivant (bot._capital, inclut le DCA) : le P&L cumulé
+        # s'y ajoute → la courbe finit à _capital+_total_pnl et reste neutre au DCA
+        # (un apport n'apparaît pas comme un gain). Évite le biais de
+        # capital_initial/_capital_at_perf_reset figés (non rebasés au DCA).
+        baseline = bot._capital
+        total_at_reset = bot._total_pnl_at_perf_reset if perf_ts > 0 else 0.0
         return JSONResponse(views.build_pnl_curve(bot.trades, baseline,
                                                   perf_ts, total_at_reset))
 

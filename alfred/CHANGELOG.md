@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.5 — 2026-06-26
+
+- **Admin**: le classement et les courbes de performance de la flotte se calculent désormais sur le capital investi (capital de départ + apports DCA), pour qu'un apport de capital ne soit plus comptabilisé comme un gain.
+
 ## v1.6.4 — 2026-06-24
 
 - **Trading engine**: `traj_cut` passe en **LONG-only** (`traj_cut_long_only=True`). On ne coupe plus jamais un S5 SHORT pinné. Motivation : audit live tous bots (−$233 / 2 sem, effet direct par trade négatif) + EDA 28m sur la population complète des positions « cuttables » — les S5 SHORT pinnés mean-revertent (77% de récupération si gardés, couper coûte −140 bps moy), alors que `btc_z` ne discrimine pas (AUC 0.50) et qu'aucun indicateur externe décorrélé ne sépare. Walk-forward 4 fenêtres : PnL ≥ base partout (28m +161$, 12m +86$, 6m/3m neutres car aucun SHORT cut récent), DD ≤ base partout. Kill-switch : `traj_cut_long_only=False`.
