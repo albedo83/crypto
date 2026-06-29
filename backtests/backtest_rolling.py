@@ -314,6 +314,7 @@ def run_window(features, data, sector_features, dxy_data,
                early_dead_check: dict[str, tuple[float, float]] | None = None,
                btc_z_variant: str = "baseline",
                max_notional_fn=None,
+               bear_derisk: tuple | None = None,
                opposite_cut: dict | None = None,
                take_profit: dict | None = None,
                prop_trail_override: dict | None = None,
@@ -1474,6 +1475,11 @@ def run_window(features, data, sector_features, dxy_data,
                 else:
                     size = _rules.position_size(cand["strat"], cand["dir"],
                                                 capital, _z, _P)
+                # Levier C (R&D) : derisk global en bear profond. Réduit la
+                # taille de TOUTES les entrées quand btc_z < seuil — overlay de
+                # sizing, pas un filtre d'entrée (le trade est pris, plus petit).
+                if bear_derisk is not None and _z is not None and _z < bear_derisk[0]:
+                    size *= bear_derisk[1]
                 if size < 10:
                     continue  # modulator_floor (live SKIP)
             else:
