@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.6 — 2026-06-29
+
+- **Trading engine**: l'arbitre IA d'entrée (SENIOR) tient compte de sa décision précédente sur un même setup pour éviter les revirements d'un scan à l'autre.
+
 ## v1.6.5 — 2026-06-26
 
 - **Admin**: le classement et les courbes de performance de la flotte se calculent désormais sur le capital investi (capital de départ + apports DCA), pour qu'un apport de capital ne soit plus comptabilisé comme un gain.

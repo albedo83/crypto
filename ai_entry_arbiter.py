@@ -79,6 +79,9 @@ def config() -> dict:
         "veto_conf_min": float(env("AI_ARBITER_VETO_CONF_MIN", "0.0")),
         "cb_min": int(env("AI_ARBITER_CB_MIN", "20")),
         "cb_loss": float(env("AI_ARBITER_CB_LOSS", "-40")),
+        # Hystérésis inter-scan : réinjecte la décision précédente sur un même
+        # symbole si < prior_ttl_h heures (anti flip-flop). 0 = désactivé.
+        "prior_ttl_h": float(env("AI_ARBITER_PRIOR_TTL_H", "12")),
     }
 
 SYSTEM_PROMPT = """\
@@ -117,6 +120,15 @@ DISCIPLINE :
   d'empiler des entrées redondantes dans le même sens/secteur si le risque est
   concentré).
 - Pas d'hallucination de chiffres : uniquement les valeurs du contexte fourni.
+
+COHÉRENCE INTER-SCAN (anti flip-flop) :
+- Si un candidat porte `prior_decision`, c'est TA décision sur CE même setup au
+  scan précédent (il y a `hours_ago` h). Traite-la comme un prior fort. Si tu
+  l'as VÉTÉ, ne reviens en GO que si le contexte a **matériellement** changé
+  (raison concrète, pas une simple oscillation BTC de bruit) : un knife /
+  regime_mismatch qui persiste **reste un VETO**. Inversement, ne t'entête pas
+  sur un veto si l'état a clairement basculé. Justifie tout revirement dans
+  `reason`. Le même setup ré-évalué à l'identique ne doit pas changer d'avis.
 
 SORTIE — réponds EXCLUSIVEMENT en JSON valide, un objet dont les clés sont les
 symboles du lot, rien avant/après :

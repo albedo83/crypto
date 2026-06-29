@@ -94,6 +94,9 @@ class BotInstance:
         self._giveback_alerted: set[str] = set()
         self._lock_floor_alerted: set[str] = set()
         self._regime_alert_last_ts = 0.0
+        # Mémoire arbitre IA (SENIOR) : dernière décision par symbole, réinjectée
+        # au scan suivant pour l'hystérésis (anti flip-flop). RAM, restart la vide.
+        self._arbiter_last: dict[str, dict] = {}
         self._basket_metrics: dict | None = None
         # Bot neuf (pas de state) : la période 4h courante est marquée déjà
         # consommée — la première entrée attend la prochaine frontière 4h au
@@ -601,6 +604,7 @@ class BotInstance:
                 arb_cfg = _aia.config()
                 if arb_cfg["mode"] != "off":
                     arb_mode = "shadow" if _aia.is_tripped() else arb_cfg["mode"]
+                    ttl_h = arb_cfg.get("prior_ttl_h", 12.0)
                     batch, seen_b = [], set()
                     for s in sigs:
                         sy = s["symbol"]
@@ -609,7 +613,7 @@ class BotInstance:
                         seen_b.add(sy)
                         cx = s.get("ctx", {})
                         _f = self._feature_cache.get(sy) or {}
-                        batch.append({
+                        entry = {
                             "symbol": sy, "strategy": s["strategy"],
                             "dir": "LONG" if s["direction"] == 1 else "SHORT",
                             "z": round(s.get("z", 0.0), 3),
@@ -620,7 +624,19 @@ class BotInstance:
                             "oi_delta": cx.get("oi_delta"),
                             "crowding": cx.get("crowding"),
                             "confluence": cx.get("confluence"),
-                            "session": cx.get("session")})
+                            "session": cx.get("session")}
+                        # Hystérésis : décision de l'arbitre sur ce même symbole au
+                        # scan précédent (anti flip-flop), si < TTL.
+                        prior = self._arbiter_last.get(sy)
+                        if (prior and ttl_h > 0
+                                and (now.timestamp() - prior["ts"]) <= ttl_h * 3600):
+                            entry["prior_decision"] = {
+                                "decision": prior["decision"],
+                                "confidence": prior["confidence"],
+                                "dir": prior["dir"], "reason": prior["reason"],
+                                "hours_ago": round(
+                                    (now.timestamp() - prior["ts"]) / 3600, 1)}
+                        batch.append(entry)
                     if batch:
                         cc = getattr(self, "_cross_ctx_cache", None) or {}
                         _snap = self.master.snapshot
@@ -638,6 +654,17 @@ class BotInstance:
                             timeout=arb_cfg["timeout"], factor_min=arb_cfg["factor_min"])
                         arb = res.get("verdicts", {}) or {}
                         meta = res.get("meta", {}) or {}
+                        # Mémorise la décision de ce scan par symbole (pour
+                        # l'hystérésis au scan suivant). Pas de mémoire si fail-open.
+                        for _b in batch:
+                            _v = arb.get(_b["symbol"])
+                            if _v:
+                                self._arbiter_last[_b["symbol"]] = {
+                                    "decision": _v["decision"],
+                                    "confidence": _v["confidence"],
+                                    "reason": _v["reason"], "dir": _b["dir"],
+                                    "strategy": _b["strategy"],
+                                    "ts": now.timestamp()}
                         if meta.get("failopen"):
                             self.db.log_event("ARBITER_FAILOPEN", None,
                                               {"reason": meta["failopen"], "n": len(batch)})
