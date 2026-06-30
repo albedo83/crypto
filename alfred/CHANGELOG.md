@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.8 — 2026-06-30
+
+- **Telegram**: l'alerte de régime par-bot est désactivée (le nudge de régime reste sur le canal principal).
+
 ## v1.6.7 — 2026-06-30
 
 - **Trading engine**: retrait de la blacklist de tokens — l'univers négociable est élargi.

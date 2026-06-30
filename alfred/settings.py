@@ -182,7 +182,7 @@ class Params:
     lock_floor_alert_min_bps: float = 600.0
     lock_floor_alert_min_hold_h: float = 4.0
     lock_floor_alert_buffer_usd: float = 5.0
-    regime_alert_disp_7d_bps: float = 700.0
+    regime_alert_disp_7d_bps: float = 99999.0  # désactivé 2026-06-30 (kill-switch ≥99000) : l'alerte 🌪️ par-bot était commune aux 4 bots ; le nudge régime reste sur le canal SENIOR via le cron regime_alert.py. Ré-activer = remettre 700.0.
     regime_alert_wr_pct: float = 35.0
     regime_alert_lookback: int = 10
     regime_alert_cooldown_h: float = 24.0
