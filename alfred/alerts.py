@@ -46,11 +46,8 @@ def check_wr_alerts(bot) -> None:
         if cur_pnl > 0 or pos.mfe_bps >= 500:
             continue
         side = "LONG" if pos.direction == 1 else "SHORT"
-        bot.notifier.send(
-            f"🚨 {sym} {pos.strategy} {side}: WR drift to {wp['wr_pct']}% "
-            f"(base {wp['base_wr_pct']}%, n={wp['n']} {wp['scope']})\n"
-            f"  pnl=${cur_pnl:+.2f} | MAE={int(pos.mae_bps)} | held {hold_h:.1f}h\n"
-            f"  Consider manual close.", category="trade", actionable=True)
+        # TG « Consider manual close » retiré (2026-06-30) — supplanté par
+        # l'arbitre IA de sortie qui AGIT. Event conservé pour le dashboard.
         bot.db.log_event("WR_ALERT", sym, {
             "strategy": pos.strategy, "dir": side,
             "wr_pct": wp["wr_pct"], "base_wr_pct": wp["base_wr_pct"],
@@ -90,13 +87,8 @@ def check_giveback_alerts(bot) -> None:
         mfe_pnl = pos.size_usdt * pos.mfe_bps / 1e4
         side = "LONG" if pos.direction == 1 else "SHORT"
         retr = (pos.mfe_bps - ur_bps) / pos.mfe_bps * 100 if pos.mfe_bps > 0 else 0
-        bot.notifier.send(
-            f"🪤 GIVEBACK {sym} {pos.strategy} {side}: "
-            f"MFE peaked ${mfe_pnl:+.2f} ({pos.mfe_bps:+.0f}bps) "
-            f"{t_since_mfe:.1f}h ago, now ${cur_pnl:+.2f} "
-            f"({ur_bps:+.0f}bps) — retraced {retr:.0f}%. "
-            f"MAE ${mae_pnl:.2f}. Consider manual_close.",
-            category="trade", actionable=True)
+        # TG « Consider manual_close » retiré (2026-06-30) — supplanté par
+        # l'arbitre IA de sortie. Event conservé pour le dashboard.
         bot.db.log_event("GIVEBACK_ALERT", sym, {
             "strategy": pos.strategy, "dir": side,
             "mfe_bps": round(pos.mfe_bps, 1), "cur_bps": round(ur_bps, 1),
@@ -133,12 +125,8 @@ def check_lock_floor_alerts(bot) -> None:
             continue
         side = "LONG" if pos.direction == 1 else "SHORT"
         suggested = max(0.0, round(cur_pnl - p.lock_floor_alert_buffer_usd))
-        bot.notifier.send(
-            f"🎯 LOCK_FLOOR {sym} {pos.strategy} {side}: "
-            f"unrealized ${cur_pnl:+.2f} ({ur_bps:+.0f}bps) after "
-            f"{hold_h:.1f}h. Consider manual_stop @ ${suggested:.0f} "
-            f"to protect ~${suggested:.0f} of the gain.",
-            category="trade", actionable=True)
+        # TG « Consider manual_stop » retiré (2026-06-30) — l'arbitre IA de sortie
+        # pose désormais lui-même le stop protecteur (LOCK). Event conservé.
         bot.db.log_event("LOCK_FLOOR_ALERT", sym, {
             "strategy": pos.strategy, "dir": side,
             "cur_bps": round(ur_bps, 1), "cur_pnl": round(cur_pnl, 2),
