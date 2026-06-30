@@ -97,6 +97,9 @@ class BotInstance:
         # Mémoire arbitre IA (SENIOR) : dernière décision par symbole, réinjectée
         # au scan suivant pour l'hystérésis (anti flip-flop). RAM, restart la vide.
         self._arbiter_last: dict[str, dict] = {}
+        # Arbitre IA de SORTIE (SENIOR) : throttle + mémoire d'hystérésis. RAM.
+        self._exit_ai_last_ts = 0.0
+        self._exit_arbiter_last: dict[str, dict] = {}
         self._basket_metrics: dict | None = None
         # Bot neuf (pas de state) : la période 4h courante est marquée déjà
         # consommée — la première entrée attend la prochaine frontière 4h au
@@ -290,6 +293,154 @@ class BotInstance:
 
     # ── Exits (every tick) ───────────────────────────────────────────
 
+    def _protective_stop_ok(self, pos, stop_usdt, st_price) -> tuple[bool, str]:
+        """Réplique les bornes de POST /api/manual_stop : le stop $ doit être
+        strictement sous le PnL net courant (pas de déclenchement immédiat) ET
+        au-dessus du catastrophe-stop (pas redondant). Renvoie (ok, raison)."""
+        p = self.p
+        if stop_usdt is None or pos.size_usdt <= 0 or st_price <= 0 or pos.entry_price <= 0:
+            return False, "invalid_inputs"
+        cur_bps = pos.direction * (st_price / pos.entry_price - 1) * 1e4
+        cur_pnl_net = pos.size_usdt * (cur_bps - p.cost_bps) / 1e4
+        if stop_usdt >= cur_pnl_net:
+            return False, "would_trigger_immediately"
+        trigger_gross = stop_usdt / pos.size_usdt * 1e4 + p.cost_bps
+        cata = rules.effective_stop(rules.PosView(
+            strategy=pos.strategy, direction=pos.direction,
+            entry_price=pos.entry_price, size_usdt=pos.size_usdt,
+            stop_bps=pos.stop_bps, mfe_bps=0, mae_bps=0,
+            hours_held=0, hours_to_timeout=1, mfe_at_h=0), p)
+        if trigger_gross <= cata:
+            return False, "below_catastrophe"
+        # LOCK ne fait que RELEVER un plancher existant
+        if pos.manual_stop_usdt is not None and stop_usdt <= pos.manual_stop_usdt:
+            return False, "not_higher_than_existing"
+        return True, "ok"
+
+    def _ai_exit_overlay(self, now: datetime, m) -> None:
+        """SENIOR : arbitre IA de sortie (throttlé). LOCK un gagnant (stop
+        protecteur, AGIT) ou CUT un perdant doomed (shadow|act). Overlay
+        live-only, hors rules.py. Fail-safe → aucune action."""
+        if self.id != "live":
+            return
+        import ai_exit_arbiter as _aix
+        cfg = _aix.config()
+        if not cfg["enabled"]:
+            return
+        nowts = now.timestamp()
+        if nowts - self._exit_ai_last_ts < cfg["throttle_s"]:
+            return
+        p = self.p
+        batch, snap = [], {}
+        with self._pos_lock:
+            for sym, pos in self.positions.items():
+                st = self.states.get(sym)
+                if not st or st.price <= 0 or pos.entry_price <= 0:
+                    continue
+                ur = pos.direction * (st.price / pos.entry_price - 1) * 1e4
+                if not (ur <= cfg["cut_ur_max_bps"] or ur >= cfg["lock_ur_min_bps"]):
+                    continue
+                hh = (now - pos.entry_time).total_seconds() / 3600
+                net_pnl = pos.size_usdt * (ur - p.cost_bps) / 1e4
+                entry = {
+                    "symbol": sym, "strategy": pos.strategy,
+                    "direction": "LONG" if pos.direction == 1 else "SHORT",
+                    "unrealized_bps": round(ur, 0), "pnl_usdt": round(net_pnl, 2),
+                    "size_usdt": round(pos.size_usdt, 0), "hold_hours": round(hh, 1),
+                    "remaining_hours": round(
+                        (pos.target_exit - now).total_seconds() / 3600, 1),
+                    "mae_bps": round(pos.mae_bps, 0), "mfe_bps": round(pos.mfe_bps, 0),
+                    "mfe_at_h": round(pos.mfe_at_h, 1),
+                    "manual_stop_usdt": pos.manual_stop_usdt,
+                    "opp_floor_bps": pos.opp_floor_bps, "signal_info": pos.signal_info}
+                prior = self._exit_arbiter_last.get(sym)
+                if (prior and cfg["prior_ttl_h"] > 0
+                        and (nowts - prior["ts"]) <= cfg["prior_ttl_h"] * 3600):
+                    entry["prior_decision"] = {
+                        "action": prior["action"], "confidence": prior["confidence"],
+                        "reason": prior["reason"],
+                        "hours_ago": round((nowts - prior["ts"]) / 3600, 1)}
+                batch.append(entry)
+                snap[sym] = {
+                    "ur": ur, "net_pnl": net_pnl, "hold_hours": hh,
+                    "entry_ts_ms": int(pos.entry_time.timestamp() * 1000),
+                    "stop_bps": pos.stop_bps, "strategy": pos.strategy,
+                    "dir": "LONG" if pos.direction == 1 else "SHORT",
+                    "mae_bps": pos.mae_bps, "mfe_bps": pos.mfe_bps}
+        if not batch:
+            self._exit_ai_last_ts = nowts
+            return
+        _snap = self.master.snapshot
+        cc = getattr(self, "_cross_ctx_cache", None) or {}
+        market = {"btc_z": self._btc_z,
+                  "btc_ret_4h_bps": _snap.btc_ret_4h_bps if _snap else None,
+                  "disp_24h": cc.get("disp_24h"), "disp_7d": cc.get("disp_7d")}
+        res = _aix.arbitrate_safe(batch, market, model=cfg["model"],
+                                  timeout=cfg["timeout"])
+        self._exit_ai_last_ts = nowts
+        verdicts = res.get("verdicts", {}) or {}
+        meta = res.get("meta", {}) or {}
+        if meta.get("failopen"):
+            self.db.log_event("ARBITER_EXIT_FAILOPEN", None,
+                              {"reason": meta["failopen"], "n": len(batch)})
+            return
+        tripped = _aix.is_tripped()
+        for sym, v in verdicts.items():
+            s = snap.get(sym)
+            if s is None:
+                continue
+            action, conf = v["action"], v["confidence"]
+            self._exit_arbiter_last[sym] = {
+                "action": action, "confidence": conf,
+                "reason": v["reason"], "ts": nowts}
+            if action == "HOLD" or conf < cfg["conf_min"]:
+                continue
+            acted, applied_stop, note = False, None, ""
+            with self._pos_lock:
+                pos = self.positions.get(sym)
+            if pos is None:
+                continue
+            st = self.states.get(sym)
+            if action == "LOCK":
+                ok, note = (self._protective_stop_ok(pos, v.get("stop_usdt"),
+                                                     st.price if st else 0.0))
+                if ok and not tripped:
+                    with self._pos_lock:
+                        if sym in self.positions:
+                            self.positions[sym].manual_stop_usdt = float(v["stop_usdt"])
+                            acted = True
+                    if acted:
+                        self._save_state()
+                        applied_stop = float(v["stop_usdt"])
+                        log.info("[%s] AI-EXIT LOCK %s: stop $%.2f (conf %.2f): %s",
+                                 self.id, sym, applied_stop, conf, v["reason"])
+                        self.notifier.send(
+                            f"🧠 IA — LOCK {pos.strategy} {sym}: stop protecteur "
+                            f"${applied_stop:.0f} — {v['reason']}",
+                            category="trade", actionable=True)
+            elif action == "CUT" and s["ur"] < 0:  # jamais de CUT sur un gagnant
+                if cfg["cut_mode"] == "act" and not tripped and st and st.price > 0:
+                    if self.close_and_check(sym, st.price, now, "ai_exit"):
+                        acted = True
+                        log.info("[%s] AI-EXIT CUT %s (conf %.2f): %s",
+                                 self.id, sym, conf, v["reason"])
+                        self.notifier.send(
+                            f"🧠 IA — CUT {pos.strategy} {sym}: {s['net_pnl']:+.2f}$ — "
+                            f"{v['reason']}", category="trade", actionable=True)
+            self.db.log_event("ARBITER_EXIT_DECISION", sym, {
+                "cut_mode": cfg["cut_mode"], "acted": acted, "action": action,
+                "tripped": tripped, "note": note,
+                "strategy": s["strategy"], "dir": s["dir"], "confidence": conf,
+                "reason": v["reason"], "risk_flags": v["risk_flags"],
+                "stop_usdt": applied_stop if applied_stop is not None
+                else v.get("stop_usdt"),
+                "unrealized_bps": round(s["ur"], 1), "net_pnl": round(s["net_pnl"], 2),
+                "ref_price": round(st.price, 6) if st else None,
+                "entry_ts_ms": s["entry_ts_ms"], "hold_hours": round(s["hold_hours"], 1),
+                "stop_bps": round(s["stop_bps"], 1),
+                "mae_bps": round(s["mae_bps"], 1), "mfe_bps": round(s["mfe_bps"], 1),
+                "btc_z": round(self._btc_z, 3) if self._btc_z is not None else None})
+
     def on_tick(self, now: datetime | None = None) -> int:
         """Update excursions and evaluate the exit chain for every position.
         Returns the number of exits."""
@@ -307,6 +458,14 @@ class BotInstance:
                     self.close_position(sym, st.price, now, "retry_close")
                     if sym not in self.positions:
                         exits += 1
+
+        # ── Arbitre IA de SORTIE (SENIOR only, throttlé) : peut LOCK (stop
+        # protecteur) un gagnant ou CUT (shadow|act) un perdant doomed. Overlay
+        # live-only, hors rules.py (backtest inchangé). Fail-safe → aucune action.
+        try:
+            self._ai_exit_overlay(now, m)
+        except Exception as e:
+            log.warning("[%s] exit-arbiter skip: %s", self.id, e)
 
         for sym in list(self.positions.keys()):
             with self._pos_lock:

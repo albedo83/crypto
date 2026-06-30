@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.9 — 2026-06-30
+
+- **Trading engine**: l'IA peut désormais intervenir sur une position ouverte (SENIOR) — poser un stop protecteur sur un gagnant, ou couper un perdant en trajectoire désespérée — bornée par scorecard, disjoncteur, kill-switch et fail-safe.
+
 ## v1.6.8 — 2026-06-30
 
 - **Telegram**: l'alerte de régime par-bot est désactivée (le nudge de régime reste sur le canal principal).
