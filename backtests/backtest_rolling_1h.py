@@ -42,7 +42,7 @@ INTERVAL_HOURS = 1
 SCALE = 4 // INTERVAL_HOURS  # candle-count scale vs 4h grid
 
 # Time-equivalent lookbacks at 1h granularity
-LB_RET_24H = 24 * SCALE   # 4h grid: 6, 1h grid: 24
+LB_RET_24H = 6 * SCALE    # 24h span: 6 candles on 4h grid, 24 on 1h (bug fix: was 24*SCALE=96h)
 LB_RET_7D = 42 * SCALE    # 168
 LB_RET_14D = 84 * SCALE   # 336
 LB_RET_30D = 180 * SCALE  # 720

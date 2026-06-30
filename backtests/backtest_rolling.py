@@ -298,6 +298,7 @@ def run_window(features, data, sector_features, dxy_data,
                stop_override: dict | None = None,
                early_mae_exit: dict | None = None,
                interval_hours: int = 4,
+               entry_align_hours: int = 0,
                funding_data: dict | None = None,
                apply_adaptive_modulator: bool = False,
                inlife_exit_extra=None,
@@ -1303,8 +1304,15 @@ def run_window(features, data, sector_features, dxy_data,
         btc7 = btc_ret(ts, 42)
 
         candidates = []
+        # Entry-cadence gate (config B = live mirror): on a 1h grid, only open
+        # positions on 4h boundaries (entries stay 4h, exits run hourly). 0 =
+        # off (default) → parity with the 4h reference run.
+        _entry_gate_open = (entry_align_hours <= 0
+                            or ts % (entry_align_hours * 3600 * 1000) == 0)
         _btc_f = {"btc_30d": btc30, "btc_7d": btc7}
         for coin in coins:
+            if not _entry_gate_open:
+                break
             if coin in positions or (coin in cooldown and ts < cooldown[coin]):
                 continue
             f = feat_by_ts.get(ts, {}).get(coin)
@@ -1341,7 +1349,7 @@ def run_window(features, data, sector_features, dxy_data,
 
         # Optional extra candidates from a callback (used for new-signal sweeps).
         # Callback signature: fn(ts, coins, feat_by_ts, data, coin_by_ts, positions, cooldown) -> list[cand]
-        if extra_candidate_fn is not None:
+        if extra_candidate_fn is not None and _entry_gate_open:
             candidates.extend(extra_candidate_fn(ts, coins, feat_by_ts, data,
                                                   coin_by_ts, positions, cooldown))
 
