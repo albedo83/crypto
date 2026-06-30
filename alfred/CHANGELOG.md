@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.7 — 2026-06-30
+
+- **Trading engine**: retrait de la blacklist de tokens — l'univers négociable est élargi.
+
 ## v1.6.6 — 2026-06-29
 
 - **Trading engine**: l'arbitre IA d'entrée (SENIOR) tient compte de sa décision précédente sur un même setup pour éviter les revirements d'un scan à l'autre.

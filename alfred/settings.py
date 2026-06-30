@@ -37,7 +37,7 @@ class Params:
         "BCH", "DOT", "ADA", "XMR", "ENA", "UNI",
     )
     reference_symbols: tuple[str, ...] = ("BTC", "ETH")
-    trade_blacklist: frozenset[str] = frozenset({"SUI", "IMX", "LINK"})
+    trade_blacklist: frozenset[str] = frozenset()  # vidée 2026-06-30 : overfit de sélection décru (walk-forward glissant : retrait gagne 6/7 OOS). Re-blacklister = ré-ajouter des tokens ici.
     sectors: dict = field(default_factory=lambda: {
         "L1":       ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI", "TON"],
         "L1-major": ["BCH", "DOT", "ADA"],
