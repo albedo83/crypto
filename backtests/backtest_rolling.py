@@ -299,6 +299,7 @@ def run_window(features, data, sector_features, dxy_data,
                early_mae_exit: dict | None = None,
                interval_hours: int = 4,
                entry_align_hours: int = 0,
+               smooth_mfe_hours: int = 0,
                funding_data: dict | None = None,
                apply_adaptive_modulator: bool = False,
                inlife_exit_extra=None,
@@ -811,7 +812,13 @@ def run_window(features, data, sector_features, dxy_data,
             # (it reads worst_bps directly below).
             if mfe_on_close:
                 _cur_mfe = pos["dir"] * (current / pos["entry"] - 1) * 1e4
-                if _cur_mfe > pos.get("mfe", 0):
+                # smooth_mfe_hours (config B′) : ne met à jour le MFE qu'aux
+                # frontières N-h → les trailing-exits chevauchent les tendances
+                # comme le BT 4h, sans sauter sur le bruit du mark horaire. Le MAE
+                # reste à la granularité de la grille (cuts protègent vite). 0=off.
+                _mfe_ok = (smooth_mfe_hours <= 0
+                           or ts % (smooth_mfe_hours * 3600 * 1000) == 0)
+                if _mfe_ok and _cur_mfe > pos.get("mfe", 0):
                     pos["mfe"] = _cur_mfe
                     pos["mfe_held"] = held
                 if _cur_mfe < pos.get("mae", 0):
