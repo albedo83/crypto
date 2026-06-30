@@ -23,6 +23,11 @@ import urllib.request
 SENIOR_DB = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                          "alfred", "data", "bots", "live", "bot.db")
 
+# Préfixe distinctif : tout message de la couche IA (superviseur, revue de
+# positions, scorecard/disjoncteur arbitre, verdict) est marqué pour le
+# distinguer d'un coup d'œil des messages mécaniques du bot (OPEN/CLOSE/alertes).
+AI_PREFIX = "🧠 IA — "
+
 
 def _log_history(text: str, source: str) -> None:
     """Journalise le message envoyé dans la DB SENIOR (event AI_TG)."""
@@ -52,8 +57,9 @@ def send_telegram(text: str, source: str = "") -> bool:
     if not token or not chat:
         print("[ai_notify] TG_BOT_TOKEN/TG_CHAT_ID absents — pas d'envoi", file=sys.stderr)
         return False
+    sent_text = text if text.startswith(AI_PREFIX) else AI_PREFIX + text
     url = f"https://api.telegram.org/bot{token}/sendMessage"
-    data = urllib.parse.urlencode({"chat_id": chat, "text": text}).encode()
+    data = urllib.parse.urlencode({"chat_id": chat, "text": sent_text}).encode()
     try:
         with urllib.request.urlopen(
                 urllib.request.Request(url, data=data), timeout=10) as resp:
