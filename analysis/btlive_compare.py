@@ -16,7 +16,13 @@ Three-phase flow (cf. /btlive skill):
 
 The script does NOT touch the running bot — read-only on DB + state.json.
 
+Compare uniquement Alfred depuis son démarrage : le module lit les DB Alfred
+(`alfred/data/bots/<id>/bot.db`) et ancre la fenêtre à l'inception Alfred du bot
+(2026-06-10 live/paper, 2026-06-11 junior) via `BOT_DEPLOYMENTS` — les trades
+legacy pré-Alfred (s'il en restait) sont filtrés par `entry_iso >= start_iso`.
+
 Usage:
+    .venv/bin/python3 -m analysis.btlive_compare --senior   # = --live (SENIOR)
     .venv/bin/python3 -m analysis.btlive_compare --live
     .venv/bin/python3 -m analysis.btlive_compare --paper
     .venv/bin/python3 -m analysis.btlive_compare --junior
@@ -348,6 +354,8 @@ def main():
     g = parser.add_mutually_exclusive_group(required=True)
     g.add_argument("--paper", action="store_const", dest="bot", const="paper")
     g.add_argument("--live", action="store_const", dest="bot", const="live")
+    g.add_argument("--senior", action="store_const", dest="bot", const="live",
+                   help="alias de --live (SENIOR = le bot live, argent réel)")
     g.add_argument("--junior", action="store_const", dest="bot", const="junior")
     parser.add_argument("--start-cap", type=float, default=None,
                         help="Override starting capital (default: bot's nominal)")
