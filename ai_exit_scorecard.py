@@ -105,10 +105,28 @@ def load_candles(symbol: str, after_ts_ms: int, n: int = 24) -> list[dict]:
     return [dict(r) for r in rows]
 
 
+def load_btc_ret_by_t() -> dict:
+    """{t_ms: ret_4h_bps} du BTC (open→close de chaque bougie 4h) — reconstruit
+    btc_ret_4h_bps dans le rejeu, sinon btc_drop_cut ne peut jamais firer (M3)."""
+    if not os.path.exists(MARKET_DB):
+        return {}
+    db = _conn(MARKET_DB)
+    try:
+        rows = db.execute(
+            "SELECT t, o, c FROM candles WHERE symbol='BTC' AND interval='4h' "
+            "AND closed=1").fetchall()
+    finally:
+        db.close()
+    return {r["t"]: (r["c"] / r["o"] - 1) * 1e4 for r in rows if r["o"]}
+
+
 def replay_rules(symbol, direction, strategy, entry_price, entry_ts_ms, size,
-                 stop_bps, hold_hours, btc_z, manual_stop_usdt=None) -> dict | None:
-    """Rejeu pures-règles depuis l'entrée via `rules.evaluate_exit`. Si
-    `manual_stop_usdt` est fourni, le rejeu l'inclut (contrefactuel LOCK).
+                 stop_bps, hold_hours, btc_z, manual_stop_usdt=None,
+                 btc_ret_map=None) -> dict | None:
+    """Rejeu pures-règles depuis l'entrée via `rules.evaluate_exit`. `hold_hours`
+    doit être le hold CIBLE (pas l'âge à la décision — sinon le rejeu se tronque).
+    Si `manual_stop_usdt` est fourni, le rejeu l'inclut (contrefactuel LOCK).
+    `btc_ret_map` {t: ret_4h_bps} permet à btc_drop_cut de firer dans la baseline.
     Retourne {pnl, reason} ou None si pas assez de bougies (non résolu)."""
     if not entry_price or not entry_ts_ms:
         return None
@@ -132,8 +150,10 @@ def replay_rules(symbol, direction, strategy, entry_price, entry_ts_ms, size,
             hours_held=held * 4.0, hours_to_timeout=(max_hold - held) * 4.0,
             mfe_at_h=mfe_at_h, extended=extended,
             manual_stop_usdt=manual_stop_usdt)
-        m = rules.MarketCtx(price=c["c"], btc_z=btc_z, btc_ret_4h_bps=None,
-                            disp_24h=None)
+        m = rules.MarketCtx(
+            price=c["c"], btc_z=btc_z,
+            btc_ret_4h_bps=(btc_ret_map.get(c["t"]) if btc_ret_map else None),
+            disp_24h=None)
         dec = rules.evaluate_exit(pv, cur_bps, m, p, worst_bps=worst)
         if dec and dec.action == "extend":
             extended = True
@@ -157,18 +177,37 @@ def _iso16(entry_ts_ms) -> str:
         return ""
 
 
+def _dedup_decisions(decisions: list[dict]) -> list[dict]:
+    """H2 : une décision représentative par (symbole, position, action) — la
+    dernière ACTÉE si l'IA a agi, sinon la première (intention la plus précoce).
+    Évite de compter N fois la même position (throttle horaire → N décisions)."""
+    groups: dict = {}
+    for d in decisions:
+        if d.get("action") not in ("CUT", "LOCK"):
+            continue
+        k = (d["symbol"], _iso16(d.get("entry_ts_ms")), d.get("action"))
+        if k not in groups:
+            groups[k] = d
+        elif bool(d.get("acted")):
+            groups[k] = d   # une actée écrase → garde la dernière actée
+    return list(groups.values())
+
+
 def score() -> dict:
-    decisions = load_decisions(SENIOR_DB)
     trades = load_closed_trades(SENIOR_DB)
+    btc_ret_map = load_btc_ret_by_t()                       # M3
+    decisions = _dedup_decisions(load_decisions(SENIOR_DB))  # H2
     rows, pending = [], 0
+
+    def _hold(d):   # H1 : hold CIBLE (pas l'âge à la décision)
+        return (d.get("target_hold_h") or d.get("hold_hours")
+                or DEFAULT_PARAMS.hold_hours_default)
+
     for d in decisions:
         sym = d["symbol"]
         action = d.get("action")
-        if action not in ("CUT", "LOCK"):
-            continue
         acted = bool(d.get("acted"))
-        key = (sym, _iso16(d.get("entry_ts_ms")))
-        tr = trades.get(key)
+        tr = trades.get((sym, _iso16(d.get("entry_ts_ms"))))
         direction = 1 if d.get("dir") == "LONG" else -1
         ia_pnl = rules_pnl = None
 
@@ -186,8 +225,7 @@ def score() -> dict:
                 rep = replay_rules(sym, direction, d.get("strategy"),
                                    tr.get("entry_price"), d.get("entry_ts_ms"),
                                    tr.get("size_usdt", 0.0), d.get("stop_bps", 0.0),
-                                   d.get("hold_hours", DEFAULT_PARAMS.hold_hours_default),
-                                   d.get("btc_z"))
+                                   _hold(d), d.get("btc_z"), btc_ret_map=btc_ret_map)
                 if rep is None:
                     pending += 1; continue
                 ia_pnl = tr["pnl_usdt"] or 0.0
@@ -200,20 +238,22 @@ def score() -> dict:
                 rep = replay_rules(sym, direction, d.get("strategy"),
                                    tr.get("entry_price"), d.get("entry_ts_ms"),
                                    tr.get("size_usdt", 0.0), d.get("stop_bps", 0.0),
-                                   d.get("hold_hours", DEFAULT_PARAMS.hold_hours_default),
-                                   d.get("btc_z"))
+                                   _hold(d), d.get("btc_z"), btc_ret_map=btc_ret_map)
                 if rep is None:
                     pending += 1; continue
                 ia_pnl = tr["pnl_usdt"] or 0.0
                 rules_pnl = rep["pnl"]
             else:
-                # shadow : stop non posé → ia = rejeu AVEC stop ; rules = réel
+                # M1 : ne scorer un LOCK-shadow que s'il était VALIDE mais
+                # trip-suppressed (note="ok"), pas rejeté par la validation.
+                if d.get("note") != "ok":
+                    continue
                 rep = replay_rules(sym, direction, d.get("strategy"),
                                    tr.get("entry_price"), d.get("entry_ts_ms"),
                                    tr.get("size_usdt", 0.0), d.get("stop_bps", 0.0),
-                                   d.get("hold_hours", DEFAULT_PARAMS.hold_hours_default),
-                                   d.get("btc_z"),
-                                   manual_stop_usdt=d.get("stop_usdt"))
+                                   _hold(d), d.get("btc_z"),
+                                   manual_stop_usdt=d.get("stop_usdt"),
+                                   btc_ret_map=btc_ret_map)
                 if rep is None:
                     pending += 1; continue
                 ia_pnl = rep["pnl"]

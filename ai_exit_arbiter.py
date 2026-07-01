@@ -197,7 +197,7 @@ def _normalize(v: dict) -> dict:
     except (TypeError, ValueError):
         stop = None
     try:
-        conf = round(float(v.get("confidence", 0.0)), 3)
+        conf = round(max(0.0, min(1.0, float(v.get("confidence", 0.0)))), 3)  # L2 : clamp [0,1]
     except (TypeError, ValueError):
         conf = 0.0
     flags = v.get("risk_flags")

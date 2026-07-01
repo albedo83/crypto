@@ -16,6 +16,7 @@ response builders (web/views.py) port with minimal churn.
 from __future__ import annotations
 
 import logging
+import math
 import threading
 import time
 from collections import deque
@@ -298,7 +299,8 @@ class BotInstance:
         strictement sous le PnL net courant (pas de déclenchement immédiat) ET
         au-dessus du catastrophe-stop (pas redondant). Renvoie (ok, raison)."""
         p = self.p
-        if stop_usdt is None or pos.size_usdt <= 0 or st_price <= 0 or pos.entry_price <= 0:
+        if (stop_usdt is None or not math.isfinite(stop_usdt)  # L1 : rejette NaN/inf
+                or pos.size_usdt <= 0 or st_price <= 0 or pos.entry_price <= 0):
             return False, "invalid_inputs"
         cur_bps = pos.direction * (st_price / pos.entry_price - 1) * 1e4
         cur_pnl_net = pos.size_usdt * (cur_bps - p.cost_bps) / 1e4
@@ -363,6 +365,9 @@ class BotInstance:
                 batch.append(entry)
                 snap[sym] = {
                     "ur": ur, "net_pnl": net_pnl, "hold_hours": hh,
+                    # H1 : hold CIBLE (pour le rejeu contrefactuel du scorecard),
+                    # distinct de l'âge `hold_hours`.
+                    "target_hold_h": (pos.target_exit - pos.entry_time).total_seconds() / 3600,
                     "entry_ts_ms": int(pos.entry_time.timestamp() * 1000),
                     "stop_bps": pos.stop_bps, "strategy": pos.strategy,
                     "dir": "LONG" if pos.direction == 1 else "SHORT",
@@ -406,8 +411,8 @@ class BotInstance:
                                                      st.price if st else 0.0))
                 if ok and not tripped:
                     with self._pos_lock:
-                        if sym in self.positions:
-                            self.positions[sym].manual_stop_usdt = float(v["stop_usdt"])
+                        if self.positions.get(sym) is pos:   # L4 : même objet position
+                            pos.manual_stop_usdt = float(v["stop_usdt"])
                             acted = True
                     if acted:
                         self._save_state()
@@ -418,9 +423,16 @@ class BotInstance:
                             f"🧠 IA — LOCK {pos.strategy} {sym}: stop protecteur "
                             f"${applied_stop:.0f} — {v['reason']}",
                             category="trade", actionable=True)
-            elif action == "CUT" and s["ur"] < 0:  # jamais de CUT sur un gagnant
-                if cfg["cut_mode"] == "act" and not tripped and st and st.price > 0:
-                    if self.close_and_check(sym, st.price, now, "ai_exit"):
+            elif action == "CUT":
+                # M2 : ur RECALCULÉ au prix frais (le prix a pu rebondir pendant
+                # l'appel LLM ≤12s) — jamais de CUT sur un gagnant courant.
+                fresh_ur = (pos.direction * (st.price / pos.entry_price - 1) * 1e4
+                            if (st and st.price > 0 and pos.entry_price > 0) else 0.0)
+                if (fresh_ur < 0 and cfg["cut_mode"] == "act" and not tripped
+                        and st and st.price > 0):
+                    # L3 : ne revendique acted que si la position est bien fermée
+                    if self.close_and_check(sym, st.price, now, "ai_exit") \
+                            and sym not in self.positions:
                         acted = True
                         log.info("[%s] AI-EXIT CUT %s (conf %.2f): %s",
                                  self.id, sym, conf, v["reason"])
@@ -437,6 +449,7 @@ class BotInstance:
                 "unrealized_bps": round(s["ur"], 1), "net_pnl": round(s["net_pnl"], 2),
                 "ref_price": round(st.price, 6) if st else None,
                 "entry_ts_ms": s["entry_ts_ms"], "hold_hours": round(s["hold_hours"], 1),
+                "target_hold_h": round(s["target_hold_h"], 1),   # H1 : pour le rejeu
                 "stop_bps": round(s["stop_bps"], 1),
                 "mae_bps": round(s["mae_bps"], 1), "mfe_bps": round(s["mfe_bps"], 1),
                 "btc_z": round(self._btc_z, 3) if self._btc_z is not None else None})

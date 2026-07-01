@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.11 — 2026-07-01
+
+- **Trading engine**: corrections issues de la revue de code de l'arbitre IA de sortie — fiabilité du scorecard (dédup, contrefactuel), sûreté du CUT (re-vérification au prix frais) et durcissement des bornes.
+
 ## v1.6.10 — 2026-06-30
 
 - **Telegram**: retrait des nudges « Consider manual close/stop » (WR/giveback/lock-floor) — désormais redondants avec l'arbitre IA de sortie qui agit. Les events restent pour le dashboard.
