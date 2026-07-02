@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.7.3 — 2026-07-02
+
+- **Trading engine**: le stop résident suit désormais le plancher de protection le plus serré de la position (stop manuel, verrou IA, plancher de signal opposé) — le nouveau stop est posé avant que l'ancien soit retiré, la position n'est jamais sans filet pendant la bascule.
+
 ## v1.7.2 — 2026-07-02
 
 - **Trading engine**: le stop résident peut désormais exécuter à travers un trou de prix profond (analyse de marge pire-cas : l'ancienne borne annulait l'ordre pile dans les scénarios pour lesquels le filet existe) ; les fermetures par auto-deleveraging de l'exchange sont reconnues et étiquetées à la comptabilisation.

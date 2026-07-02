@@ -89,6 +89,11 @@ class BotInstance:
         self._pos_lock = threading.Lock()
         self._failed_closes: set[str] = set()
         self._closing: set[str] = set()
+        # (sym, oid) des anciens triggers hard-stop dont le cancel a raté
+        # après un resserrage — retry au reconcile (résidus inoffensifs :
+        # plus larges + reduce-only). In-memory : perdu au restart, le sweep
+        # coin-flat rattrape le reste.
+        self._hard_stop_leftovers: set[tuple] = set()
         self._inflight_open: set[str] = set()
         self._btc_z: float | None = None
         self._wr_alerted: set[str] = set()
@@ -418,6 +423,8 @@ class BotInstance:
                     if acted:
                         self._save_state()
                         applied_stop = float(v["stop_usdt"])
+                        # Étape B : miroite le LOCK sur le trigger résident.
+                        self.safe_sync_hard_stop(sym)
                         log.info("[%s] AI-EXIT LOCK %s: stop $%.2f (conf %.2f): %s",
                                  self.id, sym, applied_stop, conf, v["reason"])
                         self.notifier.send(
@@ -834,12 +841,74 @@ class BotInstance:
         with self._pos_lock:
             if sym in self.positions:
                 self.positions[sym].stop_oid = oid
+                self.positions[sym].stop_px = px
         self.db.log_event("HARD_STOP_SET", sym, {
             "oid": oid, "trigger_px": round(px, 8),
             "sz": sz, "buffer_bps": self.p.hard_stop_buffer_bps})
         log.info("[%s] hard-stop %s posé: oid=%s trigger=%.6g sz=%s",
                  self.id, sym, oid, px, sz)
         self._save_state()
+
+    def _sync_hard_stop(self, sym: str) -> None:
+        """Étape B (v1.7.3) : ré-aligne le trigger résident sur le plancher
+        soft le plus serré (catastrophe / manual_stop — y compris le LOCK de
+        l'arbitre IA qui passe par manual_stop / opp_floor). Doctrine
+        **place-then-cancel** : le nouveau trigger est posé AVANT d'annuler
+        l'ancien — deux triggers reduce-only coexistant une seconde sont
+        inoffensifs ; zéro trigger pendant un replace raté serait le trou
+        qu'on bouche. Fail-soft intégral."""
+        if not self._hard_stop_active():
+            return
+        with self._pos_lock:
+            pos = self.positions.get(sym)
+        if pos is None:
+            return
+        if pos.stop_oid is None:
+            self._place_hard_stop(sym)
+            return
+        desired = hardstop.trigger_price(pos, self.p)
+        # <10 bps d'écart : à jour (évite le churn place/cancel).
+        if pos.stop_px and abs(desired / pos.stop_px - 1) * 1e4 < 10.0:
+            return
+        old_oid = pos.stop_oid
+        try:
+            sz = round(pos.size_usdt / pos.entry_price,
+                       self.broker.account.sz_decimals.get(sym, 2))
+            if sz <= 0:
+                return
+            new_oid = self.broker.account.place_stop_order(
+                sym, hardstop.close_is_buy(pos.direction), sz, desired,
+                slippage=self.p.hard_stop_slippage)
+        except Exception as e:
+            # L'ANCIEN trigger reste en place : le filet ne saute jamais.
+            log.warning("[%s] hard-stop %s: resserrage échoué: %s — ancien "
+                        "trigger conservé, retry au reconcile", self.id, sym, e)
+            self.notifier.send(
+                f"⚠️ Hard-stop {sym}: resserrage échoué ({e}) — ancien "
+                f"trigger en place, retry au reconcile",
+                category="reconcile", actionable=True)
+            return
+        with self._pos_lock:
+            if sym in self.positions:
+                self.positions[sym].stop_oid = new_oid
+                self.positions[sym].stop_px = desired
+        ok = self.broker.account.cancel_order(sym, old_oid)
+        if not ok:
+            # Résidu inoffensif (plus large + reduce-only) — retry au reconcile.
+            self._hard_stop_leftovers.add((sym, old_oid))
+        self.db.log_event("HARD_STOP_TIGHTEN", sym, {
+            "old_oid": old_oid, "new_oid": new_oid,
+            "cancel_old_ok": bool(ok), "trigger_px": round(desired, 8)})
+        log.info("[%s] hard-stop %s resserré: trigger=%.6g (oid %s→%s)",
+                 self.id, sym, desired, old_oid, new_oid)
+        self._save_state()
+
+    def safe_sync_hard_stop(self, sym: str) -> None:
+        """Wrapper fail-safe pour les hooks (LOCK, API, opp_floor)."""
+        try:
+            self._sync_hard_stop(sym)
+        except Exception:
+            log.exception("[%s] hard-stop sync %s failed", self.id, sym)
 
     def _cancel_hard_stop(self, sym: str, pos) -> None:
         """Annule le trigger résident avant booking d'une fermeture bot-side.
@@ -890,7 +959,8 @@ class BotInstance:
             self._save_state()
             return
 
-        # 1) Ensure : oid consommé/disparu → re-pose pour la position vivante.
+        # 1) Ensure + sync : oid consommé/disparu → re-pose ; plancher soft
+        # resserré depuis (manual_stop/LOCK/opp_floor) → place-then-cancel.
         changed = False
         for sym, pos in snapshot.items():
             if pos.stop_oid is not None and pos.stop_oid not in open_by_oid:
@@ -899,10 +969,16 @@ class BotInstance:
                 with self._pos_lock:
                     if sym in self.positions:
                         self.positions[sym].stop_oid = None
+                        self.positions[sym].stop_px = None
                 changed = True
-            self._place_hard_stop(sym)  # no-op si oid déjà posé
+            self._sync_hard_stop(sym)   # pose si absent, resserre si dérivé
         if changed:
             self._save_state()
+
+        # 1-bis) Retry des cancels ratés de resserrage (résidus inoffensifs).
+        for sym, oid in list(self._hard_stop_leftovers):
+            if oid not in open_by_oid or self.broker.account.cancel_order(sym, oid):
+                self._hard_stop_leftovers.discard((sym, oid))
 
         # 2) Sweep : triggers sans position correspondante.
         if open_trigs:
@@ -1408,6 +1484,8 @@ class BotInstance:
                 f"🛡 {sym} {pos.strategy}: signal opposé ({'/'.join(opp)}) — "
                 f"plancher posé à {level:+.0f} bps (gain {ur:+.0f})",
                 category="trade")
+            # Étape B : miroite le nouveau plancher sur le trigger résident.
+            self.safe_sync_hard_stop(sym)
 
     # ── Live-only duties (phase 4) ───────────────────────────────────
 

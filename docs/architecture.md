@@ -195,10 +195,12 @@ Tous ces seuils sont des constantes dans `settings.py` avec kill-switch document
 Sur SENIOR uniquement, l'**arbitre IA de sortie** (§ 9) surplombe cette chaîne — il
 peut poser un stop protecteur sur un gagnant, jamais la court-circuiter.
 
-**Filet hard-stop exchange-side** (v1.7.1, `alfred/hardstop.py`, SENIOR armé via
+**Filet hard-stop exchange-side** (v1.7.1-3, `alfred/hardstop.py`, SENIOR armé via
 `hard_stop_enabled`) : chaque position porte un trigger order **reduce-only**
-résident sur Hyperliquid à `effective_stop − 200 bps`, posé à l'ouverture, annulé
-à la fermeture, re-posé/nettoyé au reconcile. Process vivant → la chaîne 20s
+résident sur Hyperliquid au **plancher soft le plus serré − 200 bps**
+(catastrophe, `manual_stop`, LOCK de l'arbitre IA, `opp_floor` — v1.7.3), posé à
+l'ouverture, resserré en **place-then-cancel** (jamais sans filet pendant la
+bascule), annulé à la fermeture, re-posé/nettoyé au reconcile. Process vivant → la chaîne 20s
 ferme toujours avant lui ; il n'exécute que si le process est mort (crash,
 watchdog, boot) ou si le marché va plus vite que 20s. Une fermeture exchange-side
 est **bookée depuis les fills réels** au retour (reasons `exchange_stop` /

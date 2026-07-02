@@ -921,6 +921,8 @@ def create_app(bots: dict, master) -> FastAPI:
             with bot._pos_lock:
                 pos.manual_stop_usdt = None
             bot._save_state()
+            # trigger résident → niveau catastrophe (SDK bloquant → thread)
+            await asyncio.to_thread(bot.safe_sync_hard_stop, sym)
             return JSONResponse({"status": "cleared", "symbol": sym})
 
         stop_usdt = body.get("stop_usdt")
@@ -959,6 +961,8 @@ def create_app(bots: dict, master) -> FastAPI:
         with bot._pos_lock:
             pos.manual_stop_usdt = stop_usdt
         bot._save_state()
+        # étape B : miroite sur le trigger résident (SDK bloquant → thread)
+        await asyncio.to_thread(bot.safe_sync_hard_stop, sym)
         log.info("[%s] MANUAL_STOP %s: set at $%.2f", bot.id, sym, stop_usdt)
         return JSONResponse({"status": "set", "symbol": sym,
                              "stop_usdt": round(stop_usdt, 2),
