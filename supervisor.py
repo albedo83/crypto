@@ -590,12 +590,8 @@ def main() -> int:
     else:
         log_event(LOG_DB, "SUPERVISOR_REPORT", report)
         print("[supervisor] SUPERVISOR_REPORT loggé")
-        try:
-            from ai_notify import send_telegram
-            if send_telegram(format_supervisor_tg(report), source="superviseur"):
-                print("[supervisor] Telegram SENIOR envoyé")
-        except Exception as e:
-            print(f"[supervisor] Telegram échec: {e}", file=sys.stderr)
+        # Telegram retiré (2026-07-01) — rapport trop lourd pour TG ; reste dans
+        # l'historique (event SUPERVISOR_REPORT / dashboard).
     return 0
 
 
