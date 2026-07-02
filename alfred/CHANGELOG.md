@@ -3,8 +3,9 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
-## v1.6.12 — 2026-07-01
+## v1.7.0 — 2026-07-01
 
+- **Trading engine**: jalon 1.7 — la couche de décision IA de SENIOR est en place (arbitrage des entrées et des sorties, avec contexte de marché).
 - **Trading engine**: les arbitres IA reçoivent un indice de capitulation marché-large (breadth sur tous les perps) — signal de contexte pour se méfier d'un LONG frais quand le marché entier décroche.
 
 ## v1.6.11 — 2026-07-01
