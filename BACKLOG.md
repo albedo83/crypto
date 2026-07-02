@@ -200,19 +200,12 @@ Items de mémoire long-terme, sans deadline.
 
 ## Chantiers architecture (revue utilisateur 2026-07-02)
 
-- **Chantier 3 — coûts réels par signal** (priorisé par l'utilisateur, « le
-  prochain qui vaut ton temps ») :
-  - **quoi** : mesurer le coût d'exécution RÉEL par stratégie (slippage entrée +
-    sortie + funding réel) depuis les fills live, par (signal, direction, token),
-    et le confronter au modèle flat du BT (9+1 bps). Question : S8 gagne-t-il
-    vraiment sa vie ou vit-il à crédit sur un slippage que le BT ne voit pas ?
-  - **pourquoi** : le BT modélise 10 bps flat ; l'edge mesuré par signal peut être
-    mangé par des coûts hétérogènes (tokens thin, entrées en flush illiquide S8).
-  - **quand** : après stabilisation du filet hard-stop (v1.7.1/2).
-  - **comment** : `user_fills` par trade (on a déjà `coin_fills_since` +
-    `parse_exchange_close`) : slippage = fill vs mark au moment de la décision
-    (events OPEN/CLOSE ont les prix) ; agréger par stratégie sur l'historique
-    des 3 wallets ; comparer à `docs/backtests.md` par signal.
+- **Chantier 3 — coûts réels par signal** : ✅ TRAITÉ 2026-07-02, écart NON
+  matériel (slippage réel +0.1 bps moyen vs modèle 4 bps ; intégrale funding BT
+  exacte à 0.0 bps ; S8 ne vit PAS à crédit). Résultats :
+  `backtests/costs_by_signal_results.md`. Reliquat : **re-mesurer S9 à n≥20**
+  (queue p90 +171 bps sur n=7, seul drapeau) — re-lancer
+  `python3 -m backtests.measure_costs_by_signal` dans quelques mois.
 
 - **Filet hard-stop, étapes restantes** :
   - **B — resserrement** : miroiter le plancher actif le plus serré
