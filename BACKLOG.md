@@ -213,3 +213,14 @@ Items de mémoire long-terme, sans deadline.
     **place-then-cancel** (jamais cancel-then-replace : zéro fenêtre sans filet).
   - **C — junior/baby** : activer `hard_stop_enabled` après quelques jours
     propres sur SENIOR (triggers posés/annulés/re-posés sans incident).
+
+- **Chantier 6 — sentinelle d'expiry des clés agent** (« un soir de pluie ») :
+  - **quoi** : alerte ACTIVE avant expiration des agent wallets HL — JUNIOR
+    expire le **2026-10-26 12:26 UTC** (bombe à date imprimée), BABY le
+    **2026-12-08**. L'admin affiche la date (v1.3.1) mais personne ne regarde
+    un dashboard un dimanche d'octobre.
+  - **pourquoi** : agent expiré = bot orphelin qui ne peut plus signer → ordres
+    rejetés, positions non gérées jusqu'à intervention manuelle.
+  - **comment** : check dans daily_report.py (ou sentinelle dédiée) : si
+    expiry < J−21 → ligne TG quotidienne ; < J−7 → alerte actionable. Les dates
+    sont déjà dans bots.json (`agent_expiry`).

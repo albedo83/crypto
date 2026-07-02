@@ -173,5 +173,90 @@ def main():
         print(f"\n  [intégrale BT indisponible: {e}]")
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--exit-side" not in sys.argv:
     main()
+
+
+# ── (c) Colonne SORTIE (2026-07-02, demande revue) ───────────────────
+
+STOP_LIKE = {"catastrophe_stop", "manual_stop_set", "opp_floor", "prop_trail",
+             "s10_trailing", "s8_inlife", "s9_early_exit", "traj_cut",
+             "btc_drop_cut", "s8_dead_in_water", "dead_timeout"}
+TIMEOUT_LIKE = {"timeout", "runner_ext_timeout"}
+
+
+def _mark_at(db, sym, ts):
+    """Dernier mark ≤ ts (tolérance 180s) dans market.db ticks."""
+    r = db.execute("SELECT mark_px FROM ticks WHERE symbol=? AND ts<=? AND ts>=? "
+                   "ORDER BY ts DESC LIMIT 1", (sym, int(ts), int(ts) - 180)).fetchone()
+    return r[0] if r else None
+
+
+def exit_side():
+    """(c1) slippage d'exécution : fill de sortie vs mark au moment de la
+    sortie (ticks 60s), + = payé. (c2) overshoot de niveau pour les règles à
+    seuil reconstructible : gross_bps vs niveau théorique (catastrophe,
+    s10_trail via MFE−150, prop_trail via arm+(MFE−arm)×ratio)."""
+    import json as _json
+    mdb = sqlite3.connect(MARKET_DB)
+    exec_slip = defaultdict(list)   # groupe → [bps]
+    exec_by_strat = defaultdict(list)
+    level_over = defaultdict(list)  # reason → [gross − level]
+    n_no_tick = 0
+    for bot in ("live", "junior", "baby"):
+        db = sqlite3.connect(f"/home/crypto/alfred/data/bots/{bot}/bot.db")
+        db.row_factory = sqlite3.Row
+        for t in db.execute("SELECT symbol, direction, strategy, exit_time, "
+                            "exit_price, gross_bps, mfe_bps, signal_info, reason "
+                            "FROM trades WHERE exit_time IS NOT NULL"):
+            d = parse_dir(t["direction"])
+            reason = t["reason"] or ""
+            grp = ("stop" if reason in STOP_LIKE
+                   else "timeout" if reason in TIMEOUT_LIKE else "autre")
+            dt = datetime.fromisoformat(t["exit_time"])
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            mark = _mark_at(mdb, t["symbol"], dt.timestamp())
+            if mark and t["exit_price"]:
+                cost = d * (mark / t["exit_price"] - 1) * 1e4
+                exec_slip[grp].append(cost)
+                exec_by_strat[(t["strategy"], grp)].append(cost)
+            else:
+                n_no_tick += 1
+            # (c2) niveau théorique
+            level = None
+            if reason == "catastrophe_stop":
+                si = {}
+                try:
+                    si = _json.loads(t["signal_info"] or "{}")
+                except Exception:
+                    pass
+                level = si.get("stop_bps") or (-750.0 if t["strategy"] == "S8" else -1250.0)
+            elif reason == "s10_trailing" and t["mfe_bps"]:
+                level = t["mfe_bps"] - 150.0
+            elif reason == "prop_trail" and t["mfe_bps"]:
+                level = 100.0 + (t["mfe_bps"] - 100.0) * 0.65   # S9 bull (arm 100, ratio 0.65)
+            if level is not None and t["gross_bps"] is not None:
+                level_over[reason].append(t["gross_bps"] - level)
+    print("=" * 100)
+    print("(c1) SLIPPAGE D'EXÉCUTION EN SORTIE (fill vs mark au moment de la sortie, + = payé)")
+    print("     ticks 60s → mesure le spread/impact, pas la latence de règle")
+    print("=" * 100)
+    for grp in ("stop", "timeout", "autre"):
+        print(f"    {grp:<8} {stats(exec_slip.get(grp, []))}")
+    print("\n  Par stratégie × groupe :")
+    for (s, g), vals in sorted(exec_by_strat.items()):
+        print(f"    {s:<4} {g:<8} {stats(vals)}")
+    if n_no_tick:
+        print(f"  [{n_no_tick} sorties sans tick de référence (hors fenêtre market.db) — exclues]")
+    print()
+    print("=" * 100)
+    print("(c2) OVERSHOOT DE NIVEAU (gross_bps réel − niveau de déclenchement, − = fill au-delà)")
+    print("     = latence 20s + gap : ce que le booking synthétique du BT ne modélise pas")
+    print("=" * 100)
+    for reason, vals in sorted(level_over.items()):
+        print(f"    {reason:<18} {stats(vals)}")
+
+
+if __name__ == "__main__" and "--exit-side" in sys.argv:
+    exit_side()

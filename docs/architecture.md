@@ -279,8 +279,13 @@ de double implémentation d'une règle**. Toute divergence est un bug sérieux �
 les divergences connues et justifiées sont tracées dans `docs/alfred_divergences.md`.
 
 - Le backtest expose `alfred/tools/export_candles.py` (même source de candles).
-- Coûts (round-trip, appliqués une fois au close) : taker 9 bps + slippage 0 (déjà
-  dans avgPx en live) + funding drag 1 bps flat (remplacé par le réel en live) = **10 bps**.
+- Coûts — deux modèles distincts (ne pas confondre, cf. divergence #12) :
+  **bot (ledger)** = taker 9 bps + slippage 0 (déjà dans avgPx) + funding drag
+  1 bps flat swappé par le réel en live = 10 bps ; **backtest** = taker 9 bps +
+  slippage 4 bps (`BACKTEST_SLIPPAGE_BPS`, il entre au close de bougie) +
+  **intégrale de funding historique horaire par trade** (`compute_funding_cost`).
+  Les deux validés vs fills réels le 2026-07-02 (`backtests/costs_by_signal_results.md` :
+  slippage réel +0.1 bps moyen, intégrale funding exacte à Δ 0.0 bps).
 - Échappatoire `BACKTEST_LEGACY_SEMANTICS=1` pour reproduire l'ancien moteur.
 
 ---

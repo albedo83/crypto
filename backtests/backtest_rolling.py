@@ -325,6 +325,7 @@ def run_window(features, data, sector_features, dxy_data,
                mfe_on_close: bool = False,
                reserve_highz_frac: float = 0.0,
                reserve_z_threshold: float = 5.0,
+               entry_slip_bps_by_strat: dict | None = None,
                aligned: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -1469,6 +1470,13 @@ def run_window(features, data, sector_features, dxy_data,
             entry = data[coin][idx_f + 1]["o"]
             if entry <= 0:
                 continue
+            # Hook R&D (2026-07-02, stress coûts par signal) : décalage
+            # ADVERSE du prix d'entrée par stratégie (bps). Propage à tout
+            # (P&L, MFE/MAE, distance au stop → stop-hit rate). None = no-op.
+            if entry_slip_bps_by_strat:
+                _esl = entry_slip_bps_by_strat.get(cand["strat"], 0.0)
+                if _esl:
+                    entry *= (1 + cand["dir"] * _esl / 1e4)
 
             if aligned:
                 # ── ALIGNED (phase 6) : sizing canonique live ─────────
