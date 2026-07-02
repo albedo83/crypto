@@ -34,25 +34,42 @@ _SDK_INFLIGHT_LOCK = threading.Lock()
 _RETRY_DELAYS_429 = (0.5, 1.5, 3.0, 5.0, 10.0)
 
 
-def parse_exchange_close(fills: list, direction: int) -> dict | None:
+def parse_exchange_close(fills: list, direction: int,
+                         own_address: str | None = None) -> dict | None:
     """Digest the exchange-side closing fills of a position (étape 0 du filet
     hard-stop). Pure function — testable without the SDK.
 
     `fills` = user_fills entries on ONE coin since entry. direction 1=LONG
     (closes sell, side "A"), -1=SHORT (closes buy, side "B"). Returns
-    {exit_px (vwap), exit_ms, closed_sz, fees_open, fees_close, liquidated}
-    or None when no closing fill is present (position genuinely unaccounted)."""
+    {exit_px (vwap), exit_ms, closed_sz, fees_open, fees_close, liquidated,
+    adl, close_oids} or None when no closing fill is present.
+
+    Trois espèces de fermeture forcée, distinguées via `fill.liquidation`
+    (FillLiquidation = {liquidatedUser, markPx, method}) :
+    - liquidatedUser == nous → NOTRE liquidation (`liquidated`) ;
+    - liquidatedUser == un tiers → **ADL** : HL a fermé notre gagnant contre
+      un compte en faillite d'en face (`adl`) — aucun risque capital, mais
+      sans ce tag un gagnant fermé par ADL ressemble à un ghost inexpliqué
+      un matin de chaos ;
+    - pas de champ liquidation → close normal (trigger/manuel)."""
     want_dir = "Close Long" if direction == 1 else "Close Short"
     close_side = "A" if direction == 1 else "B"
+    own = (own_address or "").lower()
     closes: list = []
     opens: list = []
     liquidated = False
+    adl = False
     for f in fills:
         d = str(f.get("dir", ""))
-        if "liquidat" in d.lower() or f.get("liquidation"):
+        liq = f.get("liquidation")
+        if "liquidat" in d.lower() or liq:
             if f.get("side") == close_side:
                 closes.append(f)
-                liquidated = True
+                lu = str((liq or {}).get("liquidatedUser") or "").lower()
+                if liq and own and lu and lu != own:
+                    adl = True
+                else:
+                    liquidated = True
             continue
         if d == want_dir:
             closes.append(f)
@@ -71,6 +88,7 @@ def parse_exchange_close(fills: list, direction: int) -> dict | None:
         "fees_open": sum(float(f.get("fee", 0) or 0) for f in opens),
         "fees_close": sum(float(f.get("fee", 0) or 0) for f in closes),
         "liquidated": liquidated,
+        "adl": adl,
         # oids des ordres de fermeture — permet d'attribuer la fermeture au
         # trigger hard-stop du bot (reason exchange_stop) vs close manuel.
         "close_oids": {int(f["oid"]) for f in closes if f.get("oid") is not None},

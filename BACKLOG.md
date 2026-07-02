@@ -197,3 +197,26 @@ Items de mémoire long-terme, sans deadline.
 - **comment** : harness premise = run ON vs OFF (dc.replace traj_cut_strategies),
   apparier trades traj_cut par (coin,entry_t), bucket impact par ER. ER =
   |Δnet|/Σ|Δstep| sur n bougies BTC.
+
+## Chantiers architecture (revue utilisateur 2026-07-02)
+
+- **Chantier 3 — coûts réels par signal** (priorisé par l'utilisateur, « le
+  prochain qui vaut ton temps ») :
+  - **quoi** : mesurer le coût d'exécution RÉEL par stratégie (slippage entrée +
+    sortie + funding réel) depuis les fills live, par (signal, direction, token),
+    et le confronter au modèle flat du BT (9+1 bps). Question : S8 gagne-t-il
+    vraiment sa vie ou vit-il à crédit sur un slippage que le BT ne voit pas ?
+  - **pourquoi** : le BT modélise 10 bps flat ; l'edge mesuré par signal peut être
+    mangé par des coûts hétérogènes (tokens thin, entrées en flush illiquide S8).
+  - **quand** : après stabilisation du filet hard-stop (v1.7.1/2).
+  - **comment** : `user_fills` par trade (on a déjà `coin_fills_since` +
+    `parse_exchange_close`) : slippage = fill vs mark au moment de la décision
+    (events OPEN/CLOSE ont les prix) ; agréger par stratégie sur l'historique
+    des 3 wallets ; comparer à `docs/backtests.md` par signal.
+
+- **Filet hard-stop, étapes restantes** :
+  - **B — resserrement** : miroiter le plancher actif le plus serré
+    (manual_stop / opp_floor / LOCK arbitre IA) sur le trigger résident —
+    **place-then-cancel** (jamais cancel-then-replace : zéro fenêtre sans filet).
+  - **C — junior/baby** : activer `hard_stop_enabled` après quelques jours
+    propres sur SENIOR (triggers posés/annulés/re-posés sans incident).

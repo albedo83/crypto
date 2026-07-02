@@ -115,7 +115,18 @@ class Params:
     # règle : rules.py/backtest inchangés. Kill-switch : enabled=False.
     hard_stop_enabled: bool = False        # armé par bot via overrides
     hard_stop_buffer_bps: float = 200.0
-    hard_stop_slippage: float = 0.05       # borne limit du stop-market
+    # ⚠️ 0.20 N'EST PAS une faute de frappe — ne pas « nettoyer » à 0.05.
+    # C'est la borne de PERMISSION du stop-market IoC (pas une cible) :
+    # l'IoC fille toujours aux meilleurs prix du book, la borne ne fait
+    # qu'autoriser de filler à travers un trou. À 0.05, un gap atomique
+    # au-delà de −18.8 % du prix d'entrée annulait l'IoC → position nue
+    # pendant un downtime jusqu'à la liquidation (−40/−47 % pleine charge,
+    # mm=1/(2×maxLev)). À 0.20 le fill est permis jusqu'à
+    # 1−(1−0.145)×0.80 ≈ −31.6 % : couvre la tranche −18.8→−31.6 qui
+    # rendait le filet inutile pile dans son cas d'usage. 0.30 couvrirait
+    # le pire book (−40.1 vs liq −40.2) mais jamais le book standard
+    # (−47.5) — 0.20 = genou de la courbe. Analyse : 2026-07-02.
+    hard_stop_slippage: float = 0.20       # borne limit du stop-market
     s9_early_exit_bps: float = -500.0
     s9_early_exit_bps: float = -500.0
     s9_early_exit_hours: float = 8.0

@@ -743,7 +743,8 @@ class BotInstance:
         parsed = None
         try:
             fills = self.broker.account.coin_fills_since(sym, entry_ms)
-            parsed = parse_exchange_close(fills, pos.direction)
+            parsed = parse_exchange_close(fills, pos.direction,
+                                          own_address=self.broker.account.address)
         except Exception as e:
             log.warning("[%s] ghost %s: fills lookup failed: %s",
                         self.id, sym, e)
@@ -752,7 +753,12 @@ class BotInstance:
             exit_price = parsed["exit_px"]
             exit_dt = datetime.fromtimestamp(parsed["exit_ms"] / 1000,
                                              tz=timezone.utc)
-            reason = "liquidation" if parsed["liquidated"] else "exchange_close"
+            if parsed["liquidated"]:
+                reason = "liquidation"
+            elif parsed.get("adl"):
+                reason = "adl"       # HL a fermé notre gagnant (deleveraging)
+            else:
+                reason = "exchange_close"
             fees = parsed["fees_open"] + parsed["fees_close"]
             if fees > 0 and pos.size_usdt > 0:
                 # Frais réels des fills (entrée+sortie) + drag funding flat —
@@ -767,8 +773,9 @@ class BotInstance:
             exit_dt = now
             reason = "exchange_close_nofill"
         # Attribution filet hard-stop : la fermeture vient-elle de NOTRE
-        # trigger résident ? (sinon : liquidation / close manuel exchange)
-        if (parsed and not parsed["liquidated"] and pos.stop_oid
+        # trigger résident ? (liquidation/ADL priment — plus informatifs)
+        if (parsed and not parsed["liquidated"] and not parsed.get("adl")
+                and pos.stop_oid
                 and pos.stop_oid in parsed.get("close_oids", ())):
             reason = "exchange_stop"
         # Trigger résiduel à nettoyer si la fermeture ne l'a pas consommé.

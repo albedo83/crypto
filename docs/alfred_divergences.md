@@ -85,6 +85,17 @@ découvert en cross 2×) et les mouvements plus rapides que le tick 20s.
   réels + funding fenêtre) — reasons `exchange_stop` / `liquidation` /
   `exchange_close`. Avant v1.7.1 ces positions étaient droppées sans P&L
   (boot_reconcile) ou tournaient en boucle de retry (`close_market` sur du vide).
+- **Borne de fill (v1.7.2)** : `hard_stop_slippage = 0.20` → le trigger peut
+  filler jusqu'à **−31.6 % du prix d'entrée** là où le BT modélise un fill à
+  `stop` (−12.5 %). C'est une borne de *permission* de l'IoC (fill aux meilleurs
+  prix du book d'abord), pas une cible : elle n'est atteinte que si le book a
+  réellement gappé — l'événement pour lequel le filet existe. À 0.05 (valeur
+  initiale), un gap atomique au-delà de −18.8 % annulait l'IoC → position nue
+  jusqu'à la liquidation (−40/−47 % pleine charge). Analyse marge 2026-07-02.
+- **ADL (v1.7.2)** : troisième espèce de fermeture exchange-side — HL peut
+  fermer un *gagnant* contre un compte en faillite (auto-deleveraging). Détecté
+  via `fill.liquidation.liquidatedUser ≠ nous` → reason `adl` au booking (aucun
+  risque capital, tag pour ne pas enquêter un ghost inexpliqué un matin de chaos).
 - **Limitation connue** : fill partiel du trigger immédiatement suivi d'une
   fermeture soft → seule la part soft est bookée en trade (la part trigger reste
   visible dans l'equity exchange, pas dans le registre P&L). Rare (IoC), accepté.
