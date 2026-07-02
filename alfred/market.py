@@ -28,6 +28,7 @@ import itertools
 import json
 import logging
 import os
+import statistics
 import time
 import urllib.request
 from collections import deque
@@ -50,6 +51,23 @@ WS_URL = "wss://api.hyperliquid.xyz/ws"
 PERIOD_MS = 14_400_000  # 4h
 RECONNECT_DELAYS = [1, 2, 4, 8, 15, 30, 30]
 
+# Breadth marché-large : perps exclus du calcul (stablecoins ~0%, diluent le signal).
+_STABLE_SYMBOLS = frozenset({"USDC", "USDT", "DAI", "USDE", "FDUSD", "TUSD", "USD"})
+
+
+def _compute_breadth(rets_bps: list[float]) -> dict:
+    """Indice de capitulation marché-large depuis les rendements 24h (bps) de
+    TOUS les perps (hors stables). Signal de contexte pour les arbitres IA —
+    pas une règle. down20/down10 = % d'alts en ≤−20%/≤−10% sur 24h."""
+    n = len(rets_bps)
+    if n == 0:
+        return {"n": 0, "down20_pct": None, "down10_pct": None,
+                "median_24h_bps": None}
+    d20 = sum(1 for r in rets_bps if r <= -2000) / n * 100.0
+    d10 = sum(1 for r in rets_bps if r <= -1000) / n * 100.0
+    return {"n": n, "down20_pct": round(d20, 1), "down10_pct": round(d10, 1),
+            "median_24h_bps": round(statistics.median(rets_bps), 0)}
+
 
 @dataclass(frozen=True)
 class MarketSnapshot:
@@ -62,6 +80,7 @@ class MarketSnapshot:
     btc_z: float | None = None
     btc_ret_4h_bps: float | None = None
     cross_ctx: dict = field(default_factory=dict)      # disp_24h, disp_7d, stress…
+    capitulation: dict = field(default_factory=dict)   # breadth marché-large (down20/10, médiane)
     oi_summary: dict = field(default_factory=dict)     # falling / rising counts
     dxy_7d: float = 0.0
     alt_index: float = 0.0
@@ -213,6 +232,7 @@ class MarketDataMaster:
         self.last_downtime: dict | None = None
         self._degraded: list[str] = []
         self._dxy_cache: tuple[float, float] = (0.0, 0.0)  # (value, fetched_at)
+        self._capitulation: dict = {}   # breadth marché-large, rafraîchi à chaque fetch_prices
         self._audit_cycle = itertools.cycle(sorted(p.all_symbols))
         self._snapshot_version = 0
         self.running = True
@@ -230,8 +250,19 @@ class MarketDataMaster:
                             len(meta["universe"]), len(ctxs))
                 return None, None
             now = time.time()
+            rets_bps: list[float] = []
             for i, asset in enumerate(meta["universe"]):
                 name = asset["name"]
+                # Breadth marché-large : rendement 24h de TOUS les perps (hors
+                # stables), capturé avant le filtre aux 36 suivis.
+                if name not in _STABLE_SYMBOLS:
+                    try:
+                        _mpx = float(ctxs[i].get("markPx") or 0)
+                        _ppx = float(ctxs[i].get("prevDayPx") or 0)
+                        if _mpx > 0 and _ppx > 0:
+                            rets_bps.append((_mpx / _ppx - 1) * 1e4)
+                    except (TypeError, ValueError):
+                        pass
                 st = self.states.get(name)
                 if st is None:
                     continue
@@ -256,6 +287,7 @@ class MarketDataMaster:
                             st.impact_ask = ia
                     except (TypeError, ValueError):
                         pass
+            self._capitulation = _compute_breadth(rets_bps)
             return meta["universe"], ctxs
         except Exception as e:
             log.warning("Price fetch error: %s", e)
@@ -691,6 +723,7 @@ class MarketDataMaster:
             version=self._snapshot_version, ts=time.time(),
             feature_cache=feature_cache, btc_f=btc_f, btc_z=btc_z,
             btc_ret_4h_bps=btc_ret_4h, cross_ctx=cross_ctx,
+            capitulation=dict(self._capitulation),
             oi_summary={"falling": falling, "rising": rising},
             dxy_7d=dxy_val, alt_index=alt_index)
 

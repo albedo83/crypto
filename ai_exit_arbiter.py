@@ -102,7 +102,10 @@ ouvertes en ZONE CANDIDATE. Pour CHACUNE, tu décides UNE action :
   plus fréquent — n'agis QUE sur conviction concrète.
 - **CUT** : couper MAINTENANT un PERDANT dont la trajectoire est catastrophique
   (doomed) — pente descendante persistante depuis le MFE, collé au MAE, régime
-  aligné contre la position (btc_z / btc_ret_4h_bps), aucun signe de rebond. Tu ne
+  aligné contre la position (btc_z / btc_ret_4h_bps) ou **capitulation marché-large
+  en cours** (`capitulation.down20_pct` élevé, `median_24h_bps` franchement rouge →
+  en liquidation sectorielle, NE PAS parier sur un rebond tant que TOUT le marché
+  saigne), aucun signe de rebond. Tu ne
   CUT JAMAIS un gagnant ni une position simplement « rouge mais respirante » (le
   chop est l'ami d'une stratégie de retour-à-la-moyenne — la plupart des perdants
   modérés rebondissent). CUT seulement le couteau qui tombe sans fond.

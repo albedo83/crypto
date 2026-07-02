@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.6.12 — 2026-07-01
+
+- **Trading engine**: les arbitres IA reçoivent un indice de capitulation marché-large (breadth sur tous les perps) — signal de contexte pour se méfier d'un LONG frais quand le marché entier décroche.
+
 ## v1.6.11 — 2026-07-01
 
 - **Trading engine**: corrections issues de la revue de code de l'arbitre IA de sortie — fiabilité du scorecard (dédup, contrefactuel), sûreté du CUT (re-vérification au prix frais) et durcissement des bornes.

@@ -379,7 +379,8 @@ class BotInstance:
         cc = getattr(self, "_cross_ctx_cache", None) or {}
         market = {"btc_z": self._btc_z,
                   "btc_ret_4h_bps": _snap.btc_ret_4h_bps if _snap else None,
-                  "disp_24h": cc.get("disp_24h"), "disp_7d": cc.get("disp_7d")}
+                  "disp_24h": cc.get("disp_24h"), "disp_7d": cc.get("disp_7d"),
+                  "capitulation": _snap.capitulation if _snap else None}
         res = _aix.arbitrate_safe(batch, market, model=cfg["model"],
                                   timeout=cfg["timeout"])
         self._exit_ai_last_ts = nowts
@@ -820,7 +821,8 @@ class BotInstance:
                                   "btc_30d_bps": _bf.get("btc_30d"),
                                   "disp_24h": cc.get("disp_24h"),
                                   "disp_7d": cc.get("disp_7d"),
-                                  "n_stress_global": cc.get("n_stress_global")}
+                                  "n_stress_global": cc.get("n_stress_global"),
+                                  "capitulation": _snap.capitulation if _snap else None}
                         res = _aia.arbitrate_safe(
                             batch, market, model=arb_cfg["model"],
                             timeout=arb_cfg["timeout"], factor_min=arb_cfg["factor_min"])
