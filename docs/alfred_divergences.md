@@ -62,3 +62,32 @@ remise à zéro (phase 6), avec re-run complet et archivage des anciens chiffres
   signaux (ret_24h/ret_42h/drawdown/vol_z/vol_ratio/range_pct/vol_7d/vol_30d).
 - **Parité settings/sizing** : assertions `alfred.settings`/`alfred.rules` vs
   `analysis.bot.config` (valeurs, `strat_size`, `get_adaptive_alpha`).
+
+## Divergence #15 — filet hard-stop exchange-side (v1.7.1, 2026-07-02)
+
+**Assumée, voulue, non simulée au BT.** Chaque position live (SENIOR d'abord,
+`hard_stop_enabled` par bot) porte un trigger order **reduce-only** résident sur
+Hyperliquid à `effective_stop − 200 bps` (S9 adaptatif inclus). Objectif : couvrir
+les fenêtres où le process est mort (crash → watchdog 5 min → boot ≈ 8-10 min à
+découvert en cross 2×) et les mouvements plus rapides que le tick 20s.
+
+- **Buffer 200 bps calibré** (2026-07-02) : p99.99 des excursions 60s sur 22j /
+  37 symboles = 194 bps ; pire overshoot soft observé en live = 162 bps (DYDX,
+  SNX). Process vivant → la chaîne 20s ferme toujours avant le trigger : le
+  comportement nominal reste celui du BT.
+- **Si le trigger exécute** (downtime/flash) : fill au niveau `stop − 200` ± le
+  slippage du stop-market, vs BT qui modélise un fill à `stop` exactement. Un
+  `exchange_stop` live sera donc ~200 bps pire que le `catastrophe_stop` du BT —
+  mais remplace un scénario non borné (position sans stop pendant le downtime,
+  que le BT ne modélise pas non plus).
+- **Booking** : une fermeture exchange-side (trigger, liquidation, close manuel
+  UI) est comptabilisée depuis les fills réels (`parse_exchange_close`, frais
+  réels + funding fenêtre) — reasons `exchange_stop` / `liquidation` /
+  `exchange_close`. Avant v1.7.1 ces positions étaient droppées sans P&L
+  (boot_reconcile) ou tournaient en boucle de retry (`close_market` sur du vide).
+- **Limitation connue** : fill partiel du trigger immédiatement suivi d'une
+  fermeture soft → seule la part soft est bookée en trade (la part trigger reste
+  visible dans l'equity exchange, pas dans le registre P&L). Rare (IoC), accepté.
+- `rules.py`/backtest **inchangés** (le filet n'est pas une règle). Kill-switch :
+  `hard_stop_enabled=false` dans l'override du bot → extinction propre (cancel
+  des triggers au reconcile suivant).

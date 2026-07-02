@@ -34,6 +34,49 @@ _SDK_INFLIGHT_LOCK = threading.Lock()
 _RETRY_DELAYS_429 = (0.5, 1.5, 3.0, 5.0, 10.0)
 
 
+def parse_exchange_close(fills: list, direction: int) -> dict | None:
+    """Digest the exchange-side closing fills of a position (étape 0 du filet
+    hard-stop). Pure function — testable without the SDK.
+
+    `fills` = user_fills entries on ONE coin since entry. direction 1=LONG
+    (closes sell, side "A"), -1=SHORT (closes buy, side "B"). Returns
+    {exit_px (vwap), exit_ms, closed_sz, fees_open, fees_close, liquidated}
+    or None when no closing fill is present (position genuinely unaccounted)."""
+    want_dir = "Close Long" if direction == 1 else "Close Short"
+    close_side = "A" if direction == 1 else "B"
+    closes: list = []
+    opens: list = []
+    liquidated = False
+    for f in fills:
+        d = str(f.get("dir", ""))
+        if "liquidat" in d.lower() or f.get("liquidation"):
+            if f.get("side") == close_side:
+                closes.append(f)
+                liquidated = True
+            continue
+        if d == want_dir:
+            closes.append(f)
+        elif d.startswith("Open"):
+            opens.append(f)
+    if not closes:
+        return None
+    tot_sz = sum(float(f["sz"]) for f in closes)
+    if tot_sz <= 0:
+        return None
+    vwap = sum(float(f["px"]) * float(f["sz"]) for f in closes) / tot_sz
+    return {
+        "exit_px": vwap,
+        "exit_ms": max(int(f["time"]) for f in closes),
+        "closed_sz": tot_sz,
+        "fees_open": sum(float(f.get("fee", 0) or 0) for f in opens),
+        "fees_close": sum(float(f.get("fee", 0) or 0) for f in closes),
+        "liquidated": liquidated,
+        # oids des ordres de fermeture — permet d'attribuer la fermeture au
+        # trigger hard-stop du bot (reason exchange_stop) vs close manuel.
+        "close_oids": {int(f["oid"]) for f in closes if f.get("oid") is not None},
+    }
+
+
 def _sdk_call(fn, *args, timeout: float = 20.0, **kwargs):
     """Run an SDK call with a timeout cap. Raises TimeoutError on expiry —
     the underlying thread keeps running (best-effort cancel); acceptable
@@ -399,7 +442,68 @@ class HLAccount:
                 out[p["coin"]] = {"szi": sz}
         return out
 
-    def reconcile(self, bot_positions: dict, notify_fn) -> None:
+    def coin_fills_since(self, coin: str, start_ms: int) -> list[dict]:
+        """All fills on `coin` since start_ms. Raises on API error (caller
+        falls back). start padded −60s to always capture the entry fill."""
+        fills = _sdk_retry(self.info.user_fills_by_time, self.address,
+                           max(0, start_ms - 60_000), timeout=15.0)
+        return [f for f in fills if f.get("coin") == coin]
+
+    # ── Hard-stop triggers (filet exchange-side, v1.7.1) ─────────────
+
+    def place_stop_order(self, sym: str, is_buy: bool, sz: float,
+                         trigger_px: float, slippage: float = 0.05) -> int:
+        """Resident reduce-only stop-market on HL. Returns the resting oid.
+        Raises on any failure (caller alerts + retries at next reconcile).
+        `is_buy`: True to close a SHORT, False to close a LONG."""
+        # _slippage_price fait aussi l'arrondi de prix HL (5 sig figs,
+        # 6−szDecimals) ; slippage=0 → arrondi pur pour le triggerPx.
+        trig = self.exchange._slippage_price(sym, is_buy, 0.0, trigger_px)
+        limit_px = self.exchange._slippage_price(sym, is_buy, slippage,
+                                                 trigger_px)
+        log.info("EXEC STOP: %s %s sz=%s trigger=%s",
+                 "BUY" if is_buy else "SELL", sym, sz, trig)
+        result = _sdk_retry(
+            self.exchange.order, sym, is_buy, sz, limit_px,
+            {"trigger": {"triggerPx": trig, "isMarket": True, "tpsl": "sl"}},
+            reduce_only=True, timeout=20.0)
+        statuses = result.get("response", {}).get("data", {}).get("statuses", [])
+        if not statuses:
+            raise RuntimeError(f"Stop order returned empty statuses: {result}")
+        first = statuses[0]
+        if "error" in str(first).lower():
+            raise RuntimeError(f"Stop order error: {first}")
+        oid = (first.get("resting") or {}).get("oid") if isinstance(first, dict) else None
+        if not oid:
+            raise RuntimeError(f"Stop order: no resting oid in {first}")
+        return int(oid)
+
+    def cancel_order(self, sym: str, oid: int) -> bool:
+        """Cancel one order. False (not raise) when already gone — the
+        common benign race (order filled/canceled meanwhile)."""
+        try:
+            result = _sdk_retry(self.exchange.cancel, sym, oid, timeout=15.0)
+            statuses = result.get("response", {}).get("data", {}).get("statuses", [])
+            return bool(statuses) and statuses[0] == "success"
+        except Exception as e:
+            log.warning("Cancel %s oid=%s failed: %s", sym, oid, e)
+            return False
+
+    def open_trigger_orders(self) -> list[dict]:
+        """Resident reduce-only trigger orders on the account:
+        [{coin, oid, trigger_px, side, sz}]. Raises on API error."""
+        orders = _sdk_retry(self.info.frontend_open_orders, self.address,
+                            timeout=15.0)
+        out = []
+        for o in orders or []:
+            if o.get("isTrigger") and o.get("reduceOnly"):
+                out.append({"coin": o.get("coin"), "oid": int(o.get("oid", 0)),
+                            "trigger_px": float(o.get("triggerPx") or 0),
+                            "side": o.get("side"),
+                            "sz": float(o.get("sz") or 0)})
+        return out
+
+    def reconcile(self, bot_positions: dict, notify_fn, on_ghost=None) -> None:
         """Bot vs exchange positions: ghosts, orphans, direction/size
         mismatches. Auto-syncs size_usdt when the bot tracks materially MORE
         than the exchange holds (ratio < 0.9 in coin units)."""
@@ -414,10 +518,24 @@ class HLAccount:
             log.warning("RECONCILE: orphans on exchange: %s", exch_syms - bot_syms)
             notify_fn(f"⚠️ Orphan on exchange (not in bot): {exch_syms - bot_syms}",
                       category="reconcile", actionable=True)
-        if bot_syms - exch_syms:
-            log.warning("RECONCILE: ghosts in bot: %s", bot_syms - exch_syms)
-            notify_fn(f"⚠️ Ghost in bot (not on exchange): {bot_syms - exch_syms}",
-                      category="reconcile", actionable=True)
+        ghosts = bot_syms - exch_syms
+        if ghosts:
+            log.warning("RECONCILE: ghosts in bot: %s", ghosts)
+            if on_ghost is not None:
+                # Étape 0 filet hard-stop : la position a été fermée côté
+                # exchange (trigger/liquidation/close manuel) — booker le
+                # trade réel au lieu de se contenter d'alerter.
+                for sym in sorted(ghosts):
+                    try:
+                        on_ghost(sym)
+                    except Exception as e:
+                        log.exception("RECONCILE: ghost booking failed %s", sym)
+                        notify_fn(f"⚠️ Ghost {sym}: booking failed ({e}) — "
+                                  f"position gardée, retry au prochain reconcile",
+                                  category="reconcile", actionable=True)
+            else:
+                notify_fn(f"⚠️ Ghost in bot (not on exchange): {ghosts}",
+                          category="reconcile", actionable=True)
         for sym in bot_syms & exch_syms:
             bot_pos = bot_positions[sym]
             exch_dir = 1 if exch[sym]["szi"] > 0 else -1

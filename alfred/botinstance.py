@@ -23,7 +23,7 @@ from collections import deque
 from datetime import datetime, timezone, timedelta
 
 from . import ALFRED_VERSION
-from . import alerts, features, persistence, rules, signals
+from . import alerts, features, hardstop, persistence, rules, signals
 from .brokers import PaperBroker
 from .db import Database
 from .models import Position, Trade
@@ -573,6 +573,21 @@ class BotInstance:
         try:
             fill = self.broker.close(sym, pos.direction, exit_price, mark)
         except Exception as e:
+            # La position a peut-être déjà été fermée côté exchange (trigger
+            # hard-stop, liquidation, close manuel UI) : market_close échoue
+            # alors sur du vide → booker le trade réel au lieu de partir en
+            # boucle de retry sur une position qui n'existe plus.
+            if self.broker.is_live:
+                try:
+                    if sym not in self.broker.account.exchange_positions():
+                        log.warning("[%s] close %s failed but position absent "
+                                    "on exchange — booking exchange-side close",
+                                    self.id, sym)
+                        self._book_exchange_close(sym, "close_failed",
+                                                  already_closing=True)
+                        return
+                except Exception:
+                    pass  # vérification impossible → chemin retry normal
             with self._pos_lock:
                 self._failed_closes.add(sym)
             self.db.log_event("CLOSE_FAILED", sym,
@@ -584,6 +599,10 @@ class BotInstance:
             return
         with self._pos_lock:
             self._failed_closes.discard(sym)
+        # Fermeture bot-side réussie → le trigger hard-stop résident n'a
+        # plus d'objet (reduce-only : inoffensif même si le cancel rate).
+        if self.broker.is_live:
+            self._cancel_hard_stop(sym, pos)
         exit_price = fill.avg_px
         # Live partial-fill coin reconcile (legacy v12.5.25): if the closed
         # coin count differs >1% from what we tracked, scale size_usdt to
@@ -603,17 +622,26 @@ class BotInstance:
             sym, pos.direction, pos.size_usdt, accrued=0.0,
             entry_ms=int(pos.entry_time.timestamp() * 1000),
             exit_ms=int(now.timestamp() * 1000))
+        self._record_close(sym, exit_price, now, reason, funding_adj)
 
+    def _record_close(self, sym: str, exit_price: float, exit_dt: datetime,
+                      reason: str, funding_adj: float,
+                      cost_bps: float | None = None) -> None:
+        """Book a closed position: pop, P&L, Trade row, events, notify, save.
+        Single accounting implementation — used by the normal close path
+        (exit_dt=now, flat cost model) and by exchange-side close booking
+        (real exit_dt from fills, real fees via cost_bps)."""
+        cost = cost_bps if cost_bps is not None else self.p.cost_bps
         with self._pos_lock:
             if sym not in self.positions:
                 return
             pos = self.positions.pop(sym)
-            hold_h = (now - pos.entry_time).total_seconds() / 3600
+            hold_h = (exit_dt - pos.entry_time).total_seconds() / 3600
             final_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
             pos.trajectory.append((round(hold_h, 1), round(final_bps, 1)))
             gross_bps, net_bps, pnl = rules.compute_trade_pnl(
                 pos.direction, pos.entry_price, exit_price, pos.size_usdt,
-                self.p.cost_bps, funding_usdt=-funding_adj)
+                cost, funding_usdt=-funding_adj)
             self._total_pnl += pnl
             balance = self._capital + self._total_pnl
             if balance > self._peak_balance:
@@ -623,12 +651,14 @@ class BotInstance:
                 self._consecutive_losses = 0
             else:
                 self._consecutive_losses += 1
-            self._cooldowns[sym] = time.time() + self.p.cooldown_hours * 3600
+            # Ancré sur l'heure de sortie réelle : identique à time.time() sur
+            # le chemin normal, décompte déjà entamé pour un close downtime.
+            self._cooldowns[sym] = exit_dt.timestamp() + self.p.cooldown_hours * 3600
 
         trade = Trade(
             symbol=sym, direction="LONG" if pos.direction == 1 else "SHORT",
             strategy=pos.strategy,
-            entry_time=pos.entry_time.isoformat(), exit_time=now.isoformat(),
+            entry_time=pos.entry_time.isoformat(), exit_time=exit_dt.isoformat(),
             entry_price=pos.entry_price, exit_price=exit_price,
             hold_hours=round(hold_h, 1), size_usdt=pos.size_usdt,
             signal_info=pos.signal_info,
@@ -679,6 +709,219 @@ class BotInstance:
         """Close + report success via _failed_closes (canonical check)."""
         self.close_position(sym, exit_price, now, reason)
         return sym not in self._failed_closes
+
+    # ── Exchange-side close booking (étape 0 du filet hard-stop) ─────
+
+    def _book_exchange_close(self, sym: str, source: str,
+                             already_closing: bool = False) -> None:
+        """A position tracked by the bot no longer exists on the exchange
+        (trigger, liquidation, manual UI close — typically during a
+        downtime). Book the REAL trade from user_fills instead of dropping
+        it silently (pre-v1.7.1: realized P&L was lost). Live only."""
+        if not self.broker.is_live:
+            return
+        if not already_closing:
+            with self._pos_lock:
+                if sym not in self.positions or sym in self._closing:
+                    return
+                self._closing.add(sym)
+        try:
+            self._book_exchange_close_inner(sym, source)
+        finally:
+            if not already_closing:
+                with self._pos_lock:
+                    self._closing.discard(sym)
+
+    def _book_exchange_close_inner(self, sym: str, source: str) -> None:
+        from alfred.hl import parse_exchange_close
+        with self._pos_lock:
+            pos = self.positions.get(sym)
+        if pos is None:
+            return
+        now = datetime.now(timezone.utc)
+        entry_ms = int(pos.entry_time.timestamp() * 1000)
+        parsed = None
+        try:
+            fills = self.broker.account.coin_fills_since(sym, entry_ms)
+            parsed = parse_exchange_close(fills, pos.direction)
+        except Exception as e:
+            log.warning("[%s] ghost %s: fills lookup failed: %s",
+                        self.id, sym, e)
+        cost_bps = None  # défaut : modèle flat (cost_bps de settings)
+        if parsed:
+            exit_price = parsed["exit_px"]
+            exit_dt = datetime.fromtimestamp(parsed["exit_ms"] / 1000,
+                                             tz=timezone.utc)
+            reason = "liquidation" if parsed["liquidated"] else "exchange_close"
+            fees = parsed["fees_open"] + parsed["fees_close"]
+            if fees > 0 and pos.size_usdt > 0:
+                # Frais réels des fills (entrée+sortie) + drag funding flat —
+                # le swap funding réel est appliqué via funding_adj ci-dessous.
+                cost_bps = fees / pos.size_usdt * 1e4 + self.p.funding_drag_bps
+        else:
+            # Aucun fill de fermeture retrouvé (fenêtre API dépassée ?) —
+            # booker au mark courant vaut mieux que perdre le P&L (l'ancien
+            # comportement droppait = P&L implicite zéro).
+            st = self.states.get(sym)
+            exit_price = st.price if st and st.price > 0 else pos.entry_price
+            exit_dt = now
+            reason = "exchange_close_nofill"
+        # Attribution filet hard-stop : la fermeture vient-elle de NOTRE
+        # trigger résident ? (sinon : liquidation / close manuel exchange)
+        if (parsed and not parsed["liquidated"] and pos.stop_oid
+                and pos.stop_oid in parsed.get("close_oids", ())):
+            reason = "exchange_stop"
+        # Trigger résiduel à nettoyer si la fermeture ne l'a pas consommé.
+        if pos.stop_oid and (not parsed
+                             or pos.stop_oid not in parsed.get("close_oids", ())):
+            try:
+                self.broker.account.cancel_order(sym, pos.stop_oid)
+            except Exception:
+                pass  # sweep du reconcile en filet
+        funding_adj = self.broker.trade_funding_usdt(
+            sym, pos.direction, pos.size_usdt, accrued=0.0,
+            entry_ms=entry_ms, exit_ms=int(exit_dt.timestamp() * 1000))
+        self.db.log_event("EXCHANGE_CLOSE_BOOKED", sym, {
+            "source": source, "reason": reason,
+            "exit_price": round(exit_price, 6),
+            "had_fills": bool(parsed),
+            "liquidated": bool(parsed and parsed["liquidated"])})
+        self._record_close(sym, exit_price, exit_dt, reason, funding_adj,
+                           cost_bps=cost_bps)
+        self.notifier.send(
+            f"🪤 {sym}: fermée côté exchange ({reason}, détectée via {source}) "
+            f"— trade booké depuis les fills réels", category="reconcile",
+            actionable=(reason == "liquidation"))
+
+    # ── Filet hard-stop exchange-side (étape A, v1.7.1) ──────────────
+
+    def _hard_stop_active(self) -> bool:
+        return self.broker.is_live and self.p.hard_stop_enabled
+
+    def _place_hard_stop(self, sym: str) -> None:
+        """Pose le trigger reduce-only miroir du catastrophe_stop
+        (effective_stop − buffer, cf. alfred/hardstop.py). Fail-soft : un
+        échec laisse le stop soft 20s seul + alerte, retry au reconcile."""
+        if not self._hard_stop_active():
+            return
+        with self._pos_lock:
+            pos = self.positions.get(sym)
+            if pos is None or pos.stop_oid is not None:
+                return
+        try:
+            px = hardstop.trigger_price(pos, self.p)
+            sz = round(pos.size_usdt / pos.entry_price,
+                       self.broker.account.sz_decimals.get(sym, 2))
+            if sz <= 0:
+                return
+            oid = self.broker.account.place_stop_order(
+                sym, hardstop.close_is_buy(pos.direction), sz, px,
+                slippage=self.p.hard_stop_slippage)
+        except Exception as e:
+            log.warning("[%s] hard-stop %s: pose échouée: %s — stop soft "
+                        "seul, retry au reconcile", self.id, sym, e)
+            self.notifier.send(
+                f"⚠️ Hard-stop {sym}: pose échouée ({e}) — stop soft seul, "
+                f"retry au reconcile", category="reconcile", actionable=True)
+            return
+        with self._pos_lock:
+            if sym in self.positions:
+                self.positions[sym].stop_oid = oid
+        self.db.log_event("HARD_STOP_SET", sym, {
+            "oid": oid, "trigger_px": round(px, 8),
+            "sz": sz, "buffer_bps": self.p.hard_stop_buffer_bps})
+        log.info("[%s] hard-stop %s posé: oid=%s trigger=%.6g sz=%s",
+                 self.id, sym, oid, px, sz)
+        self._save_state()
+
+    def _cancel_hard_stop(self, sym: str, pos) -> None:
+        """Annule le trigger résident avant booking d'une fermeture bot-side.
+        Fail-soft : un cancel raté devient un trigger mort (coin flat) que le
+        sweep du reconcile nettoie ; reduce-only = inoffensif entre-temps."""
+        if pos.stop_oid is None:
+            return
+        try:
+            ok = self.broker.account.cancel_order(sym, pos.stop_oid)
+        except Exception:
+            ok = False
+        self.db.log_event("HARD_STOP_CANCEL", sym,
+                          {"oid": pos.stop_oid, "ok": bool(ok)})
+        pos.stop_oid = None
+
+    def _hard_stop_reconcile(self) -> None:
+        """Ensure + sweep (boot et reconcile horaire) :
+        - toute position vivante a son trigger (re-pose si absent/consommé,
+          y compris après un fill partiel du trigger — l'IoC ne re-reste pas) ;
+        - triggers morts (coin sans position bot NI exchange) annulés ;
+        - trigger étranger sur un coin bot-tracké : alerte seulement (peut
+          être un ordre posé à la main par l'utilisateur — on n'y touche pas).
+        hard_stop_enabled=False → extinction propre (cancel des nôtres)."""
+        if not self.broker.is_live:
+            return
+        with self._pos_lock:
+            snapshot = dict(self.positions)
+        has_oids = any(p.stop_oid for p in snapshot.values())
+        if not self.p.hard_stop_enabled and not has_oids:
+            return
+        try:
+            open_trigs = self.broker.account.open_trigger_orders()
+        except Exception as e:
+            log.warning("[%s] hard-stop reconcile: lecture triggers échouée: %s",
+                        self.id, e)
+            return
+        open_by_oid = {t["oid"]: t for t in open_trigs}
+
+        if not self.p.hard_stop_enabled:
+            # Extinction propre du filet : annule nos triggers connus.
+            for sym, pos in snapshot.items():
+                if pos.stop_oid is not None:
+                    if pos.stop_oid in open_by_oid:
+                        self.broker.account.cancel_order(sym, pos.stop_oid)
+                    with self._pos_lock:
+                        if sym in self.positions:
+                            self.positions[sym].stop_oid = None
+            self._save_state()
+            return
+
+        # 1) Ensure : oid consommé/disparu → re-pose pour la position vivante.
+        changed = False
+        for sym, pos in snapshot.items():
+            if pos.stop_oid is not None and pos.stop_oid not in open_by_oid:
+                log.warning("[%s] hard-stop %s: trigger oid=%s disparu — "
+                            "re-pose", self.id, sym, pos.stop_oid)
+                with self._pos_lock:
+                    if sym in self.positions:
+                        self.positions[sym].stop_oid = None
+                changed = True
+            self._place_hard_stop(sym)  # no-op si oid déjà posé
+        if changed:
+            self._save_state()
+
+        # 2) Sweep : triggers sans position correspondante.
+        if open_trigs:
+            tracked = {p.stop_oid for p in snapshot.values()
+                       if p.stop_oid is not None}
+            strays = [t for t in open_trigs if t["oid"] not in tracked]
+            exch = None
+            if strays:
+                try:
+                    exch = self.broker.account.exchange_positions()
+                except Exception:
+                    return  # pas de vue exchange → pas de sweep aveugle
+            for t in strays:
+                coin = t["coin"]
+                if coin in snapshot:
+                    # Trigger étranger sur un coin que le bot gère : ne pas
+                    # y toucher (potentiellement posé à la main).
+                    log.info("[%s] hard-stop: trigger étranger sur %s "
+                             "(oid=%s) — laissé en place", self.id, coin, t["oid"])
+                    continue
+                if coin not in exch:
+                    ok = self.broker.account.cancel_order(coin, t["oid"])
+                    self.db.log_event("HARD_STOP_SWEEP", coin,
+                                      {"oid": t["oid"], "ok": bool(ok)})
+                    log.info("[%s] hard-stop sweep: trigger mort %s oid=%s "
+                             "annulé", self.id, coin, t["oid"])
 
     # ── Entries (4h-boundary scans) ──────────────────────────────────
 
@@ -994,6 +1237,8 @@ class BotInstance:
             # save de fin de scan laisserait une position réelle non trackée
             # (orphan au boot_reconcile, jamais auto-importée).
             self._save_state()
+            # Filet hard-stop : trigger reduce-only résident (fail-soft).
+            self._place_hard_stop(sym)
             esi = features.compute_entry_side_imbalance(
                 sig["direction"], st.price, st.impact_bid, st.impact_ask)
             self.db.log_event("OPEN", sym, {
@@ -1183,12 +1428,20 @@ class BotInstance:
             return
         with self._pos_lock:
             pos_snapshot = dict(self.positions)
-        self.broker.account.reconcile(pos_snapshot, self.notifier.send)
+        self.broker.account.reconcile(
+            pos_snapshot, self.notifier.send,
+            on_ghost=lambda s: self._book_exchange_close(s, "reconcile"))
+        try:
+            self._hard_stop_reconcile()
+        except Exception:
+            log.exception("[%s] hard-stop reconcile failed", self.id)
 
     def boot_reconcile(self) -> None:
-        """Once at boot (after load): drop ghost positions (in the bot but
-        absent on the exchange — e.g. manually closed in the HL UI while the
-        bot was down). Orphans are alerted, never auto-imported. No-op paper."""
+        """Once at boot (after load): positions tracked by the bot but absent
+        on the exchange (closed exchange-side during the downtime — trigger,
+        liquidation, manual UI close) are BOOKED from the real fills
+        (étape 0 du filet hard-stop ; avant v1.7.1 elles étaient droppées
+        sans P&L). Orphans are alerted, never auto-imported. No-op paper."""
         if not self.broker.is_live:
             return
         try:
@@ -1199,21 +1452,28 @@ class BotInstance:
             return
         with self._pos_lock:
             ghosts = [s for s in self.positions if s not in exch]
-            for sym in ghosts:
-                pos = self.positions.pop(sym)
-                log.warning("[%s] boot reconcile: dropping ghost %s %s "
-                            "(absent on exchange)", self.id, sym, pos.strategy)
-        if ghosts:
-            self.notifier.send(
-                f"🧹 Boot reconcile: dropped ghost positions {ghosts} "
-                f"(absent on exchange)", category="reconcile")
-            self._save_state()
+        for sym in ghosts:
+            log.warning("[%s] boot reconcile: %s absent on exchange — "
+                        "booking exchange-side close", self.id, sym)
+            try:
+                self._book_exchange_close(sym, "boot_reconcile")
+            except Exception:
+                # Booking impossible → on GARDE la position (le reconcile
+                # horaire retentera) plutôt que de perdre le P&L.
+                log.exception("[%s] boot reconcile: booking %s failed — "
+                              "keeping position", self.id, sym)
         orphans = [s for s in exch if s not in self.positions]
         if orphans:
             self.notifier.send(
                 f"⚠️ Boot reconcile: orphan positions on exchange {orphans} "
                 f"(not tracked — manage manually)", category="reconcile",
                 actionable=True)
+        # Filet hard-stop : chaque position survivante retrouve son trigger
+        # (re-pose si consommé/absent), triggers morts nettoyés.
+        try:
+            self._hard_stop_reconcile()
+        except Exception:
+            log.exception("[%s] boot hard-stop reconcile failed", self.id)
 
     def safe_refresh_equity(self, full: bool = False) -> None:
         try:

@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.7.1 — 2026-07-02
+
+- **Trading engine**: filet de sécurité exchange-side — chaque position du bot SENIOR porte désormais un stop résident sur Hyperliquid, qui protège même quand le process est indisponible (crash, redémarrage). Le moteur de décision reste l'exécuteur normal ; le stop résident n'agit qu'en dernier recours.
+- **Trading engine**: une position fermée côté exchange pendant une indisponibilité (stop résident, liquidation, fermeture manuelle) est désormais comptabilisée au prix réel des fills au retour du bot — avant, son P&L était perdu.
+
 ## v1.7.0 — 2026-07-01
 
 - **Trading engine**: jalon 1.7 — la couche de décision IA de SENIOR est en place (arbitrage des entrées et des sorties, avec contexte de marché).

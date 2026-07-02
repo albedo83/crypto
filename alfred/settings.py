@@ -108,6 +108,15 @@ class Params:
     # ── Stops & exits ────────────────────────────────────────────────
     stop_loss_bps: float = -1250.0
     stop_loss_s8: float = -750.0
+    # Filet hard-stop exchange-side (v1.7.1) : trigger reduce-only résident
+    # sur HL à effective_stop − buffer. Couvre les downtimes du process ; la
+    # chaîne 20s reste l'exécuteur primaire (buffer 200 = p99.99 des
+    # excursions 60s [194] et > max overshoot soft observé [162]). PAS une
+    # règle : rules.py/backtest inchangés. Kill-switch : enabled=False.
+    hard_stop_enabled: bool = False        # armé par bot via overrides
+    hard_stop_buffer_bps: float = 200.0
+    hard_stop_slippage: float = 0.05       # borne limit du stop-market
+    s9_early_exit_bps: float = -500.0
     s9_early_exit_bps: float = -500.0
     s9_early_exit_hours: float = 8.0
     s10_trailing_trigger: float = 600.0

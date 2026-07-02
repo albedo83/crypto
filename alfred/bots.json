@@ -19,7 +19,7 @@
       "capital_initial": 680.58,
       "telegram": {"token_env": "TG_BOT_TOKEN", "chat_id_env": "TG_CHAT_ID"},
       "public_url": "https://echonym.fr/alfred/bot/live",
-      "overrides": {},
+      "overrides": {"hard_stop_enabled": true},
       "enabled": true
     },
     {
