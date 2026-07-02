@@ -88,7 +88,13 @@ Items de mémoire long-terme, sans deadline.
 - Sessions humaines : checklist quand on se demande "qu'est-ce qu'il restait à faire ?".
 - Quand on traite un item → suppression + mention dans `CHANGELOG.md` ou `docs/synthese.md` selon que c'est trading-impacting ou doc-seulement.
 - [ ] **Re-test cap notionnel liquidity-aware** (R&D 2026-06-11, `backtests/backtest_liquidity_cap.py`) — $500 confirmé optimal au genou de la frontière (grille flat 250-1000 + 12 variantes k_liq×vol24h, 0 PASS strict, régime bear punit la taille marginale). Re-run (~3 min) si : balance SENIOR ≥ $1400 (alerte auto dans le digest 08:30), btc_z 30j durablement > 0, ou échéance trimestrielle (~2026-09). Option $350 documentée pour l'agenda DD-reduction (−9pp DD moyen contre −27% PnL long).
-- [ ] **Re-tests issus de l'audit d'ablation 2026-06-11** (`backtests/backtest_rule_audit.py`, sémantique alignée post-fix parité) : (1) **whitelist S10** (v11.3.4, validée 02/2026) — la retirer donne +610/+121/+22/−2 $ (ΔDD +2.4pp), quasi-PASS, à confirmer par walk-forward dédié + fenêtres glissantes (LONGs S10 restent toxiques : −431/−759 $) ; (2) **dead_timeout + runner_ext** (v11.7.2/v11.7.32) — contribution marginale −238/+94/−210/−231 $ : probablement doublonnés par traj_cut/btc_drop_cut/s8_dead qui coupent plus tôt — ablation combinée + walk-forward avant tout retrait. Pattern : l'audit 1-à-1 est un détecteur, pas un juge (path-dependence).
+- [x] **Re-tests issus de l'audit d'ablation 2026-06-11** : ✅ TRAITÉ 2026-07-02
+  (`backtests/chantier4_exit_chain_audit.py`, résultats
+  `backtests/chantier4_exit_chain_results.md`). Les 3 suspects SURVIVENT :
+  whitelist S10 KEEP (retrait 3/7 glissant, mirage single-end-date) ;
+  dead_timeout KEEP (morte au BT — shadowée — mais filet live réel, PYTH
+  06-19) ; runner_ext KEEP dormante (0 tir live JAMAIS, retrait 5/7 glissant
+  mais 2/4 strict — pari de régime). Prochain re-audit ablation : ~2026-09.
 
 ---
 
