@@ -980,10 +980,21 @@ class BotInstance:
             if oid not in open_by_oid or self.broker.account.cancel_order(sym, oid):
                 self._hard_stop_leftovers.discard((sym, oid))
 
-        # 2) Sweep : triggers sans position correspondante.
+        # 2) Sweep : triggers sans position correspondante. L'ensure ci-dessus
+        # a pu re-poser des ordres (resserrage, re-pose) → re-lire une vue
+        # FRAÎCHE si les oids trackés ne matchent plus le snapshot initial,
+        # sinon les anciens oids tout juste annulés passent pour étrangers
+        # (faux positifs observés au boot v1.7.3, migration stop_px).
+        tracked = {p.stop_oid for p in snapshot.values()
+                   if p.stop_oid is not None}
+        if tracked - set(open_by_oid):
+            try:
+                open_trigs = self.broker.account.open_trigger_orders()
+            except Exception as e:
+                log.warning("[%s] hard-stop sweep: relecture échouée: %s",
+                            self.id, e)
+                return
         if open_trigs:
-            tracked = {p.stop_oid for p in snapshot.values()
-                       if p.stop_oid is not None}
             strays = [t for t in open_trigs if t["oid"] not in tracked]
             exch = None
             if strays:

@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.7.4 — 2026-07-02
+
+- **Infra**: le nettoyage horaire des stops résidents relit l'état de l'exchange après un resserrage dans le même cycle — supprime des fausses alertes « trigger étranger » (ordres tout juste remplacés), détectées au déploiement v1.7.3.
+
 ## v1.7.3 — 2026-07-02
 
 - **Trading engine**: le stop résident suit désormais le plancher de protection le plus serré de la position (stop manuel, verrou IA, plancher de signal opposé) — le nouveau stop est posé avant que l'ancien soit retiré, la position n'est jamais sans filet pendant la bascule.
