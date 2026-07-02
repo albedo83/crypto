@@ -129,6 +129,50 @@ def fleet_summary() -> tuple[str, bool]:
     return "\n".join(lines), all_ok
 
 
+def agent_expiry_review(today=None) -> tuple[str, bool]:
+    """Sentinelle d'expiry des agent wallets HL (chantier 6, 2026-07-02).
+
+    Un agent expiré = bot orphelin qui ne peut plus signer (ordres rejetés,
+    positions non gérées). Les dates vivent dans bots.json (`agent_expiry`,
+    ISO date). Escalade : ≤21j → ligne d'avertissement quotidienne ;
+    ≤7j → urgent (status ⚠️) ; dépassé → critique. Silence sinon.
+    Renvoie (texte, ok) — ok=False dès qu'un agent est ≤7j ou expiré."""
+    from datetime import date
+    today = today or date.today()
+    try:
+        cfg = json.load(open(BOTS_CONFIG))
+        bots = cfg.get("bots", []) if isinstance(cfg, dict) else cfg
+    except Exception:
+        return "", True
+    lines, ok = [], True
+    for b in bots:
+        exp = (b.get("agent_expiry") or "").strip()
+        if not exp or not b.get("enabled", True):
+            continue
+        try:
+            d_left = (date.fromisoformat(exp) - today).days
+        except ValueError:
+            lines.append(f"🔑 {b.get('label', b['id'])} : agent_expiry "
+                         f"illisible ({exp!r}) dans bots.json")
+            ok = False
+            continue
+        label = b.get("label", b["id"])
+        if d_left < 0:
+            lines.append(f"🚨 {label} : agent EXPIRÉ depuis {-d_left}j ({exp}) "
+                         f"— le bot ne peut plus signer ! Régénérer la clé, "
+                         f"ré-autoriser l'agent sur HL, mettre à jour .env")
+            ok = False
+        elif d_left <= 7:
+            lines.append(f"🚨 {label} : agent expire dans {d_left}j ({exp}) — "
+                         f"régénérer MAINTENANT (clé + autorisation HL + .env "
+                         f"+ restart)")
+            ok = False
+        elif d_left <= 21:
+            lines.append(f"🔑 {label} : agent expire dans {d_left}j ({exp}) — "
+                         f"planifier la régénération")
+    return ("\n" + "\n".join(lines)) if lines else "", ok
+
+
 def notional_cap_review() -> str:
     """Déclencheur de re-test du cap notionnel $500 (R&D 2026-06-11,
     `backtests/backtest_liquidity_cap.py`) : quand la balance SENIOR
@@ -153,11 +197,13 @@ def main() -> int:
 
     obs_line, obs_ok = observation_summary()
     fleet_line, fleet_ok = fleet_summary()
+    expiry_line, expiry_ok = agent_expiry_review()
 
-    status = "✅" if (obs_ok and fleet_ok) else "⚠️"
+    status = "✅" if (obs_ok and fleet_ok and expiry_ok) else "⚠️"
     msg = (f"{status} ALFRED — digest quotidien\n"
            f"🩺 Données : {'✓' if obs_ok else '✗'} {obs_line}\n"
            f"{fleet_line}"
+           + expiry_line
            + notional_cap_review()
            + dashboard_footer())
 

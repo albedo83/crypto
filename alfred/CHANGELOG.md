@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.7.5 — 2026-07-02
+
+- **Telegram**: le digest quotidien surveille l'expiration des clés agent (JUNIOR/BABY) — avertissement à J−21, alerte urgente à J−7, critique si dépassée. Les dates vivent dans bots.json.
+
 ## v1.7.4 — 2026-07-02
 
 - **Infra**: le nettoyage horaire des stops résidents relit l'état de l'exchange après un resserrage dans le même cycle — supprime des fausses alertes « trigger étranger » (ordres tout juste remplacés), détectées au déploiement v1.7.3.
