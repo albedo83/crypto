@@ -1,7 +1,7 @@
 # Architecture Alfred — document de référence
 
 > **Source de vérité unique** de l'architecture du bot de trading, à jour avec le
-> code (`alfred/`, v1.2.7, 2026-06-14). Remplace le cadrage « architecture » de
+> code (`alfred/`, v1.7.0, 2026-07-02). Remplace le cadrage « architecture » de
 > `docs/bot.md` (qui décrit le stack legacy `analysis/bot/` décommissionné le
 > 2026-06-12). Pour le *rationnel R&D* derrière chaque règle, voir `docs/bot.md`
 > (détaillé) et `docs/synthese.md` (pédagogique) — leur logique de trading reste
@@ -12,9 +12,11 @@
 ## 1. En une phrase
 
 Alfred est un **process Python unique** (`python3 -m alfred`, port :8101) qui fait
-tourner **3 bots de trading** (paper, live, junior) sur Hyperliquid à partir d'un
-**flux de marché partagé** (un seul WebSocket) et d'un **noyau de règles commun au
-bot et au backtest**, avec une **web unifiée** de supervision.
+tourner **4 bots de trading** (paper, live, junior, baby) sur Hyperliquid à partir
+d'un **flux de marché partagé** (un seul WebSocket) et d'un **noyau de règles commun
+au bot et au backtest**, avec une **web unifiée** de supervision. Le bot SENIOR
+(live) porte en plus une **couche de décision IA** (arbitrage des entrées et des
+sorties, § 9) qui surplombe les règles sans jamais les modifier.
 
 ---
 
@@ -35,11 +37,13 @@ bot et au backtest**, avec une **web unifiée** de supervision.
    └─────────────────────────────────────────────────────────┘
             │ states[sym] (prix, candles_4h, OI…) + snapshot
             ▼
-   ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
-   │ BotInstance  │ │ BotInstance  │ │ BotInstance  │   (max 8)
-   │   paper      │ │   live       │ │   junior     │
-   │  PaperBroker │ │  LiveBroker  │ │  LiveBroker  │
-   └──────────────┘ └──────────────┘ └──────────────┘
+   ┌────────────┐ ┌────────────┐ ┌────────────┐ ┌────────────┐
+   │BotInstance │ │BotInstance │ │BotInstance │ │BotInstance │   (max 8)
+   │  paper     │ │  live      │ │  junior    │ │  baby      │
+   │PaperBroker │ │LiveBroker  │ │LiveBroker  │ │LiveBroker  │
+   └────────────┘ └─────┬──────┘ └────────────┘ └────────────┘
+                        │ (SENIOR seul)
+                  arbitres IA entrée/sortie (§ 9)
             │ chacun : noyau partagé alfred/rules.py
             ▼
    ┌─────────────────────────────────────────────────────────┐
@@ -68,8 +72,9 @@ Lock `alfred/data/alfred.lock` : fail-bind propre si déjà lancé.
 | Bot | Label | Mode | Capital init | Wallet | Particularités |
 |-----|-------|------|--------------|--------|----------------|
 | `paper` | PAPER-ALFRED | paper | $1000 | — | simulation, baseline backtest-parité |
-| `live` | SENIOR | live | $680.58 | clé directe (`HL_PRIVATE_KEY`) | la clé EST le wallet |
-| `junior` | JUNIOR | live | $332.76 | agent (`JUNIOR_HL_PRIVATE_KEY` → master `0xb65d…56Fe`) | cap notionnel $500, opéré par un testeur |
+| `live` | SENIOR | live | $680.58 | clé directe (`HL_PRIVATE_KEY`) | la clé EST le wallet ; **seul bot avec la couche IA (§ 9)** |
+| `junior` | JUNIOR | live | $332.76 | agent (`JUNIOR_HL_PRIVATE_KEY` → master `0xb65d…56Fe`, expire 2026-10-26) | capital_cap $500, opéré par un testeur |
+| `baby` | BABY | live | $57.84 | agent (`BABY_HL_PRIVATE_KEY` → master `0xda40…b014c`, expire 2026-12-08) | capital_cap $400, DCA prévu, opéré par une tierce personne |
 
 - **Secrets** : `bots.json` ne stocke que les **noms** des variables `.env`, jamais
   les valeurs (résolus à l'init du broker).
@@ -77,6 +82,7 @@ Lock `alfred/data/alfred.lock` : fail-bind propre si déjà lancé.
   (validé au boot, refus de démarrer).
 - **Overrides** : chaque bot peut surcharger n'importe quel `Params` via son bloc
   `overrides` (clé inconnue = fatale).
+- **Rôles web** : `bot:junior` / `bot:baby` ne voient que leur `/bot/<id>/*` (§ 12).
 - Max 8 bots.
 
 ---
@@ -99,7 +105,8 @@ robustesse statistique mesurée ; walk-forward = passes sur 4 fenêtres glissant
 
 - **S2** (alt crash) retiré, **S4** (vol+DXY) suspendu.
 - Univers : **34 tokens tradés** + BTC/ETH référence (`trade_symbols`, MKR retiré
-  phase 6). **Blacklist** SUI/IMX/LINK : gardés pour la donnée, skippés à l'entrée.
+  phase 6). **Blacklist vidée le 2026-06-30** (v1.6.7 — l'overfit de sélection a
+  décru : le retrait gagne 6/7 en OOS glissant) ; ré-activable via `trade_blacklist`.
 - 7 secteurs : L1, L1-major, Privacy, DeFi, Gaming, Infra, Meme.
 
 ---
@@ -112,8 +119,10 @@ robustesse statistique mesurée ; walk-forward = passes sur 4 fenêtres glissant
 | **Scan entrées** | **au close 4h** (+180s de grâce) | évaluation des signaux d'entrée gated sur la bougie 4h |
 | **Scan complet** | horaire (3600s) | refresh features + reconcile + equity, en plus du tick |
 | **REST marché** | 60s | metaAndAssetCtxs (prix, OI, funding, premium) |
-| **Snapshot marché** | horaire | dispersion cross-sectionnelle, btc_z, secteurs (calculé 1×) |
+| **Snapshot marché** | horaire | dispersion cross-sectionnelle, btc_z, secteurs, capitulation breadth (calculé 1×) |
 | **DXY (Yahoo)** | 6h | caché 48h |
+| **Arbitre IA entrée** (SENIOR) | au scan 4h | 1 appel synchrone avant les ordres (§ 9) |
+| **Arbitre IA sortie** (SENIOR) | throttle 1h | overlay dans on_tick, zone candidate (§ 9) |
 
 Le gate d'entrée au close 4h (`_last_entry_scan_4h_close`, persisté) aligne le live
 sur le backtest (le BT scanne 1×/bougie 4h) — corrige la dérive intra-bougie
@@ -155,8 +164,9 @@ réelle du compte (v1.2.1) — réduction ou skip propre au lieu d'un rejet HL.
 | OI gate LONG | OI 24h < −10% | bloque les longs (knife-catching) |
 | cooldown | 24h | par token après une sortie |
 | size floor | < $10 | skip (modulateur trop bas) |
-| blacklist | SUI/IMX/LINK | skip à l'entrée |
+| blacklist | **vide** (2026-06-30) | ré-activable via `trade_blacklist` |
 | disp gate | **retiré** (99999) | ré-activable à 700 sur S5/S9 |
+| arbitre IA (SENIOR) | veto / haircut | dernier filtre avant l'ordre (§ 9) |
 
 ---
 
@@ -175,16 +185,83 @@ qui matche gagne. Identique bot et backtest (mode `aligned`).
 8. **s8_dead** — S8 LONG sans MFE > +50 bps après 8h (capitulation morte).
 9. **s8_inlife** — trail S8 régime-conditionné (bear/bull serré, neutral large).
 10. **prop_trail** — trail proportionnel S9 (bull seul : arme à 100 bps, lock 0.65).
-11. **traj_cut** (S5) — coupe « courbe désespérée » en régime bear (déclin rapide depuis le pic, collé au MAE, perte > −200 bps, btc_z < −0.5).
+11. **traj_cut** (S5, **LONG only** v1.6.4) — coupe « courbe désespérée » en régime bear (déclin rapide depuis le pic, collé au MAE, perte > −200 bps, btc_z < −0.5). Les S5 SHORT pinnés mean-revertent → jamais coupés.
 12. **s9_early_dead** — S9 sans MFE > +150 bps après 12h.
 13. **btc_drop_cut** — LONG en perte + dump BTC 4h < −300 bps.
 14. **dead_timeout** — à T−12h du timeout, position sans pouls (MFE ≤ 150, collée au MAE) → crystallise la perte.
 
 Tous ces seuils sont des constantes dans `settings.py` avec kill-switch documenté.
 
+Sur SENIOR uniquement, l'**arbitre IA de sortie** (§ 9) surplombe cette chaîne — il
+peut poser un stop protecteur sur un gagnant, jamais la court-circuiter.
+
 ---
 
-## 9. Noyau partagé bot / backtest
+## 9. Couche décision IA (SENIOR)
+
+Depuis v1.6.0 (entrées) et v1.6.9 (sorties), le bot SENIOR porte une couche de
+jugement LLM (Claude, `AI_ARBITER_MODEL`/`AI_EXIT_MODEL`) **au-dessus** du moteur de
+règles. Principes structurants :
+
+- **Overlay live-only** : gaté `bot.id == "live"`, hors `rules.py` — le noyau partagé
+  et le backtest restent 100 % déterministes. Aucun autre bot n'est affecté.
+- **Inbacktestable → forward-validation seule** : un jugement LLM ne se rejoue pas
+  sur le passé. La preuve se construit en marchant (scorecards contrefactuels),
+  jamais bloquant sans ≥ 50 décisions résolues.
+- **Fail-open** : timeout, erreur API ou budget dépassé → les règles s'appliquent
+  telles quelles (event `ARBITER_FAILOPEN`). L'IA ne peut jamais *empêcher* le bot
+  de fonctionner.
+
+### Arbitre d'entrée (`ai_entry_arbiter.py`, v1.6.0)
+
+Appelé en synchrone dans `_rank_and_enter` (1 appel par scan 4h, timeout court),
+**dernier filtre avant l'ordre**. Décide GO / VETO / haircut de taille (`factor`,
+plancher `AI_ARBITER_FACTOR_MIN`). Contexte : setup du trade, momentum token+BTC,
+btc_z, dispersion, **indice de capitulation marché-large** (v1.7.0 — breadth 24h sur
+~230 perps HL calculé par le master sans fetch supplémentaire : `down20_pct` /
+`down10_pct` / `median_24h_bps`, signal de jugement, pas un gate). Mémoire
+d'**hystérésis** (v1.6.6) : la décision précédente sur le même setup est réinjectée
+dans le prompt pour éviter les revirements scan à scan. Règle ferme : veto par défaut
+d'un SHORT qui combat une hausse alignée token+BTC (et symétrique LONG, v1.6.2).
+Mode `AI_ARBITER_MODE` : `shadow` (décide et mesure sans agir) ou `act` (actuel).
+
+### Arbitre de sortie (`ai_exit_arbiter.py`, v1.6.9)
+
+Overlay `_ai_exit_overlay` dans `on_tick`, throttlé (`AI_EXIT_THROTTLE_S`, 1h) et
+limité à une zone candidate. Deux verdicts, asymétriques par prudence :
+- **LOCK** (agit) : pose un stop protecteur sous un gagnant (plancher
+  `AI_EXIT_LOCK_UR_MIN_BPS`) — protège, ne ferme jamais un gagnant.
+- **CUT** (`AI_EXIT_CUT_MODE=shadow` actuellement) : couper un perdant condamné
+  (ur ≤ `AI_EXIT_CUT_UR_MAX_BPS` = −300 bps) — mesuré en shadow avant toute
+  promotion en act. Re-vérification au prix frais avant d'agir (v1.6.11).
+
+### La preuve : scorecards contrefactuels + disjoncteurs
+
+- `ai_arbiter_scorecard.py` (cron horaire :20, récap TG 8h05) : compare le P&L réel
+  au P&L « règles seules ». En shadow le trade réel EST le contrefactuel ; en act,
+  un veto est **rejoué** via le noyau partagé (`rules.evaluate_exit` sur candles 4h).
+- `ai_exit_scorecard.py` (cron :25, récap TG 8h10) : idem pour LOCK/CUT (dédup,
+  contrefactuel hold-to-rules).
+- **Disjoncteur** : si ≥ `*_CB_MIN` décisions résolues ET Δ cumulé < `*_CB_LOSS` →
+  drapeau `arbiter_tripped` écrit, l'arbitre **dégrade en shadow** + alerte TG.
+  Réarmement manuel (suppression du drapeau).
+- Kill-switches : `AI_ARBITER_ENABLED=0` / `AI_EXIT_ENABLED=0` (`.env`). Budget
+  mensuel plafonné (`AI_BUDGET_MONTHLY_USD`).
+
+### Observation (n'agissent sur rien)
+
+- `position_review.py` (cron 2h) : revue LLM des positions ouvertes — historique
+  dans l'admin `/master` (plus de Telegram depuis v1.7.0).
+- `supervisor.py` (quotidien 8h) : rapport santé flotte condensé — admin seulement.
+- `entry_judge.py` : précurseur observation-only de l'arbitre d'entrée (juge ex-post
+  les events `ENTRY_CONTEXT`) — **dormant** depuis que l'arbitre synchrone existe.
+- Tout est audité en events (`ARBITER_DECISION`, `ARBITER_EXIT_DECISION`,
+  `AI_SCORECARD`, `AI_EXIT_SCORECARD`, `POSITION_REVIEW`…) dans `live/bot.db`,
+  visibles sur `/master` (section « Arbitrage IA »).
+
+---
+
+## 10. Noyau partagé bot / backtest
 
 `alfred/rules.py` est consommé **à l'identique** par le live (`botinstance.py`) et le
 backtest (`backtests/backtest_rolling.py`, mode `aligned`). Doctrine : **plus jamais
@@ -198,7 +275,7 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 
 ---
 
-## 10. Couche données
+## 11. Couche données
 
 | Store | Fichier | Contenu |
 |-------|---------|---------|
@@ -215,7 +292,7 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 
 ---
 
-## 11. Web & sécurité (`alfred/web/`)
+## 12. Web & sécurité (`alfred/web/`)
 
 - **Pages** : `/master` (supervision : santé données, flotte, exposition agrégée,
   lifecycle par bot, éditeur `bots.json`, journal d'audit) ; `/bot/<id>/` (dashboard
@@ -233,24 +310,29 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 
 ---
 
-## 12. Supervision & sentinelles (cron)
+## 13. Supervision & sentinelles (cron)
 
 | Sentinelle | Cadence | Rôle | Action |
 |-----------|---------|------|--------|
-| `supervisor.py` | quotidien 8h UTC | rapport LLM (Haiku) santé flotte | observation seule (Telegram) |
-| `analysis/strategy_review.py` | lundi 8h UTC | dérive par (stratégie, token, direction) | alerte seule |
-| `analysis/regime_alert.py` | horaire :15 | régime BTC + S5 LONG en mauvais régime | alerte seule |
+| `supervisor.py` | quotidien 8h UTC | rapport LLM santé flotte, condensé | observation (admin `/master`, plus de TG) |
+| `analysis/strategy_review.py` | lundi 8h UTC | dérive par (stratégie, token, direction) + `TRAJ_CUT_EFF` | alerte seule |
 | `analysis/hedge_monitor.py` | 5 min | exposition/hedge | alerte |
 | `alfred/tools/daily_report.py` | 8h30 UTC | digest flotte (balance, P&L, positions) + liens | Telegram |
-| `backtests/paper_vs_bt_tracker.py` | 9h UTC | gap equity paper Alfred vs BT canonique | alerte si gap ≥ 5pp |
+| `backtests/paper_vs_bt_tracker.py` | 9h UTC | gap equity vs BT canonique, **les 4 bots** | TG consolidé si un gap ≥ 5pp |
+| `position_review.py` | toutes les 2h | revue LLM des positions ouvertes SENIOR | historique admin (§ 9) |
+| `ai_arbiter_scorecard.py` | horaire :20 (+ TG 8h05) | contrefactuel arbitre d'entrée + disjoncteur | § 9 |
+| `ai_exit_scorecard.py` | horaire :25 (+ TG 8h10) | contrefactuel arbitre de sortie + disjoncteur | § 9 |
+| `overfit_monitor.py` | 9h30 UTC | thermomètre Promesse-IS → OOS-BT → Live | log seul |
 | watchdog | 5 min | relance `start_bots.sh` si Alfred absent | (ne surveille plus que Alfred) |
 
 Toutes les sentinelles sont **observation/alerte**, jamais d'auto-modification de la
-config ou de l'état des bots.
+config ou de l'état des bots (seuls les arbitres IA du § 9 agissent, dans leurs
+bornes). `analysis/regime_alert.py` (nudge régime BTC) **retiré du cron le
+2026-07-02** — l'info vit sur le dashboard ; script conservé, ré-activable.
 
 ---
 
-## 13. Règle d'or opérationnelle
+## 14. Règle d'or opérationnelle
 
 **Ne JAMAIS redémarrer Alfred sans OK explicite de l'utilisateur** — il porte le bot
 LIVE (argent réel). Éditer les fichiers et bumper `ALFRED_VERSION` librement, mais
@@ -261,7 +343,7 @@ cron, relus à chaque exécution).
 
 ---
 
-## 14. Où trouver quoi
+## 15. Où trouver quoi
 
 | Besoin | Fichier |
 |--------|---------|
@@ -271,6 +353,9 @@ cron, relus à chaque exécution).
 | Flux de marché / WS / candles | `alfred/market.py` |
 | Exécution exchange | `alfred/hl.py`, `alfred/brokers.py` |
 | Web / API / auth | `alfred/web/app.py`, `alfred/web/views.py` |
+| Couche IA : arbitres | `ai_entry_arbiter.py`, `ai_exit_arbiter.py` (racine du dépôt) |
+| Couche IA : preuve/scorecards | `ai_arbiter_scorecard.py`, `ai_exit_scorecard.py` |
+| Couche IA : observation | `position_review.py`, `supervisor.py`, `entry_judge.py` (dormant) |
 | Rationnel R&D détaillé par règle | `docs/bot.md` (logique valide, archi périmée) |
 | Vulgarisation des stratégies | `docs/synthese.md` |
 | Résultats backtest courants | `docs/backtests.md` |
