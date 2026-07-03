@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.7.6 — 2026-07-03
+
+- **Admin**: les horodatages de la page de supervision (revues IA, verdicts, superviseur, journal d'audit, downtime) s'affichent en heure locale du navigateur au lieu d'UTC.
+
 ## v1.7.5 — 2026-07-02
 
 - **Telegram**: le digest quotidien surveille l'expiration des clés agent (JUNIOR/BABY) — avertissement à J−21, alerte urgente à J−7, critique si dépassée. Les dates vivent dans bots.json.

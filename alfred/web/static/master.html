@@ -272,6 +272,8 @@ textarea:focus{outline:none;border-color:var(--blue)}
 const $=id=>document.getElementById(id);
 const fmt=(v,d=2)=>v==null?'--':(v>=0?'+':'')+Number(v).toFixed(d);
 const fmtAge=s=>s==null?'--':s<90?Math.round(s)+'s':s<5400?Math.round(s/60)+'m':(s/3600).toFixed(1)+'h';
+const p2=n=>String(n).padStart(2,'0');
+const fmtLoc=(ms,full)=>{const d=new Date(ms);const md=p2(d.getMonth()+1)+'-'+p2(d.getDate())+' '+p2(d.getHours())+':'+p2(d.getMinutes());return full?d.getFullYear()+'-'+md:md;};
 const fmtUsd=v=>v==null?'--':'$'+Number(v).toLocaleString('en-US',{maximumFractionDigits:0});
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
@@ -315,7 +317,7 @@ function renderHealth(h){
   const dt=h.downtime,cov=h.candle_coverage||{};
   const worst=Object.entries(cov).sort((a,b)=>b[1].last_close_age_s-a[1].last_close_age_s)[0];
   $('covCard').innerHTML=
-    kv('Dernier downtime',dt?((dt.seconds/3600).toFixed(1)+'h · '+new Date(dt.from_ms).toISOString().slice(0,16).replace('T',' ')):'aucun',dt?'yellow':'green')+
+    kv('Dernier downtime',dt?((dt.seconds/3600).toFixed(1)+'h · '+fmtLoc(dt.from_ms,true)):'aucun',dt?'yellow':'green')+
     kv('Symboles en DB',Object.keys(cov).length)+
     (worst?kv('Close la + ancienne',worst[0]+' · '+fmtAge(worst[1].last_close_age_s),worst[1].last_close_age_s>16*3600?'yellow':''):'')+
     kv('Config pending restart',h.config_pending_restart===null?'fichier invalide':h.config_pending_restart?'OUI':'non',h.config_pending_restart?'yellow':'green');
@@ -340,7 +342,7 @@ function renderGates(g){
 
 function renderEvents(evts){
   $('evtList').innerHTML=evts.map(e=>{
-    const d=new Date(e.ts*1000).toISOString().slice(5,16).replace('T',' ');
+    const d=fmtLoc(e.ts*1000);
     const col=e.event==='DOWNTIME'?'red':e.event==='WS_RECONNECT'?'yellow':'';
     return `<div class="evt"><span class="ts">${d}</span><span class="type ${col}">${esc(e.event)}</span><span class="dim">${esc(e.symbol||'')}</span><span class="data" title="${esc(e.data||'')}">${esc(e.data||'')}</span></div>`;
   }).join('')||'<div class="empty">aucun événement</div>';
@@ -544,7 +546,7 @@ function renderAI(d){
         (sc.n_veto?` · vetos ${sc.n_veto} (${sc.veto_useful_pct??'--'}% utiles)`:'')+`</div>`;
     }else{h+=`<div class="dim" style="margin-bottom:4px">scorecard pas encore calculé</div>`;}
     const ds=(ab.decisions||[]).slice(0,8).map(x=>{
-      const v=x.data||{};const when=new Date(x.ts*1000).toISOString().slice(5,16).replace('T',' ');
+      const v=x.data||{};const when=fmtLoc(x.ts*1000);
       const dec=v.hard_veto?'VETO':(v.factor<1?('×'+v.factor):'GO');
       const c=v.hard_veto?'red':(v.factor<1?'yellow':'green');
       return `<div class="evt"><span class="ts">${when}</span><span class="type">${esc(x.symbol||'?')}</span><span class="dim">${esc(v.strategy||'')} ${esc(v.dir||'')} ${esc(v.mode||'')}</span><span class="${c}">${dec}</span><span class="data">${esc(v.reason||'')}</span></div>`;
@@ -556,7 +558,7 @@ function renderAI(d){
     $('aiSupervisor').innerHTML='<div class="empty">aucun rapport superviseur</div>';
   }else{
     const r=sup.report,b=r.bilan||{};
-    const when=new Date(sup.ts*1000).toISOString().slice(0,16).replace('T',' ');
+    const when=fmtLoc(sup.ts*1000,true);
     const hCls=r.health==='green'?'green':(r.health==='yellow'?'yellow':'red');
     const dot=r.health==='red'?'🔴':(r.health==='yellow'?'🟡':'🟢');
     let pts=(r.points||[]).map(p=>{
@@ -576,7 +578,7 @@ function renderAI(d){
   if(reviews.length){
     $('aiPosReview').innerHTML=reviews.map(pr=>{
       const data=pr.data||{};
-      const when=new Date(pr.ts*1000).toISOString().slice(5,16).replace('T',' ');
+      const when=fmtLoc(pr.ts*1000);
       const act=String(data.advice||'').toUpperCase();
       const aCls=act==='STOP'?'red':(act==='TRIM'||act==='WATCH'?'yellow':'green');
       const stop=data.suggested_stop_usdt!=null?(' 🎯$'+Number(data.suggested_stop_usdt).toFixed(0)):'';
@@ -588,7 +590,7 @@ function renderAI(d){
   const vs=d.verdicts||[];
   $('aiVerdicts').innerHTML=vs.length?vs.map(v=>{
     const data=v.data||{};
-    const when=new Date(v.ts*1000).toISOString().slice(5,16).replace('T',' ');
+    const when=fmtLoc(v.ts*1000);
     const decCls=data.decision==='GO'?'green':'red';
     const flags=(data.risk_flags||[]).join(', ');
     const conf=data.confidence!=null?Number(data.confidence).toFixed(2):'--';
@@ -598,7 +600,7 @@ function renderAI(d){
 
 function renderAudit(rows){
   $('auditList').innerHTML=rows.map(r=>{
-    const d=new Date(r.ts*1000).toISOString().slice(5,16).replace('T',' ');
+    const d=fmtLoc(r.ts*1000);
     return `<div class="evt"><span class="ts">${d}</span><span class="type">${esc(r.route.replace('/api/',''))}</span><span class="dim">${esc(r.bot_id||'')}</span><span class="data">${esc(r.payload||'')}</span><span class="${r.result==='ok'||r.result==='saved'?'green':'yellow'}">${esc(r.result)}</span></div>`;
   }).join('')||'<div class="empty">aucune action admin</div>';
 }
