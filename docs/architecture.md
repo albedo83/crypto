@@ -221,7 +221,20 @@ est **bookée depuis les fills réels** au retour (reasons `exchange_stop` /
 
 Depuis v1.6.0 (entrées) et v1.6.9 (sorties), le bot SENIOR porte une couche de
 jugement LLM (Claude, `AI_ARBITER_MODEL`/`AI_EXIT_MODEL`) **au-dessus** du moteur de
-règles. Principes structurants :
+règles. **Le rôle en une phrase : l'IA est un arbitre défensif — elle peut
+RETENIR ou RÉDUIRE ce que les règles veulent faire, et PROTÉGER ou COUPER ce
+qu'elles détiennent ; elle ne peut jamais initier, amplifier, ni reconfigurer.**
+
+| L'IA PEUT | L'IA NE PEUT PAS |
+|---|---|
+| Véter une entrée que les règles allaient prendre | Ouvrir une position de sa propre initiative |
+| Réduire la taille d'une entrée (haircut, plancher `FACTOR_MIN`) | Augmenter une taille au-delà du sizing des règles |
+| Poser un stop protecteur sous un gagnant (LOCK) | Fermer un gagnant |
+| Fermer un perdant condamné (CUT, **act depuis 2026-07-03**, ur ≤ −300 bps) | Toucher junior/baby/paper (gate `bot.id=="live"`) |
+| — | Modifier config, paramètres, ou `rules.py` |
+| — | Empêcher le bot de trader (fail-open intégral) |
+
+Principes structurants :
 
 - **Overlay live-only** : gaté `bot.id == "live"`, hors `rules.py` — le noyau partagé
   et le backtest restent 100 % déterministes. Aucun autre bot n'est affecté.
@@ -250,10 +263,15 @@ Mode `AI_ARBITER_MODE` : `shadow` (décide et mesure sans agir) ou `act` (actuel
 Overlay `_ai_exit_overlay` dans `on_tick`, throttlé (`AI_EXIT_THROTTLE_S`, 1h) et
 limité à une zone candidate. Deux verdicts, asymétriques par prudence :
 - **LOCK** (agit) : pose un stop protecteur sous un gagnant (plancher
-  `AI_EXIT_LOCK_UR_MIN_BPS`) — protège, ne ferme jamais un gagnant.
-- **CUT** (`AI_EXIT_CUT_MODE=shadow` actuellement) : couper un perdant condamné
-  (ur ≤ `AI_EXIT_CUT_UR_MAX_BPS` = −300 bps) — mesuré en shadow avant toute
-  promotion en act. Re-vérification au prix frais avant d'agir (v1.6.11).
+  `AI_EXIT_LOCK_UR_MIN_BPS`, écrit `manual_stop_usdt`) — protège, ne ferme
+  jamais un gagnant. Le LOCK est **miroité sur le trigger résident
+  exchange-side** (filet hard-stop, v1.7.3) : la protection tient même
+  process mort. Nuance à surveiller (07/2026) : un LOCK trop serré ampute
+  les runners (cf. chantier trails-sur-close) — le scorecard tranche.
+- **CUT** (**act depuis 2026-07-03**, sur ordre utilisateur, preuve shadow
+  n=1 +25.64 $) : ferme au market un perdant condamné, uniquement si
+  ur ≤ `AI_EXIT_CUT_UR_MAX_BPS` = −300 bps, re-vérifié au prix frais au
+  moment d'agir (v1.6.11) — jamais un gagnant, 1 décision/h max.
 
 ### La preuve : scorecards contrefactuels + disjoncteurs
 
@@ -342,7 +360,7 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 | `supervisor.py` | quotidien 8h UTC | rapport LLM santé flotte, condensé | observation (admin `/master`, plus de TG) |
 | `analysis/strategy_review.py` | lundi 8h UTC | dérive par (stratégie, token, direction) + `TRAJ_CUT_EFF` | alerte seule |
 | `analysis/hedge_monitor.py` | 5 min | exposition/hedge | alerte |
-| `alfred/tools/daily_report.py` | 8h30 UTC | digest flotte (balance, P&L, positions) + liens | Telegram |
+| `alfred/tools/daily_report.py` | 8h30 UTC | digest flotte (balance, P&L, positions) + liens + **sentinelle expiry agents** (J−21 🔑 / J−7 🚨, v1.7.5 — JUNIOR 2026-10-26, BABY 2026-12-08) | Telegram |
 | `backtests/paper_vs_bt_tracker.py` | 9h UTC | gap equity vs BT canonique, **les 4 bots** | TG consolidé si un gap ≥ 5pp |
 | `position_review.py` | toutes les 2h | revue LLM des positions ouvertes SENIOR | historique admin (§ 9) |
 | `ai_arbiter_scorecard.py` | horaire :20 (+ TG 8h05) | contrefactuel arbitre d'entrée + disjoncteur | § 9 |
@@ -361,7 +379,15 @@ bornes). `analysis/regime_alert.py` (nudge régime BTC) **retiré du cron le
 
 **Ne JAMAIS redémarrer Alfred sans OK explicite de l'utilisateur** — il porte le bot
 LIVE (argent réel). Éditer les fichiers et bumper `ALFRED_VERSION` librement, mais
-l'utilisateur contrôle quand le process prend le changement. Le HTML dashboard est
+l'utilisateur contrôle quand le process prend le changement.
+
+**Procédure de restart (corrigée après l'incident du 2026-07-02)** : attendre la
+**mort du PID** (pas la libération du port — la web tombe en premier et le shutdown
+peut pendre), SIGKILL de grâce après 5 min, relancer seulement quand plus aucun
+python `-m alfred` ne survit ; post-boot, vérifier la version dans le log ET le
+comportement runtime (pas le fichier `.env` — l'env est figé au boot du process qui
+tourne réellement). Sinon : relance fail-bindée sur le lock + ancien process qui
+trade sans web avec l'ancien env. Le HTML dashboard est
 caché en mémoire au premier chargement → un restart est nécessaire pour les changements
 de `reversal.html`/`master.html` (mais pas pour les nouveaux endpoints API ni les tools
 cron, relus à chaque exécution).
@@ -377,6 +403,8 @@ cron, relus à chaque exécution).
 | Orchestration d'un bot | `alfred/botinstance.py` |
 | Flux de marché / WS / candles | `alfred/market.py` |
 | Exécution exchange | `alfred/hl.py`, `alfred/brokers.py` |
+| Filet hard-stop (math + divergence #15) | `alfred/hardstop.py`, `docs/alfred_divergences.md` |
+| Chantier trails-sur-close (validation) | `backtests/trails_on_close_results.md` |
 | Web / API / auth | `alfred/web/app.py`, `alfred/web/views.py` |
 | Couche IA : arbitres | `ai_entry_arbiter.py`, `ai_exit_arbiter.py` (racine du dépôt) |
 | Couche IA : preuve/scorecards | `ai_arbiter_scorecard.py`, `ai_exit_scorecard.py` |
