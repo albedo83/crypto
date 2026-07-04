@@ -26,6 +26,12 @@ import urllib.parse
 ROOT = "/home/crypto"
 MARKET_DB = os.path.join(ROOT, "alfred", "data", "market.db")
 STATE = os.path.join(ROOT, "analysis", "output", "alfred_heartbeat_state.json")
+# État MAINTENANCE explicite (revue : « trois fausses alertes tolérées et la
+# quatrième, la vraie, passera dans le même silence »). La procédure de
+# restart touch ce fichier AVANT le kill et le supprime après vérification ;
+# expiration auto 45 min (un flag oublié ne rend pas la sonde muette à vie).
+MAINT_FLAG = os.path.join(ROOT, "analysis", "output", "heartbeat_maintenance")
+MAINT_MAX_AGE_S = 45 * 60
 WEB_URL = "http://127.0.0.1:8101/login"
 MAX_TICK_AGE_S = 90
 FAILS_BEFORE_ALERT = 2       # 2 runs consécutifs (≥2 min) — absorbe un boot
@@ -85,6 +91,14 @@ def main():
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--max-age", type=float, default=MAX_TICK_AGE_S)
     args = ap.parse_args()
+
+    if os.path.exists(MAINT_FLAG):
+        age = time.time() - os.path.getmtime(MAINT_FLAG)
+        if age <= MAINT_MAX_AGE_S:
+            print(f"{time.strftime('%F %T')} MAINTENANCE (flag {age:.0f}s) — sonde muette")
+            return 0
+        os.remove(MAINT_FLAG)   # flag périmé : on ne reste pas muet à vie
+        print("flag maintenance périmé (>45 min) — supprimé, sonde réarmée")
 
     problems = []
     try:

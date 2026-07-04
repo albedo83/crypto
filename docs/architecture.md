@@ -172,6 +172,28 @@ réelle du compte (v1.2.1) — réduction ou skip propre au lieu d'un rejet HL.
 
 ## 8. Chaîne de sorties (`rules.evaluate_exit` — ordre exact)
 
+<!-- EXIT_CHAIN:BEGIN -->
+<!-- Généré par alfred/tools/gen_exit_chain_block.py — NE PAS ÉDITER À LA MAIN.
+     Pre-commit : --check refuse tout commit si ce bloc diverge du code. -->
+
+| # | Règle | Évaluation | Statut (settings) |
+|---|-------|------------|-------------------|
+| 1 | `runner_ext` | tick 20s | ACTIVE |
+| 2 | `catastrophe_stop` | tick 20s | ACTIVE |
+| 3 | `opp_floor` | 4h-close | ACTIVE |
+| 4 | `timeout` | tick 20s | ACTIVE |
+| 5 | `manual_stop` | tick 20s | ACTIVE |
+| 6 | `s9_early` | tick 20s | ACTIVE |
+| 7 | `s10_trail` | 4h-close | ACTIVE |
+| 8 | `s8_dead` | tick 20s | ACTIVE |
+| 9 | `s8_inlife` | 4h-close | ACTIVE |
+| 10 | `prop_trail` | 4h-close | ACTIVE |
+| 11 | `traj_cut` | tick 20s | ACTIVE |
+| 12 | `s9_early_dead` | tick 20s | ACTIVE |
+| 13 | `btc_drop_cut` | tick 20s | ACTIVE |
+| 14 | `dead_timeout` | tick 20s | RETIRÉE |
+<!-- EXIT_CHAIN:END -->
+
 Évaluée à chaque tick (20s). **L'ordre est garant de la priorité** — première règle
 qui matche gagne. Identique bot et backtest (mode `aligned`).
 

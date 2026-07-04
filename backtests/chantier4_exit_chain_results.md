@@ -1,5 +1,13 @@
 # Chantier 4 — audit chaîne de sorties : résultats (2026-07-02)
 
+> **CORRECTION 2026-07-04** (chantier ablation) : le verdict dead_timeout
+> ci-dessous est FAUX — la règle était déjà RETIRÉE depuis v1.4.0
+> (kill-switch `dead_timeout_mfe_cap_bps=-99999`, settings.py). Le tir live
+> PYTH (19-06) précédait le retrait (20-06) ; l'ablation Δ+0.0 comparait
+> OFF vs OFF. Verdict corrigé : ENTERRÉE. Voir
+> `backtests/exit_chain_ablation_report.md`.
+
+
 Script : `python3 -m backtests.chantier4_exit_chain_audit` (+ strict 4 fenêtres
 en scratchpad). Suite des follow-ups de l'ablation 2026-06-11
 (`backtest_rule_audit.py`). Config canonique (aligned + margin + mfe_on_close).
