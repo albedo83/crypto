@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.9.0 — 2026-07-04
+
+- **Trading engine**: retrait d'une règle de coupe (audit d'ablation complet de la chaîne de sorties : contribution négative sur 3 fenêtres sur 4, drawdown dégradé, majoritairement redondante avec le stop dur, pertes cumulées en réel). Le backtest de référence suit automatiquement (noyau partagé).
+- **Infra**: la section « chaîne de sorties » du document d'architecture est désormais générée depuis le code et vérifiée à chaque commit — elle ne peut plus diverger.
+
 ## v1.8.2 — 2026-07-04
 
 - **Infra**: sonde heartbeat externe (cron 2 min) qui teste la VIE d'Alfred — fraîcheur des données et réponse web — pas juste l'existence du process ; alerte après défaillance persistante, message de rétablissement.

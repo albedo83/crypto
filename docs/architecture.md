@@ -190,7 +190,7 @@ réelle du compte (v1.2.1) — réduction ou skip propre au lieu d'un rejet HL.
 | 10 | `prop_trail` | 4h-close | ACTIVE |
 | 11 | `traj_cut` | tick 20s | ACTIVE |
 | 12 | `s9_early_dead` | tick 20s | ACTIVE |
-| 13 | `btc_drop_cut` | tick 20s | ACTIVE |
+| 13 | `btc_drop_cut` | tick 20s | RETIRÉE |
 | 14 | `dead_timeout` | tick 20s | RETIRÉE |
 <!-- EXIT_CHAIN:END -->
 

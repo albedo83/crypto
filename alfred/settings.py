@@ -145,7 +145,6 @@ class Params:
     # (−47.5) — 0.20 = genou de la courbe. Analyse : 2026-07-02.
     hard_stop_slippage: float = 0.20       # borne limit du stop-market
     s9_early_exit_bps: float = -500.0
-    s9_early_exit_bps: float = -500.0
     s9_early_exit_hours: float = 8.0
     s10_trailing_trigger: float = 600.0
     s10_trailing_offset: float = 150.0
@@ -169,7 +168,14 @@ class Params:
     s9_early_dead_t_h: float = 12.0
     s9_early_dead_mfe_max_bps: float = 150.0
     # v12.15.0 BTC drop cut (LONG in loss + BTC 4h dump)
-    btc_drop_cut_ret_4h_bps: float = -300.0
+    # v12.15.0 EXIT-D — RETIRÉE v1.9.0 (décision utilisateur 2026-07-04,
+    # rapport exit_chain_ablation_report.md) : contribution −178/−290/−825/
+    # +209 $ sur 28m/12m/6m/3m, DD DÉGRADÉ 2 fenêtres, 13/26 coupes
+    # récupéraient au timeout sans elle (+69 $ direct/28m), 31 % redondante
+    # avec catastrophe_stop, 14 tirs live −59 $. La défense « assurance
+    # anti-krach » est réfutée : 10 bougies-krach sur la fenêtre où elle
+    # perd le plus. Réactiver = remettre -300.0.
+    btc_drop_cut_ret_4h_bps: float = -1e9
     btc_drop_cut_ur_max_bps: float = 0.0
     # v1.2.0 opp_floor : signal opposé détecté sur token détenu gagnant →
     # plancher cliquet à lock_ratio × gain courant (armement au scan 4h,
