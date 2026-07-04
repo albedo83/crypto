@@ -1,7 +1,7 @@
 # Architecture Alfred — document de référence
 
 > **Source de vérité unique** de l'architecture du bot de trading, à jour avec le
-> code (`alfred/`, v1.9.0, 2026-07-04). Remplace le cadrage « architecture » de
+> code (`alfred/`, v1.10.0, 2026-07-04). Remplace le cadrage « architecture » de
 > `docs/bot.md` (qui décrit le stack legacy `analysis/bot/` décommissionné le
 > 2026-06-12). Pour le *rationnel R&D* derrière chaque règle, voir `docs/bot.md`
 > (détaillé) et `docs/synthese.md` (pédagogique) — leur logique de trading reste
@@ -311,9 +311,18 @@ limité à une zone candidate. Deux verdicts, asymétriques par prudence :
   Réarmement manuel (suppression du drapeau). **Disjoncteur CUT dédié**
   (v1.8.1) : n_cut ≥ 10 ET Δcut < −15 $ → trip — les LOCKs positifs ne
   peuvent plus masquer un flux de CUTs destructeurs.
-- **Traçabilité** (v1.8.2) : chaque event porte `model`, `alfred_version`,
-  `prior_inherited` — les populations du scorecard restent séparables si le
-  modèle ou la version change.
+- **Traçabilité** (v1.8.2/v1.10.0) : chaque event porte `model`,
+  `alfred_version`, `prior_inherited` et `prompt_hash` — les populations du
+  scorecard restent séparables si le modèle, la version OU le prompt change
+  (prérequis du champion/challenger, phase 2).
+- **Contexte portefeuille** (v1.10.0) : l'arbitre d'entrée reçoit le book
+  détenu (`portfolio.open_positions` + `effective_n`) — les gates comptent,
+  lui raisonne la corrélation (haircut de concentration, GO plein aux
+  diversifiants). Aucun pouvoir nouveau.
+- **Prophecy scorecard** (`prophecy_scorecard.py`, cron quotidien) : les
+  verdicts HOLD/WATCH/STOP de position_review sont notés à la clôture
+  (matrice, Brier vs base, calibration). Calibré → futur input de l'arbitre
+  de sortie ; pas calibré → on débranche.
 - Kill-switches : `AI_ARBITER_ENABLED=0` / `AI_EXIT_ENABLED=0` (`.env`). Budget
   mensuel plafonné (`AI_BUDGET_MONTHLY_USD`).
 
@@ -401,6 +410,8 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 | `overfit_monitor.py` | 9h30 UTC | thermomètre Promesse-IS → OOS-BT → Live | log seul |
 | watchdog | 5 min | relance `start_bots.sh` si Alfred absent (pgrep) | relance auto |
 | `analysis/alfred_heartbeat.py` | 2 min | teste la **VIE** (âge des ticks + web répond) — attrape les zombies que pgrep rate (incident 02-07) | TG après 2 échecs, rétablissement notifié ; flag maintenance pour les restarts |
+| `alfred/attention.py` | 2 min | **routeur d'attention** (code pur, jamais LLM-déclenchable) : filet déclenché, burst FAILOPEN, bandes btc_z, capitulation large, position ≤200 bps du stop → revue LLM ciblée (`position_review --focus`, cap 8/j ≈ $1.25/mois) | TG + event ATTENTION_TRIGGER |
+| `prophecy_scorecard.py` | 7h45 UTC | note les prophéties de position_review à la clôture (précision 74 %, Brier 0.206 < base 0.244 au premier bilan) | event, observation |
 
 Toutes les sentinelles sont **observation/alerte**, jamais d'auto-modification de la
 config ou de l'état des bots (seuls les arbitres IA du § 9 agissent, dans leurs

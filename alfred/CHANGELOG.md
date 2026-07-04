@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.10.0 — 2026-07-04
+
+- **Trading engine**: l'arbitre IA d'entrée voit désormais le portefeuille détenu (positions, secteurs, concentration effective) — il peut réduire une entrée qui empile du risque corrélé au lieu de juger chaque trade isolément. Aucun pouvoir nouveau.
+- **Infra**: supervision événementielle — un routeur d'attention (code pur, 2 min) déclenche des revues IA ciblées quand l'information arrive (filet déclenché, changement de bande de régime, capitulation large, position proche du stop, panne d'arbitre) au lieu d'attendre l'heure fixe ; les prédictions du réviseur de positions sont désormais notées à la clôture (matrice, Brier, calibration) ; chaque décision IA porte l'empreinte de son prompt.
+
 ## v1.9.0 — 2026-07-04
 
 - **Trading engine**: retrait d'une règle de coupe (audit d'ablation complet de la chaîne de sorties : contribution négative sur 3 fenêtres sur 4, drawdown dégradé, majoritairement redondante avec le stop dur, pertes cumulées en réel). Le backtest de référence suit automatiquement (noyau partagé).

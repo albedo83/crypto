@@ -80,6 +80,10 @@ Une entrée par position fournie. Tout le texte en français. Concision. Pas
 d'hallucination de chiffres : uniquement les valeurs du contexte fourni.
 """
 
+import hashlib as _hl
+PROMPT_HASH = _hl.sha256(SYSTEM_PROMPT.encode()).hexdigest()[:10]
+
+
 # Champs de position conservés pour le prompt (le reste = bruit/sparkline).
 _POS_KEEP = [
     "symbol", "strategy", "direction", "entry_price", "current_price",
@@ -186,6 +190,12 @@ def main() -> int:
                         help="Appelle Claude, imprime, n'écrit pas en DB")
     parser.add_argument("--model", default=None,
                         help="Override POSITION_REVIEW_MODEL")
+    # Mode FOCUS (routeur d'attention, supervision v2 ph.1) : revue ciblée
+    # sur un slice de positions avec le contexte du déclencheur dans le prompt.
+    parser.add_argument("--focus-symbols", default=None,
+                        help="CSV de symboles — ne revoir que ceux-là")
+    parser.add_argument("--trigger-context", default=None,
+                        help="Contexte du déclencheur (préfixé au prompt + loggé)")
     args = parser.parse_args()
 
     load_env()
@@ -205,13 +215,21 @@ def main() -> int:
         print("[position_review] /api/state injoignable", file=sys.stderr)
         return 1
     positions = state.get("positions") or []
+    if args.focus_symbols:
+        _want = {x.strip().upper() for x in args.focus_symbols.split(",") if x.strip()}
+        positions = [p for p in positions if (p.get("symbol") or "").upper() in _want]
     if not positions:
-        print("[position_review] aucune position ouverte — rien à revoir.")
+        print("[position_review] aucune position (dans le focus) — rien à revoir.")
         return 0
 
     market = compact_market(state)
     doctrine = load_doctrine()
     user_prompt = build_user_prompt(positions, market)
+    if args.trigger_context:
+        user_prompt = (f"⚡ REVUE DÉCLENCHÉE PAR ÉVÉNEMENT (pas la revue "
+                       f"périodique) : {args.trigger_context}\n"
+                       f"Concentre ton jugement sur ce que cet événement "
+                       f"change pour les positions ci-dessous.\n\n") + user_prompt
     print(f"[position_review] {len(positions)} position(s) | doctrine "
           f"{len(doctrine)} chars | prompt {len(user_prompt)} chars")
 
@@ -254,6 +272,10 @@ def main() -> int:
               f"conf={reviews[-1]['confidence']} — {reviews[-1]['reason']}")
 
     snapshot = {
+        "prompt_hash": PROMPT_HASH,
+        "model": model,
+        "trigger": args.trigger_context,
+        "focus": args.focus_symbols,
         "generated": datetime.now(timezone.utc).isoformat(),
         "n_positions": len(positions),
         "positions": reviews,

@@ -102,6 +102,15 @@ TON RÔLE — apporter ce que les formules NE voient PAS :
   token paraît fort : en liquidation sectorielle les positions à levier sautent en
   premier. Symétrique — un pump large pénalise un SHORT frais. C'est un signal de
   contexte à pondérer, pas un seuil automatique.
+- **PORTEFEUILLE (concentration)** : `portfolio.open_positions` = le book DÉTENU
+  (signal, direction, secteur, ur, âge) + `effective_n` (nombre effectif de paris
+  indépendants — bas = book concentré). Les gates du moteur COMPTENT les positions ;
+  toi tu raisonnes la CORRÉLATION : un énième candidat même-direction/même-secteur
+  quand le book penche déjà de ce côté n'ajoute pas d'alpha, il ajoute du beta —
+  raison légitime de haircut (voire veto si le book est déjà sous l'eau du même
+  côté). Un candidat qui DIVERSIFIE (direction/secteur opposés au book) mérite au
+  contraire son GO plein. Juge le lot ENSEMBLE : les candidats de ce scan entrent
+  tous au même close.
 - Danger concret hors-modèle : depeg, incident/hack exchange, unlock/déblocage de
   tokens imminent, délisting, exploit, gouvernance/news majeure sur le token.
 - Incohérence flagrante setup vs contexte : fade (S9) ou mean-reversion (S5) à
@@ -151,6 +160,13 @@ symboles du lot, rien avant/après :
 }
 Une entrée par symbole du lot. Termes techniques OK (bps, btc_z, MFE, div).
 """
+
+# Traçabilité (supervision v2 ph.1) : hash du prompt système — le
+# scorecard sépare les populations quand le prompt change (champion/
+# challenger phase 2). À logger dans chaque event de décision.
+import hashlib as _hl
+PROMPT_HASH = _hl.sha256(SYSTEM_PROMPT.encode()).hexdigest()[:10]
+
 
 
 def build_user_prompt(candidates: list[dict], market: dict) -> str:

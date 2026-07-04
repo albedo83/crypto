@@ -152,6 +152,13 @@ symboles, rien avant/après :
 Une entrée par symbole. Termes techniques OK (bps, btc_z, MFE, MAE, div).
 """
 
+# Traçabilité (supervision v2 ph.1) : hash du prompt système — le
+# scorecard sépare les populations quand le prompt change (champion/
+# challenger phase 2). À logger dans chaque event de décision.
+import hashlib as _hl
+PROMPT_HASH = _hl.sha256(SYSTEM_PROMPT.encode()).hexdigest()[:10]
+
+
 
 def build_user_prompt(positions: list[dict], market: dict) -> str:
     return (

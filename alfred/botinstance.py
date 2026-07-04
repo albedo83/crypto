@@ -465,6 +465,7 @@ class BotInstance:
                 # Traçabilité populations (revue 2026-07-04) : sans modèle ni
                 # version, le scorecard mélange des populations sans le savoir.
                 "model": cfg.get("model"), "alfred_version": ALFRED_VERSION,
+                "prompt_hash": getattr(_aix, "PROMPT_HASH", None),
                 "prior_inherited": sym in _prior_syms,
                 "tripped": tripped, "note": note,
                 "strategy": s["strategy"], "dir": s["dir"], "confidence": conf,
@@ -1169,10 +1170,12 @@ class BotInstance:
         # rules.py (backtest inchangé). Mesuré en live par ai_arbiter_scorecard.
         arb, arb_mode, arb_cfg = {}, "off", None
         _entry_prior_syms: set = set()
+        _entry_prompt_hash = None
         if self.id == "live":
             try:
                 import ai_entry_arbiter as _aia
                 arb_cfg = _aia.config()
+                _entry_prompt_hash = getattr(_aia, "PROMPT_HASH", None)
                 if arb_cfg["mode"] != "off":
                     arb_mode = "shadow" if _aia.is_tripped() else arb_cfg["mode"]
                     ttl_h = arb_cfg.get("prior_ttl_h", 12.0)
@@ -1213,6 +1216,24 @@ class BotInstance:
                         cc = getattr(self, "_cross_ctx_cache", None) or {}
                         _snap = self.master.snapshot
                         _bf = (_snap.btc_f if _snap else None) or {}
+                        # Contexte PORTEFEUILLE (supervision v2 ph.1) : l'arbitre
+                        # jugeait chaque trade en célibataire — les gates comptent
+                        # des positions, personne ne raisonnait la corrélation.
+                        # Aucun pouvoir nouveau : du contexte pour veto/haircut.
+                        _book = []
+                        with self._pos_lock:
+                            for _bsym, _bpos in self.positions.items():
+                                _bst = self.states.get(_bsym)
+                                _bur = (_bpos.direction * (_bst.price / _bpos.entry_price - 1) * 1e4
+                                        if _bst and _bst.price > 0 and _bpos.entry_price > 0 else None)
+                                _book.append({
+                                    "symbol": _bsym, "strategy": _bpos.strategy,
+                                    "dir": "LONG" if _bpos.direction == 1 else "SHORT",
+                                    "sector": self.token_sector.get(_bsym),
+                                    "ur_bps": round(_bur) if _bur is not None else None,
+                                    "age_h": round((now - _bpos.entry_time).total_seconds() / 3600, 1),
+                                    "size_usdt": round(_bpos.size_usdt)})
+                        _bm = self._basket_metrics or {}
                         market = {"btc_z": self._btc_z,
                                   # mouvement BTC court terme (réaction rapide) :
                                   "btc_ret_4h_bps": _snap.btc_ret_4h_bps if _snap else None,
@@ -1221,7 +1242,13 @@ class BotInstance:
                                   "disp_24h": cc.get("disp_24h"),
                                   "disp_7d": cc.get("disp_7d"),
                                   "n_stress_global": cc.get("n_stress_global"),
-                                  "capitulation": _snap.capitulation if _snap else None}
+                                  "capitulation": _snap.capitulation if _snap else None,
+                                  "portfolio": {
+                                      "open_positions": _book,
+                                      "effective_n": _bm.get("effective_n"),
+                                      "mean_corr_to_btc": _bm.get("mean_corr_to_btc"),
+                                      "note": ("les candidats de ce lot entrent au MÊME "
+                                               "close 4h que le book ci-dessus")}}
                         res = _aia.arbitrate_safe(
                             batch, market, model=arb_cfg["model"],
                             timeout=arb_cfg["timeout"], factor_min=arb_cfg["factor_min"])
@@ -1331,6 +1358,7 @@ class BotInstance:
                     # Traçabilité populations (revue 2026-07-04)
                     "model": arb_cfg.get("model") if arb_cfg else None,
                     "alfred_version": ALFRED_VERSION,
+                    "prompt_hash": _entry_prompt_hash,
                     "prior_inherited": sym in _entry_prior_syms,
                     "strategy": sig["strategy"], "dir": side,
                     "decision": v["decision"], "hard_veto": hard_veto,
