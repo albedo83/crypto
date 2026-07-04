@@ -1,7 +1,7 @@
 # Architecture Alfred — document de référence
 
 > **Source de vérité unique** de l'architecture du bot de trading, à jour avec le
-> code (`alfred/`, v1.8.0, 2026-07-04). Remplace le cadrage « architecture » de
+> code (`alfred/`, v1.9.0, 2026-07-04). Remplace le cadrage « architecture » de
 > `docs/bot.md` (qui décrit le stack legacy `analysis/bot/` décommissionné le
 > 2026-06-12). Pour le *rationnel R&D* derrière chaque règle, voir `docs/bot.md`
 > (détaillé) et `docs/synthese.md` (pédagogique) — leur logique de trading reste
@@ -209,10 +209,14 @@ qui matche gagne. Identique bot et backtest (mode `aligned`).
 10. **prop_trail** — trail proportionnel S9 (bull seul : arme à 100 bps, lock 0.65).
 11. **traj_cut** (S5, **LONG only** v1.6.4) — coupe « courbe désespérée » en régime bear (déclin rapide depuis le pic, collé au MAE, perte > −200 bps, btc_z < −0.5). Les S5 SHORT pinnés mean-revertent → jamais coupés.
 12. **s9_early_dead** — S9 sans MFE > +150 bps après 12h.
-13. **btc_drop_cut** — LONG en perte + dump BTC 4h < −300 bps.
-14. **dead_timeout** — à T−12h du timeout, position sans pouls (MFE ≤ 150, collée au MAE) → crystallise la perte.
+13. ~~**btc_drop_cut**~~ — **RETIRÉE v1.9.0** (rapport d'ablation : apport négatif 3/4 fenêtres, DD dégradé, 31 % redondante avec le stop ; kill-switch, réactivation = −300.0).
+14. ~~**dead_timeout**~~ — **RETIRÉE v1.4.0** (cap calibré sur le MFE-mèches du BT ; retrait gagnant 6/7 glissant).
 
 Tous ces seuils sont des constantes dans `settings.py` avec kill-switch documenté.
+Audit complet de la chaîne (ablation, fragilité ±10/20 %, Sharpe déflaté) :
+`backtests/exit_chain_ablation_report.md` (2026-07-04). Le tableau généré
+ci-dessus est la vérité machine-vérifiée (pre-commit) ; la liste ci-dessous
+est la prose descriptive.
 
 **Trails sur close 4h (v1.8.0)** : les règles « sur le pic » (opp_floor,
 s10_trail, s8_inlife, prop_trail) sont évaluées **au premier tick suivant
@@ -252,7 +256,7 @@ qu'elles détiennent ; elle ne peut jamais initier, amplifier, ni reconfigurer.*
 | Véter une entrée que les règles allaient prendre | Ouvrir une position de sa propre initiative |
 | Réduire la taille d'une entrée (haircut, plancher `FACTOR_MIN`) | Augmenter une taille au-delà du sizing des règles |
 | Poser un stop protecteur sous un gagnant (LOCK) | Fermer un gagnant |
-| Fermer un perdant condamné (CUT, **act depuis 2026-07-03**, ur ≤ −300 bps) | Toucher junior/baby/paper (gate `bot.id=="live"`) |
+| Fermer un perdant condamné (CUT, **act depuis 2026-07-03**, ur ≤ −300 bps ; **S9 : ≤ −600** — sa phase sous l'eau est prévue par les règles) | Toucher junior/baby/paper (gate `bot.id=="live"`) |
 | — | Modifier config, paramètres, ou `rules.py` |
 | — | Empêcher le bot de trader (fail-open intégral) |
 
@@ -304,7 +308,12 @@ limité à une zone candidate. Deux verdicts, asymétriques par prudence :
   contrefactuel hold-to-rules).
 - **Disjoncteur** : si ≥ `*_CB_MIN` décisions résolues ET Δ cumulé < `*_CB_LOSS` →
   drapeau `arbiter_tripped` écrit, l'arbitre **dégrade en shadow** + alerte TG.
-  Réarmement manuel (suppression du drapeau).
+  Réarmement manuel (suppression du drapeau). **Disjoncteur CUT dédié**
+  (v1.8.1) : n_cut ≥ 10 ET Δcut < −15 $ → trip — les LOCKs positifs ne
+  peuvent plus masquer un flux de CUTs destructeurs.
+- **Traçabilité** (v1.8.2) : chaque event porte `model`, `alfred_version`,
+  `prior_inherited` — les populations du scorecard restent séparables si le
+  modèle ou la version change.
 - Kill-switches : `AI_ARBITER_ENABLED=0` / `AI_EXIT_ENABLED=0` (`.env`). Budget
   mensuel plafonné (`AI_BUDGET_MONTHLY_USD`).
 
@@ -363,7 +372,9 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
   lifecycle par bot, éditeur `bots.json`, journal d'audit) ; `/bot/<id>/` (dashboard
   par bot) ; derrière nginx à `https://echonym.fr/alfred/`.
 - **Auth** : cookies de session signés HMAC (stateless, 30j), backoff anti-brute-force,
-  rate-limit sur les mutations.
+  rate-limit sur les mutations. **Révocation globale durable** (v1.9.0) :
+  `/logout` bumpe un plancher persisté sur disque (`data/session_revoked_ts`)
+  — tout cookie antérieur est rejeté, restarts compris.
 - **Rôles** : `admin` (DASHBOARD_USER → tout) et `bot:<id>` (ex. JUNIOR_USER →
   uniquement `/bot/junior/*`). Mutations auditées dans `admin_audit`.
 - **2FA TOTP** (v1.2.2) : optionnelle par compte (`DASHBOARD_TOTP_SECRET`), exigée
@@ -388,7 +399,8 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 | `ai_arbiter_scorecard.py` | horaire :20 (+ TG 8h05) | contrefactuel arbitre d'entrée + disjoncteur | § 9 |
 | `ai_exit_scorecard.py` | horaire :25 (+ TG 8h10) | contrefactuel arbitre de sortie + disjoncteur | § 9 |
 | `overfit_monitor.py` | 9h30 UTC | thermomètre Promesse-IS → OOS-BT → Live | log seul |
-| watchdog | 5 min | relance `start_bots.sh` si Alfred absent | (ne surveille plus que Alfred) |
+| watchdog | 5 min | relance `start_bots.sh` si Alfred absent (pgrep) | relance auto |
+| `analysis/alfred_heartbeat.py` | 2 min | teste la **VIE** (âge des ticks + web répond) — attrape les zombies que pgrep rate (incident 02-07) | TG après 2 échecs, rétablissement notifié ; flag maintenance pour les restarts |
 
 Toutes les sentinelles sont **observation/alerte**, jamais d'auto-modification de la
 config ou de l'état des bots (seuls les arbitres IA du § 9 agissent, dans leurs
@@ -403,7 +415,9 @@ bornes). `analysis/regime_alert.py` (nudge régime BTC) **retiré du cron le
 LIVE (argent réel). Éditer les fichiers et bumper `ALFRED_VERSION` librement, mais
 l'utilisateur contrôle quand le process prend le changement.
 
-**Procédure de restart (corrigée après l'incident du 2026-07-02)** : attendre la
+**Procédure de restart (corrigée après l'incident du 2026-07-02)** :
+`touch analysis/output/heartbeat_maintenance` d'abord (sonde muette 45 min
+max, `rm` après les vérifs post-boot), puis attendre la
 **mort du PID** (pas la libération du port — la web tombe en premier et le shutdown
 peut pendre), SIGKILL de grâce après 5 min, relancer seulement quand plus aucun
 python `-m alfred` ne survit ; post-boot, vérifier la version dans le log ET le
@@ -427,6 +441,9 @@ cron, relus à chaque exécution).
 | Exécution exchange | `alfred/hl.py`, `alfred/brokers.py` |
 | Filet hard-stop (math + divergence #15) | `alfred/hardstop.py`, `docs/alfred_divergences.md` |
 | Chantier trails-sur-close (validation) | `backtests/trails_on_close_results.md` |
+| Audit chaîne de sorties (condamnations) | `backtests/exit_chain_ablation_report.md` |
+| Bloc §8 généré + pre-commit | `alfred/tools/gen_exit_chain_block.py` |
+| Sonde heartbeat | `analysis/alfred_heartbeat.py` |
 | Web / API / auth | `alfred/web/app.py`, `alfred/web/views.py` |
 | Couche IA : arbitres | `ai_entry_arbiter.py`, `ai_exit_arbiter.py` (racine du dépôt) |
 | Couche IA : preuve/scorecards | `ai_arbiter_scorecard.py`, `ai_exit_scorecard.py` |
