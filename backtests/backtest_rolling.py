@@ -326,6 +326,7 @@ def run_window(features, data, sector_features, dxy_data,
                reserve_highz_frac: float = 0.0,
                reserve_z_threshold: float = 5.0,
                entry_slip_bps_by_strat: dict | None = None,
+               trail_eval_every: int = 1,
                aligned: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -980,8 +981,16 @@ def run_window(features, data, sector_features, dxy_data,
                     exit_reason = "take_profit"
                     exit_price = pos["entry"] * (1 + pos["dir"] * _tp / 1e4)
             if aligned and not exit_reason:
+                # Hook R&D trails-sur-close (2026-07-04) : trail_eval_every=N
+                # → les règles trail ne sont évaluées qu'aux bougies dont la
+                # CLÔTURE tombe sur un multiple de N×interval (isolation de la
+                # cadence trail, tout le reste identique).
+                _iv_ms = interval_hours * 3_600_000
+                _tg = (trail_eval_every <= 1
+                       or ((ts + _iv_ms) % (trail_eval_every * _iv_ms)) == 0)
                 _dec = _rules.evaluate_exit(pv, cur_bps, _mctx, _p_run,
-                                            worst_bps=worst_bps)
+                                            worst_bps=worst_bps,
+                                            trail_gate=_tg)
                 if _dec and _dec.action == "extend":
                     pos["hold"] += int(_dec.extend_hours // interval_hours)
                     pos["extended"] = True

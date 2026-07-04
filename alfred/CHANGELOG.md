@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.8.0 — 2026-07-04
+
+- **Trading engine**: les règles de sortie « sur le pic » (trails et planchers de gains) s'évaluent désormais à la clôture des bougies 4h — la granularité exacte de leur validation — au lieu du tick continu, dont le bruit gonflait le pic et coupait les gagnants trop tôt (mesuré sur l'ensemble des sorties réelles de la flotte, validé en isolation backtest 7/7 fenêtres et en contrefactuel sur trades réels). Les coupe-pertes, stops et le filet restent au tick.
+
 ## v1.7.6 — 2026-07-03
 
 - **Admin**: les horodatages de la page de supervision (revues IA, verdicts, superviseur, journal d'audit, downtime) s'affichent en heure locale du navigateur au lieu d'UTC.

@@ -1,7 +1,7 @@
 # Architecture Alfred — document de référence
 
 > **Source de vérité unique** de l'architecture du bot de trading, à jour avec le
-> code (`alfred/`, v1.7.0, 2026-07-02). Remplace le cadrage « architecture » de
+> code (`alfred/`, v1.8.0, 2026-07-04). Remplace le cadrage « architecture » de
 > `docs/bot.md` (qui décrit le stack legacy `analysis/bot/` décommissionné le
 > 2026-06-12). Pour le *rationnel R&D* derrière chaque règle, voir `docs/bot.md`
 > (détaillé) et `docs/synthese.md` (pédagogique) — leur logique de trading reste
@@ -115,7 +115,7 @@ robustesse statistique mesurée ; walk-forward = passes sur 4 fenêtres glissant
 
 | Quoi | Cadence | Détail |
 |------|---------|--------|
-| **Tick exits** | 20s | chaîne de sorties + MAJ MAE/MFE + manual_stop (plafond de latence) |
+| **Tick exits** | 20s | coupe-pertes/stops/timeout/manual + MAJ MAE/MFE ; **règles trail : uniquement au 1er tick post-clôture 4h** (v1.8.0, § 8) |
 | **Scan entrées** | **au close 4h** (+180s de grâce) | évaluation des signaux d'entrée gated sur la bougie 4h |
 | **Scan complet** | horaire (3600s) | refresh features + reconcile + equity, en plus du tick |
 | **REST marché** | 60s | metaAndAssetCtxs (prix, OI, funding, premium) |
@@ -191,6 +191,14 @@ qui matche gagne. Identique bot et backtest (mode `aligned`).
 14. **dead_timeout** — à T−12h du timeout, position sans pouls (MFE ≤ 150, collée au MAE) → crystallise la perte.
 
 Tous ces seuils sont des constantes dans `settings.py` avec kill-switch documenté.
+
+**Trails sur close 4h (v1.8.0)** : les règles « sur le pic » (opp_floor,
+s10_trail, s8_inlife, prop_trail) sont évaluées **au premier tick suivant
+chaque clôture 4h**, sur un MFE échantillonné à ces clôtures — la granularité
+exacte de leur validation (le tick 20 s bruité gonflait le pic et coupait les
+gagnants ~50-100 bps trop tôt, cf. `backtests/trails_on_close_results.md`).
+Coupe-pertes, stops, timeout et filet restent au tick. Kill-switch :
+`trail_eval_4h_close=False`.
 
 Sur SENIOR uniquement, l'**arbitre IA de sortie** (§ 9) surplombe cette chaîne — il
 peut poser un stop protecteur sur un gagnant, jamais la court-circuiter.

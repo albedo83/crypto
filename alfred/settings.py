@@ -113,6 +113,18 @@ class Params:
     # chaîne 20s reste l'exécuteur primaire (buffer 200 = p99.99 des
     # excursions 60s [194] et > max overshoot soft observé [162]). PAS une
     # règle : rules.py/backtest inchangés. Kill-switch : enabled=False.
+    # Trails sur close 4h (v1.8.0, chantier 2026-07-04) : les règles TRAIL
+    # (opp_floor, s10_trail, s8_inlife, prop_trail) ne sont évaluées qu'à la
+    # première tick suivant chaque clôture 4h, sur un MFE échantillonné à ces
+    # clôtures — la sémantique EXACTE de leur validation walk-forward (le BT
+    # évalue 1×/bougie 4h sur closes). Le tick 20s bruité gonflait le pic
+    # (+36-45 bps médian mesuré) et déclenchait les croisements trop tôt →
+    # gagnants réels +236/306 bps vs +562 BT à WR égal. Validation : A′ 7/7
+    # (cadence 4h > 1h en BT, DD meilleur), contrefactuel réel n=98 Δ+98 bps
+    # IC95[+4,+217]. Coupe-pertes/stops/filet JAMAIS gatés (restent au tick).
+    # Kill-switch : False = comportement tick historique.
+    trail_eval_4h_close: bool = True
+
     hard_stop_enabled: bool = False        # armé par bot via overrides
     hard_stop_buffer_bps: float = 200.0
     # ⚠️ 0.20 N'EST PAS une faute de frappe — ne pas « nettoyer » à 0.05.

@@ -299,7 +299,8 @@ def dead_timeout_rule(pos: PosView, ur: float, p: Params) -> ExitDecision | None
 
 
 def evaluate_exit(pos: PosView, unrealized_bps: float, m: MarketCtx, p: Params,
-                  *, worst_bps: float | None = None) -> ExitDecision | None:
+                  *, worst_bps: float | None = None,
+                  trail_gate: bool = True) -> ExitDecision | None:
     """Full canonical exit chain for one open position at one decision point.
 
     Mirrors analysis/bot/trading.py:check_exits order (v12.17.3), with one
@@ -307,6 +308,14 @@ def evaluate_exit(pos: PosView, unrealized_bps: float, m: MarketCtx, p: Params,
     `worst_bps` when provided (candle low/high) so an intra-period stop
     touch beats the timeout tick — at 20s live granularity worst==current
     and the distinction vanishes.
+
+    `trail_gate` (chantier trails-sur-close, 2026-07-04) : quand False, les
+    règles TRAIL référencées au pic (opp_floor, s10_trail, s8_inlife,
+    prop_trail) sont sautées à ce point de décision — le bot ne les évalue
+    qu'aux clôtures horaires (la granularité de leur validation), le tick
+    20s bruité gonflant le pic et déclenchant les croisements ~50 bps trop
+    tôt (mesuré sur 98 sorties réelles). True (défaut) = comportement
+    historique, BT inchangé. Les coupe-pertes ne sont JAMAIS gatés.
 
     Returns None (hold), ExitDecision("extend", ...) for the runner
     extension (caller pushes target_exit and sets pos.extended), or
@@ -319,9 +328,10 @@ def evaluate_exit(pos: PosView, unrealized_bps: float, m: MarketCtx, p: Params,
     d = catastrophe_stop_rule(pos, worst_bps if worst_bps is not None else ur, p)
     if d:
         return d
-    d = opp_floor_rule(pos, worst_bps if worst_bps is not None else ur, p)
-    if d:
-        return d
+    if trail_gate:
+        d = opp_floor_rule(pos, worst_bps if worst_bps is not None else ur, p)
+        if d:
+            return d
     if pos.hours_to_timeout <= 0:
         return ExitDecision("exit", "timeout", None)
     d = manual_stop_rule(pos, ur, p)
@@ -330,18 +340,20 @@ def evaluate_exit(pos: PosView, unrealized_bps: float, m: MarketCtx, p: Params,
     d = s9_early_rule(pos, ur, p)
     if d:
         return d
-    d = s10_trail_rule(pos, ur, p)
-    if d:
-        return d
+    if trail_gate:
+        d = s10_trail_rule(pos, ur, p)
+        if d:
+            return d
     d = s8_dead_rule(pos, p)
     if d:
         return d
-    d = s8_inlife_rule(pos, ur, m, p)
-    if d:
-        return d
-    d = prop_trail_rule(pos, ur, m, p)
-    if d:
-        return d
+    if trail_gate:
+        d = s8_inlife_rule(pos, ur, m, p)
+        if d:
+            return d
+        d = prop_trail_rule(pos, ur, m, p)
+        if d:
+            return d
     d = traj_cut_rule(pos, ur, m, p)
     if d:
         return d

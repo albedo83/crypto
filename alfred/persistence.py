@@ -83,6 +83,8 @@ def save_state(bot) -> None:
             "opp_floor_bps": p.opp_floor_bps,
             "stop_oid": p.stop_oid,
             "stop_px": p.stop_px,
+            "mfe_trail_bps": p.mfe_trail_bps,
+            "mfe_trail_at_h": p.mfe_trail_at_h,
         } for p in bot.positions.values()]
     data = {
         "version": bot.version, "capital": bot._capital,
@@ -177,6 +179,8 @@ def load_state(state_file: str, known_symbols) -> dict:
                     opp_floor_bps=p.get("opp_floor_bps"),
                     stop_oid=p.get("stop_oid"),
                     stop_px=p.get("stop_px"),
+                    mfe_trail_bps=p.get("mfe_trail_bps", 0.0),
+                    mfe_trail_at_h=p.get("mfe_trail_at_h", 0.0),
                 )
             except (KeyError, ValueError, TypeError) as e:
                 log.error("Skipping corrupt position %s: %s", sym, e)

@@ -52,6 +52,8 @@ class Position:
     opp_floor_bps: float | None = None  # plancher armé par signal opposé (v1.2.0)
     stop_oid: int | None = None  # oid du trigger hard-stop résident HL (v1.7.1)
     stop_px: float | None = None  # prix du trigger posé (détection de dérive, v1.7.3)
+    mfe_trail_bps: float = 0.0   # MFE échantillonné aux clôtures 4h (trails, v1.8.0)
+    mfe_trail_at_h: float = 0.0  # hours_held à la dernière MAJ de mfe_trail_bps
 
 
 @dataclass

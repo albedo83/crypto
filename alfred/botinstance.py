@@ -94,6 +94,10 @@ class BotInstance:
         # plus larges + reduce-only). In-memory : perdu au restart, le sweep
         # coin-flat rattrape le reste.
         self._hard_stop_leftovers: set[tuple] = set()
+        # Trails sur close 4h (v1.8.0) : epoch de la dernière clôture 4h pour
+        # laquelle les règles trail ont été évaluées. 0 = boot (attend la
+        # prochaine clôture). In-memory : au restart, attente ≤4h = sémantique BT.
+        self._last_trail_eval_4h: float = 0.0
         self._inflight_open: set[str] = set()
         self._btc_z: float | None = None
         self._wr_alerted: set[str] = set()
@@ -488,6 +492,24 @@ class BotInstance:
         except Exception as e:
             log.warning("[%s] exit-arbiter skip: %s", self.id, e)
 
+        # ── Trails sur close 4h (v1.8.0) : les règles trail ne s'évaluent
+        # qu'au premier tick suivant chaque clôture 4h, sur un MFE échantillonné
+        # à ces clôtures (sémantique canonique de leur validation — le tick
+        # bruité coupait les gagnants ~50-100 bps trop tôt, cf. chantier
+        # trails-sur-close). Kill-switch trail_eval_4h_close=False = historique.
+        trail_due = True
+        if self.p.trail_eval_4h_close:
+            _b4 = int(now.timestamp() // 14400) * 14400
+            if self._last_trail_eval_4h == 0.0:
+                # boot : attendre la PROCHAINE clôture (pas d'éval mi-bougie)
+                self._last_trail_eval_4h = _b4
+                trail_due = False
+            elif _b4 > self._last_trail_eval_4h:
+                self._last_trail_eval_4h = _b4
+                trail_due = True
+            else:
+                trail_due = False
+
         for sym in list(self.positions.keys()):
             with self._pos_lock:
                 pos = self.positions.get(sym)
@@ -515,18 +537,30 @@ class BotInstance:
                 last_h = pos.trajectory[-1][0] if pos.trajectory else -1
                 if hours_held - last_h >= 0.95 and len(pos.trajectory) < 200:
                     pos.trajectory.append((round(hours_held, 1), round(unrealized, 1)))
+                # MFE-trail : échantillonné aux clôtures 4h seulement. Au tick
+                # de clôture, les règles (trails gatés + dead/traj) lisent ce
+                # MFE close-based (= ce que le BT leur a toujours donné) ; hors
+                # clôture, comportement tick historique (trails inactifs).
+                if trail_due and self.p.trail_eval_4h_close:
+                    if unrealized > pos.mfe_trail_bps:
+                        pos.mfe_trail_bps = unrealized
+                        pos.mfe_trail_at_h = hours_held
+                    _mfe, _mfe_at = pos.mfe_trail_bps, pos.mfe_trail_at_h
+                else:
+                    _mfe, _mfe_at = pos.mfe_bps, pos.mfe_at_h
                 pv = rules.PosView(
                     strategy=pos.strategy, direction=direction,
                     entry_price=entry_price, size_usdt=pos.size_usdt,
                     stop_bps=pos.stop_bps,
-                    mfe_bps=pos.mfe_bps, mae_bps=pos.mae_bps,
+                    mfe_bps=_mfe, mae_bps=pos.mae_bps,
                     hours_held=hours_held,
                     hours_to_timeout=(pos.target_exit - now).total_seconds() / 3600,
-                    mfe_at_h=pos.mfe_at_h, extended=pos.extended,
+                    mfe_at_h=_mfe_at, extended=pos.extended,
                     manual_stop_usdt=pos.manual_stop_usdt,
                     opp_floor_bps=pos.opp_floor_bps)
 
-            dec = rules.evaluate_exit(pv, unrealized, m, self.p)
+            dec = rules.evaluate_exit(pv, unrealized, m, self.p,
+                                      trail_gate=trail_due)
             if dec is None:
                 continue
             if dec.action == "extend":
