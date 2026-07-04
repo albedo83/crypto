@@ -98,6 +98,8 @@ class BotInstance:
         # laquelle les règles trail ont été évaluées. 0 = boot (attend la
         # prochaine clôture). In-memory : au restart, attente ≤4h = sémantique BT.
         self._last_trail_eval_4h: float = 0.0
+        # Staleness gate (v1.8.2) : syms actuellement gelés (log 1× par épisode).
+        self._stale_gated: set[str] = set()
         self._inflight_open: set[str] = set()
         self._btc_z: float | None = None
         self._wr_alerted: set[str] = set()
@@ -343,6 +345,7 @@ class BotInstance:
             return
         p = self.p
         batch, snap = [], {}
+        _prior_syms: set = set()   # syms dont le prompt portait un prior (traçabilité)
         with self._pos_lock:
             for sym, pos in self.positions.items():
                 st = self.states.get(sym)
@@ -376,6 +379,7 @@ class BotInstance:
                         "action": prior["action"], "confidence": prior["confidence"],
                         "reason": prior["reason"],
                         "hours_ago": round((nowts - prior["ts"]) / 3600, 1)}
+                    _prior_syms.add(sym)
                 batch.append(entry)
                 snap[sym] = {
                     "ur": ur, "net_pnl": net_pnl, "hold_hours": hh,
@@ -458,6 +462,10 @@ class BotInstance:
                             f"{v['reason']}", category="trade", actionable=True)
             self.db.log_event("ARBITER_EXIT_DECISION", sym, {
                 "cut_mode": cfg["cut_mode"], "acted": acted, "action": action,
+                # Traçabilité populations (revue 2026-07-04) : sans modèle ni
+                # version, le scorecard mélange des populations sans le savoir.
+                "model": cfg.get("model"), "alfred_version": ALFRED_VERSION,
+                "prior_inherited": sym in _prior_syms,
                 "tripped": tripped, "note": note,
                 "strategy": s["strategy"], "dir": s["dir"], "confidence": conf,
                 "reason": v["reason"], "risk_flags": v["risk_flags"],
@@ -532,6 +540,19 @@ class BotInstance:
                     self.close_position(sym, entry_price, now, "stale_price")
                     exits += 1
                 continue
+
+            # Staleness gate (v1.8.2) : prix figé (> exit_stale_max_s) →
+            # aucune décision soft ce tick (le filet exchange-side couvre la
+            # catastrophe pendant le trou ; GAP_REPAIR restaurera le flux).
+            if (self.p.exit_stale_max_s > 0 and st.updated_at > 0
+                    and (now.timestamp() - st.updated_at) > self.p.exit_stale_max_s):
+                if sym not in self._stale_gated:
+                    log.warning("[%s] %s: prix figé depuis %.0fs — sorties soft "
+                                "gelées (filet exchange-side actif)", self.id,
+                                sym, now.timestamp() - st.updated_at)
+                    self._stale_gated.add(sym)
+                continue
+            self._stale_gated.discard(sym)
 
             unrealized = direction * (st.price / entry_price - 1) * 1e4
             with self._pos_lock:
@@ -1147,6 +1168,7 @@ class BotInstance:
         # L'IA peut annuler (veto) ou réduire la taille. Overlay live-only, hors
         # rules.py (backtest inchangé). Mesuré en live par ai_arbiter_scorecard.
         arb, arb_mode, arb_cfg = {}, "off", None
+        _entry_prior_syms: set = set()
         if self.id == "live":
             try:
                 import ai_entry_arbiter as _aia
@@ -1179,6 +1201,7 @@ class BotInstance:
                         prior = self._arbiter_last.get(sy)
                         if (prior and ttl_h > 0
                                 and (now.timestamp() - prior["ts"]) <= ttl_h * 3600):
+                            _entry_prior_syms.add(sy)
                             entry["prior_decision"] = {
                                 "decision": prior["decision"],
                                 "confidence": prior["confidence"],
@@ -1305,6 +1328,10 @@ class BotInstance:
                 applied_size = round(rules_size * eff_factor, 2)
                 self.db.log_event("ARBITER_DECISION", sym, {
                     "mode": arb_mode, "acted": acted,
+                    # Traçabilité populations (revue 2026-07-04)
+                    "model": arb_cfg.get("model") if arb_cfg else None,
+                    "alfred_version": ALFRED_VERSION,
+                    "prior_inherited": sym in _entry_prior_syms,
                     "strategy": sig["strategy"], "dir": side,
                     "decision": v["decision"], "hard_veto": hard_veto,
                     "factor": round(eff_factor, 3), "confidence": v["confidence"],

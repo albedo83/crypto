@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.8.2 — 2026-07-04
+
+- **Infra**: sonde heartbeat externe (cron 2 min) qui teste la VIE d'Alfred — fraîcheur des données et réponse web — pas juste l'existence du process ; alerte après défaillance persistante, message de rétablissement.
+- **Trading engine**: gel des décisions de sortie automatiques quand le prix d'un symbole est figé (flux interrompu) — le stop résident sur l'exchange couvre pendant le trou ; traçabilité renforcée des décisions IA (modèle, version, hystérésis) ; révocation de sessions persistante au restart.
+
 ## v1.8.1 — 2026-07-04
 
 - **Trading engine**: surveillance du CUT de l'arbitre IA durcie (revue) — disjoncteur dédié au CUT, bas et précoce, qui ne peut plus être masqué par les verrous gagnants ; et l'IA n'examine plus un S9 pendant sa phase sous l'eau prévue par les règles.

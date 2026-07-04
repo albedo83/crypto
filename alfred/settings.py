@@ -124,6 +124,11 @@ class Params:
     # IC95[+4,+217]. Coupe-pertes/stops/filet JAMAIS gatés (restent au tick).
     # Kill-switch : False = comportement tick historique.
     trail_eval_4h_close: bool = True
+    # Staleness gate (v1.8.2) : aucune décision de sortie SOFT si le dernier
+    # tick du symbole date de plus de N secondes — une sortie sur prix figé
+    # (GAP_REPAIR, WS mort) est une décision au mauvais prix. Le filet
+    # exchange-side couvre la catastrophe pendant le trou. 0 = désactivé.
+    exit_stale_max_s: float = 180.0
 
     hard_stop_enabled: bool = False        # armé par bot via overrides
     hard_stop_buffer_bps: float = 200.0

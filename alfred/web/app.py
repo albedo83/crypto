@@ -84,7 +84,16 @@ def create_app(bots: dict, master) -> FastAPI:
         _ACCOUNTS[_baby_user] = (_baby_pass, "bot:baby",
                                  os.environ.get("BABY_TOTP_SECRET", ""))
     _login_failures: dict[str, tuple[int, float]] = {}
-    _revoked_before = {"ts": 0.0}
+    # Révocation de sessions PERSISTANTE (v1.8.2, revue) : le plancher était
+    # en mémoire seule — un restart ressuscitait tous les anciens cookies
+    # (stateless 30j, irrévocables de fait). Persisté sur disque : /logout
+    # révoque l'univers durablement, restarts compris.
+    _REVOKED_F = os.path.join(master.data_dir, "session_revoked_ts")
+    try:
+        with open(_REVOKED_F) as _rf:
+            _revoked_before = {"ts": float(_rf.read().strip() or 0.0)}
+    except (FileNotFoundError, ValueError):
+        _revoked_before = {"ts": 0.0}
     _mutation_log: dict[str, deque] = {}
     _html_cache: dict[str, str] = {}
 
@@ -325,6 +334,14 @@ def create_app(bots: dict, master) -> FastAPI:
     @app.get("/logout")
     async def logout():
         _revoked_before["ts"] = time.time()
+        try:
+            _tmp = _REVOKED_F + ".tmp"
+            with open(_tmp, "w") as _rf:
+                _rf.write(str(_revoked_before["ts"]))
+            os.replace(_tmp, _REVOKED_F)
+        except OSError:
+            log.exception("persist session_revoked_ts failed (révocation "
+                          "effective en mémoire seulement)")
         resp = RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
         resp.delete_cookie("alfred_session")
         return resp
