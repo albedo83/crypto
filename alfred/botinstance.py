@@ -1171,6 +1171,7 @@ class BotInstance:
         arb, arb_mode, arb_cfg = {}, "off", None
         _entry_prior_syms: set = set()
         _entry_prompt_hash = None
+        _entry_book_n = None
         if self.id == "live":
             try:
                 import ai_entry_arbiter as _aia
@@ -1233,6 +1234,7 @@ class BotInstance:
                                     "ur_bps": round(_bur) if _bur is not None else None,
                                     "age_h": round((now - _bpos.entry_time).total_seconds() / 3600, 1),
                                     "size_usdt": round(_bpos.size_usdt)})
+                        _entry_book_n = len(_book)
                         _bm = self._basket_metrics or {}
                         market = {"btc_z": self._btc_z,
                                   # mouvement BTC court terme (réaction rapide) :
@@ -1359,6 +1361,9 @@ class BotInstance:
                     "model": arb_cfg.get("model") if arb_cfg else None,
                     "alfred_version": ALFRED_VERSION,
                     "prompt_hash": _entry_prompt_hash,
+                    # vérif anti-book-fantôme : compte des positions vues
+                    # par l'arbitre — doit coller à state.json au scan.
+                    "book_n": _entry_book_n,
                     "prior_inherited": sym in _entry_prior_syms,
                     "strategy": sig["strategy"], "dir": side,
                     "decision": v["decision"], "hard_veto": hard_veto,

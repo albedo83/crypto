@@ -1,0 +1,8 @@
+#!/bin/sh
+# Wrapper cron commun (2026-07-04) — né de DEUX occurrences du même `cd`
+# manquant (tracker 06-19, heartbeat/attention 07-04). « La mémoire n'est pas
+# un fix : la troisième fois, on n'apprend plus, on automatise. »
+# Usage crontab : * * * * * /home/crypto/scripts/cronrun -m analysis.foo [args]
+set -eu
+cd /home/crypto
+exec /home/crypto/.venv/bin/python3 "$@"

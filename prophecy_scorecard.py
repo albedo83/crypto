@@ -18,6 +18,20 @@ Sémantique de notation (documentée, fixe) :
 Observation PURE — deux issues rentables : calibré → input gratuit de
 l'arbitre de sortie ; pas calibré → on débranche 12 appels/jour d'astrologie.
 
+ÉPISTÉMOLOGIE (revue 2026-07-04) :
+  - Les verdicts antérieurs au 2026-07-04 sont RÉTRO-NOTÉS (extraits des
+    events POSITION_REVIEW historiques, mêmes champs advice/confidence).
+    Indicatif, pas probant — le forward PROPRE commence au FORWARD_START.
+    Le rapport ventile rétro / forward.
+  - La précision d'un verdict ne vaut que contre le TAUX DE BASE (imprimé) :
+    si 60 % des positions perdent de toute façon, un WATCH à 78 % murmure.
+    Le vrai juge est le Brier vs climatologie.
+  - ⚠️ GOODHART (phase 2) : le jour où « doomed » nourrit l'arbitre et que le
+    CUT exécute les condamnés, la prophétie devient auto-réalisatrice — le
+    prophète tue ses patients et son score s'améliore. À la promotion :
+    flag `verdict_consumed` dans les events, et ne noter en forward QUE les
+    positions où l'arbitre n'a PAS agi.
+
 Usage : python3 prophecy_scorecard.py [--report]   (cron quotidien)
 Event : PROPHECY_SCORECARD dans live/bot.db.
 """
@@ -33,6 +47,7 @@ from datetime import datetime, timezone
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DB = os.path.join(ROOT, "alfred", "data", "bots", "live", "bot.db")
 
+FORWARD_START_TS = 1783200000   # 2026-07-04 ~16h UTC : début du forward propre
 PREDICT_LOSS = {"STOP", "TRIM"}
 PREDICT_WIN = {"HOLD"}
 
@@ -97,9 +112,14 @@ def main() -> int:
                        "pnl": t["pnl_usdt"], "reason": t["reason"]})
 
     n_open_verdicts = len({(v["symbol"], v["ts"]) for v in verdicts})
+    n_retro = sum(1 for v in verdicts if v["ts"] < FORWARD_START_TS)
+    base_loss_all = (sum(1 for s_ in scored if s_["loss"]) / len(scored)) if scored else 0
     print(f"=== PROPHECY SCORECARD — position_review noté à la clôture ===")
-    print(f"{len(verdicts)} verdicts émis, {len(scored)} appariés à un trade clos, "
+    print(f"{len(verdicts)} verdicts émis ({n_retro} RÉTRO-notés pré-2026-07-04, "
+          f"indicatifs ; le forward propre = le reste), {len(scored)} appariés, "
           f"{revisions} révisions d'avis en cours de vie")
+    print(f"Taux de base : {base_loss_all*100:.0f}% des positions notées finissent "
+          f"perdantes — toute précision se juge contre CE chiffre.")
 
     # matrice verdict × issue
     mat = defaultdict(lambda: [0, 0])   # advice → [n_loss, n_win]

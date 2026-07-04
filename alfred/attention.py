@@ -90,14 +90,21 @@ def log_event(payload: dict):
         print(f"log_event failed: {e}", file=sys.stderr)
 
 
-def llm_review(st: dict, trigger: str, context: str, symbols: list[str] | None):
-    """Revue ciblée via position_review --focus. Respecte le cap journalier."""
+def llm_review(st: dict, trigger: str, context: str, symbols: list[str] | None,
+               priority: str = "comfort"):
+    """Revue ciblée via position_review --focus.
+
+    Classes de priorité (revue 2026-07-04) : un jour de chaos, six bandes
+    btc_z avant midi mangeraient le cap — et le net_fired de 15h se tairait,
+    pile le jour où le filet parle. `safety` (net_fired, liquidation) passe
+    HORS cap (compté quand même) ; `comfort` (bandes, breadth, near_stop)
+    respecte le cap."""
     today = time.strftime("%F")
     daily = st.setdefault("daily", {})
     if daily.get("date") != today:
         daily.update({"date": today, "llm_calls": 0})
     cap = int(env("ATTENTION_LLM_CAP", "8"))
-    if daily["llm_calls"] >= cap:
+    if priority != "safety" and daily["llm_calls"] >= cap:
         print(f"cap LLM journalier atteint ({cap}) — trigger {trigger} loggé sans revue")
         log_event({"trigger": trigger, "context": context, "llm": "capped"})
         return None
@@ -152,7 +159,7 @@ def main() -> int:
                f"({r['reason']}, {r['pnl_usdt']:+.2f}$). Le process était mort "
                f"ou le marché plus rapide que 20s — juger les SURVIVANTS dans "
                f"ce contexte.")
-        advices = llm_review(st, "net_fired", ctx, open_syms or None)
+        advices = llm_review(st, "net_fired", ctx, open_syms or None, priority="safety")
         send_tg(f"⚡ ATTENTION — filet déclenché : {r['symbol']} {r['reason']} "
                 f"{r['pnl_usdt']:+.2f}$\n"
                 + ("\n".join(advices[:5]) if advices else "(revue indisponible)"))
