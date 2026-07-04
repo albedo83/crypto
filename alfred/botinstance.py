@@ -349,7 +349,12 @@ class BotInstance:
                 if not st or st.price <= 0 or pos.entry_price <= 0:
                     continue
                 ur = pos.direction * (st.price / pos.entry_price - 1) * 1e4
-                if not (ur <= cfg["cut_ur_max_bps"] or ur >= cfg["lock_ur_min_bps"]):
+                # Zone CUT par stratégie : S9 est conçu pour être sous l'eau
+                # tôt (s9_early tolère −500/8h) → seuil plus profond, l'IA
+                # n'examine pas un S9 pendant sa phase sous l'eau prévue.
+                _cut_max = (cfg.get("cut_ur_max_s9_bps", -600.0)
+                            if pos.strategy == "S9" else cfg["cut_ur_max_bps"])
+                if not (ur <= _cut_max or ur >= cfg["lock_ur_min_bps"]):
                     continue
                 hh = (now - pos.entry_time).total_seconds() / 3600
                 net_pnl = pos.size_usdt * (ur - p.cost_bps) / 1e4

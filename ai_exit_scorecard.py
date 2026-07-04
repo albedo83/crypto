@@ -348,6 +348,24 @@ def main() -> int:
         send_telegram(msg, source="exit_arbiter_circuit_break")
         print("[exit-scorecard] DISJONCTEUR déclenché + drapeau écrit")
 
+    # Disjoncteur SPÉCIFIQUE au CUT (revue 2026-07-04) : le CUT est passé en
+    # act sur une preuve shadow n=1 — le breaker combiné (cb_min=20 sur
+    # delta_sum LOCK+CUT) laisse des LOCKs positifs MASQUER un flux de CUTs
+    # destructeurs. Gate dédiée, basse et précoce : les CUTs doivent prouver
+    # leur valeur en marchant, pas en s'abritant derrière les LOCKs.
+    cut_cb_min = int(os.environ.get("AI_EXIT_CUT_CB_MIN", "10"))
+    cut_cb_loss = float(os.environ.get("AI_EXIT_CUT_CB_LOSS", "-15"))
+    if (sc["n_cut"] >= cut_cb_min and sc["cut_delta"] < cut_cb_loss
+            and not aix.is_tripped()):
+        aix.trip("cut_scorecard_negative",
+                 {"cut_delta": sc["cut_delta"], "n_cut": sc["n_cut"]})
+        msg = (f"🧠 IA — DISJONCTEUR CUT\n"
+               f"Δ CUT {sc['cut_delta']:+.2f}$ sur {sc['n_cut']} cuts "
+               f"(< seuil {cut_cb_loss}$ dès n≥{cut_cb_min}). Arbitre de "
+               f"sortie en observation. Réarmer : supprimer {aix.TRIP_FILE}")
+        send_telegram(msg, source="exit_arbiter_cut_circuit_break")
+        print("[exit-scorecard] DISJONCTEUR CUT déclenché + drapeau écrit")
+
     if args.telegram:
         if send_telegram(format_tg(sc, aix.is_tripped()), source="exit_arbiter_scorecard"):
             print("[exit-scorecard] récap Telegram envoyé")

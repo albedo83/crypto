@@ -84,6 +84,10 @@ def config() -> dict:
         "throttle_s": float(env("AI_EXIT_THROTTLE_S", "3600")),
         # Zone candidate : ne soumet à l'IA que les positions où son jugement compte.
         "cut_ur_max_bps": float(env("AI_EXIT_CUT_UR_MAX_BPS", "-300")),  # perdant profond
+        # S9 est CONÇU pour être sous l'eau tôt (s9_early tolère −500 bps
+        # pendant 8h) — zone CUT plus profonde pour ne pas court-circuiter
+        # la patience des règles sur le meilleur z-score (revue 2026-07-04).
+        "cut_ur_max_s9_bps": float(env("AI_EXIT_CUT_UR_MAX_S9_BPS", "-600")),
         "lock_ur_min_bps": float(env("AI_EXIT_LOCK_UR_MIN_BPS", "300")),  # gagnant à protéger
         "cb_min": int(env("AI_EXIT_CB_MIN", "20")),
         "cb_loss": float(env("AI_EXIT_CB_LOSS", "-40")),
@@ -124,6 +128,10 @@ RÈGLES FERMES :
 - Pas d'hallucination de chiffres : uniquement les valeurs du contexte fourni.
 - Mean-reversion : un perdant modéré qui respire n'est PAS un CUT. Le CUT vise la
   trajectoire désespérée sans rebond, pas le rouge ordinaire.
+- **S9 est CONÇU pour être sous l'eau tôt** (fade d'un move extrême : les règles
+  lui tolèrent −500 bps pendant 8h avant s9_early). Un S9 rouge dans ses
+  premières heures est le plan, pas une anomalie — exige une trajectoire
+  franchement cassée ET du temps écoulé avant tout CUT sur S9.
 
 COHÉRENCE INTER-SCAN : si une position porte `prior_decision` (ta décision
 précédente, il y a `hours_ago` h), traite-la comme un prior fort — ne change d'avis
