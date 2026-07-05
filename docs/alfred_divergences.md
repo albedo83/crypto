@@ -102,3 +102,28 @@ découvert en cross 2×) et les mouvements plus rapides que le tick 20s.
 - `rules.py`/backtest **inchangés** (le filet n'est pas une règle). Kill-switch :
   `hard_stop_enabled=false` dans l'override du bot → extinction propre (cancel
   des triggers au reconcile suivant).
+
+## Divergence #16 — frein agrégé portefeuille (v1.11.0, 2026-07-05)
+
+**Assumée, opérationnelle (hors rules.py).** Le bot gèle ses ENTRÉES pendant
+`equity_brake_halt_h` (24 h) quand l'equity (réalisé + latent) tombe ≥
+`equity_brake_dd_pct` (15 %) sous son pic 24 h glissant. Le BT ne modélise pas
+ce frein (comme il ne modélise pas le filet #15) : c'est un frein de
+*vélocité* contre le flush corrélé (les 28 alts corrèlent ~0.9 avec BTC dans
+les crashs — les caps sectoriels n'y peuvent rien), pas une règle d'edge.
+
+- **Sorties, stops, filet, IA : intacts.** Pas de flatten automatique —
+  aplatir dans un flush = vendre le plancher ; les stops par position coupent
+  déjà, le frein empêche seulement de recharger pendant la chute.
+- **Calibration** : pire DD 24h normal observé = 10.3–10.8 % (live/paper,
+  survécu puis composé) ; flush corrélé all-stops = −25 % invariant (analyse
+  marge 02-07). 15 % = au-dessus du bruit, sous la catastrophe. **0 tir
+  historique attendu** sur les données vécues.
+- **Sémantique vélocité** : après l'expiration du halt, le pic 24 h a glissé —
+  un DD devenu « niveau » ne re-déclenche pas (re-trader après la chute est le
+  travail du bot mean-reversion). La bougie 4h du halt est consommée : reprise
+  alignée à la clôture suivante, jamais mi-bougie.
+- **Impact live-vs-BT** : un tir = jusqu'à `halt_h` d'entrées en moins vs le
+  BT sur la même fenêtre. Événement rare et auditable (`EQUITY_BRAKE` +
+  `SKIP reason=equity_brake` dans events).
+- Kill-switch : `equity_brake_dd_pct = 0`. Levée manuelle : resume.

@@ -118,6 +118,8 @@ class BotInstance:
         # lieu de fire au boot sur un prix intra-bougie (cas live 2026-06-10 :
         # CRV/COMP entrés à T+2h09 du close). Un state existant override via load().
         self._last_entry_scan_4h_close = (int(time.time()) // 14400) * 14400
+        self._equity_samples: list = []          # [[ts, equity]] fenêtre 24h
+        self._entries_halted_until: float = 0.0  # frein agrégé (equity brake)
         self._last_scan: float = 0.0
         self._last_daily_report: float = 0.0
         self._perf_track_start_ts = 0.0
@@ -143,6 +145,8 @@ class BotInstance:
             self._cooldowns = st.get("cooldowns", {})
             self._signal_first_seen = st.get("signal_first_seen", {})
             self._last_entry_scan_4h_close = st.get("_last_entry_scan_4h_close", 0)
+            self._equity_samples = st.get("_equity_samples", [])
+            self._entries_halted_until = st.get("_entries_halted_until", 0.0)
             self._perf_track_start_ts = st.get("_perf_track_start_ts", 0.0)
             self._capital_at_perf_reset = st.get("_capital_at_perf_reset", 0.0)
             self._total_pnl_at_perf_reset = st.get("_total_pnl_at_perf_reset", 0.0)
@@ -524,6 +528,7 @@ class BotInstance:
             else:
                 trail_due = False
 
+        eq_unreal_usd = 0.0
         for sym in list(self.positions.keys()):
             with self._pos_lock:
                 pos = self.positions.get(sym)
@@ -532,6 +537,7 @@ class BotInstance:
                 entry_price = pos.entry_price
                 direction = pos.direction
                 target_exit = pos.target_exit
+                size_usdt = pos.size_usdt
 
             st = self.states.get(sym)
             if not st or st.price == 0:
@@ -541,6 +547,12 @@ class BotInstance:
                     self.close_position(sym, entry_price, now, "stale_price")
                     exits += 1
                 continue
+
+            unrealized = direction * (st.price / entry_price - 1) * 1e4
+            # Le frein agrégé mesure sur le dernier prix connu, figé ou pas —
+            # mesurer n'est pas décider (le gate staleness ne bloque que les
+            # décisions de sortie, plus bas).
+            eq_unreal_usd += size_usdt * unrealized / 1e4
 
             # Staleness gate (v1.8.2) : prix figé (> exit_stale_max_s) →
             # aucune décision soft ce tick (le filet exchange-side couvre la
@@ -554,8 +566,6 @@ class BotInstance:
                     self._stale_gated.add(sym)
                 continue
             self._stale_gated.discard(sym)
-
-            unrealized = direction * (st.price / entry_price - 1) * 1e4
             with self._pos_lock:
                 if sym not in self.positions:
                     continue
@@ -609,7 +619,51 @@ class BotInstance:
             exit_price = dec.exit_price if dec.exit_price is not None else st.price
             self.close_position(sym, exit_price, now, dec.reason)
             exits += 1
+
+        try:
+            self._equity_brake(now, eq_unreal_usd)
+        except Exception:
+            log.exception("[%s] equity brake failed", self.id)
         return exits
+
+    def _equity_brake(self, now: datetime, unreal_usd: float) -> None:
+        """Frein agrégé portefeuille (v1.11.0) : DD equity (réalisé + latent)
+        ≥ equity_brake_dd_pct sous le pic 24h glissant → halt des ENTRÉES
+        pendant equity_brake_halt_h. Les sorties, stops, le filet et l'IA
+        continuent — le frein protège le compounding, il ne flatten pas
+        (aplatir dans un flush = vendre le plancher ; les stops par position
+        coupent déjà). Re-trip possible à l'expiration si le DD persiste.
+        Kill-switch : equity_brake_dd_pct=0."""
+        if self.p.equity_brake_dd_pct <= 0:
+            return
+        ts = now.timestamp()
+        equity = self._capital + self._total_pnl + unreal_usd
+        smp = self._equity_samples
+        if not smp or ts - smp[-1][0] >= 300:          # 1 échantillon / 5 min
+            smp.append([int(ts), round(equity, 2)])
+            cutoff = ts - 86400
+            while smp and smp[0][0] < cutoff:
+                smp.pop(0)
+        peak = max(equity, max(s[1] for s in smp))
+        if peak <= 0:
+            return
+        dd_pct = (peak - equity) / peak * 100
+        if dd_pct >= self.p.equity_brake_dd_pct and ts >= self._entries_halted_until:
+            self._entries_halted_until = ts + self.p.equity_brake_halt_h * 3600
+            log.critical("[%s] 🛑 EQUITY BRAKE : DD 24h %.1f%% ≥ %.0f%% "
+                         "(equity %.2f, pic %.2f) — entrées gelées %dh",
+                         self.id, dd_pct, self.p.equity_brake_dd_pct,
+                         equity, peak, int(self.p.equity_brake_halt_h))
+            self.db.log_event("EQUITY_BRAKE", None, {
+                "dd_pct": round(dd_pct, 2), "equity": round(equity, 2),
+                "peak_24h": round(peak, 2),
+                "halted_until": int(self._entries_halted_until)})
+            self.notifier.send(
+                f"🛑 [{self.label}] FREIN AGRÉGÉ : equity −{dd_pct:.1f}% sous le "
+                f"pic 24h ({equity:.0f}$ vs {peak:.0f}$). Entrées gelées "
+                f"{int(self.p.equity_brake_halt_h)}h — sorties, stops et filet "
+                f"actifs. Reprise auto (ou plus tôt sur resume).")
+            self._save_state()
 
     # ── Close ────────────────────────────────────────────────────────
 
@@ -1528,6 +1582,17 @@ class BotInstance:
         if self._last_entry_scan_4h_close >= last_4h_close:
             return 0
         self._last_entry_scan_4h_close = last_4h_close
+
+        # Frein agrégé (v1.11.0) : entrées gelées post-DD — la bougie est
+        # consommée (reprise alignée à la prochaine clôture 4h, pas mi-bougie).
+        if now_ts < self._entries_halted_until:
+            log.warning("[%s] entrées gelées (equity brake) jusqu'à %s — scan sauté",
+                        self.id, datetime.fromtimestamp(
+                            self._entries_halted_until, tz=timezone.utc).strftime("%m-%d %H:%M"))
+            self.db.log_event("SKIP", None, {
+                "reason": "equity_brake",
+                "until": int(self._entries_halted_until)})
+            return 0
 
         with self._pos_lock:
             pos_for_basket = dict(self.positions)

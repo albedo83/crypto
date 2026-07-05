@@ -97,6 +97,8 @@ def save_state(bot) -> None:
         "signal_first_seen": bot._signal_first_seen,
         "positions": pos_snapshot,
         "_last_entry_scan_4h_close": int(bot._last_entry_scan_4h_close),
+        "_equity_samples": bot._equity_samples,
+        "_entries_halted_until": float(bot._entries_halted_until),
         "_perf_track_start_ts": round(bot._perf_track_start_ts, 0),
         "_capital_at_perf_reset": round(bot._capital_at_perf_reset, 2),
         "_total_pnl_at_perf_reset": round(bot._total_pnl_at_perf_reset, 4),
@@ -141,6 +143,8 @@ def load_state(state_file: str, known_symbols) -> dict:
         result["signal_first_seen"] = data.get("signal_first_seen", {})
         result["_pnl_realign_offset"] = data.get("_pnl_realign_offset", 0.0)
         result["_last_entry_scan_4h_close"] = int(data.get("_last_entry_scan_4h_close", 0))
+        result["_equity_samples"] = data.get("_equity_samples", [])
+        result["_entries_halted_until"] = float(data.get("_entries_halted_until", 0.0))
         result["_fees_track_start_ts"] = float(data.get("_fees_track_start_ts", 0))
         result["_perf_track_start_ts"] = float(data.get("_perf_track_start_ts", 0))
         result["_capital_at_perf_reset"] = float(data.get("_capital_at_perf_reset", 0))

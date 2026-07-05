@@ -1159,6 +1159,7 @@ def create_app(bots: dict, master) -> FastAPI:
         if not bot:
             return NOT_FOUND
         bot._paused = False
+        bot._entries_halted_until = 0.0     # lève aussi le frein agrégé
         bot._save_state()
         return JSONResponse({"status": "resumed"})
 
@@ -1179,6 +1180,7 @@ def create_app(bots: dict, master) -> FastAPI:
         if not bot:
             return NOT_FOUND
         bot._paused = False
+        bot._entries_halted_until = 0.0     # lève aussi le frein agrégé
         bot._save_state()
         log.info("[%s] RESUME_ENTRIES", bot.id)
         return JSONResponse({"status": "resumed"})

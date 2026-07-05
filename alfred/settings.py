@@ -129,6 +129,16 @@ class Params:
     # (GAP_REPAIR, WS mort) est une décision au mauvais prix. Le filet
     # exchange-side couvre la catastrophe pendant le trou. 0 = désactivé.
     exit_stale_max_s: float = 180.0
+    # Frein agrégé portefeuille (v1.11.0) : DD equity ≥ N % sous le pic 24h
+    # glissant (réalisé + latent) → halt des ENTRÉES pendant equity_brake_halt_h.
+    # Les sorties, stops et le filet continuent — le frein protège le
+    # compounding, il ne panique pas (pas de flatten : aplatir dans un flush
+    # = vendre le plancher). Calibration : pire DD 24h normal observé
+    # 10.3-10.8 % (live/paper, survécu et composé) ; flush corrélé au
+    # catastrophe stop = −25 % invariant (analyse marge 2026-07-02). 15 % =
+    # au-dessus du bruit, sous la catastrophe. 0 = désactivé.
+    equity_brake_dd_pct: float = 15.0
+    equity_brake_halt_h: float = 24.0
 
     hard_stop_enabled: bool = False        # armé par bot via overrides
     hard_stop_buffer_bps: float = 200.0

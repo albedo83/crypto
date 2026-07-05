@@ -1,7 +1,7 @@
 # Architecture Alfred — document de référence
 
 > **Source de vérité unique** de l'architecture du bot de trading, à jour avec le
-> code (`alfred/`, v1.10.0, 2026-07-04). Remplace le cadrage « architecture » de
+> code (`alfred/`, v1.11.0, 2026-07-05). Remplace le cadrage « architecture » de
 > `docs/bot.md` (qui décrit le stack legacy `analysis/bot/` décommissionné le
 > 2026-06-12). Pour le *rationnel R&D* derrière chaque règle, voir `docs/bot.md`
 > (détaillé) et `docs/synthese.md` (pédagogique) — leur logique de trading reste
@@ -246,6 +246,17 @@ est **bookée depuis les fills réels** au retour (reasons `exchange_stop` /
 ce tick — une sortie sur prix figé (GAP_REPAIR, WS mort) est une décision au
 mauvais prix ; le trigger résident couvre la catastrophe pendant le trou.
 Kill-switch : `exit_stale_max_s=0`.
+
+**Frein agrégé portefeuille** (v1.11.0) : le risque de flush corrélé (les alts
+corrèlent ~0.9 avec BTC dans les crashs, DD-aux-stops all-in = −25 % invariant)
+a désormais un frein **explicite**, plus seulement émergent (slots/marge/
+secteurs) : equity (réalisé + latent) ≥ `equity_brake_dd_pct` (15 %) sous le
+pic 24 h glissant → **entrées gelées** `equity_brake_halt_h` (24 h), event
+`EQUITY_BRAKE` + Telegram. Sorties, stops, filet et IA restent actifs — pas de
+flatten (vendre le plancher) : le frein empêche de recharger pendant la chute,
+c'est tout. Frein de *vélocité* (pic glissant), calibré au-dessus du bruit
+normal observé (max 10.8 %). Levée : auto à expiration, ou resume. Kill-switch :
+`equity_brake_dd_pct=0`. Divergence #16 (le BT ne le modélise pas).
 
 ---
 

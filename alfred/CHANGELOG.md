@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.11.0 — 2026-07-05
+
+- **Trading engine**: frein agrégé portefeuille — une chute rapide de l'equity d'un bot (fenêtre 24h glissante) gèle automatiquement ses nouvelles entrées pendant une période de reprise ; les sorties, stops et le filet exchange-side restent pleinement actifs. Reprise auto ou manuelle (resume).
+- **Trading engine**: l'arbitre IA de sortie repasse en observation pure pour les coupes de perdants (gate statistique pré-enregistrée avant toute ré-activation) ; les stops protecteurs de gagnants restent actifs.
+
 ## v1.10.0 — 2026-07-04
 
 - **Trading engine**: l'arbitre IA d'entrée voit désormais le portefeuille détenu (positions, secteurs, concentration effective) — il peut réduire une entrée qui empile du risque corrélé au lieu de juger chaque trade isolément. Aucun pouvoir nouveau.
