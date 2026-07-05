@@ -233,12 +233,16 @@ Items de mémoire long-terme, sans deadline.
   SEULEMENT (premise-EDA d'abord : distribution du risque réel par trade
   actuel — si elle est déjà serrée, le chantier est cosmétique). Ship
   éventuel = fenêtre de release batchée (gel, pt 7), walk-forward strict 4/4.
-- **Funding comme TILT d'entrée** (pt 5) : le carry standalone est MORT
-  (S11 2026-05 : fee floor 9 bps RT, eda_funding_persistence.py) — mais
-  funding comme FEATURE sur les entrées EXISTANTES (0 trade en plus, 0 fee
-  en plus : haircut/boost du sizing si le funding paie contre/pour la
-  position) n'a jamais été testé. Premise-EDA ~30 min sur les trades BT :
-  le funding à l'entrée sépare-t-il gagnants/perdants par (strat, dir) ?
+- ~~**Funding comme TILT d'entrée** (pt 5)~~ : **RÉFUTÉ 07-05** au
+  premise-gate (`backtests/funding_filter_results.md`) — funding HL épinglé
+  au taux de base, pas de variance exploitable, le seul bucket toxique
+  flippe de signe sur 12m. Classé, ne pas re-tester.
+- **Pistes données restantes (revue 07-05, ordre reviewer)** : OI quadrants
+  ΔOI×Δprix comme feature S8/S9 (données déjà stockées) ; premium z-score
+  (metaAndAssetCtxs, non regardé) ; calendrier macro FOMC/CPI en dur (gate
+  S9 ±2h, backtestable gratuit) ; DVOL Deribit 6h comme régime forward ;
+  momentum cross-sectionnel sur univers élargi (vrai chantier — store
+  candles au-delà des 34).
 - **Slippage conditionnel** (pt 6, mesuré 07-05) : moyenne ≈ 0 confirmée
   MAIS p90 croît avec la vol (+33 → +71 bps du bucket calme au bucket
   ≥20 %) ; pires fills idiosyncratiques (DYDX ×2, book mince, PAS la vol).
