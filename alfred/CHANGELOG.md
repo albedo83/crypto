@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.12.0 — 2026-07-05
+
+- **Trading engine**: simplification des constantes de sizing — les valeurs à décimales fines héritées de calibrations passées sont ramenées à une grille simple (validation walk-forward complète : meilleur rendement et meilleur drawdown sur la période longue, surface de sur-ajustement réduite).
+
 ## v1.11.0 — 2026-07-05
 
 - **Trading engine**: frein agrégé portefeuille — une chute rapide de l'equity d'un bot (fenêtre 24h glissante) gèle automatiquement ses nouvelles entrées pendant une période de reprise ; les sorties, stops et le filet exchange-side restent pleinement actifs. Reprise auto ou manuelle (resume).

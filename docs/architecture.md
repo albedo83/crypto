@@ -1,7 +1,7 @@
 # Architecture Alfred — document de référence
 
 > **Source de vérité unique** de l'architecture du bot de trading, à jour avec le
-> code (`alfred/`, v1.11.0, 2026-07-05). Remplace le cadrage « architecture » de
+> code (`alfred/`, v1.12.0, 2026-07-05). Remplace le cadrage « architecture » de
 > `docs/bot.md` (qui décrit le stack legacy `analysis/bot/` décommissionné le
 > 2026-06-12). Pour le *rationnel R&D* derrière chaque règle, voir `docs/bot.md`
 > (détaillé) et `docs/synthese.md` (pédagogique) — leur logique de trading reste
@@ -135,7 +135,9 @@ observée en live (v12.9.0). Les exits, eux, tournent toutes les 20s.
 **Sizing** (`rules.position_size`) : `base% × z-weight × haircut × signal_mult`, puis
 modulateur, puis arrondi, puis **cap notionnel $500**, plancher $10.
 - `size_pct=0.18`, `size_bonus=0.03`, **levier 2× cross**.
-- `signal_mult` : S1=1.125, S5=3.25, S8=1.25, S9=2.0, S10=2.0.
+- `signal_mult` : S1=1.0, S5=3.0, S8=1.25, S9=2.0, S10=2.0 (v1.12.0 : constantes
+  arrondies — les décimales fittées ne portaient que de la mémorisation 12m,
+  cf. `backtests/exit_joint_mc_results.md`). Poids `strat_z` sur grille 0.5.
 - `liquidity_haircut` : S8=0.8.
 - Le `size_usdt` est le **notionnel** (déjà leveragé) : `pnl = size_usdt × Δprix`,
   **jamais** re-multiplier par le levier (invariant v11.3.0).

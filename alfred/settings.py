@@ -78,9 +78,16 @@ class Params:
     size_pct: float = 0.18
     size_bonus: float = 0.03
     max_notional_per_trade: float = 500.0     # 0 = disabled (v12.13.9)
-    strat_z: dict = _d(S1=6.42, S5=3.67, S8=6.99, S9=8.71, S10=3.66)
+    # v1.12.0 — constantes arrondies (MC joint 2026-07-05) : les décimales
+    # fittées (strat_z à 2 déc., signal_mult 1.125/3.25) ne portaient que de
+    # la mémorisation 12m et bavaient en NÉGATIF hors fenêtre-miroir
+    # (arrondi : 28m +12 % ET −3 pts DD, 3m +27 %, 12m −7.8 % = vernis rendu).
+    # strat_z = poids descriptifs sur grille 0.5 (la 2e décimale d'une
+    # mesure n'est pas un réglage). Anciennes valeurs : S1 6.42/1.125,
+    # S5 3.67/3.25, S8 6.99, S9 8.71, S10 3.66. Réf. exit_joint_mc_results.md.
+    strat_z: dict = _d(S1=6.5, S5=3.5, S8=7.0, S9=8.5, S10=3.5)
     liquidity_haircut: dict = _d(S8=0.8)
-    signal_mult: dict = _d(S1=1.125, S5=3.25, S8=1.25, S9=2.00, S10=2.00)
+    signal_mult: dict = _d(S1=1.0, S5=3.0, S8=1.25, S9=2.00, S10=2.00)
     min_fill_abort_usdt: float = 10.0
 
     # ── Adaptive macro modulator (v11.10.0 / v12.2.0) ───────────────
