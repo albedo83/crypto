@@ -162,11 +162,33 @@ centre exact   : 8451 → rang p65 | boule : med 8208 (quasi IDENTIQUE)
    c'est la PROVENANCE du centre qui le fait. Le capteur spread garde sa
    valeur pour surveiller des params fittés ; il lit de travers un point
    choisi à l'aveugle qui a la chance (ou la structure) d'être haut.
-4. Spread ±20 % du centre arrondi : p99−p40 = **59** (exact : 65) — le
-   spread hérite de la tension du point 3, à interpréter avec la provenance.
+4. **Correction de métrologie (revue)** : mon « p99−p40 = 59 » changeait la
+   définition du capteur en douce — le spread officiel est **12m − 3m**
+   (références 60/65). Chiffre officiel ±20 % du set arrondi : **p80−p40 =
+   40**. Le 28m reste une ANNEXE annotée provenance (il mesure la hauteur
+   d'un centre règle-choisi, pas la danse de mémorisation).
+   Aliasing n°2 gravé pour le chantier VT : les fenêtres n'ont pas la même
+   puissance statistique — une amélioration RÉELLE sort du bruit sur 28m et
+   s'y noie sur 3m, donc rangs mécaniquement différents, spread gonflé,
+   zéro pathologie. Le spread confond « le paysage change » et « le n
+   change » → instrument successeur : **concordance des draws entre
+   fenêtres, centre exclu** (Spearman des classements des 200 MÊMES points
+   sur 12m vs 28m vs 3m — immune à la provenance et à la hauteur ; mesure
+   si le PAYSAGE est le même, la vraie question depuis le début). Run en
+   cours, `mc_concordance.json`.
 5. Caveat de mesure : une bougie 4h a clôturé entre les deux runs 28m
    (end_ms décalé) — les médianes de boule quasi identiques montrent que
    c'est immatériel, mais c'est noté.
+
+Note d'honnêteté (revue) : la curation n'était pas parfaitement aveugle —
+le choix de la grille et de la liste des params touchés portait des priors
+(je savais où vivait le baroque). Mais en bits : une calibration continue
+de 35 scalaires = des dizaines de bits pris en regardant les données ; la
+curation = 2-3 bits pris avant tout run. Contamination epsilon, notée, pas
+crainte. Épistémique du rang formalisée (revue) : le rang est une p-value,
+l'hypothèse nulle est « centre échangeable avec les draws » — un centre
+calibré la viole par le haut (HARKing, le p98 12m était un aveu) ; un
+centre règle-choisi ne teste plus rien, il DÉCRIT.
 
 Reste vrai et inchangé : Pareto-positif (PnL + DD + 7 DoF de moins), le
 +1012 $ est une direction pas une promesse, et la question « chance ou
