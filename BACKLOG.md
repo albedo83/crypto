@@ -224,3 +224,24 @@ Items de mémoire long-terme, sans deadline.
   (v1.7.5, `agent_expiry_review()` dans daily_report.py — J−21 ligne 🔑,
   J−7 urgent 🚨 + status ⚠️, expiré critique ; lit bots.json, testé 5 paliers,
   cron = pas de restart). JUNIOR sonnera le 2026-10-05, BABY le 2026-11-17.
+
+## Revue 2026-07-05 (points 4-5)
+- **Vol-targeting sizing** (pt 4) : remplacer la pile multiplicative
+  (base × z-weight × haircut × signal_mult × modulateur) par un risque fixe
+  en bps d'equity par trade, taille ∝ 1/vol réalisée du token. Vertu : vire
+  ~la moitié des DoF de sizing, normalise meme coin vs L1. À faire en BT
+  SEULEMENT (premise-EDA d'abord : distribution du risque réel par trade
+  actuel — si elle est déjà serrée, le chantier est cosmétique). Ship
+  éventuel = fenêtre de release batchée (gel, pt 7), walk-forward strict 4/4.
+- **Funding comme TILT d'entrée** (pt 5) : le carry standalone est MORT
+  (S11 2026-05 : fee floor 9 bps RT, eda_funding_persistence.py) — mais
+  funding comme FEATURE sur les entrées EXISTANTES (0 trade en plus, 0 fee
+  en plus : haircut/boost du sizing si le funding paie contre/pour la
+  position) n'a jamais été testé. Premise-EDA ~30 min sur les trades BT :
+  le funding à l'entrée sépare-t-il gagnants/perdants par (strat, dir) ?
+- **Slippage conditionnel** (pt 6, mesuré 07-05) : moyenne ≈ 0 confirmée
+  MAIS p90 croît avec la vol (+33 → +71 bps du bucket calme au bucket
+  ≥20 %) ; pires fills idiosyncratiques (DYDX ×2, book mince, PAS la vol).
+  Pas de changement de modèle BT (4 bps flat : conservateur en moyenne,
+  optimiste sur la queue). Re-mesurer S9 à n≥20 (flag existant) + garder
+  un œil sur DYDX.
