@@ -41,6 +41,26 @@ paramètres, pas une mémorisation structurelle de toute la période.**
    jamais rien porté si ±20 % joint laisse 6.5× sans perdant).
 3. La config 3892 (12m ±20 %) n'a RIEN de spécial — un glint de tirage, on
    ne recentre pas la monture dessus.
-4. Rangs et gaps re-mesurables après tout chantier de simplification :
-   objectif = rang 12m qui DESCEND vers p70-85 (moins de mémorisation), pas
-   un rang qui monte.
+4. **Calmar 28m (la trouvaille la plus méchante, revue)** : la base gagne
+   +3 % de rendement sur sa médiane perturbée en payant +14 % de drawdown
+   (−39.7 vs −34.8). En risk-adjusted, la médiane perturbée BAT la base de
+   ~10 % : le vernis de calibration n'est pas seulement inutile sur la
+   pleine période, il est Calmar-négatif.
+5. **Métrique de succès (verrouillée, remplace « rang 12m vers p70-85 »)** :
+   le SPREAD des rangs inter-fenêtres — être sous sa boule (3m p30) est
+   aussi pathologique qu'au sommet (12m p98), c'est le même tilt dans
+   l'autre sens. Aujourd'hui : p98 − p30 = **68 points**. Cible : **< 30**
+   avec médianes tenues. (Analogie actée : on ne juge pas une collimation
+   sur la FWHM au centre, on la juge sur des étoiles rondes jusque dans les
+   coins.)
+6. **Ordre des chantiers (acté)** : arrondi AVANT vol-targeting — l'arrondi
+   préserve la topologie (re-MC 12m avant/après directement comparable =
+   lecture propre de ce que portaient les décimales) ; le vol-targeting
+   change la dimensionnalité (les boules ne sont plus le même objet).
+   Séquence : arrondi → re-MC 12m (200 draws) → vol-targeting → re-MC
+   complet contre la grille. Test en cours : `round_constants_test.py`.
+7. Rappel de priorité (revue) : le MC mesure l'ESTIMATION, pas la SURVIE —
+   0 % de perdants dans la boule dit que la crête est large, mais le risque
+   de ruine vit hors échantillon (flush corrélé, gap au-delà des stops).
+   Le frein portefeuille (v1.11.0, committé, EN ATTENTE DE RESTART) vaut
+   plus que les 15 % de vernis.

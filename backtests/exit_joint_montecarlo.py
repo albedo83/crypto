@@ -63,20 +63,20 @@ def n_scalars():
     return n
 
 
-def draw_params(rng: random.Random, delta: float):
-    """Un Params avec TOUS les scalaires perturbés jointement."""
+def draw_params(rng: random.Random, delta: float, base=DEFAULT_PARAMS):
+    """Un Params avec TOUS les scalaires perturbés jointement (autour de base)."""
     u = lambda: rng.uniform(1 - delta, 1 + delta)
-    kw = {f: getattr(DEFAULT_PARAMS, f) * u() for f in SIMPLE_FIELDS}
+    kw = {f: getattr(base, f) * u() for f in SIMPLE_FIELDS}
     kw["s8_inlife_params"] = {
         b: (v[0] * u(), v[1] * u())
-        for b, v in DEFAULT_PARAMS.s8_inlife_params.items()}
-    pt = {s: dict(v) for s, v in DEFAULT_PARAMS.prop_trail_params.items()}
+        for b, v in base.s8_inlife_params.items()}
+    pt = {s: dict(v) for s, v in base.prop_trail_params.items()}
     if "S9" in pt and "bull" in pt["S9"]:
         c = list(pt["S9"]["bull"])
         pt["S9"]["bull"] = (c[0] * u(), c[1] * u())
     kw["prop_trail_params"] = pt
-    kw["hold_hours"] = {s: h * u() for s, h in DEFAULT_PARAMS.hold_hours.items()}
-    return dc.replace(DEFAULT_PARAMS, **kw)
+    kw["hold_hours"] = {s: h * u() for s, h in base.hold_hours.items()}
+    return dc.replace(base, **kw)
 
 
 def main():
@@ -101,7 +101,7 @@ def main():
                            start_capital=500.0, oi_data=oi, funding_data=funding,
                            apply_adaptive_modulator=True, aligned=True,
                            margin_check=True, mfe_on_close=True)
-            return r["end_capital"], r.get("max_dd", 0.0)
+            return r["end_capital"], r.get("max_dd_pct", 0.0)
         finally:
             br._P = DEFAULT_PARAMS
 
