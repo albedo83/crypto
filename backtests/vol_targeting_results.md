@@ -51,3 +51,52 @@ aux allocations).
 Hooks conservés pour re-test futur : `size_fn` + `size_fn_keep_modulator`
 (re-tester si le régime devient durablement bear OU si capital ×3 rend le
 DD dominant dans l'utilité).
+
+## Tampon chronologique (revue) — runs POST-FIX, preuve par reproduction
+
+Le flag `size_fn_keep_modulator` a été ajouté AVANT l'écriture du sweep (le
+sweep le passe explicitement). Preuve empirique a posteriori : VT_half 12m
+re-run AVEC modulateur = **4050** (= le chiffre du sweep, à l'unité) ; SANS
+modulateur = 3153. Δ = +898 $ : le bug silencieux aurait pénalisé VT de ~25 %
+sur 12m — le harnais s'est auto-audité pendant le chantier qu'il aurait pu
+fausser, et la chronologie est au dossier.
+
+## Raffinements de lecture (revue, une voix chacun)
+
+1. **Edge par unité de vol** : 183/83 ≈ 2.2× d'écart d'edge pour 2.9× de
+   vol — l'edge/vol est en fait légèrement PLUS FAIBLE sur le tercile chaud.
+   En théorie pure, VT aurait dû être ~neutre en dollars ; s'il perd 3/4,
+   c'est que l'IMPLÉMENTATION domine l'idéal : le boost des calmes se fait
+   clipper par le cap $500 et la clampe de marge pendant que le shrink des
+   chauds s'applique plein pot. Asymétrie de plomberie, pas de maths.
+2. **Physique du DD dégradé (la vraie trouvaille du sweep)** : VT suppose
+   crash-beta ∝ vol trailing. Sur les alts, le flush est un FACTEUR COMMUN
+   qui ignore les terciles — le token « calme » gonflé 2× tombe aussi dur
+   quand tout corrèle à 1. La vol trailing prédit le bruit de croisière,
+   pas la tempête. C'est pourquoi VT marche sur un book de futures
+   diversifiés et DÉPLACE le risque ici.
+
+## Pré-enregistrement — lecture de la concordance (écrit à 150/200 draws)
+
+Grille verrouillée AVANT le résultat :
+- **ρ(12↔28) haut ET ρ(3↔reste) bas** → le régime est MESURÉ : l'attribution
+  du tilt 3m passe d'« par élimination » à « instrumentée ». Le KPI
+  spread < 30 part en retraite (sa prémisse — mémorisation dans les params —
+  est falsifiée) ; le spread résiduel est du seeing, on ne collimate pas
+  l'atmosphère.
+- **ρ haut partout** → paysages partagés, le tilt redevient une énigme,
+  dossier rouvert avec surprise.
+- **ρ bas partout** → l'instrument est noyé dans le bruit de n.
+
+Caveats de lecture (posés d'avance) : le 3m a peu de trades → son ρ est
+mécaniquement atténué même à paysage identique ; et 12m ⊂ 28m gonfle leur
+concordance par inclusion — le couple propre serait 12m vs les 16 mois
+d'AVANT (témoin non contaminé, run de suivi si besoin).
+
+## Prédiction falsifiable enregistrée pour le chantier OI quadrants (revue)
+
+Posée AVANT l'histogramme : au moment où S8 tire (DD < −40 %, flush), ΔOI
+est « longs liquidés » quasi par construction du signal → feature dégénérée
+attendue façon funding sur la patte S8. La variance qui vaut peut-être de
+l'argent vit côté S9 : « prix chute + OI monte » (shorts frais, carburant de
+squeeze) vs « prix chute + OI se vide » (capitulation) divergent vraiment.
