@@ -249,3 +249,10 @@ Items de mémoire long-terme, sans deadline.
   Pas de changement de modèle BT (4 bps flat : conservateur en moyenne,
   optimiste sur la queue). Re-mesurer S9 à n≥20 (flag existant) + garder
   un œil sur DYDX.
+- **Arrondi des constantes baroques** (MC joint 07-05, acquis quel que soit
+  le verdict final) : si des chocs joints ±20 % laissent le 12m à 6.5× sans
+  un perdant et des « gagnantes » à +1 %, la décimale de signal_mult S5=3.25
+  (vs 3.0) n'a jamais rien porté. Passe d'arrondi sur les scalaires de
+  settings (3.25→3, 1.125→1, seuils à la dizaine de bps) + vérif parité BT
+  ± bruit MC. Réduction de surface gratuite, PAS un re-centrage. Candidat
+  release batchée.
