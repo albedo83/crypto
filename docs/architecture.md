@@ -273,7 +273,7 @@ qu'elles détiennent ; elle ne peut jamais initier, amplifier, ni reconfigurer.*
 | Véter une entrée que les règles allaient prendre | Ouvrir une position de sa propre initiative |
 | Réduire la taille d'une entrée (haircut, plancher `FACTOR_MIN`) | Augmenter une taille au-delà du sizing des règles |
 | Poser un stop protecteur sous un gagnant (LOCK) | Fermer un gagnant |
-| Fermer un perdant condamné (CUT, **act depuis 2026-07-03**, ur ≤ −300 bps ; **S9 : ≤ −600** — sa phase sous l'eau est prévue par les règles) | Toucher junior/baby/paper (gate `bot.id=="live"`) |
+| Proposer la fermeture d'un perdant condamné (CUT, **SHADOW depuis 2026-07-05** — gate de re-promotion n≥20/Δ>0/IC>0 ; ur ≤ −300 bps ; **S9 : ≤ −600**) | Toucher junior/baby/paper (gate `bot.id=="live"`) |
 | — | Modifier config, paramètres, ou `rules.py` |
 | — | Empêcher le bot de trader (fail-open intégral) |
 
@@ -311,10 +311,15 @@ limité à une zone candidate. Deux verdicts, asymétriques par prudence :
   exchange-side** (filet hard-stop, v1.7.3) : la protection tient même
   process mort. Nuance à surveiller (07/2026) : un LOCK trop serré ampute
   les runners (cf. chantier trails-sur-close) — le scorecard tranche.
-- **CUT** (**act depuis 2026-07-03**, sur ordre utilisateur, preuve shadow
-  n=1 +25.64 $) : ferme au market un perdant condamné, uniquement si
-  ur ≤ `AI_EXIT_CUT_UR_MAX_BPS` = −300 bps, re-vérifié au prix frais au
-  moment d'agir (v1.6.11) — jamais un gagnant, 1 décision/h max.
+- **CUT** (**re-rétrogradé SHADOW le 2026-07-05** — la promotion act du 03-07
+  reposait sur n=1 : une anecdote, pas une preuve ; 0 CUT exécuté en 2 jours
+  d'act, coût du retour nul) : propose de fermer un perdant condamné,
+  uniquement si ur ≤ `AI_EXIT_CUT_UR_MAX_BPS` = −300 bps — jamais un gagnant,
+  1 décision/h max. En shadow le contrefactuel est l'issue RÉELLE de la
+  position (preuve plus propre que le rejeu post-act). **Gate de
+  re-promotion pré-enregistrée (immuable, pas de re-dérogation)** : n ≥ 20
+  CUTs shadow résolus, Δ cumulé > 0, IC bootstrap excluant 0, disjoncteur
+  jamais approché.
 
 ### La preuve : scorecards contrefactuels + disjoncteurs
 
