@@ -291,6 +291,7 @@ def run_window(features, data, sector_features, dxy_data,
                block_opposite_sector: bool = False,
                size_multiplier: dict | None = None,
                size_fn=None,
+               size_fn_keep_modulator=False,   # v1.12.0 R&D VT : size_fn EN PLUS du modulateur (pas à sa place)
                btc_corr_exit: dict | None = None,
                runner_extension: dict | None = None,
                partial_profit: dict | None = None,
@@ -545,7 +546,7 @@ def run_window(features, data, sector_features, dxy_data,
         or (S8_INLIFE_PARAMS and any(v != (99999, 0) for v in S8_INLIFE_PARAMS.values()))
         or TRAJ_CUT_STRATEGIES
     )
-    if _need_btc_z and size_fn is None and len(btc_closes) >= n_lb + 30:
+    if _need_btc_z and (size_fn is None or size_fn_keep_modulator) and len(btc_closes) >= n_lb + 30:
         # v12.18.0 — `btc_z_variant` controls the z-score formula:
         #   "baseline"        : ret_30d on 180d, mean+std (legacy)
         #   "robust"          : ret_30d on 180d, median+MAD

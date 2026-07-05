@@ -226,13 +226,11 @@ Items de mémoire long-terme, sans deadline.
   cron = pas de restart). JUNIOR sonnera le 2026-10-05, BABY le 2026-11-17.
 
 ## Revue 2026-07-05 (points 4-5)
-- **Vol-targeting sizing** (pt 4) : remplacer la pile multiplicative
-  (base × z-weight × haircut × signal_mult × modulateur) par un risque fixe
-  en bps d'equity par trade, taille ∝ 1/vol réalisée du token. Vertu : vire
-  ~la moitié des DoF de sizing, normalise meme coin vs L1. À faire en BT
-  SEULEMENT (premise-EDA d'abord : distribution du risque réel par trade
-  actuel — si elle est déjà serrée, le chantier est cosmétique). Ship
-  éventuel = fenêtre de release batchée (gel, pt 7), walk-forward strict 4/4.
+- ~~**Vol-targeting sizing** (pt 4)~~ : **REJETÉ 07-05**
+  (`backtests/vol_targeting_results.md`) — premise P3 retournée (la vol est
+  le carburant du fade : tercile volatil = 48 % du PnL), sweep 1/4 partout,
+  VT_full dégrade même le DD 28m. Hooks gardés ; re-test seulement si bear
+  durable ou capital ×3.
 - ~~**Funding comme TILT d'entrée** (pt 5)~~ : **RÉFUTÉ 07-05** au
   premise-gate (`backtests/funding_filter_results.md`) — funding HL épinglé
   au taux de base, pas de variance exploitable, le seul bucket toxique
