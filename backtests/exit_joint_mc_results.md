@@ -137,3 +137,38 @@ franchement dégradé en dollars — c'est l'inverse. **Set arrondi = prêt à
 embarquer** (signal_mult S1 1.125→1.0, S5 3.25→3.0, strat_z → grille 0.5).
 Timing du ship (restart dédié maintenant vs release batchée de fin de gel) :
 décision utilisateur — le frein, lui, est déjà à bord (v1.11.0, 07:26).
+
+## Archive — re-MC 28m ±20 % centré arrondi (100 draws)
+
+```
+centre arrondi : 9480 → rang p99 | boule : med 8204, p5 7492, p95 9274
+centre exact   : 8451 → rang p65 | boule : med 8208 (quasi IDENTIQUE)
+```
+
+**Lecture honnête (la photo complique le tableau, elle ne le décore pas)** :
+1. **Le paysage n'a pas bougé d'un pixel** : médianes de boule 8204 vs 8208.
+   L'arrondi n'a pas remodelé la surface 28m — il a déplacé le centre vers
+   un point plus haut de la MÊME surface.
+2. **Le p99 n'apporte AUCUN bit nouveau** : par le modèle épistémique de la
+   revue (rang d'un centre = son Δ$ projeté sur la CDF de sa boule), un
+   centre à +15.6 % de sa médiane de boule est mécaniquement p99. C'est le
+   +1012 $ déjà connu, exprimé en unités de rang — même mesure, troisième
+   binning, toujours une seule voix.
+3. **Angle mort du capteur, à graver** : la convention « p95+ = pic fitté »
+   présuppose un centre dont les valeurs ont été CHOISIES sur les données.
+   Le centre arrondi a été choisi par une règle aveugle (grille simple,
+   curation AVANT tout run). Un p99 de provenance-règle ≠ un p98 de
+   provenance-fit : le rang seul ne distingue pas réparation et re-fit —
+   c'est la PROVENANCE du centre qui le fait. Le capteur spread garde sa
+   valeur pour surveiller des params fittés ; il lit de travers un point
+   choisi à l'aveugle qui a la chance (ou la structure) d'être haut.
+4. Spread ±20 % du centre arrondi : p99−p40 = **59** (exact : 65) — le
+   spread hérite de la tension du point 3, à interpréter avec la provenance.
+5. Caveat de mesure : une bougie 4h a clôturé entre les deux runs 28m
+   (end_ms décalé) — les médianes de boule quasi identiques montrent que
+   c'est immatériel, mais c'est noté.
+
+Reste vrai et inchangé : Pareto-positif (PnL + DD + 7 DoF de moins), le
++1012 $ est une direction pas une promesse, et la question « chance ou
+structure » du point haut est indécidable à n=1 — c'est le forward qui
+tranchera, comme toujours.
