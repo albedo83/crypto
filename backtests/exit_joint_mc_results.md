@@ -194,3 +194,40 @@ Reste vrai et inchangé : Pareto-positif (PnL + DD + 7 DoF de moins), le
 +1012 $ est une direction pas une promesse, et la question « chance ou
 structure » du point haut est indécidable à n=1 — c'est le forward qui
 tranchera, comme toujours.
+
+## Concordance des paysages — résultats (2026-07-05, lus contre la grille pré-enregistrée)
+
+200 draws appariés (mêmes points de l'espace des paramètres), Spearman des
+classements entre fenêtres, centre exclu. SE(ρ) sous H0 ≈ 0.071.
+
+```
+ρ(12m ↔ 28m) = +0.226   (3.2σ — réel mais FAIBLE, et gonflé par 12⊂28)
+ρ(12m ↔  3m) = +0.044   (0.6σ — nul)
+ρ(28m ↔  3m) = +0.114   (1.6σ — marginal)
+CV des boules : 28m 6.8% · 12m 13.8% · 3m 27.8%
+```
+
+**Verdict : branche 3 dominante, avec un fil de branche 1.** Le 3m est
+statistiquement sourd (ρ nul avec tout, CV 27.8 % = sa boule est 4× plus
+bruitée que celle du 28m — l'atténuation mécanique prédite par le caveat).
+Entre 12m et 28m, une concordance réelle mais faible (0.226, 3.2σ) qui
+serait encore plus basse sans l'inflation par inclusion : **les paysages de
+sensibilité aux paramètres sont largement fenêtre-spécifiques partout** —
+pas seulement sur 3m.
+
+**Conséquences actées :**
+1. Le « régime dans les paramètres » est désormais INSTRUMENTÉ, et il est
+   plus général que le diagnostic initial : ce qui brille sous perturbation
+   dans une fenêtre ne brille essentiellement pas dans les autres.
+2. **Le KPI spread part en retraite** (comme pré-enregistré en branche 3
+   aussi) : un objectif de stabilité de rang inter-fenêtres n'est pas
+   atteignable quand la concordance de fond est ~0.1-0.2 — le spread mesure
+   du seeing, on ne collimate pas l'atmosphère. Les chantiers de
+   simplification ne chassent PAS de cible de spread.
+3. Les vrais juges restent ce qu'ils ont toujours été : walk-forward strict
+   4/4 (le BT rejette) + forward live (seule preuve). La famille MC a rendu
+   ses verdicts opérationnels — arrondi shippé (v1.12.0), VT rejeté — et
+   son legs méthodologique : espérance de plan = médiane perturbée, rang =
+   p-value conditionnée au protocole, provenance avant lecture.
+4. Run de suivi optionnel (non bloquant) : 12m vs les 16 mois d'avant
+   (témoin sans inclusion) si on veut un jour la concordance propre.
