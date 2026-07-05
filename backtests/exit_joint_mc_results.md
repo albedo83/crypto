@@ -64,3 +64,27 @@ paramètres, pas une mémorisation structurelle de toute la période.**
    de ruine vit hors échantillon (flush corrélé, gap au-delà des stops).
    Le frein portefeuille (v1.11.0, committé, EN ATTENTE DE RESTART) vaut
    plus que les 15 % de vernis.
+
+## Pré-enregistrement — lecture du re-MC arrondi (écrit AVANT les résultats, 07-05 ~07:45)
+
+Fenêtres déjà connues (test 1) : 12m −7.8 % (sous la base ✓ prédit), 3m
++27 % (au-dessus ✓ prédit), 28m +12 % ET DD meilleur (prédit « plat » —
+dépassé dans le bon sens), 6m −6.6 %. Signature directionnelle du vernis
+12m : conforme sur 3/4, meilleure que prédite sur 28m.
+
+**Reste à lire (re-MC, PAS ENCORE SORTI au moment d'écrire ces lignes)** :
+1. Rang 12m du centre arrondi : la théorie du vernis prédit une DESCENTE
+   vers p70-85 (moins de mémorisation).
+2. **La moitié falsifiable que personne ne surveille : le rang 3m doit
+   REMONTER vers p50** (sortir de sous sa boule). C'est le critère dur.
+3. Tout dans le bruit partout = les décimales ne portaient rien → surface
+   réduite gratis, victoire aussi.
+4. Seul verdict qui invalide la théorie : un arrondi qui dégrade AUSSI le
+   3m (rang 3m qui descend encore) — là le « vernis 12m » a un problème.
+
+**Instrument prioritaire en cas de désaccord (décidé maintenant)** : le
+test (2) — re-MC apparié mêmes seeds/mêmes boules — PRIME sur le test (1)
+(Δ fenêtres vs bande du MC joint : mètre-étalon généreux, l'arrondi S1 est
+un choc −11 % sur son axe, une vraie dégradation peut s'y planquer). Si (1)
+dit « dans le bruit » et (2) dit « le spread ne bouge pas », c'est (2) qui
+parle.
