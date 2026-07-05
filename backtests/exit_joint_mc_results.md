@@ -88,3 +88,52 @@ test (2) — re-MC apparié mêmes seeds/mêmes boules — PRIME sur le test (1)
 un choc −11 % sur son axe, une vraie dégradation peut s'y planquer). Si (1)
 dit « dans le bruit » et (2) dit « le spread ne bouge pas », c'est (2) qui
 parle.
+
+## Verdict re-MC arrondi (2026-07-05, lecture contre le pré-enregistrement)
+
+**Ligne 1 — le chiffre qui requalifie l'opération : +1012 $ ET −3 points de
+DD sur 28m.** Les décimales ne gonflaient pas seulement la mesure sur la
+fenêtre-miroir : elles bavaient en négatif sur le reste du champ. Pas un
+pixel chaud — du BLOOMING (saturation locale qui détruit les colonnes
+voisines). L'arrondi est une RÉPARATION, pas du ménage : rendement et
+drawdown améliorés ensemble sur la pleine période, Calmar gagnant des deux
+côtés (la base exacte payait +14 % de DD pour +3 % de rendement vs sa
+médiane). Nuance d'usage : Δ mesuré exactement (BT déterministe, apparié)
+mais valeur = une DIRECTION, pas une promesse annualisable.
+
+Résultats appariés (mêmes seeds/boules — l'instrument de précision) :
+
+| Sweep | Rang base exacte | Rang centre ARRONDI | Note |
+|---|---|---|---|
+| 12m ±10 % | p98 | **p86** | une seule mesure lue en |
+| 12m ±20 % | p95 | **p80** | deux binnings — UNE voix* |
+| 3m ±10 % | p38 | **p32** | plat (bruit de rang) |
+| 3m ±20 % | p30 | **p40** | +10 pts, loin de p50 |
+
+\* Épistémique (revue) : le rang d'un centre ne mesure que son Δ$ projeté
+sur la CDF de sa boule — une fois le −301 $ connu, p86/p80 sont quasi
+mécaniques. Les deux rayons valident la MÉTROLOGIE, pas deux fois la
+théorie.
+
+Spreads à rayon fixe (convention verrouillée) : ±10 % : 60 → **54** ;
+±20 % : 65 → **40**. Cible < 30 : non atteinte.
+
+**Lecture des branches pré-enregistrées** :
+1. Vernis 12m : CONFIRMÉ (le centre recule vers le peloton, médianes de
+   boule immobiles — le paysage n'a pas bougé, deux rayons cohérents).
+   En dollars : −301 $ sur 12m = du backtest gonflé qui n'a jamais été
+   dans le ciel.
+2. Moitié falsifiable : NON validée — le 3m ne remonte pas vers p50. Le
+   tilt 3m ne vivait PAS dans les décimales → il vit dans la STRUCTURE du
+   sizing (pile multiplicative) ou les params non arrondis → **le
+   vol-targeting passe d'« acté » à « désigné coupable »**.
+3. Branche invalidante (3m dégradé en dollars) : PAS ouverte — 3m +27 %.
+
+**Verrou décisionnel (posé avant le verdict 3m)** : le 3m ne jugeait PAS
+l'arrondi — il jugeait où vit le tilt. Le dossier de l'arrondi était déjà
+complet : rang rendu aux deux rayons (12m), dollars + DD rendus (28m),
+3m amélioré en dollars. La barre pour ne PAS l'embarquer était un 3m
+franchement dégradé en dollars — c'est l'inverse. **Set arrondi = prêt à
+embarquer** (signal_mult S1 1.125→1.0, S5 3.25→3.0, strat_z → grille 0.5).
+Timing du ship (restart dédié maintenant vs release batchée de fin de gel) :
+décision utilisateur — le frein, lui, est déjà à bord (v1.11.0, 07:26).
