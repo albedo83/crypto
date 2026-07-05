@@ -241,6 +241,12 @@ est **bookée depuis les fills réels** au retour (reasons `exchange_stop` /
 `liquidation` / `exchange_close`). Pas une règle : `rules.py`/BT inchangés
 (divergence #15 dans `docs/alfred_divergences.md`).
 
+**Staleness gate** (v1.8.2) : si le dernier tick d'un symbole date de plus de
+`exit_stale_max_s` (180 s), **aucune décision de sortie soft** sur ce symbole
+ce tick — une sortie sur prix figé (GAP_REPAIR, WS mort) est une décision au
+mauvais prix ; le trigger résident couvre la catastrophe pendant le trou.
+Kill-switch : `exit_stale_max_s=0`.
+
 ---
 
 ## 9. Couche décision IA (SENIOR)
@@ -410,7 +416,7 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 | `overfit_monitor.py` | 9h30 UTC | thermomètre Promesse-IS → OOS-BT → Live | log seul |
 | watchdog | 5 min | relance `start_bots.sh` si Alfred absent (pgrep) | relance auto |
 | `analysis/alfred_heartbeat.py` | 2 min | teste la **VIE** (âge des ticks + web répond) — attrape les zombies que pgrep rate (incident 02-07) | TG après 2 échecs, rétablissement notifié ; flag maintenance pour les restarts |
-| `alfred/attention.py` | 2 min | **routeur d'attention** (code pur, jamais LLM-déclenchable) : filet déclenché, burst FAILOPEN, bandes btc_z, capitulation large, position ≤200 bps du stop → revue LLM ciblée (`position_review --focus`, cap 8/j ≈ $1.25/mois) | TG + event ATTENTION_TRIGGER |
+| `alfred/attention.py` | 2 min | **routeur d'attention** (code pur, jamais LLM-déclenchable) : filet déclenché, burst FAILOPEN, bandes btc_z, capitulation large, position ≤200 bps du stop → revue LLM ciblée (`position_review --focus`) — safety (filet/liquidation) HORS cap, confort (bandes/breadth/near-stop) sous cap 8/j ≈ $1.25/mois | TG + event ATTENTION_TRIGGER |
 | `prophecy_scorecard.py` | 7h45 UTC | note les prophéties de position_review à la clôture (précision 74 %, Brier 0.206 < base 0.244 au premier bilan) | event, observation |
 
 Toutes les sentinelles sont **observation/alerte**, jamais d'auto-modification de la
