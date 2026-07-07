@@ -464,8 +464,10 @@ def position_size(strategy: str, direction: int, capital: float,
     mult = modulator_mult(strategy, direction, btc_z, p)
     if mult is not None:
         size = round(size * mult, 2)
-    if 0 < p.max_notional_per_trade < size:
-        size = p.max_notional_per_trade
+    cap = (p.max_notional_frac * capital if p.max_notional_frac > 0
+           else p.max_notional_per_trade)
+    if 0 < cap < size:
+        size = cap
     return size
 
 

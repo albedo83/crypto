@@ -133,7 +133,7 @@ observée en live (v12.9.0). Les exits, eux, tournent toutes les 20s.
 ## 6. Sizing & modulateur macro
 
 **Sizing** (`rules.position_size`) : `base% × z-weight × haircut × signal_mult`, puis
-modulateur, puis arrondi, puis **cap notionnel $500**, plancher $10.
+modulateur, puis arrondi, puis **cap notionnel proportionnel** (v1.13.0 : `max_notional_frac × equity`, défaut 0.3 — concentration constante, scaling débloqué ; kill-switch `max_notional_frac=0` → retour au $500 fixe), plancher $10.
 - `size_pct=0.18`, `size_bonus=0.03`, **levier 2× cross**.
 - `signal_mult` : S1=1.0, S5=3.0, S8=1.25, S9=2.0, S10=2.0 (v1.12.0 : constantes
   arrondies — les décimales fittées ne portaient que de la mémorisation 12m,

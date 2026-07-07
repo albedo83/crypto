@@ -77,7 +77,15 @@ class Params:
     leverage: float = 2.0
     size_pct: float = 0.18
     size_bonus: float = 0.03
-    max_notional_per_trade: float = 500.0     # 0 = disabled (v12.13.9)
+    max_notional_per_trade: float = 500.0     # fallback si frac=0 (kill-switch)
+    # v1.13.0 — cap notionnel PROPORTIONNEL : plafond = frac × equity au lieu
+    # du $500 fixe (origine = réaction de peur, pas d'analyse). frac=0.3 =
+    # genou de la contrainte de marge (dernier k à 0 cascade), concentration
+    # constante 30 % (vs 48-89 % du fixe à petit capital), scaling débloqué
+    # (le fixe étranglait à 6 % à gros capital). Robuste 5/7 dates glissantes.
+    # Kill-switch : max_notional_frac=0 → retour au $500 fixe.
+    # Réf. project_proportional_cap_2026_07 (robustesse + hybride instruits).
+    max_notional_frac: float = 0.3
     # v1.12.0 — constantes arrondies (MC joint 2026-07-05) : les décimales
     # fittées (strat_z à 2 déc., signal_mult 1.125/3.25) ne portaient que de
     # la mémorisation 12m et bavaient en NÉGATIF hors fenêtre-miroir

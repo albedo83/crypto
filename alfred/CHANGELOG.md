@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.13.0 — 2026-07-07
+
+- **Trading engine**: le plafond de taille par position devient **proportionnel à l'equity** au lieu d'un montant fixe hérité — la concentration reste constante quel que soit le capital (fini les positions à 50-90 % du compte à petit capital), la protection contre la saturation de marge est préservée, et la taille grandit avec le compte au lieu d'être figée (débloque le scaling). S'applique à tous les bots. Kill-switch de retour au plafond fixe conservé.
+
 ## v1.12.1 — 2026-07-07
 
 - **Infra**: le routeur d'attention alerte désormais quand la couche IA est éteinte de façon SOUTENUE (crédit API épuisé ou panne prolongée) — l'ancien seuil « rafale 3-en-1h » ne captait qu'un pic transitoire et a raté une panne de 17h (crédit Anthropic à sec le 2026-07-06). Détection par l'erreur de crédit explicite + le silence IA prolongé, ré-alerte toutes les 6h. Alerte Telegram indépendante de l'API (chemin non affecté par la panne).
