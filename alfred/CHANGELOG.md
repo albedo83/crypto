@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.12.1 — 2026-07-07
+
+- **Infra**: le routeur d'attention alerte désormais quand la couche IA est éteinte de façon SOUTENUE (crédit API épuisé ou panne prolongée) — l'ancien seuil « rafale 3-en-1h » ne captait qu'un pic transitoire et a raté une panne de 17h (crédit Anthropic à sec le 2026-07-06). Détection par l'erreur de crédit explicite + le silence IA prolongé, ré-alerte toutes les 6h. Alerte Telegram indépendante de l'API (chemin non affecté par la panne).
+
 ## v1.12.0 — 2026-07-05
 
 - **Trading engine**: simplification des constantes de sizing — les valeurs à décimales fines héritées de calibrations passées sont ramenées à une grille simple (validation walk-forward complète : meilleur rendement et meilleur drawdown sur la période longue, surface de sur-ajustement réduite).

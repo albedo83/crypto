@@ -48,6 +48,8 @@ BTC_Z_BANDS = (-1.5, -0.5, 0.5, 1.5)
 BREADTH_ON, BREADTH_OFF = 10.0, 5.0      # % d'alts ≤ −20 %/24h (hystérésis)
 NEAR_STOP_BPS = 200.0
 FAILOPEN_N, FAILOPEN_WINDOW_S = 3, 3600
+AI_DARK_MAX_H = 6.0                       # silence IA toléré avant alerte panne
+AI_HEALTH_REALERT_S = 6 * 3600           # ré-alerte crédit/dark tant que ça dure
 NEAR_STOP_COOLDOWN_S = 4 * 3600
 BAND_COOLDOWN_S = 6 * 3600
 BREADTH_COOLDOWN_S = 12 * 3600
@@ -166,16 +168,41 @@ def main() -> int:
         log_event({"trigger": "net_fired", "symbol": r["symbol"],
                    "reason": r["reason"], "pnl": r["pnl_usdt"]})
 
-    # ── 2. failopen burst (infra — pas de LLM) ──
-    n_fo = ldb.execute(
-        "SELECT COUNT(*) FROM events WHERE event='ARBITER_FAILOPEN' AND ts > ?",
+    # ── 2. santé de la couche IA (crédit épuisé / API dark — pas de LLM) ──
+    # L'ancien burst 3/1h ne captait PAS une panne SOUTENUE : l'arbitre
+    # d'entrée ne tire qu'aux scans 4h, l'exit émet un event distinct, et le
+    # compteur — limité à ARBITER_FAILOPEN — ne montait jamais à 3. Incident
+    # 2026-07-06→07 : crédit Anthropic épuisé, couche IA éteinte ~17h sans
+    # alerte. On détecte désormais (a) l'erreur de crédit explicite (critique,
+    # actionnable), (b) le silence IA prolongé (dernière décision réussie
+    # trop vieille + échecs récents, tous types confondus).
+    cred_ts = ldb.execute(
+        "SELECT MAX(ts) FROM events WHERE data LIKE '%credit balance is too low%' "
+        "AND ts > ?", (int(now - 3600),)).fetchone()[0]
+    last_ok = ldb.execute(
+        "SELECT MAX(ts) FROM events WHERE event IN "
+        "('ARBITER_DECISION','ARBITER_EXIT_DECISION')").fetchone()[0] or 0
+    n_fail = ldb.execute(
+        "SELECT COUNT(*) FROM events WHERE event IN ('ARBITER_FAILOPEN',"
+        "'ARBITER_EXIT_FAILOPEN','POSITION_REVIEW_ERROR') AND ts > ?",
         (int(now - FAILOPEN_WINDOW_S),)).fetchone()[0]
-    if n_fo >= FAILOPEN_N and now - st.get("last_failopen_alert", 0) > FAILOPEN_WINDOW_S:
-        send_tg(f"⚡ ATTENTION — {n_fo} FAILOPEN arbitre en 1h : l'IA ne répond "
-                f"plus (API/timeout), le bot trade règles-seules. Vérifier "
-                f"ANTHROPIC_API_KEY / statut API.")
-        log_event({"trigger": "failopen_burst", "n": n_fo})
-        st["last_failopen_alert"] = now
+    dark_h = (now - last_ok) / 3600 if last_ok else 999.0
+    if now - st.get("last_ai_health_alert", 0) > AI_HEALTH_REALERT_S:
+        if cred_ts:
+            send_tg(f"🚨 CRÉDIT API ANTHROPIC ÉPUISÉ — la couche IA de SENIOR "
+                    f"est ÉTEINTE depuis ~{dark_h:.0f}h (arbitres entrée/sortie, "
+                    f"revue de position, superviseur = tous fail-open, bot en "
+                    f"règles-seules). Recharger : console.anthropic.com/settings/"
+                    f"billing. Stops, triggers résidents et frein NON affectés.")
+            log_event({"trigger": "ai_credit_exhausted", "dark_h": round(dark_h, 1)})
+            st["last_ai_health_alert"] = now
+        elif n_fail >= 1 and dark_h >= AI_DARK_MAX_H:
+            send_tg(f"🚨 IA SILENCIEUSE depuis ~{dark_h:.0f}h — {n_fail} échec(s) "
+                    f"arbitre/revue dans l'heure, aucune décision IA réussie. Bot "
+                    f"en règles-seules. Vérifier ANTHROPIC_API_KEY / statut API. "
+                    f"Stops et filet NON affectés.")
+            log_event({"trigger": "ai_dark", "dark_h": round(dark_h, 1), "n_fail": n_fail})
+            st["last_ai_health_alert"] = now
 
     # ── 3. trips disjoncteur (event seul — le scorecard a déjà alerté) ──
     for tf in TRIPS:
