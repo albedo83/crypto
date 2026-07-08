@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.13.3 — 2026-07-08
+
+- **Telegram**: un verdict STOP à forte confiance de la revue de position IA pousse désormais un nudge Telegram (« regarde cette position ») — la revue reste observation-only (l'IA ne coupe pas seule), mais ses bonnes lectures ne sont plus enterrées dans le dashboard. Ré-active un canal retiré le 01-07, filtré cette fois aux seuls STOP haute-confiance.
+
 ## v1.13.2 — 2026-07-08
 
 - **Trading engine**: l'arbitre IA d'entrée (SENIOR) réduit désormais la taille des S5 LONG dont le token n'est pas en tendance haussière confirmée (cause mesurée du retournement : sans up-streak, la divergence sectorielle est souvent un faux breakout). Haircut, pas veto — ces trades gagnent encore la majorité du temps, un filtre dur détruirait l'edge ; l'objectif est de limiter l'exposition au retournement. Le token porte désormais son up-streak dans le contexte de l'arbitre.

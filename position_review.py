@@ -35,6 +35,25 @@ from datetime import datetime, timezone
 from supervisor import BotClient, load_env  # client HTTP authentifié partagé
 from ai_doctrine import DOCTRINE_DIGEST
 
+# Verdict STOP haute-confiance → nudge Telegram (re-câblé 2026-07-08).
+# La revue est observation-only ; ses bonnes lectures (prophecy ~70%) étaient
+# enterrées dans le dashboard. Un STOP fort te pousse un « regarde cette
+# position » — tu gardes la décision, pas de coupe autonome.
+STOP_TG_CONF_MIN = 0.7
+
+
+def send_telegram(text: str) -> None:
+    import urllib.request as _u, urllib.parse as _p
+    tok, chat = os.environ.get("TG_BOT_TOKEN"), os.environ.get("TG_CHAT_ID")
+    if not tok or not chat:
+        return
+    try:
+        data = _p.urlencode({"chat_id": chat, "text": text}).encode()
+        _u.urlopen(f"https://api.telegram.org/bot{tok}/sendMessage",
+                   data=data, timeout=10)
+    except Exception as e:
+        print(f"[position_review] TG failed: {e}", file=sys.stderr)
+
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 SENIOR_DB = os.path.join(REPO_ROOT, "alfred", "data", "bots", "live", "bot.db")
 
@@ -291,6 +310,20 @@ def main() -> int:
             log_event(SENIOR_DB, "AI_COST", None, _aic.cost_event(
                 "review", result.get("_model", model), result["_usage"]))
         print(f"[position_review] POSITION_REVIEW loggé ({len(reviews)} avis)")
+        # STOP haute-confiance → nudge Telegram (tu gardes la décision).
+        strong = [r for r in reviews if r["advice"] == "STOP"
+                  and (r.get("confidence") or 0) >= STOP_TG_CONF_MIN]
+        if strong:
+            lines = [f"🧠 REVUE IA — position(s) à regarder ({snapshot['trigger'] or 'périodique'}) :"]
+            for r in strong:
+                d = "L" if str(r.get("dir")) in ("1", "LONG") else "S"
+                stop = f" 🎯${r['suggested_stop_usdt']:.0f}" if r.get("suggested_stop_usdt") is not None else ""
+                lines.append(f"⚠️ {r['symbol']} {r.get('strategy','')} {d} "
+                             f"({(r.get('unrealized_bps') or 0):+.0f}bps) STOP "
+                             f"conf={r['confidence']:.2f}{stop} — {r['reason']}")
+            lines.append("(avis d'observation — à toi de décider ; l'IA ne coupe pas seule)")
+            send_telegram("\n".join(lines))
+            print(f"[position_review] TG envoyé : {len(strong)} STOP haute-confiance")
         # Telegram retiré (2026-07-01) — la revue de positions reste dans
         # l'historique (event POSITION_REVIEW / dashboard), pas d'envoi TG.
     return 0
