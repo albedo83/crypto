@@ -286,6 +286,10 @@ def main() -> int:
         print("[position_review] --no-write: rien écrit en DB, pas d'envoi TG")
     else:
         log_event(SENIOR_DB, "POSITION_REVIEW", None, snapshot)
+        if result.get("_usage"):
+            import ai_cost as _aic
+            log_event(SENIOR_DB, "AI_COST", None, _aic.cost_event(
+                "review", result.get("_model", model), result["_usage"]))
         print(f"[position_review] POSITION_REVIEW loggé ({len(reviews)} avis)")
         # Telegram retiré (2026-07-01) — la revue de positions reste dans
         # l'historique (event POSITION_REVIEW / dashboard), pas d'envoi TG.

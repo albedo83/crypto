@@ -37,6 +37,7 @@ from typing import Any
 REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
 ENV_PATH = os.path.join(REPO_ROOT, ".env")
 LOG_DB = os.path.join(REPO_ROOT, "alfred", "data", "market.db")
+SENIOR_DB = os.path.join(REPO_ROOT, "alfred", "data", "bots", "live", "bot.db")
 SENIOR_DASHBOARD_URL = os.environ.get(
     "SENIOR_DASHBOARD_URL", "https://echonym.fr/alfred/bot/live/")
 
@@ -589,6 +590,11 @@ def main() -> int:
         print("[supervisor] --no-write: rien écrit en DB, pas d'envoi TG")
     else:
         log_event(LOG_DB, "SUPERVISOR_REPORT", report)
+        if report.get("_usage"):
+            sys.path.insert(0, REPO_ROOT)
+            import ai_cost as _aic
+            log_event(SENIOR_DB, "AI_COST", _aic.cost_event(
+                "supervisor", report.get("_model", model), report["_usage"]))
         print("[supervisor] SUPERVISOR_REPORT loggé")
         # Telegram retiré (2026-07-01) — rapport trop lourd pour TG ; reste dans
         # l'historique (event SUPERVISOR_REPORT / dashboard).

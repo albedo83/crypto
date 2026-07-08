@@ -500,59 +500,48 @@ def create_app(bots: dict, master) -> FastAPI:
         # Budget estimé mois-en-cours (couche IA), depuis les tokens loggés.
         # Estimation seulement — la vérité du compte est dans la console
         # Anthropic (y poser le vrai plafond + alerte email).
+        # Coût RÉEL depuis les events AI_COST (tokens loggés par appel, prix
+        # exact via ai_cost.py). Remplace l'ancienne estimation (prix opus 3×
+        # trop haut + arbitres manquants). Mois courant + projection 7j.
         try:
             from datetime import datetime, timezone
             _now = datetime.now(timezone.utc)
             month_start = int(datetime(_now.year, _now.month, 1,
                                        tzinfo=timezone.utc).timestamp())
-            # $/Mtok approximatifs (in, out) ; cache_read=0.1×in, cache_write=1.25×in
-            pricing = {"opus": (15.0, 75.0), "sonnet": (3.0, 15.0), "haiku": (1.0, 5.0)}
+            now_s = time.time()
             by_model: dict = {}
-            total = 0.0
-
-            def _rate(model: str):
-                m = (model or "").lower()
-                for k, v in pricing.items():
-                    if k in m:
-                        return v
-                return pricing["sonnet"]
-
-            def _acc(data: dict):
-                nonlocal total
-                u = (data or {}).get("_usage") or {}
-                if not u:
-                    return
-                model = (data or {}).get("_model") or "?"
-                ri, ro = _rate(model)
-                c = (u.get("input_tokens", 0) / 1e6 * ri
-                     + u.get("cache_read_input_tokens", 0) / 1e6 * 0.1 * ri
-                     + u.get("cache_creation_input_tokens", 0) / 1e6 * 1.25 * ri
-                     + u.get("output_tokens", 0) / 1e6 * ro)
-                total += c
-                e = by_model.setdefault(model, {"calls": 0, "usd": 0.0})
-                e["calls"] += 1
-                e["usd"] = round(e["usd"] + c, 4)
-
-            with master.db.lock:
-                for (d,) in master.db.conn.execute(
-                        "SELECT data FROM events WHERE event='SUPERVISOR_REPORT' "
-                        "AND ts>=?", (month_start,)):
-                    try:
-                        _acc(json.loads(d) if d else {})
-                    except Exception:
-                        pass
+            by_source: dict = {}
+            total = d7 = d24 = 0.0
             if senior is not None:
-                for (d,) in senior.db.conn.execute(
-                        "SELECT data FROM events WHERE event IN "
-                        "('ENTRY_VERDICT','POSITION_REVIEW') AND ts>=?", (month_start,)):
+                with senior.db.lock:
+                    rows = senior.db.conn.execute(
+                        "SELECT ts, data FROM events WHERE event='AI_COST' AND ts>=?",
+                        (int(min(month_start, now_s - 7 * 86400)),)).fetchall()
+                for ts, d in rows:
                     try:
-                        _acc(json.loads(d) if d else {})
+                        j = json.loads(d) if d else {}
                     except Exception:
-                        pass
+                        continue
+                    c = float(j.get("cost_usd", 0.0))
+                    if ts >= month_start:
+                        total += c
+                        m = j.get("model", "?")
+                        e = by_model.setdefault(m, {"calls": 0, "usd": 0.0})
+                        e["calls"] += 1
+                        e["usd"] = round(e["usd"] + c, 4)
+                        s = j.get("source", "?")
+                        by_source[s] = round(by_source.get(s, 0.0) + c, 4)
+                    if ts >= now_s - 7 * 86400:
+                        d7 += c
+                    if ts >= now_s - 86400:
+                        d24 += c
             cap = float(os.environ.get("AI_BUDGET_MONTHLY_USD", "30") or 30)
+            proj = round(d7 / 7 * 30, 2) if d7 > 0 else round(total, 2)
             out["budget"] = {"month": _now.strftime("%Y-%m"),
                              "est_usd": round(total, 2), "cap_usd": cap,
-                             "over": total >= cap, "by_model": by_model}
+                             "projected_usd": proj, "last_24h_usd": round(d24, 2),
+                             "over": proj >= cap, "by_model": by_model,
+                             "by_source": by_source}
         except Exception as e:
             out["budget_error"] = str(e)
         return JSONResponse(out)

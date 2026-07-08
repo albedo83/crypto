@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.13.1 — 2026-07-07
+
+- **Admin**: le coût réel de la couche IA (tokens facturés par appel, prix exact par modèle) est désormais suivi et affiché sur la page /master — coût du mois, projection mensuelle, 24h, ventilation par source (entrée/sortie/revue/superviseur) et par modèle. Remplace l'ancienne estimation forfaitaire (prix opus 3× trop haut, arbitres non comptés).
+
 ## v1.13.0 — 2026-07-07
 
 - **Trading engine**: le plafond de taille par position devient **proportionnel à l'equity** au lieu d'un montant fixe hérité — la concentration reste constante quel que soit le capital (fini les positions à 50-90 % du compte à petit capital), la protection contre la saturation de marge est préservée, et la taille grandit avec le compte au lieu d'être figée (débloque le scaling). S'applique à tous les bots. Kill-switch de retour au plafond fixe conservé.

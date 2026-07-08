@@ -530,8 +530,13 @@ function renderAI(d){
   const bg=d.budget;
   if(bg){
     const cls=bg.over?'red':'green';
-    const bm=Object.entries(bg.by_model||{}).map(([m,v])=>`${m.replace('claude-','')}: $${Number(v.usd).toFixed(2)} (${v.calls})`).join(' · ');
-    $('aiBudget').innerHTML=`<div style="margin-bottom:8px">💸 Budget IA ${esc(bg.month)} : <b class="${cls}">~$${Number(bg.est_usd).toFixed(2)}</b> <span class="dim">/ alerte $${Number(bg.cap_usd).toFixed(0)}${bg.over?' — DÉPASSÉ':''}</span>${bm?`<br><span class="dim" style="font-size:11px">${esc(bm)} · estimation, vérité = console Anthropic</span>`:''}</div>`;
+    const src=Object.entries(bg.by_source||{}).map(([s,v])=>`${esc(s)} $${Number(v).toFixed(2)}`).join(' · ');
+    const bm=Object.entries(bg.by_model||{}).map(([m,v])=>`${m.replace('claude-','')}: $${Number(v.usd).toFixed(2)} (${v.calls} appels)`).join(' · ');
+    const proj=bg.projected_usd!=null?` · projeté <b class="${cls}">~$${Number(bg.projected_usd).toFixed(2)}</b>/mois`:'';
+    const d24=bg.last_24h_usd!=null?` · 24h $${Number(bg.last_24h_usd).toFixed(2)}`:'';
+    $('aiBudget').innerHTML=`<div style="margin-bottom:8px">💸 <b>Coût IA</b> ${esc(bg.month)} : <b>$${Number(bg.est_usd).toFixed(2)}</b> <span class="dim">réel (tokens) / alerte $${Number(bg.cap_usd).toFixed(0)}${bg.over?' — PROJECTION DÉPASSE':''}${proj}${d24}</span>`+
+      (src?`<br><span class="dim" style="font-size:11px">${src}</span>`:'')+
+      (bm?`<br><span class="dim" style="font-size:11px">${bm} · vérité = console Anthropic</span>`:'')+`</div>`;
   }else{$('aiBudget').innerHTML='';}
   // Arbitrage IA à l'entrée
   const ab=d.arbiter;

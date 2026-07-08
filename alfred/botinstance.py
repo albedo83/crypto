@@ -412,6 +412,10 @@ class BotInstance:
             self.db.log_event("ARBITER_EXIT_FAILOPEN", None,
                               {"reason": meta["failopen"], "n": len(batch)})
             return
+        if meta.get("_usage"):
+            import ai_cost as _aic
+            self.db.log_event("AI_COST", None, _aic.cost_event(
+                "exit", meta.get("_model", cfg["model"]), meta["_usage"]))
         tripped = _aix.is_tripped()
         for sym, v in verdicts.items():
             s = snap.get(sym)
@@ -1310,6 +1314,11 @@ class BotInstance:
                             timeout=arb_cfg["timeout"], factor_min=arb_cfg["factor_min"])
                         arb = res.get("verdicts", {}) or {}
                         meta = res.get("meta", {}) or {}
+                        if meta.get("_usage"):
+                            import ai_cost as _aic
+                            self.db.log_event("AI_COST", None, _aic.cost_event(
+                                "entry", meta.get("_model", arb_cfg["model"]),
+                                meta["_usage"]))
                         # Mémorise la décision de ce scan par symbole (pour
                         # l'hystérésis au scan suivant). Pas de mémoire si fail-open.
                         for _b in batch:
