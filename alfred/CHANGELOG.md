@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.13.2 — 2026-07-08
+
+- **Trading engine**: l'arbitre IA d'entrée (SENIOR) réduit désormais la taille des S5 LONG dont le token n'est pas en tendance haussière confirmée (cause mesurée du retournement : sans up-streak, la divergence sectorielle est souvent un faux breakout). Haircut, pas veto — ces trades gagnent encore la majorité du temps, un filtre dur détruirait l'edge ; l'objectif est de limiter l'exposition au retournement. Le token porte désormais son up-streak dans le contexte de l'arbitre.
+
 ## v1.13.1 — 2026-07-07
 
 - **Admin**: le coût réel de la couche IA (tokens facturés par appel, prix exact par modèle) est désormais suivi et affiché sur la page /master — coût du mois, projection mensuelle, 24h, ventilation par source (entrée/sortie/revue/superviseur) et par modèle. Remplace l'ancienne estimation forfaitaire (prix opus 3× trop haut, arbitres non comptés).

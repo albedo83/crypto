@@ -124,6 +124,16 @@ TON RÔLE — apporter ce que les formules NE voient PAS :
   d'essoufflement (ex. OI en forte baisse, divergence marquée, exhaustion). Shorter
   une force alignée token+BTC est le cas qui perd le plus. Symétrique pour un LONG
   qui combat une chute alignée token+BTC.
+- **S5 LONG sans up-streak confirmé (RÈGLE MESURÉE, haircut)** : le signal S5 est
+  une divergence sectorielle. Quand le token diverge MAIS n'est pas lui-même en
+  tendance haussière propre (`consec_up` < 2, càd 0-1 bougie consécutive en
+  hausse), la divergence est souvent un FAUX breakout qui se retourne — cause
+  mesurée : `consec_up`<2 → 31 % de catastrophes (vs 13 % en up-streak ≥2), WR 55 %
+  vs 81 %. **HAIRCUT par défaut** (facteur ~0.5-0.7) sur ces S5 LONG — **PAS un
+  veto** : ces trades gagnent encore 55 % du temps, les retirer tuerait l'edge (le
+  gate dur détruit −$44k en backtest) ; l'objectif est de RÉDUIRE l'exposition au
+  retournement, pas de le supprimer. GO plein si `consec_up` ≥ 2 (up-streak confirmé
+  = vrai momentum qui continue). Ne s'applique QU'aux S5 LONG.
 - Setup mécaniquement marginal alors que le floor de frais HL ~9 bps RT rend un
   edge faible fragile.
 

@@ -1254,6 +1254,10 @@ class BotInstance:
                             # momentum du token (pour juger un short qui fight la hausse) :
                             "ret_24h_bps": round(_f.get("ret_24h", 0.0), 0),
                             "ret_7d_bps": round(_f.get("ret_42h", 0.0), 0),
+                            # up-streak du token : cause mesurée du retournement
+                            # des S5 LONG (consec_up<2 = 31% catastrophes vs 13%).
+                            "consec_up": _f.get("consec_up"),
+                            "consec_dn": _f.get("consec_dn"),
                             "oi_delta": cx.get("oi_delta"),
                             "crowding": cx.get("crowding"),
                             "confluence": cx.get("confluence"),
