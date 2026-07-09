@@ -781,6 +781,31 @@ def create_app(bots: dict, master) -> FastAPI:
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
+    @app.get("/bot/{bot_id}/api/bt_divergence")
+    def api_bt_divergence(bot_id: str, limit: int = 14):
+        """Rapports quotidiens de divergence live-vs-BT (event BT_DIVERGENCE,
+        écrit par analysis/bt_divergence.py en cron). Un par jour, plus récent
+        d'abord. Alimente la fenêtre log 'Divergences BT' du dashboard."""
+        bot = _bot(bot_id)
+        if not bot:
+            return NOT_FOUND
+        limit = max(1, min(limit, 60))
+        try:
+            cur = bot.db.conn.execute(
+                "SELECT ts, data FROM events WHERE event='BT_DIVERGENCE' "
+                "ORDER BY ts DESC LIMIT ?", (limit,))
+            out = []
+            for ts, data in cur:
+                try:
+                    d = json.loads(data) if data else {}
+                except Exception:
+                    d = {}
+                d["ts"] = ts
+                out.append(d)
+            return JSONResponse(out)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
     @app.get("/bot/{bot_id}/api/chart/{symbol}")
     async def api_chart(bot_id: str, symbol: str, hours: int = 24):
         bot = _bot(bot_id)
@@ -1115,6 +1140,11 @@ def create_app(bots: dict, master) -> FastAPI:
         with bot._pos_lock:
             bot._capital += amount
             bot._peak_balance = bot._capital + bot._total_pnl  # DCA rebases peak
+            # Un apport/retrait n'est PAS du P&L : il ne doit pas apparaître comme
+            # un drawdown pour le frein agrégé (mêmes raisons que le rebase du pic).
+            # Sinon un retrait DCA se lit comme un crash d'équité et gèle les entrées.
+            bot._equity_samples = []
+            bot._entries_halted_until = 0.0
         bot._save_state()
         log.info("[%s] CAPITAL: $%.0f → $%.0f (%+.0f)", bot.id, old_capital,
                  bot._capital, amount)
@@ -1210,6 +1240,8 @@ def create_app(bots: dict, master) -> FastAPI:
             bot._total_pnl, bot._wins, bot._peak_balance = 0.0, 0, bot._capital
             bot._consecutive_losses = 0
             bot._paused = False
+            bot._equity_samples = []            # clean slate : buffer du frein agrégé
+            bot._entries_halted_until = 0.0
             bot._cooldowns.clear()
             bot.trades.clear()
             bot._signal_first_seen.clear()

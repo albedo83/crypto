@@ -562,6 +562,11 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
   <div id="ai-history"></div>
 </div>
 
+<div class="section" id="bt-divergence-section">
+  <h2>Divergences BT <span class="dim" style="font-size:12px;font-weight:400">— comparaison live-vs-backtest, chaque jour (même date, même capital). Toutes les divergences, même justifiées.</span></h2>
+  <div id="bt-divergence"></div>
+</div>
+
 <div class="section" data-block="event-timeline" hidden>
   <h2>Event timeline <span class="dim" style="font-size:12px;font-weight:400">— 30 most recent events</span></h2>
   <div class="event-strip" id="event-strip"></div>
@@ -2004,7 +2009,43 @@ function refreshAIHistory(){
   }).catch(e=>console.warn('ai_history fetch:',e));
 }
 
-refresh();refreshSignals();refreshTrades();refreshChart();refreshEvents();refreshAIHistory();
+function refreshBTDivergence(){
+  fetch('api/bt_divergence?limit=14',{credentials:'same-origin'}).then(r=>r.json()).then(rows=>{
+    const el=document.getElementById('bt-divergence');
+    if(!el)return;
+    if(!Array.isArray(rows)||!rows.length){el.innerHTML='<span class="dim">Pas encore de rapport (le cron tourne chaque jour à 08:30 UTC).</span>';return}
+    const esc=(s)=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+    const money=(v)=>{v=+v||0;const c=v>=0?'#3fb950':'#f85149';return `<span style="color:${c}">${(v>=0?'+$':'-$')+Math.abs(v).toFixed(2)}</span>`;};
+    el.innerHTML=rows.map(r=>{
+      const d=new Date(r.ts*1000).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+      const divCount=(r.live_only_n||0)+(r.bt_only_n||0)+(r.matched_div_n||0);
+      let head=`<div style="font-size:12px;margin-bottom:4px"><b>${d}</b> <span class="dim">fenêtre depuis ${esc(r.window_start)} · cap $${(+r.start_cap||0).toFixed(0)}</span></div>`;
+      let summ=`<div style="font-size:13px;margin-bottom:4px">live <b>${r.live_n||0}</b> tr ${money(r.live_pnl)} · BT <b>${r.bt_n||0}</b> tr ${money(r.bt_pnl)} · écart ${money(r.gap)}</div>`;
+      if(r.bt_error){summ+=`<div class="dim" style="font-size:12px">⚠ BT indisponible: ${esc(r.bt_error)}</div>`;}
+      let body='';
+      if(!divCount && !r.bt_error){body='<div class="dim" style="font-size:12px">✓ aucune divergence — le live suit le BT à l\'identique.</div>';}
+      if((r.live_only||[]).length){
+        body+=`<div style="font-size:12px;margin-top:4px"><b style="color:#f85149">Live-only</b> <span class="dim">(le bot a pris, le BT non) — ${r.live_only_n}</span></div>`;
+        body+=(r.live_only).map(t=>`<div style="font-size:12px;padding-left:8px">${esc(t.coin)} ${esc(t.strat)} ${esc(t.dir)} <span class="dim">${esc(t.entry)}</span> ${money(t.pnl)} <span class="dim">${esc(t.reason)}</span></div>`).join('');
+      }
+      if((r.bt_only_by_cause||[]).length){
+        body+=`<div style="font-size:12px;margin-top:4px"><b>BT-only</b> <span class="dim">(le BT a pris, le bot non) — ${r.bt_only_n}, par cause</span></div>`;
+        body+=(r.bt_only_by_cause).map(c=>{
+          const unjust=String(c.cause).indexOf('not_skipped')>=0;  // signal-drift = non justifié
+          return `<div style="font-size:12px;padding-left:8px"><span style="color:${unjust?'#f85149':'#8b949e'}">${esc(c.cause)}</span> ×${c.n} ${money(c.pnl)} <span class="dim">${esc((c.examples||[]).join(', '))}</span></div>`;
+        }).join('');
+      }
+      if((r.matched||[]).length){
+        body+=`<div style="font-size:12px;margin-top:4px"><b>Appariées Δ</b> <span class="dim">(même trade, issue différente) — ${r.matched_div_n}</span></div>`;
+        body+=(r.matched).map(m=>`<div style="font-size:12px;padding-left:8px">${esc(m.coin)} ${esc(m.strat)} ${esc(m.dir)} <span class="dim">${esc(m.entry)}</span> live ${money(m.live_pnl)} vs BT ${money(m.bt_pnl)} → Δ${money(m.dpnl)} <span class="dim">${esc(m.live_reason)}/${esc(m.bt_reason)}</span></div>`).join('');
+      }
+      return `<div style="border-left:2px solid #30363d;padding:6px 10px;margin-bottom:10px">${head}${summ}${body}</div>`;
+    }).join('');
+  }).catch(e=>console.warn('bt_divergence fetch:',e));
+}
+
+refresh();refreshSignals();refreshTrades();refreshChart();refreshEvents();refreshAIHistory();refreshBTDivergence();
+setInterval(refreshBTDivergence,300000);
 setInterval(refresh,5000);
 setInterval(refreshSignals,15000);
 setInterval(refreshTrades,30000);

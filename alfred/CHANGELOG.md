@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.14.0 — 2026-07-09
+
+- **Dashboard**: nouvelle fenêtre log « Divergences BT » sur le dashboard de chaque bot — comparaison live-vs-backtest chaque jour (même date, même capital), listant toutes les divergences (entrées prises par le bot mais pas le BT, et l'inverse ventilé par cause) même quand elles sont justifiées. Alimentée par un job quotidien.
+- **Trading engine**: un ajustement de capital (DCA apport/retrait) et une remise à zéro ne comptent plus comme un drawdown pour le frein agrégé — un retrait se lisait à tort comme un crash d'équité et gelait les entrées.
+
 ## v1.13.3 — 2026-07-08
 
 - **Telegram**: un verdict STOP à forte confiance de la revue de position IA pousse désormais un nudge Telegram (« regarde cette position ») — la revue reste observation-only (l'IA ne coupe pas seule), mais ses bonnes lectures ne sont plus enterrées dans le dashboard. Ré-active un canal retiré le 01-07, filtré cette fois aux seuls STOP haute-confiance.
