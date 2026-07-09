@@ -43,9 +43,11 @@ from collections import defaultdict
 
 
 # Repointé sur Alfred le 2026-06-14 (legacy décommissionné). (dir, clé, capital).
+# Reset 2026-07-09 : live+paper remis à $518.34 (equity live post-close), compteurs
+# à zéro + historique de trades effacé, pour comparaison forward apples-to-apples.
 BOTS = {
-    "paper":  ("alfred/data/bots/paper",  "paper",  1000.0),
-    "live":   ("alfred/data/bots/live",   "live",    680.58),
+    "paper":  ("alfred/data/bots/paper",  "paper",  518.34),
+    "live":   ("alfred/data/bots/live",   "live",    518.34),
     "junior": ("alfred/data/bots/junior", "junior",  332.76),
 }
 

@@ -1781,9 +1781,12 @@ def run_window(features, data, sector_features, dxy_data,
 # 2026-06-10 ; junior un jour après (2026-06-11). Les dates legacy pré-décommission
 # sont caduques — aucun bot Alfred n'existait avant le 2026-06-10. Capitaux = equity
 # au reset : paper $1000, live $680.58, junior $332.76 (cf. BOTS dans btlive_compare).
+# Ancre de date des comparaisons live-vs-BT (btlive) + fenêtre "depuis" du rapport.
+# live/paper re-ancrés au 2026-07-09 : reset clean-slate à $518.34 (equity live
+# post-close), compteurs zéro + historique effacé → comparaison forward from scratch.
 BOT_DEPLOYMENTS = [
-    ("paper",  "2026-06-10"),
-    ("live",   "2026-06-10"),
+    ("paper",  "2026-07-09"),
+    ("live",   "2026-07-09"),
     ("junior", "2026-06-11"),
 ]
 
