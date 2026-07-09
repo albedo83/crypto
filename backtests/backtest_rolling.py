@@ -1836,6 +1836,12 @@ def build_report(results: list[dict], end_dt: datetime, version: str,
         f"**Bot version** : v{version}",
         f"**Données jusqu'à** : {end_dt.strftime('%Y-%m-%d')}",
         f"**Capitaux testés** : {cap_phrase}",
+        (f"**Cap notionnel** : PROPORTIONNEL `{_P.max_notional_frac:g} × equity` "
+         f"(v1.13.0, 2026-07-07) — remplace le $500 fixe. Débloque le compounding "
+         f"(chiffres ~9× plus élevés qu'à l'ancien cap), concentration constante, "
+         f"0 cascade de marge."
+         if getattr(_P, "max_notional_frac", 0) > 0
+         else f"**Cap notionnel** : ${int(_P.max_notional_per_trade)} fixe."),
         ("**Sémantique** : ALIGNED (phase 6, 2026-06-10) — exits/sizing via "
          "`alfred/rules.py`, identique au bot live. Anciens chiffres : "
          "`docs/backtests_legacy_pre_phase6.md`."
@@ -2114,7 +2120,12 @@ def main():
             json.dump(trade_dump, f)
         print(f"Trade dump written to {trade_dump_path}")
 
-    report = build_report(results, end_dt, VERSION, capitals=capitals,
+    try:
+        from alfred import ALFRED_VERSION as _AV
+        _ver = _AV
+    except Exception:
+        _ver = VERSION
+    report = build_report(results, end_dt, _ver, capitals=capitals,
                           aligned=aligned_run)
     os.makedirs(os.path.dirname(DOCS_PATH), exist_ok=True)
     with open(DOCS_PATH, "w") as f:
