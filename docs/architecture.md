@@ -1,7 +1,7 @@
 # Architecture Alfred — document de référence
 
 > **Source de vérité unique** de l'architecture du bot de trading, à jour avec le
-> code (`alfred/`, v1.13.0, 2026-07-07). Remplace le cadrage « architecture » de
+> code (`alfred/`, v1.14.0, 2026-07-12). Remplace le cadrage « architecture » de
 > `docs/bot.md` (qui décrit le stack legacy `analysis/bot/` décommissionné le
 > 2026-06-12). Pour le *rationnel R&D* derrière chaque règle, voir `docs/bot.md`
 > (détaillé) et `docs/synthese.md` (pédagogique) — leur logique de trading reste
@@ -258,7 +258,10 @@ pic 24 h glissant → **entrées gelées** `equity_brake_halt_h` (24 h), event
 flatten (vendre le plancher) : le frein empêche de recharger pendant la chute,
 c'est tout. Frein de *vélocité* (pic glissant), calibré au-dessus du bruit
 normal observé (max 10.8 %). Levée : auto à expiration, ou resume. Kill-switch :
-`equity_brake_dd_pct=0`. Divergence #16 (le BT ne le modélise pas).
+`equity_brake_dd_pct=0`. Divergence #16 (le BT ne le modélise pas). **v1.14.0** :
+un ajustement de capital (DCA apport/retrait) et une remise à zéro vident le
+buffer 24 h (`api_capital`/`api_reset`) — un apport/retrait n'est pas du P&L, il
+ne doit pas se lire comme un drawdown (sinon un retrait DCA gèle les entrées à tort).
 
 ---
 
@@ -402,8 +405,10 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 ## 12. Web & sécurité (`alfred/web/`)
 
 - **Pages** : `/master` (supervision : santé données, flotte, exposition agrégée,
-  lifecycle par bot, éditeur `bots.json`, journal d'audit) ; `/bot/<id>/` (dashboard
-  par bot) ; derrière nginx à `https://echonym.fr/alfred/`.
+  lifecycle par bot, éditeur `bots.json`, journal d'audit, **coût réel couche IA**
+  — tokens facturés/appel, projection mensuelle, 24h, ventilation par source/modèle,
+  v1.13.1) ; `/bot/<id>/` (dashboard par bot, incl. **fenêtre log « Divergences BT »**
+  live-vs-BT quotidienne, v1.14.0) ; derrière nginx à `https://echonym.fr/alfred/`.
 - **Auth** : cookies de session signés HMAC (stateless, 30j), backoff anti-brute-force,
   rate-limit sur les mutations. **Révocation globale durable** (v1.9.0) :
   `/logout` bumpe un plancher persisté sur disque (`data/session_revoked_ts`)
@@ -414,7 +419,7 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
   pour les requêtes externes (via nginx), exemptée pour les sentinelles locales
   (connexion 127.0.0.1 directe sans X-Forwarded-For).
 - API : read-only (`/api/state`, `/api/signals`, `/api/trades`, `/api/chart`,
-  `/api/pnl`, `/api/events`, `/api/intervention_impact`) + mutations (`/api/close`,
+  `/api/pnl`, `/api/events`, `/api/bt_divergence`, `/api/intervention_impact`) + mutations (`/api/close`,
   `/api/pause`, `/api/reset`, `/api/manual_stop`, `/api/capital`).
 
 ---
@@ -428,6 +433,7 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 | `analysis/hedge_monitor.py` | 5 min | exposition/hedge | alerte |
 | `alfred/tools/daily_report.py` | 8h30 UTC | digest flotte (balance, P&L, positions) + liens + **sentinelle expiry agents** (J−21 🔑 / J−7 🚨, v1.7.5 — JUNIOR 2026-10-26, BABY 2026-12-08) | Telegram |
 | `backtests/paper_vs_bt_tracker.py` | 9h UTC | gap equity vs BT canonique, **les 4 bots** | TG consolidé si un gap ≥ 5pp |
+| `analysis/bt_divergence.py` | 8h30 UTC | comparaison live-vs-BT SENIOR+PAPER (moteur btlive) : entrées live-only, BT-only ventilées par cause (cooldown/slot/signal-drift), appariées-Δ — **même les justifiées** | event `BT_DIVERGENCE` → **fenêtre log « Divergences BT » du dashboard per-bot**. Ancre = reset (`bt_reset_anchor.json`) |
 | `position_review.py` | toutes les 2h | revue LLM des positions ouvertes SENIOR | historique admin (§ 9) |
 | `ai_arbiter_scorecard.py` | horaire :20 (+ TG 8h05) | contrefactuel arbitre d'entrée + disjoncteur | § 9 |
 | `ai_exit_scorecard.py` | horaire :25 (+ TG 8h10) | contrefactuel arbitre de sortie + disjoncteur | § 9 |
