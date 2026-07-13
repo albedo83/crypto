@@ -2049,6 +2049,12 @@ function refreshBTDivergence(){
       if(r.bt_error){summ+=`<div class="dim" style="font-size:12px">⚠ BT indisponible: ${esc(r.bt_error)}</div>`;}
       let body='';
       if(!divCount && !r.bt_error){body='<div class="dim" style="font-size:12px">✓ aucune divergence — le live suit le BT à l\'identique.</div>';}
+      if((r.missed_winners_by_cause||[]).length){
+        body+=`<div style="margin-top:6px;padding:7px 9px;border:1px solid #8957e5;border-radius:6px;background:rgba(137,87,229,.08)">`;
+        body+=`<div style="font-size:12px;margin-bottom:4px">🎯 <b>Gagnants ratés</b> <span class="dim">(le BT a gagné, le bot a loupé — POURQUOI = la clef)</span> · <b style="color:#f85149">+$${(+r.missed_winner_pnl||0).toFixed(2)} loupés</b> sur ${r.missed_winner_n||0} <span class="dim">· perdants correctement évités ${money(r.avoided_loser_pnl)}</span></div>`;
+        body+=(r.missed_winners_by_cause).map(c=>`<div style="font-size:12px;padding-left:8px"><b>${esc(c.cause)}</b> ×${c.n} <span style="color:#f85149">+$${(+c.pnl||0).toFixed(2)}</span> <span class="dim">${esc((c.examples||[]).join(', '))}</span></div>`).join('');
+        body+=`</div>`;
+      }
       if((r.live_only||[]).length){
         body+=`<div style="font-size:12px;margin-top:4px"><b style="color:#f85149">Live-only</b> <span class="dim">(le bot a pris, le BT non) — ${r.live_only_n}</span></div>`;
         body+=(r.live_only).map(t=>`<div style="font-size:12px;padding-left:8px">${esc(t.coin)} ${esc(t.strat)} ${esc(t.dir)} <span class="dim">${esc(t.entry)}</span> ${money(t.pnl)} <span class="dim">${esc(t.reason)}</span></div>`).join('');

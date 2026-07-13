@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.15.3 — 2026-07-13
+
+- **Dashboard**: la section « Live vs BT » met désormais en avant les **gagnants ratés** — les positions gagnantes du BT que le bot n'a pas prises — ventilées par cause précise (cooldown, position déjà tenue, marge, veto IA, dérive de signal), avec le manque à gagner par cause et les perdants correctement évités en regard. C'est le levier d'amélioration : comprendre pourquoi chaque gagnant a été loupé. Rafraîchi toutes les 4h. Aucune modification du moteur de trading.
+
 ## v1.15.2 — 2026-07-13
 
 - **Dashboard**: la section « Divergences BT » devient « Live vs BT » et rappelle en tête l'equity atteinte par le BT théorique, par SENIOR et par paper (même reset, même capital), avec l'écart SENIOR−BT. Le comparateur passe d'un rafraîchissement quotidien à toutes les 4h (aligné sur la clôture de bougie). Aucune modification du moteur de trading — le comparateur reste un process séparé qui lit la base.

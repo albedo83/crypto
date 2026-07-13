@@ -29,11 +29,59 @@ import os
 import sqlite3
 import sys
 import time
+from collections import defaultdict
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
 
 from analysis import btlive_compare as B  # noqa: E402
+
+
+def _ai_vetos(db_path: str) -> list[dict]:
+    """Décisions arbitre IA qui ont SUPPRIMÉ (veto) ou dégradé (haircut) un
+    trade — pour distinguer un veto IA d'un simple signal_drift."""
+    if not os.path.exists(db_path):
+        return []
+    out = []
+    try:
+        c = sqlite3.connect(db_path)
+        for ts, data in c.execute(
+                "SELECT ts, data FROM events WHERE event='ARBITER_DECISION'"):
+            try:
+                d = json.loads(data)
+            except Exception:
+                continue
+            if d.get("hard_veto") or d.get("veto_downgraded"):
+                out.append({"coin": d.get("symbol") or d.get("coin"),
+                            "ts_ms": d.get("entry_ts_ms") or int(ts * 1000),
+                            "downgraded": bool(d.get("veto_downgraded"))})
+    except Exception:
+        pass
+    return out
+
+
+def _miss_cause(b, held, cd_ms, skip_rows, vetos, slack_ms=4 * 3600 * 1000):
+    """Cause précise d'un trade BT que le bot n'a pas pris. Ordre : book tenu
+    → cooldown → skip de gate → veto IA → dérive de signal (inexpliqué)."""
+    coin, T, D = b["coin"], b["entry_ts"], b["dir"]
+    for (e, x, d) in held.get(coin, []):
+        if e <= T < x:
+            return ("already_in_position_SAME_dir" if d == D
+                    else "already_in_position_OPPOSITE_dir")
+    for (e, x, d) in held.get(coin, []):
+        if 0 <= (T - x) <= cd_ms:
+            return "cooldown"
+    best = None
+    for s in skip_rows:
+        if s["coin"] == coin and abs(s["ts_ms"] - T) <= slack_ms:
+            if best is None or abs(s["ts_ms"] - T) < abs(best["ts_ms"] - T):
+                best = s
+    if best is not None:
+        return best["reason"] or "skip_unknown"
+    for v in vetos:
+        if v["coin"] == coin and abs(v["ts_ms"] - T) <= slack_ms:
+            return "ai_veto_downgraded" if v["downgraded"] else "ai_veto"
+    return "not_skipped_signal_drift"
 
 BOTS = ["live", "paper"]  # SENIOR + PAPER ; junior/baby exclus (opérateur tiers)
 MAX_LIST = 25  # cap la taille des listes dans l'event (log compact)
@@ -156,6 +204,38 @@ def compute_divergence(bot_key: str, now_ts: float) -> tuple[dict, str]:
             "examples": d["examples"],
         })
     report["bt_only_n"] = len(bt_only)
+
+    # GAGNANTS RATÉS : les BT-only positifs que le bot a loupés — LA clef pour
+    # améliorer (louper un gagnant coûte ; louper un perdant fait gagner). On
+    # ventile par cause précise (incl. veto IA) et on liste les plus gros.
+    cd_ms = int(B._cooldown_hours() * 3600 * 1000)
+    held: dict = defaultdict(list)
+    for t in live:
+        held[t["coin"]].append((t["entry_ts"], t["exit_ts"], t["dir"]))
+    vetos = _ai_vetos(db_path)
+    skip_rows = skip.get("rows", [])
+    winners = [b for b in bt_only if b["pnl"] > 0]
+    losers = [b for b in bt_only if b["pnl"] <= 0]
+    by_cause: dict = defaultdict(lambda: {"n": 0, "pnl": 0.0, "examples": []})
+    top = []
+    for b in winners:
+        cause = _miss_cause(b, held, cd_ms, skip_rows, vetos)
+        by_cause[cause]["n"] += 1
+        by_cause[cause]["pnl"] += b["pnl"]
+        d = "L" if b["dir"] == 1 else "S"
+        if len(by_cause[cause]["examples"]) < 5:
+            by_cause[cause]["examples"].append(f"{b['coin']} {b['strat']} {d} +${b['pnl']:.1f}")
+        top.append({"coin": b["coin"], "strat": b["strat"], "dir": d,
+                    "entry": B.fmt_ts(b["entry_ts"]), "pnl": round(b["pnl"], 2),
+                    "cause": cause})
+    report["missed_winner_n"] = len(winners)
+    report["missed_winner_pnl"] = round(sum(b["pnl"] for b in winners), 2)
+    report["avoided_loser_n"] = len(losers)
+    report["avoided_loser_pnl"] = round(sum(b["pnl"] for b in losers), 2)
+    report["missed_winners_by_cause"] = [
+        {"cause": c, "n": d["n"], "pnl": round(d["pnl"], 2), "examples": d["examples"]}
+        for c, d in sorted(by_cause.items(), key=lambda kv: -kv[1]["pnl"])]
+    report["missed_winners_top"] = sorted(top, key=lambda x: -x["pnl"])[:MAX_LIST]
 
     # MATCHED avec Δ : même trade, issue différente (timing/raison de sortie)
     matched = []
