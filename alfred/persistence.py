@@ -11,7 +11,9 @@ from __future__ import annotations
 import logging
 import os
 import shutil
+import threading
 import time
+from collections import defaultdict
 from datetime import datetime
 
 import orjson
@@ -20,6 +22,10 @@ from .db import Database
 from .models import Position, Trade
 
 log = logging.getLogger("alfred")
+
+# Un lock d'écriture par state_file (v1.15.0) — ne protège que l'écriture
+# fichier ; les mutations d'état du bot restent sous bot._pos_lock.
+_save_locks: dict[str, threading.Lock] = defaultdict(threading.Lock)
 
 
 # ── Trade & Trajectory Writing ────────────────────────────────────────
@@ -107,6 +113,10 @@ def save_state(bot) -> None:
         "_pnl_realign_offset": round(getattr(bot, "_pnl_realign_offset", 0.0), 4),
         "_fees_track_start_ts": round(getattr(bot, "_fees_track_start_ts", 0.0), 0),
         "_btc_z": round(bot._btc_z, 4) if bot._btc_z is not None else None,
+        # v1.15.0 : hystérésis des arbitres IA persistée — un restart effaçait
+        # la mémoire anti flip-flop (un veto de 2h avant re-flippait en GO).
+        "_arbiter_last": bot._arbiter_last,
+        "_exit_arbiter_last": bot._exit_arbiter_last,
     }
     tmp = state_file + ".tmp"
     try:
@@ -114,9 +124,16 @@ def save_state(bot) -> None:
     except Exception:
         log.exception("[%s] state serialization failed — keeping existing file", bot.id)
         return
-    with open(tmp, "wb") as f:
-        f.write(payload)
-    os.replace(tmp, state_file)
+    # v1.15.0 : sérialisation des saves concurrents (thread tick vs threads
+    # web) — le .tmp partagé sans lock pouvait produire un state.json tronqué
+    # (boot suivant = capital initial, 0 position). fsync avant le replace :
+    # atomicité aussi vs coupure courant, pas seulement vs crash process.
+    with _save_locks[state_file]:
+        with open(tmp, "wb") as f:
+            f.write(payload)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, state_file)
 
 
 def load_state(state_file: str, known_symbols) -> dict:

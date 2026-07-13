@@ -234,10 +234,19 @@ def s8_inlife_rule(pos: PosView, ur: float, m: MarketCtx, p: Params,
 
 def prop_trail_rule(pos: PosView, ur: float, m: MarketCtx, p: Params) -> ExitDecision | None:
     """v12.11.0 — proportional trail: stop = arm + (mfe - arm) × lock_ratio."""
-    if pos.strategy not in p.prop_trail_params or m.btc_z is None:
+    cfg_map = p.prop_trail_params.get(pos.strategy)
+    if cfg_map is None:
         return None
-    cfg = p.prop_trail_params[pos.strategy].get(
-        _z_bucket(m.btc_z, p.prop_trail_z_threshold))
+    if m.btc_z is not None:
+        cfg = cfg_map.get(_z_bucket(m.btc_z, p.prop_trail_z_threshold))
+    else:
+        # v1.15.0 : btc_z indisponible (trou de données BTC) — si la config
+        # est IDENTIQUE dans les 3 buckets (S5 : (200, 0.65) partout), la
+        # règle ne dépend pas du régime : l'appliquer quand même. Le
+        # fail-open ne se justifie que pour une config réellement
+        # conditionnée (S9 bull-only) — celle-là reste sautée.
+        vals = {cfg_map.get(b) for b in ("bear", "neutral", "bull")}
+        cfg = vals.pop() if len(vals) == 1 else None
     if cfg is None:
         return None
     arm_bps, lock_ratio = cfg
@@ -332,11 +341,14 @@ def evaluate_exit(pos: PosView, unrealized_bps: float, m: MarketCtx, p: Params,
         d = opp_floor_rule(pos, worst_bps if worst_bps is not None else ur, p)
         if d:
             return d
-    if pos.hours_to_timeout <= 0:
-        return ExitDecision("exit", "timeout", None)
+    # manual_stop AVANT timeout (v1.15.0, parité legacy v12.5.10) : position
+    # expirée ET sous le stop manuel → booker manual_stop_set au synthétique,
+    # pas timeout au mark. BT sans effet (manual_stop_usdt jamais posé en BT).
     d = manual_stop_rule(pos, ur, p)
     if d:
         return d
+    if pos.hours_to_timeout <= 0:
+        return ExitDecision("exit", "timeout", None)
     d = s9_early_rule(pos, ur, p)
     if d:
         return d
@@ -460,6 +472,11 @@ def modulator_mult(strategy: str, direction: int, btc_z: float | None,
 def position_size(strategy: str, direction: int, capital: float,
                   btc_z: float | None, p: Params) -> float:
     """Canonical (live) sizing: base → modulator (rounded) → notional cap."""
+    # v1.15.0 fail-close : capital épuisé/négatif → 0 (le floor $10 de
+    # base_size laissait un book ruiné entrer indéfiniment à $10, et le cap
+    # proportionnel 0.3×capital ≤ 0 n'était pas appliqué).
+    if capital <= 0:
+        return 0.0
     size = base_size(strategy, capital, p)
     mult = modulator_mult(strategy, direction, btc_z, p)
     if mult is not None:

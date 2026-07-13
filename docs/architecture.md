@@ -183,8 +183,8 @@ réelle du compte (v1.2.1) — réduction ou skip propre au lieu d'un rejet HL.
 | 1 | `runner_ext` | tick 20s | ACTIVE |
 | 2 | `catastrophe_stop` | tick 20s | ACTIVE |
 | 3 | `opp_floor` | 4h-close | ACTIVE |
-| 4 | `timeout` | tick 20s | ACTIVE |
-| 5 | `manual_stop` | tick 20s | ACTIVE |
+| 4 | `manual_stop` | tick 20s | ACTIVE |
+| 5 | `timeout` | tick 20s | ACTIVE |
 | 6 | `s9_early` | tick 20s | ACTIVE |
 | 7 | `s10_trail` | 4h-close | ACTIVE |
 | 8 | `s8_dead` | tick 20s | ACTIVE |

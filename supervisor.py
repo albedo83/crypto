@@ -56,16 +56,20 @@ STATIC_CONTEXT_FILES = [
 # Depuis 2026-06-11 les bots vivent dans Alfred (:8101, un process, un bot
 # par préfixe /bot/<id>). SENIOR = cible principale du rapport.
 ALFRED_HOST = "http://127.0.0.1:8101"
+# v1.15.0 : plus de montants hardcodés dans les notes — les capitaux périmés
+# (pré-reset 07-09) étaient injectés au LLM comme contexte factuel faux. Le
+# capital courant vient déjà de l'API du bot dans le contexte assemblé.
 BOTS = [
     {"id": "live", "label": "SENIOR", "mode": "live",
-     "notes": "bot perso de l'admin, capital réel $680.58 au reset du "
-              "2026-06-10 (migration Alfred, remise à zéro de l'historique)"},
+     "notes": "bot perso de l'admin, capital réel — dernier reset clean-slate "
+              "2026-07-09 (le capital courant est dans les données du bot)"},
     {"id": "junior", "label": "JUNIOR", "mode": "live",
-     "notes": "bot piloté par un testeur non-admin, capital réel $332.76 au "
-              "reset du 2026-06-11, capital_cap $500 — faible historique, "
+     "notes": "bot piloté par un testeur non-admin, capital réel, "
+              "capital_cap $500 — faible historique, "
               "ne pas sur-interpréter les stats"},
     {"id": "paper", "label": "PAPER-ALFRED", "mode": "paper",
-     "notes": "simulation $1000, baseline de comparaison du live"},
+     "notes": "simulation, baseline de comparaison du live (reset 2026-07-09 "
+              "aligné sur SENIOR)"},
 ]
 
 HTTP_TIMEOUT = 6  # seconds

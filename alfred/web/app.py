@@ -136,9 +136,13 @@ def create_app(bots: dict, master) -> FastAPI:
         return f"{ROOT_PATH}/master"
 
     def _client_ip(request: Request) -> str:
+        # nginx (proxy_add_x_forwarded_for) APPEND l'IP réelle en DERNIÈRE
+        # position — le premier élément est fourni par le client, donc
+        # spoofable. Keyer backoff/rate-limit sur le premier permettait de
+        # les contourner par rotation d'XFF (v1.15.0 : dernier élément).
         xff = request.headers.get("x-forwarded-for", "")
         direct_ip = request.client.host if request.client else "unknown"
-        return xff.split(",")[0].strip() if xff and direct_ip == "127.0.0.1" else direct_ip
+        return xff.split(",")[-1].strip() if xff and direct_ip == "127.0.0.1" else direct_ip
 
     def _is_local_direct(request: Request) -> bool:
         """Vrai pour une connexion 127.0.0.1 SANS X-Forwarded-For = sentinelle
@@ -271,13 +275,19 @@ def create_app(bots: dict, master) -> FastAPI:
 
     # ── Auth routes ───────────────────────────────────────────────────
 
+    def _cookie_secure(request: Request) -> bool:
+        """Flag Secure quand la requête est venue en https (via nginx).
+        Pas de flag en http direct local — les sentinelles cron (127.0.0.1
+        http) perdraient leur cookie de session sinon."""
+        return request.headers.get("x-forwarded-proto") == "https"
+
     @app.get("/auth")
-    async def auth_bridge(token: str = ""):
+    async def auth_bridge(request: Request, token: str = ""):
         role = _verify_token(token)
         if role:
             resp = RedirectResponse(_role_home(role), status_code=303)
             resp.set_cookie("alfred_session", token, httponly=True, samesite="strict",
-                            max_age=_SESSION_MAX_AGE)
+                            max_age=_SESSION_MAX_AGE, secure=_cookie_secure(request))
             return resp
         return RedirectResponse(f"{ROOT_PATH}/login", status_code=303)
 
@@ -310,7 +320,7 @@ def create_app(bots: dict, master) -> FastAPI:
             token = _sign_token(time.time(), role)
             resp = RedirectResponse(_role_home(role), status_code=303)
             resp.set_cookie("alfred_session", token, httponly=True, samesite="strict",
-                            max_age=_SESSION_MAX_AGE)
+                            max_age=_SESSION_MAX_AGE, secure=_cookie_secure(request))
             log.info("LOGIN OK: user=%s role=%s ip=%s", username, role, client_ip)
             # Les sentinelles cron (hedge_monitor 5 min, regime_alert horaire,
             # supervisor quotidien) se loguent depuis 127.0.0.1 — pas de TG
@@ -382,8 +392,10 @@ def create_app(bots: dict, master) -> FastAPI:
 
     def _audit(request: Request, route: str, bot_id: str | None,
                payload: dict | None, result: str) -> None:
-        ip = request.client.host if request.client else "?"
-        master.db.log_admin_action(ip, route, bot_id, payload, result)
+        # v1.15.0 : IP dérivée (XFF) — request.client.host = 127.0.0.1
+        # derrière nginx, inutile en forensique.
+        master.db.log_admin_action(_client_ip(request), route, bot_id,
+                                   payload, result)
 
     @app.get("/master", response_class=HTMLResponse)
     async def master_page():
@@ -442,10 +454,11 @@ def create_app(bots: dict, master) -> FastAPI:
         senior = _bot("live")
         if senior is not None:
             try:
-                cur = senior.db.conn.execute(
-                    "SELECT ts, symbol, data FROM events WHERE event='ENTRY_VERDICT' "
-                    "ORDER BY ts DESC LIMIT ?", (verdicts,))
-                for r in cur:
+                with senior.db.lock:
+                    rows_v = senior.db.conn.execute(
+                        "SELECT ts, symbol, data FROM events WHERE event='ENTRY_VERDICT' "
+                        "ORDER BY ts DESC LIMIT ?", (verdicts,)).fetchall()
+                for r in rows_v:
                     try:
                         d = json.loads(r[2]) if r[2] else {}
                     except Exception:
@@ -455,9 +468,10 @@ def create_app(bots: dict, master) -> FastAPI:
                 out["verdicts_error"] = str(e)
             # Dernière revue des positions ouvertes (snapshot le plus récent)
             try:
-                prow = senior.db.conn.execute(
-                    "SELECT ts, data FROM events WHERE event='POSITION_REVIEW' "
-                    "ORDER BY ts DESC LIMIT 1").fetchone()
+                with senior.db.lock:
+                    prow = senior.db.conn.execute(
+                        "SELECT ts, data FROM events WHERE event='POSITION_REVIEW' "
+                        "ORDER BY ts DESC LIMIT 1").fetchone()
                 if prow:
                     try:
                         pd = json.loads(prow[1]) if prow[1] else {}
@@ -471,19 +485,20 @@ def create_app(bots: dict, master) -> FastAPI:
             # Arbitrage IA à l'entrée : dernier scorecard + décisions récentes + trip.
             try:
                 arb = {"scorecard": None, "decisions": [], "tripped": False}
-                srow = senior.db.conn.execute(
-                    "SELECT ts, data FROM events WHERE event='AI_SCORECARD' "
-                    "ORDER BY ts DESC LIMIT 1").fetchone()
+                with senior.db.lock:
+                    srow = senior.db.conn.execute(
+                        "SELECT ts, data FROM events WHERE event='AI_SCORECARD' "
+                        "ORDER BY ts DESC LIMIT 1").fetchone()
+                    drows = senior.db.conn.execute(
+                        "SELECT ts, symbol, data FROM events WHERE event='ARBITER_DECISION' "
+                        "ORDER BY ts DESC LIMIT ?", (verdicts,)).fetchall()
                 if srow:
                     try:
                         arb["scorecard"] = {"ts": srow[0],
                                             **(json.loads(srow[1]) if srow[1] else {})}
                     except Exception:
                         pass
-                dcur = senior.db.conn.execute(
-                    "SELECT ts, symbol, data FROM events WHERE event='ARBITER_DECISION' "
-                    "ORDER BY ts DESC LIMIT ?", (verdicts,))
-                for r in dcur:
+                for r in drows:
                     try:
                         d = json.loads(r[2]) if r[2] else {}
                     except Exception:
@@ -749,11 +764,12 @@ def create_app(bots: dict, master) -> FastAPI:
             return NOT_FOUND
         limit = max(1, min(limit, 200))
         try:
-            cur = bot.db.conn.execute(
-                "SELECT ts, event, symbol, data FROM events ORDER BY ts DESC LIMIT ?",
-                (limit,))
+            with bot.db.lock:
+                rows = bot.db.conn.execute(
+                    "SELECT ts, event, symbol, data FROM events ORDER BY ts DESC LIMIT ?",
+                    (limit,)).fetchall()
             return JSONResponse([{"ts": r[0], "event": r[1], "symbol": r[2],
-                                  "data": r[3]} for r in cur])
+                                  "data": r[3]} for r in rows])
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
@@ -766,11 +782,12 @@ def create_app(bots: dict, master) -> FastAPI:
             return NOT_FOUND
         limit = max(1, min(limit, 500))
         try:
-            cur = bot.db.conn.execute(
-                "SELECT ts, data FROM events WHERE event='AI_TG' "
-                "ORDER BY ts DESC LIMIT ?", (limit,))
+            with bot.db.lock:
+                rows = bot.db.conn.execute(
+                    "SELECT ts, data FROM events WHERE event='AI_TG' "
+                    "ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
             out = []
-            for ts, data in cur:
+            for ts, data in rows:
                 try:
                     d = json.loads(data) if data else {}
                 except Exception:
@@ -791,11 +808,12 @@ def create_app(bots: dict, master) -> FastAPI:
             return NOT_FOUND
         limit = max(1, min(limit, 60))
         try:
-            cur = bot.db.conn.execute(
-                "SELECT ts, data FROM events WHERE event='BT_DIVERGENCE' "
-                "ORDER BY ts DESC LIMIT ?", (limit,))
+            with bot.db.lock:
+                rows = bot.db.conn.execute(
+                    "SELECT ts, data FROM events WHERE event='BT_DIVERGENCE' "
+                    "ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
             out = []
-            for ts, data in cur:
+            for ts, data in rows:
                 try:
                     d = json.loads(data) if data else {}
                 except Exception:
@@ -829,11 +847,12 @@ def create_app(bots: dict, master) -> FastAPI:
             bucket_s = max(60, (hours * 3600) // MAX_POINTS)
             tickmap = {}
             try:
-                rows = master.db.conn.execute(
-                    """SELECT (ts / ?) * ? AS bucket, AVG(mark_px)
-                       FROM ticks WHERE symbol = ? AND ts > ?
-                       GROUP BY bucket ORDER BY bucket""",
-                    (bucket_s, bucket_s, symbol, cutoff_ts)).fetchall()
+                with master.db.lock:
+                    rows = master.db.conn.execute(
+                        """SELECT (ts / ?) * ? AS bucket, AVG(mark_px)
+                           FROM ticks WHERE symbol = ? AND ts > ?
+                           GROUP BY bucket ORDER BY bucket""",
+                        (bucket_s, bucket_s, symbol, cutoff_ts)).fetchall()
                 tickmap = {int(r[0]): float(r[1]) for r in rows}
             except Exception:
                 pass
@@ -913,7 +932,7 @@ def create_app(bots: dict, master) -> FastAPI:
     # ── Per-bot mutations ─────────────────────────────────────────────
 
     @app.post("/bot/{bot_id}/api/close/{symbol}")
-    def api_close_symbol(bot_id: str, symbol: str):
+    def api_close_symbol(bot_id: str, symbol: str, request: Request):
         bot = _bot(bot_id)
         if not bot:
             return NOT_FOUND
@@ -924,9 +943,11 @@ def create_app(bots: dict, master) -> FastAPI:
         if not st or st.price <= 0:
             return JSONResponse({"error": f"no price for {sym}"}, status_code=400)
         if not bot.close_and_check(sym, st.price, datetime.now(timezone.utc), "manual_close"):
+            _audit(request, "/api/close", bot_id, {"symbol": sym}, "failed")
             return JSONResponse({"error": f"close failed for {sym}, will retry"},
                                 status_code=500)
         bot._save_state()
+        _audit(request, "/api/close", bot_id, {"symbol": sym}, "closed")
         return JSONResponse({"status": "closed", "symbol": sym})
 
     @app.post("/bot/{bot_id}/api/manual_stop/{symbol}")
@@ -1056,6 +1077,21 @@ def create_app(bots: dict, master) -> FastAPI:
         st = bot.states.get(sym)
         if not st or st.price <= 0:
             return JSONResponse({"error": f"no live price for {sym} yet"}, status_code=400)
+        # v1.15.0 : un trigger résiduel du cycle précédent (reduce-only pas
+        # encore balayé par le reconcile) fermerait la nouvelle position à un
+        # niveau arbitraire. Doctrine : on ne cancel pas un trigger inconnu
+        # (peut être un ordre utilisateur) — on refuse l'open et on informe.
+        if bot.broker.is_live:
+            try:
+                trigs = await asyncio.to_thread(
+                    bot.broker.account.open_trigger_orders)
+                if any(t.get("coin") == sym for t in trigs):
+                    return JSONResponse({"error": (
+                        f"{sym} has a resident trigger order on the exchange "
+                        f"(residual stop or manual order) — cancel it first "
+                        f"or wait for the hourly sweep.")}, status_code=409)
+            except Exception:
+                pass  # lecture triggers indisponible → on n'empêche pas l'open
 
         direction = 1 if dir_str == "LONG" else -1
         now = datetime.now(timezone.utc)
@@ -1092,6 +1128,13 @@ def create_app(bots: dict, master) -> FastAPI:
                 "target_exit": target_exit.isoformat(),
                 "stop_bps": round(stop_bps_in, 1), "manual": True})
             bot._save_state()
+            # v1.15.0 : filet hard-stop immédiat (parité avec le chemin scan,
+            # botinstance._rank_and_enter) — avant, la position manuelle
+            # courait sans trigger résident jusqu'au reconcile horaire.
+            await asyncio.to_thread(bot._place_hard_stop, sym)
+            _audit(request, "/api/manual_open", bot_id,
+                   {"symbol": sym, "dir": dir_str, "size": round(filled_size, 2),
+                    "strategy": strategy}, "opened")
             log.info("[%s] MANUAL OPEN %s %s %s @ $%.4f | $%.0f", bot.id,
                      strategy, dir_str, sym, entry_price, filled_size)
             return JSONResponse({
@@ -1146,6 +1189,8 @@ def create_app(bots: dict, master) -> FastAPI:
             bot._equity_samples = []
             bot._entries_halted_until = 0.0
         bot._save_state()
+        _audit(request, "/api/capital", bot_id,
+               {"amount": amount}, f"{old_capital:.2f}->{bot._capital:.2f}")
         log.info("[%s] CAPITAL: $%.0f → $%.0f (%+.0f)", bot.id, old_capital,
                  bot._capital, amount)
         bot.notifier.send(f"💰 Capital adjusted: ${old_capital:.0f} → "
@@ -1154,7 +1199,7 @@ def create_app(bots: dict, master) -> FastAPI:
                              "new": round(bot._capital, 2), "amount": amount})
 
     @app.post("/bot/{bot_id}/api/pause")
-    def api_pause(bot_id: str):
+    def api_pause(bot_id: str, request: Request):
         """Close ALL positions + pause (legacy destructive pause)."""
         bot = _bot(bot_id)
         if not bot:
@@ -1167,40 +1212,45 @@ def create_app(bots: dict, master) -> FastAPI:
                     failed.append(sym)
         bot._paused = True
         bot._save_state()
+        _audit(request, "/api/pause", bot_id, None,
+               f"paused, failed_closes={failed}" if failed else "paused")
         resp = {"status": "paused"}
         if failed:
             resp["warning"] = f"failed to close: {failed}"
         return JSONResponse(resp)
 
     @app.post("/bot/{bot_id}/api/resume")
-    async def api_resume(bot_id: str):
+    async def api_resume(bot_id: str, request: Request):
         bot = _bot(bot_id)
         if not bot:
             return NOT_FOUND
         bot._paused = False
         bot._entries_halted_until = 0.0     # lève aussi le frein agrégé
         bot._save_state()
+        _audit(request, "/api/resume", bot_id, None, "resumed")
         return JSONResponse({"status": "resumed"})
 
     @app.post("/bot/{bot_id}/api/halt_entries")
-    async def api_halt_entries(bot_id: str):
+    async def api_halt_entries(bot_id: str, request: Request):
         """Non-destructive pause: blocks NEW entries, exits keep running."""
         bot = _bot(bot_id)
         if not bot:
             return NOT_FOUND
         bot._paused = True
         bot._save_state()
+        _audit(request, "/api/halt_entries", bot_id, None, "halted")
         log.info("[%s] HALT_ENTRIES", bot.id)
         return JSONResponse({"status": "halted"})
 
     @app.post("/bot/{bot_id}/api/resume_entries")
-    async def api_resume_entries(bot_id: str):
+    async def api_resume_entries(bot_id: str, request: Request):
         bot = _bot(bot_id)
         if not bot:
             return NOT_FOUND
         bot._paused = False
         bot._entries_halted_until = 0.0     # lève aussi le frein agrégé
         bot._save_state()
+        _audit(request, "/api/resume_entries", bot_id, None, "resumed")
         log.info("[%s] RESUME_ENTRIES", bot.id)
         return JSONResponse({"status": "resumed"})
 
@@ -1227,7 +1277,7 @@ def create_app(bots: dict, master) -> FastAPI:
                              "paused_strategies": sorted([list(q) for q in bot._paused_strats])})
 
     @app.post("/bot/{bot_id}/api/reset")
-    def api_reset(bot_id: str):
+    def api_reset(bot_id: str, request: Request):
         bot = _bot(bot_id)
         if not bot:
             return NOT_FOUND
@@ -1236,7 +1286,16 @@ def create_app(bots: dict, master) -> FastAPI:
             st = bot.states.get(sym)
             if st and st.price > 0:
                 bot.close_position(sym, st.price, now, "reset")
+        # v1.15.0 : trace de l'ampleur AVANT la purge — reset destructif sans
+        # aucun event DB = historique effacé sans trace forensique.
+        try:
+            with bot.db.lock:
+                n_trades = bot.db.conn.execute(
+                    "SELECT COUNT(*) FROM trades").fetchone()[0]
+        except Exception:
+            n_trades = -1
         with bot._pos_lock:
+            old_pnl = bot._total_pnl
             bot._total_pnl, bot._wins, bot._peak_balance = 0.0, 0, bot._capital
             bot._consecutive_losses = 0
             bot._paused = False
@@ -1246,10 +1305,26 @@ def create_app(bots: dict, master) -> FastAPI:
             bot.trades.clear()
             bot._signal_first_seen.clear()
         with bot.db.lock:
+            # v1.15.0 : archive AVANT purge — le reset du 07-09 a rendu ~44
+            # décisions IA à jamais irrésolubles (le scorecard contrefactuel
+            # apparie décisions ↔ trades). L'archive préserve l'appariement
+            # sans polluer les stats du bot (aucun autre lecteur).
+            bot.db.conn.execute(
+                "CREATE TABLE IF NOT EXISTS trades_archive AS "
+                "SELECT * FROM trades WHERE 0")
+            bot.db.conn.execute(
+                "INSERT INTO trades_archive SELECT * FROM trades")
             bot.db.conn.execute("DELETE FROM trades")
             bot.db.conn.execute("DELETE FROM trajectories")
             bot.db.conn.commit()
+        bot.db.log_event("RESET", None, {
+            "capital": round(bot._capital, 2),
+            "erased_trades": n_trades,
+            "erased_pnl": round(old_pnl, 2)})
         bot._save_state()
+        _audit(request, "/api/reset", bot_id,
+               {"erased_trades": n_trades, "erased_pnl": round(old_pnl, 2)},
+               "reset")
         log.info("[%s] RESET: capital $%.0f, all state cleared", bot.id, bot._capital)
         return JSONResponse({"status": "reset"})
 

@@ -75,9 +75,13 @@ async def scheduler(master, bots: dict, shutdown: asyncio.Event):
 
             now_t = time.time()
             last_4h = (int(now_t) // 14400) * 14400
+            # Les bots stopped ne scannent jamais (safe_on_scan sort avant
+            # on_scan) → les inclure laisserait post_4h vrai en permanence
+            # (scan-storm 20 s). Un bot paused consomme son gate dans on_scan.
             post_4h = (now_t - last_4h >= BOUNDARY_GRACE_S
                        and any(b._last_entry_scan_4h_close < last_4h
-                               for b in bots.values()))
+                               for b in bots.values()
+                               if b.status != "stopped"))
             if now_t - last_scan >= SCAN_SECONDS or post_4h:
                 log.info("Scan (trigger: %s)",
                          "4h-boundary" if post_4h and now_t - last_scan < SCAN_SECONDS
@@ -181,8 +185,12 @@ async def run():
     import uvicorn
     from alfred.web.app import create_app
     web_port = int(os.environ.get("ALFRED_WEB_PORT", "8101"))
+    # v1.15.0 : bind loopback par défaut — nginx (127.0.0.1:8101) est le seul
+    # consommateur légitime ; 0.0.0.0 exposait le port en clair sur Internet
+    # (court-circuit TLS). Override : ALFRED_WEB_HOST=0.0.0.0.
+    web_host = os.environ.get("ALFRED_WEB_HOST", "127.0.0.1")
     app = create_app(bots, master)
-    server = uvicorn.Server(uvicorn.Config(app, host="0.0.0.0", port=web_port,
+    server = uvicorn.Server(uvicorn.Config(app, host=web_host, port=web_port,
                                            log_level="warning"))
     log.info("Web app on :%d (root_path=%r)", web_port,
              os.environ.get("ALFRED_ROOT_PATH", ""))

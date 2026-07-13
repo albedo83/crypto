@@ -77,6 +77,13 @@ def config() -> dict:
         "timeout": float(env("AI_ARBITER_TIMEOUT", str(DEFAULT_TIMEOUT))),
         "factor_min": float(env("AI_ARBITER_FACTOR_MIN", str(DEFAULT_FACTOR_MIN))),
         "veto_conf_min": float(env("AI_ARBITER_VETO_CONF_MIN", "0.0")),
+        # v1.15.0 — doctrine <50 trades : le hard-veto (suppression totale du
+        # trade, seul pouvoir DESTRUCTIF de la couche IA) est dégradé en
+        # haircut factor_min tant qu'il n'est pas re-autorisé explicitement.
+        # Bonus : le trade pris à taille réduite fournit son propre
+        # contrefactuel au scorecard (un veto supprimé = pending à vie).
+        # Ré-armer quand n_resolved ≥ 50 et Δ>0 : AI_ARBITER_VETO_ACT=1.
+        "veto_act": env("AI_ARBITER_VETO_ACT", "0") == "1",
         "cb_min": int(env("AI_ARBITER_CB_MIN", "20")),
         "cb_loss": float(env("AI_ARBITER_CB_LOSS", "-40")),
         # Hystérésis inter-scan : réinjecte la décision précédente sur un même
@@ -175,7 +182,9 @@ Une entrée par symbole du lot. Termes techniques OK (bps, btc_z, MFE, div).
 # scorecard sépare les populations quand le prompt change (champion/
 # challenger phase 2). À logger dans chaque event de décision.
 import hashlib as _hl
-PROMPT_HASH = _hl.sha256(SYSTEM_PROMPT.encode()).hexdigest()[:10]
+# v1.15.0 : DOCTRINE_DIGEST inclus — un changement de doctrine changeait
+# la population de décisions sous un hash constant (inauditables).
+PROMPT_HASH = _hl.sha256((SYSTEM_PROMPT + DOCTRINE_DIGEST).encode()).hexdigest()[:10]
 
 
 

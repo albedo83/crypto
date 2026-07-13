@@ -105,6 +105,14 @@ def oi_delta_24h_bps(oi_history) -> float | None:
     oi_then = None
     for t, oi in history:
         if t >= target_ts:
+            # v1.15.0 : après un trou d'échantillonnage REST, le premier
+            # sample >= cible peut dater d'il y a 2h — comparer un delta 2h
+            # au seuil 24h sous-bloque (un unwind réel passe le gate). Si le
+            # sample trouvé est à plus de 4h de la cible, les données ne
+            # peuvent pas répondre à la question 24h → None (fail-open,
+            # même sémantique que l'historique court).
+            if t - target_ts > 4 * 3600:
+                return None
             oi_then = oi
             break
     if oi_then is None or oi_then <= 0:

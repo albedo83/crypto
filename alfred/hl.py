@@ -266,30 +266,47 @@ class HLAccount:
 
         log.info("EXEC OPEN: %s %s sz=%s (~$%.0f)",
                  "BUY" if is_buy else "SELL", sym, sz, sz * price)
-        result = _sdk_retry(self.exchange.market_open, sym, is_buy, sz,
-                            slippage=0.01, timeout=20.0)
-        statuses = result.get("response", {}).get("data", {}).get("statuses", [])
-        if not statuses:
-            raise RuntimeError(f"Order returned empty statuses: {result}")
-        first = statuses[0]
-        if "error" in str(first).lower():
-            raise RuntimeError(f"Order error: {first}")
+        timed_out = False
+        try:
+            result = _sdk_retry(self.exchange.market_open, sym, is_buy, sz,
+                                slippage=0.01, timeout=20.0)
+        except TimeoutError:
+            # v1.15.0 : le thread SDK continue après le timeout — l'ordre a
+            # pu être exécuté quand même. Avant : raise immédiat → si l'ordre
+            # fillait ensuite, position réelle orpheline (alerte seulement,
+            # notionnel à levier sans stop jusqu'à action humaine). On tente
+            # d'abord la récupération du fill réel via user_fills ; sans
+            # fill, on raise comme avant (reconcile en filet).
+            log.warning("OPEN %s: timeout SDK — vérification user_fills "
+                        "avant abandon", sym)
+            timed_out = True
+            result = None
+        if result is not None:
+            statuses = result.get("response", {}).get("data", {}).get("statuses", [])
+            if not statuses:
+                raise RuntimeError(f"Order returned empty statuses: {result}")
+            first = statuses[0]
+            if "error" in str(first).lower():
+                raise RuntimeError(f"Order error: {first}")
 
-        filled = first.get("filled") if isinstance(first, dict) else None
-        if filled and "avgPx" in filled:
-            try:
-                avg_px = float(filled["avgPx"])
-                actual_sz = float(filled.get("totalSz", sz))
-            except (TypeError, ValueError):
-                avg_px, actual_sz = 0.0, 0.0
-            if avg_px > 0 and actual_sz > 0:
-                return self._abort_if_micro_fill(sym, avg_px, actual_sz, size_usdt)
-            log.warning("OPEN %s: invalid filled response — falling back to user_fills", sym)
+            filled = first.get("filled") if isinstance(first, dict) else None
+            if filled and "avgPx" in filled:
+                try:
+                    avg_px = float(filled["avgPx"])
+                    actual_sz = float(filled.get("totalSz", sz))
+                except (TypeError, ValueError):
+                    avg_px, actual_sz = 0.0, 0.0
+                if avg_px > 0 and actual_sz > 0:
+                    return self._abort_if_micro_fill(sym, avg_px, actual_sz, size_usdt)
+                log.warning("OPEN %s: invalid filled response — falling back to user_fills", sym)
 
         try:
-            time.sleep(0.5)
+            # Timeout : laisser au thread SDK en vol le temps de finir, et
+            # élargir la fenêtre de recherche (les retries 429 ont pu durer).
+            time.sleep(3.0 if timed_out else 0.5)
             fills = _sdk_retry(self.info.user_fills_by_time, self.address,
-                               int((time.time() - 30) * 1000), timeout=10.0)
+                               int((time.time() - (60 if timed_out else 30)) * 1000),
+                               timeout=10.0)
             coin_fills = [f for f in fills if f.get("coin") == sym]
             if coin_fills:
                 total_sz = sum(float(f["sz"]) for f in coin_fills)

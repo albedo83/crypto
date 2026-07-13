@@ -43,14 +43,11 @@ STOP_TG_CONF_MIN = 0.7
 
 
 def send_telegram(text: str) -> None:
-    import urllib.request as _u, urllib.parse as _p
-    tok, chat = os.environ.get("TG_BOT_TOKEN"), os.environ.get("TG_CHAT_ID")
-    if not tok or not chat:
-        return
+    """v1.15.0 : routé via ai_notify — respecte AI_TG_ENABLED, préfixe 🧠 et
+    journalise dans l'event AI_TG (l'implémentation locale bypassait tout)."""
     try:
-        data = _p.urlencode({"chat_id": chat, "text": text}).encode()
-        _u.urlopen(f"https://api.telegram.org/bot{tok}/sendMessage",
-                   data=data, timeout=10)
+        from ai_notify import send_telegram as _ai_send
+        _ai_send(text, source="position_review")
     except Exception as e:
         print(f"[position_review] TG failed: {e}", file=sys.stderr)
 
@@ -100,7 +97,9 @@ d'hallucination de chiffres : uniquement les valeurs du contexte fourni.
 """
 
 import hashlib as _hl
-PROMPT_HASH = _hl.sha256(SYSTEM_PROMPT.encode()).hexdigest()[:10]
+# v1.15.0 : DOCTRINE_DIGEST inclus — un changement de doctrine changeait
+# la population de décisions sous un hash constant (inauditables).
+PROMPT_HASH = _hl.sha256((SYSTEM_PROMPT + DOCTRINE_DIGEST).encode()).hexdigest()[:10]
 
 
 # Champs de position conservés pour le prompt (le reste = bruit/sparkline).

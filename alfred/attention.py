@@ -70,6 +70,10 @@ def env(k, d=""):
 
 
 def send_tg(text):
+    # VOLONTAIREMENT direct (pas via ai_notify) : ce module porte la sonde
+    # santé « couche IA dark » (crédit à sec, silence >6h). La router via
+    # ai_notify la ferait taire sous AI_TG_ENABLED=0 — exactement l'angle
+    # mort qu'elle couvre. Revue v1.15.0 : bypass assumé, pas un oubli.
     tok, chat = env("TG_BOT_TOKEN"), env("TG_CHAT_ID")
     if not tok or not chat:
         return

@@ -3,6 +3,17 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.15.0 — 2026-07-13
+
+Durcissement issu d'une revue de code complète (5 passes spécialisées, ~30 findings corrigés).
+
+- **Trading engine**: le reliquat d'une fermeture partiellement remplie est ré-inscrit comme position (filet re-posé, retry au tick suivant) au lieu de rester non tracké sur l'exchange ; un ordre d'ouverture en timeout tente désormais de récupérer son fill réel avant d'abandonner ; dédoublonnage du booking au reboot après crash ; garde de sizing sur capital épuisé ; ordre stop-manuel/timeout aligné sur le legacy.
+- **Trading engine**: un bot en pause ne déclenche plus de re-scans en boucle pour toute la flotte ; les entrées sont gatées sur la fraîcheur des prix et le roll effectif de la bougie 4h (parité avec le gate de staleness des sorties) ; le verrou de profit S5 ne s'éteint plus silencieusement sur un trou de données BTC ; le gate OI ignore les lectures fausses après un trou d'échantillonnage.
+- **Data**: l'audit de bougies répare désormais automatiquement les divergences détectées (mémoire + store convergent vers la référence) et accepte la finalisation tardive de la bougie qui vient de clôturer ; le polling prix survit à une exception ; l'ingestion WS ignore un message malformé au lieu de déchirer la connexion, et ses écritures ne bloquent plus l'event loop.
+- **Infra**: écriture du state sérialisée + fsync (plus de state tronqué possible par saves concurrents ou coupure courant) ; les pauses par-stratégie survivent au restart ; lectures SQLite des endpoints web toutes sérialisées ; échecs de close purgés correctement après une fermeture exchange-side.
+- **Sécurité**: rate-limit et backoff de login keyés sur l'IP réelle (le keying précédent était contournable par header forgé) ; le port web n'écoute plus que sur loopback (nginx seul consommateur) ; cookie de session marqué Secure derrière https ; toutes les mutations admin (close, capital, open manuel, pause, reset) sont journalisées dans l'audit, et un reset laisse une trace en DB ; l'open manuel pose son filet immédiatement et refuse un coin portant un trigger résiduel.
+- **IA**: le hard-veto d'entrée est dégradé en réduction de taille tant que l'échantillon de preuve est insuffisant (ré-armement explicite par variable d'env) ; un reset archive les trades pour que le scorecard contrefactuel survive ; hystérésis des arbitres persistée au restart ; hash de prompt étendu à la doctrine ; messages de la revue de position routés par le canal IA commun ; notes du superviseur débarrassées des capitaux périmés.
+
 ## v1.14.0 — 2026-07-09
 
 - **Dashboard**: nouvelle fenêtre log « Divergences BT » sur le dashboard de chaque bot — comparaison live-vs-backtest chaque jour (même date, même capital), listant toutes les divergences (entrées prises par le bot mais pas le BT, et l'inverse ventilé par cause) même quand elles sont justifiées. Alimentée par un job quotidien.

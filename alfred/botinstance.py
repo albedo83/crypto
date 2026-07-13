@@ -15,6 +15,7 @@ response builders (web/views.py) port with minimal churn.
 
 from __future__ import annotations
 
+import dataclasses
 import logging
 import math
 import threading
@@ -144,14 +145,27 @@ class BotInstance:
             self._consecutive_losses = st.get("consecutive_losses", 0)
             self._cooldowns = st.get("cooldowns", {})
             self._signal_first_seen = st.get("signal_first_seen", {})
-            self._last_entry_scan_4h_close = st.get("_last_entry_scan_4h_close", 0)
+            # Défaut = frontière 4h courante (v1.15.0), pas 0 : un state.json
+            # legacy sans la clé autorisait une entrée mi-bougie au boot (le
+            # bug CRV/COMP du 2026-06-10 par la porte migration). Le __init__
+            # pose le même défaut prudent — ne pas l'écraser avec 0.
+            self._last_entry_scan_4h_close = st.get(
+                "_last_entry_scan_4h_close",
+                self._last_entry_scan_4h_close)
             self._equity_samples = st.get("_equity_samples", [])
             self._entries_halted_until = st.get("_entries_halted_until", 0.0)
             self._perf_track_start_ts = st.get("_perf_track_start_ts", 0.0)
             self._capital_at_perf_reset = st.get("_capital_at_perf_reset", 0.0)
             self._total_pnl_at_perf_reset = st.get("_total_pnl_at_perf_reset", 0.0)
             self._btc_z = st.get("_btc_z")
-            self._paused_strats = st.get("_paused_strats", set())
+            # v1.15.0 : coercition list-of-lists (JSON) → set de tuples. Le
+            # raw assign faisait perdre les pauses par-stratégie au restart
+            # ((strat, dir) tuple ∉ [[s,d],…]) et .add() crashait ensuite.
+            self._paused_strats = {tuple(q) for q in
+                                   (st.get("_paused_strats") or [])}
+            # v1.15.0 : hystérésis arbitres IA (TTL géré à la lecture)
+            self._arbiter_last = st.get("_arbiter_last", {}) or {}
+            self._exit_arbiter_last = st.get("_exit_arbiter_last", {}) or {}
             self.positions = st.get("positions", {})
             log.info("[%s] restored: %d positions, capital $%.2f, P&L $%.2f",
                      self.id, len(self.positions), self._capital, self._total_pnl)
@@ -733,6 +747,15 @@ class BotInstance:
         # Live partial-fill coin reconcile (legacy v12.5.25): if the closed
         # coin count differs >1% from what we tracked, scale size_usdt to
         # `coins × open_price` (preserves open-notional P&L semantics).
+        # v1.15.0 : le RELIQUAT d'un fill partiel (IoC borné dans un trou de
+        # liquidité) n'est plus abandonné — avant, on annulait le hard-stop,
+        # on rescalait le P&L et on poppait la position entière : le reste
+        # vivait sur HL non tracké, sans filet, précisément dans le régime
+        # (flush) où les IoC ne remplissent pas. Désormais le reliquat
+        # matériel (≥ $10 notionnel) est ré-inscrit comme position : les
+        # règles de sortie re-fireront au tick suivant (retry organique) et
+        # le filet exchange-side est re-posé.
+        remainder_pos = None
         if self.broker.is_live and fill.size_usdt > 0 and pos.entry_price > 0:
             expected_coins = pos.size_usdt / pos.entry_price
             actual_coins = fill.size_usdt          # LiveBroker.close: sz in coins
@@ -740,15 +763,38 @@ class BotInstance:
                 log.warning("[%s] CLOSE coin reconcile %s: expected=%.4f "
                             "filled=%.4f — partial fill?", self.id, sym,
                             expected_coins, actual_coins)
+                remainder_coins = expected_coins - actual_coins
+                remainder_usdt = remainder_coins * pos.entry_price
                 with self._pos_lock:
                     if sym in self.positions:
                         self.positions[sym].size_usdt = actual_coins * pos.entry_price
                         pos = self.positions[sym]
+                if remainder_coins > 0 and remainder_usdt >= 10.0:
+                    remainder_pos = dataclasses.replace(
+                        pos, size_usdt=round(remainder_usdt, 2),
+                        trajectory=list(pos.trajectory),
+                        stop_oid=None, stop_px=None)
         funding_adj = self.broker.trade_funding_usdt(
             sym, pos.direction, pos.size_usdt, accrued=0.0,
             entry_ms=int(pos.entry_time.timestamp() * 1000),
             exit_ms=int(now.timestamp() * 1000))
         self._record_close(sym, exit_price, now, reason, funding_adj)
+        if remainder_pos is not None:
+            with self._pos_lock:
+                self.positions[sym] = remainder_pos
+            self.db.log_event("PARTIAL_CLOSE_REMAINDER", sym, {
+                "reason": reason,
+                "remainder_usdt": round(remainder_pos.size_usdt, 2)})
+            log.warning("[%s] PARTIAL CLOSE %s: reliquat $%.2f ré-inscrit — "
+                        "retry au prochain tick, filet re-posé", self.id, sym,
+                        remainder_pos.size_usdt)
+            self.notifier.send(
+                f"⚠️ Close partiel {sym} : reliquat ${remainder_pos.size_usdt:.2f} "
+                f"ré-inscrit (retry au tick suivant)", category="trade",
+                actionable=True)
+            if self.broker.is_live:
+                self._place_hard_stop(sym)
+            self._save_state()
 
     def _record_close(self, sym: str, exit_price: float, exit_dt: datetime,
                       reason: str, funding_adj: float,
@@ -762,6 +808,10 @@ class BotInstance:
             if sym not in self.positions:
                 return
             pos = self.positions.pop(sym)
+            # v1.15.0 : une fermeture bookée exchange-side (hard-stop pendant
+            # une panne) laissait sym dans _failed_closes à vie →
+            # close_and_check menteur sur toute position rouverte du symbole.
+            self._failed_closes.discard(sym)
             hold_h = (exit_dt - pos.entry_time).total_seconds() / 3600
             final_bps = pos.direction * (exit_price / pos.entry_price - 1) * 1e4
             pos.trajectory.append((round(hold_h, 1), round(final_bps, 1)))
@@ -865,6 +915,51 @@ class BotInstance:
         if pos is None:
             return
         now = datetime.now(timezone.utc)
+        # v1.15.0 — dédup reboot : crash entre write_trade et _save_state →
+        # le trade est déjà en DB mais la position (et son P&L) encore dans
+        # le state (le save est atomique : ghost ⟺ P&L non compté). Re-booker
+        # créerait une 2e ligne trades (WR/stats/tracker faussés). On
+        # ré-applique le P&L de la ligne existante et on retire la position.
+        try:
+            with self.db.lock:
+                dup = self.db.conn.execute(
+                    "SELECT pnl_usdt, exit_time FROM trades "
+                    "WHERE symbol=? AND entry_time=? LIMIT 1",
+                    (sym, pos.entry_time.isoformat())).fetchone()
+        except Exception:
+            dup = None
+        if dup is not None:
+            dup_pnl = float(dup[0] or 0.0)
+            with self._pos_lock:
+                if self.positions.pop(sym, None) is None:
+                    return
+                self._failed_closes.discard(sym)
+                self._total_pnl += dup_pnl
+                balance = self._capital + self._total_pnl
+                if balance > self._peak_balance:
+                    self._peak_balance = balance
+                if dup_pnl > 0:
+                    self._wins += 1
+                    self._consecutive_losses = 0
+                else:
+                    self._consecutive_losses += 1
+                try:
+                    exit_ts = datetime.fromisoformat(dup[1]).timestamp()
+                except Exception:
+                    exit_ts = now.timestamp()
+                self._cooldowns[sym] = exit_ts + self.p.cooldown_hours * 3600
+            if pos.stop_oid:
+                try:
+                    self.broker.account.cancel_order(sym, pos.stop_oid)
+                except Exception:
+                    pass  # sweep du reconcile en filet
+            self.db.log_event("EXCHANGE_CLOSE_DEDUP", sym, {
+                "source": source, "pnl_reapplied": round(dup_pnl, 2)})
+            log.warning("[%s] ghost %s: trade déjà en DB (crash pré-save) — "
+                        "P&L %.2f ré-appliqué au state, pas de re-booking",
+                        self.id, sym, dup_pnl)
+            self._save_state()
+            return
         entry_ms = int(pos.entry_time.timestamp() * 1000)
         parsed = None
         try:
@@ -1415,9 +1510,14 @@ class BotInstance:
                 acted = (arb_mode == "act")
                 hard_veto = (v["decision"] == "VETO"
                              and v["confidence"] >= arb_cfg["veto_conf_min"])
-                if hard_veto:
+                # v1.15.0 : veto_act=False (défaut, doctrine <50 trades) —
+                # le hard-veto est dégradé en haircut factor_min : le trade
+                # est pris à taille réduite (et fournit son contrefactuel au
+                # scorecard) au lieu d'être supprimé. AI_ARBITER_VETO_ACT=1
+                # pour ré-armer la suppression totale.
+                if hard_veto and arb_cfg.get("veto_act"):
                     eff_factor = 0.0
-                elif v["decision"] == "VETO":      # veto basse-confiance → haircut
+                elif v["decision"] == "VETO":      # veto (dégradé) → haircut
                     eff_factor = arb_cfg["factor_min"]
                 else:                               # GO
                     eff_factor = v["factor"]
@@ -1434,6 +1534,7 @@ class BotInstance:
                     "prior_inherited": sym in _entry_prior_syms,
                     "strategy": sig["strategy"], "dir": side,
                     "decision": v["decision"], "hard_veto": hard_veto,
+                    "veto_downgraded": bool(hard_veto and not arb_cfg.get("veto_act")),
                     "factor": round(eff_factor, 3), "confidence": v["confidence"],
                     "reason": v["reason"], "risk_flags": v["risk_flags"],
                     "rules_size": round(rules_size, 2),
@@ -1580,9 +1681,6 @@ class BotInstance:
             except Exception as e:
                 log.warning("[%s] daily summary failed: %s", self.id, e)
 
-        if self._paused:
-            return 0
-
         # Defensive: never consume the 4h gate without live prices (the gate
         # marks the period as evaluated — burning it on empty data would skip
         # the period's entries entirely).
@@ -1594,7 +1692,48 @@ class BotInstance:
         last_4h_close = (now_ts // 14400) * 14400
         if self._last_entry_scan_4h_close >= last_4h_close:
             return 0
+
+        # Gate de FRAÎCHEUR des entrées (v1.15.0) — ferme l'asymétrie avec
+        # les sorties (exit_stale_max_s) : REST down depuis > 5 min → les
+        # prix/features sont figés, entrer au marché exécuterait très loin
+        # du signal. Ne consomme PAS le gate (retry au tick suivant).
+        if time.time() - self.master.last_price_fetch > 300.0:
+            log.warning("[%s] scan entrées sauté : prix REST périmés (%.0fs) "
+                        "— gate 4h non consommé", self.id,
+                        time.time() - self.master.last_price_fetch)
+            return 0
+
+        # Bougie 4h roulée ? (v1.15.0) — à la frontière, si le WS est mort à
+        # cheval sur la clôture, la bougie en mémoire est un état partiel :
+        # les signaux seraient calculés sur une bougie tronquée ET le gate
+        # consommé. On attend le repair (retry, budget 15 min) ; au-delà, la
+        # période est consommée sans entrée (données inutilisables).
+        btc_st = self.states.get("BTC")
+        btc_last_ms = btc_st.last_candle_ts if btc_st else 0
+        if btc_last_ms < last_4h_close * 1000:
+            if now_ts - last_4h_close <= 900:
+                log.warning("[%s] bougie 4h BTC pas encore roulée — retry "
+                            "(gate non consommé)", self.id)
+                return 0
+            log.warning("[%s] bougie 4h BTC absente > 15 min après la "
+                        "clôture — période consommée sans entrées", self.id)
+            self._last_entry_scan_4h_close = last_4h_close
+            self.db.log_event("SKIP", None, {"reason": "candle_not_rolled",
+                                             "boundary": last_4h_close})
+            self._save_state()
+            return 0
+
         self._last_entry_scan_4h_close = last_4h_close
+
+        # Pause APRÈS consommation du gate (v1.15.0) : un bot en pause qui ne
+        # consommait pas le gate laissait le prédicat post_4h du scheduler
+        # vrai en permanence → full scan (snapshot + SDK reconcile) toutes
+        # les 20 s pour toute la flotte. Même philosophie que le frein
+        # equity : la bougie est consommée, reprise alignée à la prochaine
+        # clôture 4h (pas d'entrée mi-bougie au resume).
+        if self._paused:
+            self._save_state()
+            return 0
 
         # Frein agrégé (v1.11.0) : entrées gelées post-DD — la bougie est
         # consommée (reprise alignée à la prochaine clôture 4h, pas mi-bougie).

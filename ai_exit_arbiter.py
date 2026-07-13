@@ -156,7 +156,9 @@ Une entrée par symbole. Termes techniques OK (bps, btc_z, MFE, MAE, div).
 # scorecard sépare les populations quand le prompt change (champion/
 # challenger phase 2). À logger dans chaque event de décision.
 import hashlib as _hl
-PROMPT_HASH = _hl.sha256(SYSTEM_PROMPT.encode()).hexdigest()[:10]
+# v1.15.0 : DOCTRINE_DIGEST inclus — un changement de doctrine changeait
+# la population de décisions sous un hash constant (inauditables).
+PROMPT_HASH = _hl.sha256((SYSTEM_PROMPT + DOCTRINE_DIGEST).encode()).hexdigest()[:10]
 
 
 

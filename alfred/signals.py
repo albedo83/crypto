@@ -178,7 +178,9 @@ def detect_token_signals(
             "hold_hours": p.hold_hours_for("S8"), "ctx": entry_ctx,
         })
 
-    # S9: Fade extreme ±20%/24h move. Adaptive stop: bigger move → tighter stop.
+    # S9: Fade extreme ±20%/24h move. Adaptive stop: bigger move → WIDER stop
+    # (−500 − |ret|/8, plafonné à stop_loss_bps) : plus le move fadé est
+    # violent, plus on laisse de la place au bruit avant de se faire stopper.
     if abs(f.get("ret_24h", 0)) >= p.s9_ret_thresh:
         s9_dir = -1 if f["ret_24h"] > 0 else 1
         s9_stop = (max(p.stop_loss_bps, -500 - abs(f["ret_24h"]) / 8)

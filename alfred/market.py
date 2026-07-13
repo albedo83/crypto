@@ -226,6 +226,7 @@ class MarketDataMaster:
         self.ws_connected: bool = False
         self.ws_reconnects: int = 0
         self.ws_candle_updates: int = 0
+        self._bg_tasks: set = set()   # refs fortes tasks fire-and-forget (v1.15.0)
         # A2 — downtime détecté au boot ({from_ms, to_ms, seconds} | None).
         # Lu par BotInstance.load() pour le rattrapage d'excursions (A3) et
         # par la vue /master (couverture données).
@@ -297,11 +298,19 @@ class MarketDataMaster:
         """REST tick poll. Cadence configurable (20s nominal; 60s in the
         phase-2 observation deployment to spare the shared-IP budget)."""
         while self.running:
-            meta_u, ctxs = await asyncio.to_thread(self.fetch_prices)
-            if meta_u and ctxs:
-                self.last_price_fetch = time.time()
-                await asyncio.to_thread(
-                    log_ticks, self.db, ctxs, meta_u, self.p.all_symbols)
+            # v1.15.0 : catch enveloppant — une exception (ex. log_ticks sur
+            # payload inattendu) tuait la task en silence → prix figés à vie
+            # du process. fetch_prices avale déjà ses propres erreurs.
+            try:
+                meta_u, ctxs = await asyncio.to_thread(self.fetch_prices)
+                if meta_u and ctxs:
+                    self.last_price_fetch = time.time()
+                    await asyncio.to_thread(
+                        log_ticks, self.db, ctxs, meta_u, self.p.all_symbols)
+            except asyncio.CancelledError:
+                return
+            except Exception:
+                log.exception("poll_loop error — tick sauté, loop conservée")
             await asyncio.sleep(self.rest_poll_seconds)
 
     # ── REST: candle backfill & repair ───────────────────────────────
@@ -513,21 +522,34 @@ class MarketDataMaster:
                 a, b = mem[t], ref_closed[t]
                 # o/h/l/c must match exactly (same source); volume can settle
                 # late on the REST side — tolerate 1%.
-                if (a["o"] != b["o"] or a["c"] != b["c"]
-                        or a["h"] != b["h"] or a["l"] != b["l"]
-                        or abs(a["v"] - b["v"]) > 0.01 * max(b["v"], 1e-9)):
-                    mismatch.append(t)
+                bad_fields = [f for f in ("o", "h", "l", "c") if a[f] != b[f]]
+                if abs(a["v"] - b["v"]) > 0.01 * max(b["v"], 1e-9):
+                    bad_fields.append("v")
+                if bad_fields:
+                    # v1.15.0 : champ + delta loggés — trie vrai écart OHLC
+                    # (features faussées) vs volume qui settle tard (bénin).
+                    mismatch.append({"t": t, "fields": bad_fields})
             report[sym] = {"compared": len(common),
                            "mismatch": mismatch, "missing_in_mem": missing}
             await asyncio.sleep(self.candle_fetch_sleep)
-        n_bad = sum(1 for r in report.values()
-                    if r.get("mismatch") or r.get("missing_in_mem"))
+        bad_syms = sorted(k for k, r in report.items()
+                          if r.get("mismatch") or r.get("missing_in_mem"))
         self.db.log_event("CANDLE_AUDIT", None, report)
-        if n_bad:
+        if bad_syms:
             log.warning("Candle audit: %d/%d symbols with discrepancies: %s",
-                        n_bad, len(sample),
-                        {k: v for k, v in report.items()
-                         if v.get("mismatch") or v.get("missing_in_mem")})
+                        len(bad_syms), len(sample),
+                        {k: v for k, v in report.items() if k in bad_syms})
+            # v1.15.0 : auto-repair — l'audit était observation-only : une
+            # bougie fermée divergente (finalisée sur un état WS partiel)
+            # restait fausse en mémoire ET en DB (persist_in_progress la
+            # re-upsertait), jusqu'à 119 h mesurées. Le refill merge fait
+            # converger mémoire + store vers REST (la référence).
+            for sym in bad_syms:
+                await asyncio.to_thread(
+                    self._refill_symbol, sym, 6, True)
+                await asyncio.sleep(self.candle_fetch_sleep)
+            self.db.log_event("CANDLE_AUDIT_REPAIR", None,
+                              {"symbols": bad_syms})
         else:
             log.info("Candle audit clean (%s)", ", ".join(sample))
 
@@ -564,8 +586,21 @@ class MarketDataMaster:
                 pending.append((sym, [st.candles_4h[-1]], True))
             st.candles_4h.append(row)        # new period opened
             pending.append((sym, [row], False))
-        # older-than-last updates are ignored (REST backfill owns history)
-        st.last_candle_ts = row["t"]
+        elif (len(st.candles_4h) >= 2 and st.candles_4h[-2]["t"] == row["t"]):
+            # v1.15.0 : finalisation TARDIVE de la bougie qui vient de
+            # clôturer — son update final arrive souvent après le premier
+            # message de la nouvelle période. L'ignorer figeait la bougie
+            # sur un état partiel (15 % des audits en mismatch, persistant
+            # jusqu'à 119 h). WS = TCP : pas de réordonnancement intra-
+            # connexion ; le résidu post-reconnect est couvert par
+            # l'auto-repair de l'audit.
+            st.candles_4h[-2] = row
+            pending.append((sym, [row], True))
+        # other older-than-last updates are ignored (REST backfill owns history)
+        if row["t"] > st.last_candle_ts:
+            # v1.15.0 : ne jamais RECULER last_candle_ts sur un message
+            # ancien ignoré (déclenchait des gap-repairs parasites).
+            st.last_candle_ts = row["t"]
         self.ws_candle_updates += 1
         return pending
 
@@ -619,26 +654,42 @@ class MarketDataMaster:
                         self.ws_reconnects += 1
                         self.db.log_event("WS_RECONNECT", None,
                                           {"attempt": attempt})
-                        # candles may have moved while we were away
-                        asyncio.get_running_loop().create_task(
+                        # candles may have moved while we were away.
+                        # v1.15.0 : ref forte — asyncio ne garde que des
+                        # weakrefs sur les tasks (GC possible mi-course).
+                        _t = asyncio.get_running_loop().create_task(
                             self._safe_repair("ws_reconnect"))
+                        self._bg_tasks.add(_t)
+                        _t.add_done_callback(self._bg_tasks.discard)
                     attempt = 0
                     async for raw in ws:
-                        msg = orjson.loads(raw)
-                        channel = msg.get("channel")
-                        if channel == "candle":
-                            data = msg.get("data")
-                            pend: list[tuple] = []
-                            if isinstance(data, list):
-                                for c in data:
-                                    pend += self._ingest_candle(c)
-                            elif isinstance(data, dict):
-                                pend = self._ingest_candle(data)
-                            # commits SQLite hors event loop (rolls uniquement)
-                            if pend:
-                                await asyncio.to_thread(self._persist_batch, pend)
-                        elif channel == "trades":
-                            self.flow.ingest(msg["data"])
+                        # v1.15.0 : try par message — un payload inattendu
+                        # (changement de format HL) déchirait toute la
+                        # connexion → boucle de reconnexion infinie.
+                        try:
+                            msg = orjson.loads(raw)
+                            channel = msg.get("channel")
+                            if channel == "candle":
+                                data = msg.get("data")
+                                pend: list[tuple] = []
+                                if isinstance(data, list):
+                                    for c in data:
+                                        pend += self._ingest_candle(c)
+                                elif isinstance(data, dict):
+                                    pend = self._ingest_candle(data)
+                                # commits SQLite hors event loop (rolls uniquement)
+                                if pend:
+                                    await asyncio.to_thread(self._persist_batch, pend)
+                            elif channel == "trades":
+                                # flush hors event loop (v1.15.0) : le commit
+                                # SQLite inline gelait l'ingestion WS quand
+                                # db.lock était tenu par un thread lent.
+                                if self.flow.ingest(msg["data"]):
+                                    await asyncio.to_thread(
+                                        self.flow.flush_completed, time.time())
+                        except Exception:
+                            log.warning("WS message inattendu ignoré: %.200s",
+                                        raw, exc_info=True)
                 # `async for` se termine SANS exception quand le serveur
                 # ferme proprement (HL recycle ses connexions ~3h) — il faut
                 # repasser par la même comptabilité que le chemin d'erreur

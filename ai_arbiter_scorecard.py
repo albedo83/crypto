@@ -67,20 +67,26 @@ def load_decisions(db_path: str) -> list[dict]:
         except Exception:
             continue
         d["_ts"] = r["ts"]
-        d["symbol"] = d.get("strategy") and r["symbol"] or r["symbol"]
+        d["symbol"] = r["symbol"]
         out.append(d)
     return out
 
 
 def load_closed_trades(db_path: str) -> dict:
-    """{(symbol, entry_time[:16]): trade}."""
+    """{(symbol, entry_time[:16]): trade}. Inclut trades_archive (v1.15.0) :
+    les trades purgés par un reset restent appariables aux décisions IA."""
     if not os.path.exists(db_path):
         return {}
     db = _conn(db_path)
+    sel = ("SELECT symbol, direction, strategy, entry_time, exit_time, "
+           "pnl_usdt, size_usdt FROM {} WHERE exit_time IS NOT NULL")
+    rows = []
     try:
-        rows = db.execute(
-            "SELECT symbol, direction, strategy, entry_time, exit_time, pnl_usdt, "
-            "size_usdt FROM trades WHERE exit_time IS NOT NULL").fetchall()
+        for table in ("trades_archive", "trades"):
+            try:
+                rows += db.execute(sel.format(table)).fetchall()
+            except sqlite3.OperationalError:
+                pass  # pas d'archive (aucun reset depuis v1.15.0)
     finally:
         db.close()
     out = {}
