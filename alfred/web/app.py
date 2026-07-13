@@ -47,6 +47,12 @@ _BACKOFF_MAX = 300.0
 _BACKOFF_RESET = 3600
 _MUT_LIMIT_PER_MIN = 30
 _MUT_WINDOW = 60.0
+# Fenêtre d'affichage des logs du dashboard (event timeline, historique IA,
+# divergences BT). AFFICHAGE seulement : la table `events` (scorecards IA,
+# décisions arbitre, coûts, audit) n'est JAMAIS purgée — elle est la source de
+# vérité du scorecard contrefactuel (cf. archivage au reset, v1.15.0).
+_LOG_WINDOW_DAYS = 3
+_LOG_WINDOW_S = _LOG_WINDOW_DAYS * 86400
 
 
 def create_app(bots: dict, master) -> FastAPI:
@@ -763,11 +769,12 @@ def create_app(bots: dict, master) -> FastAPI:
         if not bot:
             return NOT_FOUND
         limit = max(1, min(limit, 200))
+        cutoff = time.time() - _LOG_WINDOW_S   # affichage : 3 derniers jours
         try:
             with bot.db.lock:
                 rows = bot.db.conn.execute(
-                    "SELECT ts, event, symbol, data FROM events ORDER BY ts DESC LIMIT ?",
-                    (limit,)).fetchall()
+                    "SELECT ts, event, symbol, data FROM events WHERE ts >= ? "
+                    "ORDER BY ts DESC LIMIT ?", (cutoff, limit)).fetchall()
             return JSONResponse([{"ts": r[0], "event": r[1], "symbol": r[2],
                                   "data": r[3]} for r in rows])
         except Exception as e:
@@ -781,11 +788,12 @@ def create_app(bots: dict, master) -> FastAPI:
         if not bot:
             return NOT_FOUND
         limit = max(1, min(limit, 500))
+        cutoff = time.time() - _LOG_WINDOW_S   # affichage : 3 derniers jours
         try:
             with bot.db.lock:
                 rows = bot.db.conn.execute(
-                    "SELECT ts, data FROM events WHERE event='AI_TG' "
-                    "ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
+                    "SELECT ts, data FROM events WHERE event='AI_TG' AND ts >= ? "
+                    "ORDER BY ts DESC LIMIT ?", (cutoff, limit)).fetchall()
             out = []
             for ts, data in rows:
                 try:
@@ -807,11 +815,12 @@ def create_app(bots: dict, master) -> FastAPI:
         if not bot:
             return NOT_FOUND
         limit = max(1, min(limit, 60))
+        cutoff = time.time() - _LOG_WINDOW_S   # affichage : 3 derniers jours
         try:
             with bot.db.lock:
                 rows = bot.db.conn.execute(
-                    "SELECT ts, data FROM events WHERE event='BT_DIVERGENCE' "
-                    "ORDER BY ts DESC LIMIT ?", (limit,)).fetchall()
+                    "SELECT ts, data FROM events WHERE event='BT_DIVERGENCE' AND ts >= ? "
+                    "ORDER BY ts DESC LIMIT ?", (cutoff, limit)).fetchall()
             out = []
             for ts, data in rows:
                 try:

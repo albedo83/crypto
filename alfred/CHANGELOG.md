@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.15.1 — 2026-07-13
+
+- **Dashboard**: les fenêtres de logs (historique IA, divergences BT, event timeline) n'affichent plus que les 3 derniers jours — le dashboard débordait sur plusieurs semaines. Affichage seulement : aucune donnée n'est supprimée (la table d'événements reste la source de vérité de l'audit et du scorecard).
+
 ## v1.15.0 — 2026-07-13
 
 Durcissement issu d'une revue de code complète (5 passes spécialisées, ~30 findings corrigés).
