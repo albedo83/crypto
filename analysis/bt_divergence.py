@@ -127,6 +127,12 @@ def compute_divergence(bot_key: str, now_ts: float) -> tuple[dict, str]:
     report["matched_n"] = len(pairs)
     report["bt_pnl"] = round(sum(b["pnl"] for b in bt), 2)
     report["gap"] = round(report["live_pnl"] - report["bt_pnl"], 2)
+    # Equity BT mark-to-market (inclut les positions ouvertes via mtm_final) —
+    # base comparable à l'equity live SENIOR/paper (même reset, même start_cap).
+    # Le dashboard assemble le trio BT / SENIOR / paper (les 2 derniers en direct).
+    report["bt_equity"] = round(start_cap + _res.get("pnl", 0.0), 2)
+    report["bt_pnl_pct"] = round(_res.get("pnl_pct", 0.0), 2)
+    report["bt_dd_pct"] = round(_res.get("max_dd_pct", 0.0), 2)
 
     # LIVE-ONLY : le bot a pris, le BT non (les plus importantes — dérive ?)
     live_only = [t for t in live if t["matched_to"] is None]

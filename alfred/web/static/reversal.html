@@ -563,7 +563,7 @@ tr.pos-loss td{background:rgba(248,81,73,0.08)}
 </div>
 
 <div class="section" id="bt-divergence-section">
-  <h2>Divergences BT <span class="dim" style="font-size:12px;font-weight:400">— comparaison live-vs-backtest, chaque jour (même date, même capital). Toutes les divergences, même justifiées. · 3 derniers jours</span></h2>
+  <h2>Live vs BT <span class="dim" style="font-size:12px;font-weight:400">— equity BT / SENIOR / paper + divergences par cause, rafraîchi toutes les 4h (même reset, même capital). Toutes les divergences, même justifiées.</span></h2>
   <div id="bt-divergence"></div>
 </div>
 
@@ -2010,13 +2010,38 @@ function refreshAIHistory(){
 }
 
 function refreshBTDivergence(){
-  fetch('api/bt_divergence?limit=14',{credentials:'same-origin'}).then(r=>r.json()).then(rows=>{
+  const esc=(s)=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  const money=(v)=>{v=+v||0;const c=v>=0?'#3fb950':'#f85149';return `<span style="color:${c}">${(v>=0?'+$':'-$')+Math.abs(v).toFixed(2)}</span>`;};
+  const jget=(u)=>fetch(u,{credentials:'same-origin'}).then(r=>r.ok?r.json():null).catch(()=>null);
+  // Trio d'equity : BT (event, mark-to-market) + SENIOR & paper (en direct).
+  Promise.all([jget('api/bt_divergence?limit=1'),jget('api/state'),jget('../paper/api/state')]).then(([rows,mine,paper])=>{
     const el=document.getElementById('bt-divergence');
     if(!el)return;
-    if(!Array.isArray(rows)||!rows.length){el.innerHTML='<span class="dim">Pas encore de rapport (le cron tourne chaque jour à 08:30 UTC).</span>';return}
-    const esc=(s)=>String(s??'').replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
-    const money=(v)=>{v=+v||0;const c=v>=0?'#3fb950':'#f85149';return `<span style="color:${c}">${(v>=0?'+$':'-$')+Math.abs(v).toFixed(2)}</span>`;};
-    el.innerHTML=rows.map(r=>{
+    if(!Array.isArray(rows)||!rows.length){el.innerHTML='<span class="dim">Pas encore de rapport (le comparateur BT tourne toutes les 4h, à H+10).</span>';return}
+    const r0=rows[0];
+    const base=+r0.start_cap||0;
+    const pct=(eq)=>base>0&&eq!=null?((eq/base-1)*100):null;
+    const line=(lab,eq,note,strong)=>{
+      const p=pct(eq); const pc=p==null?'':(p>=0?'#3fb950':'#f85149');
+      const eqs=eq!=null?('$'+(+eq).toFixed(2)):'—';
+      const ps=p==null?'':` <span style="color:${pc}">(${p>=0?'+':''}${p.toFixed(1)}%)</span>`;
+      return `<div style="display:flex;justify-content:space-between;font-size:${strong?'14':'13'}px;padding:2px 0">`+
+        `<span>${strong?'<b>':''}${esc(lab)}${strong?'</b>':''} <span class="dim" style="font-size:11px">${esc(note)}</span></span>`+
+        `<span style="font-family:ui-monospace,monospace">${eqs}${ps}</span></div>`;
+    };
+    const btEq=r0.bt_equity, myEq=mine&&mine.equity, ppEq=paper&&paper.equity;
+    let banner=`<div style="border:1px solid #30363d;border-radius:8px;padding:8px 12px;margin-bottom:10px;background:#0d1117">`+
+      `<div style="font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:#8b949e;margin-bottom:4px">Equity depuis le reset ${esc(r0.window_start)} · base $${base.toFixed(0)}</div>`+
+      line('BT',btEq,'théorique, mark-to-market',true)+
+      line('SENIOR',myEq,'ton bot (réel)',true)+
+      line('paper',ppEq,'≈ SENIOR attendu',false);
+    if(btEq!=null&&myEq!=null){
+      const d=myEq-btEq;
+      banner+=`<div style="border-top:1px solid #21262d;margin-top:5px;padding-top:4px;font-size:12px;display:flex;justify-content:space-between">`+
+        `<span class="dim">SENIOR − BT</span><span>${money(d)} <span class="dim">${d<0?'le BT devance':'le bot devance'}</span></span></div>`;
+    }
+    banner+=`</div>`;
+    el.innerHTML=banner+[r0].map(r=>{
       const d=new Date(r.ts*1000).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
       const divCount=(r.live_only_n||0)+(r.bt_only_n||0)+(r.matched_div_n||0);
       let head=`<div style="font-size:12px;margin-bottom:4px"><b>${d}</b> <span class="dim">fenêtre depuis ${esc(r.window_start)} · cap $${(+r.start_cap||0).toFixed(0)}</span></div>`;
@@ -2045,7 +2070,7 @@ function refreshBTDivergence(){
 }
 
 refresh();refreshSignals();refreshTrades();refreshChart();refreshEvents();refreshAIHistory();refreshBTDivergence();
-setInterval(refreshBTDivergence,300000);
+setInterval(refreshBTDivergence,30000);
 setInterval(refresh,5000);
 setInterval(refreshSignals,15000);
 setInterval(refreshTrades,30000);

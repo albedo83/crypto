@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.15.2 — 2026-07-13
+
+- **Dashboard**: la section « Divergences BT » devient « Live vs BT » et rappelle en tête l'equity atteinte par le BT théorique, par SENIOR et par paper (même reset, même capital), avec l'écart SENIOR−BT. Le comparateur passe d'un rafraîchissement quotidien à toutes les 4h (aligné sur la clôture de bougie). Aucune modification du moteur de trading — le comparateur reste un process séparé qui lit la base.
+
 ## v1.15.1 — 2026-07-13
 
 - **Dashboard**: les fenêtres de logs (historique IA, divergences BT, event timeline) n'affichent plus que les 3 derniers jours — le dashboard débordait sur plusieurs semaines. Affichage seulement : aucune donnée n'est supprimée (la table d'événements reste la source de vérité de l'audit et du scorecard).
