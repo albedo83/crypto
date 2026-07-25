@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.15.7 — 2026-07-25
+
+- **IA**: la doctrine injectée aux arbitres décrivait encore le verrou de gain retiré — ils raisonnaient sur un bot qui n'existe plus. Corrigée, avec le contexte de la décision et sa conséquence : les deux stratégies concernées n'ont plus de verrou de gain automatique, c'est donc là que le jugement contextuel de l'IA a le plus de valeur, à condition de rester rare et justifié. La doctrine rappelle aussi que le taux de réussite n'est pas l'objectif. Les empreintes de prompt changent, la traçabilité des populations est préservée.
+
 ## v1.15.6 — 2026-07-25
 
 - **Trading engine**: retrait du verrou à profit proportionnel sur S5/S9. Sa validation d'origine reposait sur un prix de sortie qui n'est pas exécutable en réalité ; re-mesuré honnêtement, le retirer gagne sur le P&L et sur le drawdown dans la majorité des fenêtres. La variante « ordre résident sur l'exchange », qui obtiendrait vraiment le prix visé, a aussi été testée : elle est la pire des trois (elle se déclenche bien plus souvent sur le bruit intra-bougie — meilleur taux de réussite, P&L divisé par deux). Les autres verrous sont conservés. Kill-switch documenté.
