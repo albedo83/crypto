@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.16.0 — 2026-07-25
+
+- **IA**: nouvel auditeur système sur SENIOR. Contrairement aux autres outils IA, il ne juge aucune position et ne peut rien déclencher côté trading : il lit les données de cohérence du bot (les deux instances comparées trade par trade, distribution des sorties, réconciliation comptable, divergences avec le backtest) et cherche ce qui est structurellement anormal — bugs, biais de mesure, dérives. Rapport quotidien sur Telegram et sur le dashboard (dernier rapport seulement). Motivation : le biais de mesure trouvé aujourd'hui valait la moitié du P&L annoncé et a mis trois semaines à émerger, alors que sa signature était visible dans les données. Validé à l'écriture : sur les données historiques, il retrouve cette anomalie en tête de liste.
+
 ## v1.15.7 — 2026-07-25
 
 - **IA**: la doctrine injectée aux arbitres décrivait encore le verrou de gain retiré — ils raisonnaient sur un bot qui n'existe plus. Corrigée, avec le contexte de la décision et sa conséquence : les deux stratégies concernées n'ont plus de verrou de gain automatique, c'est donc là que le jugement contextuel de l'IA a le plus de valeur, à condition de rester rare et justifié. La doctrine rappelle aussi que le taux de réussite n'est pas l'objectif. Les empreintes de prompt changent, la traçabilité des populations est préservée.

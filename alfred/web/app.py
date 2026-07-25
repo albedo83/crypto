@@ -806,6 +806,27 @@ def create_app(bots: dict, master) -> FastAPI:
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 
+    @app.get("/bot/{bot_id}/api/system_audit")
+    def api_system_audit(bot_id: str):
+        """DERNIER rapport de l'auditeur système IA (event AI_SYSTEM_AUDIT,
+        écrit par ai_system_audit.py en cron). Un seul — l'historique n'a pas
+        d'intérêt ici, seul l'état courant compte."""
+        bot = _bot(bot_id)
+        if not bot:
+            return NOT_FOUND
+        try:
+            with bot.db.lock:
+                row = bot.db.conn.execute(
+                    "SELECT ts, data FROM events WHERE event='AI_SYSTEM_AUDIT' "
+                    "ORDER BY ts DESC LIMIT 1").fetchone()
+            if not row:
+                return JSONResponse({})
+            d = json.loads(row[1]) if row[1] else {}
+            d["ts"] = row[0]
+            return JSONResponse(d)
+        except Exception as e:
+            return JSONResponse({"error": str(e)}, status_code=500)
+
     @app.get("/bot/{bot_id}/api/bt_divergence")
     def api_bt_divergence(bot_id: str, limit: int = 14):
         """Rapports quotidiens de divergence live-vs-BT (event BT_DIVERGENCE,
