@@ -177,14 +177,25 @@ class Params:
     s8_inlife_params: dict = _d(bear=(1500, 100), neutral=(300, 300), bull=(1500, 100))
     s8_inlife_z_threshold: float = 0.5
     # v12.11.0 proportional trail: strat → {regime: (arm_bps, lock_ratio) | None}
-    prop_trail_params: dict = field(default_factory=lambda: {
-        "S9": {"bear": None, "neutral": None, "bull": (100, 0.65)},
-        # S5 : verrou proportionnel tous régimes (arm 200, lock 0.65). Capture le
-        # MFE que les gagnants S5 rendaient (WR 47→75, book ×2.6 en BT 28m, DD
-        # amélioré sur tous les tests). Validé aligned strict 4/4 (6/9 plateau) +
-        # OOS DD 4/4 / PnL 3/4. Kill-switch : retirer cette entrée.
-        "S5": {"bear": (200, 0.65), "neutral": (200, 0.65), "bull": (200, 0.65)},
-    })
+    # RETIRÉ v1.15.6 (2026-07-25) — sa validation d'origine reposait sur le
+    # booking SYNTHÉTIQUE des trails (le BT créditait le NIVEAU du verrou), un
+    # prix qui n'est pas exécutable : les trails ne sont évalués qu'aux clôtures
+    # 4h et le live sort au MARCHÉ à ce moment-là. Sous booking honnête
+    # (v1.15.5), sur 4 fenêtres OOS glissantes :
+    #     OFF     +98.2 % P&L / DD −25.9 %   ← retenu
+    #     prod    +83.0 % P&L / DD −29.6 %   (bat OFF sur 1 fenêtre / 4)
+    #   variantes arm 400 → +70.0 % · lock 0.80 → +79.4 %  (pires)
+    # Ordres RÉSIDENTS testés aussi (le verrou s'exécuterait vraiment à son
+    # niveau, comme le hard-stop) : +43.3 % P&L, DD −32.1 %, 0/4 — le pire.
+    # Il se déclenche 41 % plus souvent (mèches intra-bougie) : WR 58.6 % mais
+    # P&L divisé par deux — signature du winner-cutting, cohérent avec
+    # safety_trail_classer / s10_trail_eda / hold_duration_eda (la queue porte
+    # le P&L). Les autres verrous (s10_trailing, s8_inlife, opp_floor) RESTENT.
+    # Kill-switch : remettre le dict ci-dessous.
+    #   {"S9": {"bear": None, "neutral": None, "bull": (100, 0.65)},
+    #    "S5": {r: (200, 0.65) for r in ("bear", "neutral", "bull")}}
+    # Réf. backtests/trail_booking_bias_results.md
+    prop_trail_params: dict = field(default_factory=dict)
     prop_trail_z_threshold: float = 0.5
     # v12.6.0 S8 dead-in-water
     s8_dead_t_h: float = 8.0

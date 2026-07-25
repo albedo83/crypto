@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.15.6 — 2026-07-25
+
+- **Trading engine**: retrait du verrou à profit proportionnel sur S5/S9. Sa validation d'origine reposait sur un prix de sortie qui n'est pas exécutable en réalité ; re-mesuré honnêtement, le retirer gagne sur le P&L et sur le drawdown dans la majorité des fenêtres. La variante « ordre résident sur l'exchange », qui obtiendrait vraiment le prix visé, a aussi été testée : elle est la pire des trois (elle se déclenche bien plus souvent sur le bruit intra-bougie — meilleur taux de réussite, P&L divisé par deux). Les autres verrous sont conservés. Kill-switch documenté.
+- **Backtest**: `docs/backtests.md` régénéré sur la configuration livrée.
+
 ## v1.15.5 — 2026-07-25
 
 - **Backtest**: le moteur booke désormais les sorties par trail au prix réellement exécutable (le marché à la clôture) au lieu de leur niveau théorique — le niveau n'est pas disponible quand le prix l'a traversé à l'intérieur d'une bougie, puisque les trails ne sont évalués qu'aux clôtures. Le stop catastrophe garde son prix : c'est un ordre résident sur l'exchange, il s'exécute vraiment à son niveau. Kill-switch conservé.
