@@ -264,10 +264,24 @@ class Params:
     # ── Per-bot strategy enablement (bots.json overrides) ────────────
     enabled_strategies: frozenset[str] = frozenset({"S1", "S5", "S8", "S9", "S10"})
 
-    # ── Paper engine (phase 7 corrections — shipped OFF) ─────────────
-    paper_slippage_bps: float = 0.0           # 4.0 once phase 7 activates
+    # ── Paper engine (phase 7 corrections) ───────────────────────────
+    paper_slippage_bps: float = 0.0           # laissé à 0 : slippage live
+                                              # mesuré à +0.15 bps RT (non
+                                              # matériel) — 4.0 sur-pénaliserait.
     paper_funding_model: str = "flat"         # "flat" | "accrual"
-    paper_gap_fills: bool = False             # book min(trigger, mark) on gaps
+    # v1.15.4 — ACTIVÉ (mesure, pas trading). Le paper bookait le NIVEAU de la
+    # règle de sortie même quand le marché avait gappé au travers : depuis les
+    # trails-sur-close (v1.8.0) les trails ne sont évalués qu'aux clôtures 4h,
+    # donc le live exécute au marché à ce moment-là, parfois très loin du
+    # niveau. Preuve live 2026-07-25 (LDO S5) : paper a booké +232 bps au
+    # niveau du trail quand le marché cotait −250 bps (écart 482 bps) — la
+    # bougie 08:00 était passée de +228 à −288 bps en son sein. Contrôle sur
+    # 23 trades SENIOR-vs-paper : sorties au mark (timeout, n=18) écart moyen
+    # +14 bps (bruit) ; sorties synthétiques (prop_trail, n=5) −115 bps
+    # (systématique). True = booke le pire de (niveau, mark) = prix réaliste.
+    # N'affecte QUE le bot paper (PaperBroker) : live/junior/baby (LiveBroker)
+    # et le backtest ne lisent pas ce flag. Kill-switch : remettre False.
+    paper_gap_fills: bool = True              # book min(trigger, mark) on gaps
 
     # ── Derived helpers ──────────────────────────────────────────────
 

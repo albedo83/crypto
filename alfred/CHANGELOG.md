@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.15.4 — 2026-07-25
+
+- **Paper engine**: le bot paper booke désormais ses sorties de trail au prix réaliste (le pire du niveau de la règle et du marché) au lieu du niveau théorique. Il créditait un prix qui n'était pas disponible quand le marché avait traversé le niveau à l'intérieur d'une bougie — un cas observé en live avec un écart de plusieurs centaines de points de base. Le paper redevient un miroir fidèle du bot réel. Ne touche que le paper : le live et le backtest sont inchangés. Kill-switch conservé.
+- **R&D**: quantification du même biais dans le backtest — environ la moitié du P&L annoncé sur chaque fenêtre out-of-sample vient de ce booking optimiste, drawdown dégradé également. Rapport dans `backtests/trail_booking_bias_results.md`. Le backtest n'est PAS modifié à ce stade ; les conséquences (re-validation des règles à sortie par trail, re-baseline éventuel) sont à instruire séparément.
+
 ## v1.15.3 — 2026-07-13
 
 - **Dashboard**: la section « Live vs BT » met désormais en avant les **gagnants ratés** — les positions gagnantes du BT que le bot n'a pas prises — ventilées par cause précise (cooldown, position déjà tenue, marge, veto IA, dérive de signal), avec le manque à gagner par cause et les perdants correctement évités en regard. C'est le levier d'amélioration : comprendre pourquoi chaque gagnant a été loupé. Rafraîchi toutes les 4h. Aucune modification du moteur de trading.
