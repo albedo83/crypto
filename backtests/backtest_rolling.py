@@ -95,6 +95,14 @@ MACRO_Z_CLIP = _P.macro_z_clip
 MACRO_MULT_MIN = _P.macro_mult_min
 MACRO_MULT_MAX = _P.macro_mult_max
 get_adaptive_alpha = _P.get_adaptive_alpha
+
+# Règles TRAIL dont le prix synthétique n'est PAS exécutable en live : elles ne
+# sont évaluées qu'aux clôtures 4h (v1.8.0) et le live sort au marché à ce
+# moment-là. `catastrophe_stop` est volontairement absent (trigger reduce-only
+# résident côté exchange → s'exécute réellement à son niveau).
+# Cf. backtests/trail_booking_bias_results.md
+_TRAIL_BOOK_REASONS = frozenset({"prop_trail", "s10_trailing",
+                                 "s8_inlife", "opp_floor"})
 S8_INLIFE_PARAMS = _P.s8_inlife_params
 S8_INLIFE_Z_THRESHOLD = _P.s8_inlife_z_threshold
 S8_DEAD_T_H = _P.s8_dead_t_h
@@ -328,6 +336,7 @@ def run_window(features, data, sector_features, dxy_data,
                reserve_z_threshold: float = 5.0,
                entry_slip_bps_by_strat: dict | None = None,
                trail_eval_every: int = 1,
+               realistic_trail_booking: bool = True,
                aligned: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -998,8 +1007,22 @@ def run_window(features, data, sector_features, dxy_data,
                     exit_reason = _ALIGNED_HOLD
                 elif _dec:
                     exit_reason = _dec.reason
-                    exit_price = (_dec.exit_price
-                                  if _dec.exit_price is not None else current)
+                    _xp = _dec.exit_price
+                    # v1.15.5 — booking RÉALISTE des trails (défaut). Les règles
+                    # TRAIL ne sont évaluées qu'aux clôtures 4h (v1.8.0) et le
+                    # live exécute alors un ordre MARCHÉ : si le prix a traversé
+                    # le niveau DANS la bougie, le niveau n'était pas
+                    # disponible. Booker _synth() créditait un prix fictif —
+                    # mesuré à ~50 % du P&L du BT sur 4 fenêtres OOS, et
+                    # confirmé en live (LDO : +232 bps bookés vs −250 réels).
+                    # Le catastrophe_stop garde son prix synthétique : c'est un
+                    # trigger reduce-only résident, il s'exécute à son niveau.
+                    # Le moteur legacy (non-aligned) bookait DÉJÀ au close —
+                    # c'est le refactor aligned qui avait introduit le biais.
+                    # Kill-switch : realistic_trail_booking=False.
+                    if realistic_trail_booking and _dec.reason in _TRAIL_BOOK_REASONS:
+                        _xp = None
+                    exit_price = (_xp if _xp is not None else current)
                 else:
                     exit_reason = _ALIGNED_HOLD
 
@@ -1847,7 +1870,15 @@ def build_report(results: list[dict], end_dt: datetime, version: str,
          else f"**Cap notionnel** : ${int(_P.max_notional_per_trade)} fixe."),
         ("**Sémantique** : ALIGNED (phase 6, 2026-06-10) — exits/sizing via "
          "`alfred/rules.py`, identique au bot live. Anciens chiffres : "
-         "`docs/backtests_legacy_pre_phase6.md`."
+         "`docs/backtests_legacy_pre_phase6.md`.\n"
+         "**Booking des trails** : RÉALISTE (v1.15.5, 2026-07-25) — les sorties "
+         "par trail (`prop_trail`, `s10_trailing`, `s8_inlife`, `opp_floor`) sont "
+         "bookées au MARK de la clôture, pas à leur niveau théorique : elles ne "
+         "sont évaluées qu'aux clôtures 4h et le live sort au marché à ce "
+         "moment-là. L'ancien booking surévaluait le P&L d'environ 50 % sur "
+         "chaque fenêtre OOS. Anciens chiffres : "
+         "`docs/backtests_synthetic_trail_pre_v1_15_5.md` · analyse : "
+         "`backtests/trail_booking_bias_results.md`."
          if aligned else
          "**Sémantique** : LEGACY (`BACKTEST_LEGACY_SEMANTICS=1`, archéologie "
          "uniquement — chiffres non comparables à la référence officielle)."),

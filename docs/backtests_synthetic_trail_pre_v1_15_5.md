@@ -1,12 +1,22 @@
+> ⚠️ **ARCHIVE — chiffres SURÉVALUÉS, ne pas utiliser comme référence.**
+> Ces résultats ont été produits avec le booking SYNTHÉTIQUE des trails : le
+> moteur créditait le NIVEAU de la règle de sortie (`prop_trail`, `s10_trailing`,
+> `s8_inlife`, `opp_floor`) même quand le marché avait traversé ce niveau à
+> l'intérieur d'une bougie. Or les trails ne sont évalués qu'aux clôtures 4h
+> (v1.8.0) et le live sort au MARCHÉ à ce moment-là. Biais mesuré : **~50 % du
+> P&L sur chaque fenêtre OOS** (−44 à −57 %), DD dégradée aussi ; confirmé en
+> live (LDO 2026-07-23 : +232 bps bookés vs −250 bps réels).
+> Corrigé par `realistic_trail_booking=True` (v1.15.5, défaut).
+> Chiffres honnêtes : `docs/backtests.md`. Analyse : `backtests/trail_booking_bias_results.md`.
+
 # Rolling backtests
 
-**Générée le** : 2026-07-25 15:26 UTC
-**Bot version** : v1.15.4
-**Données jusqu'à** : 2026-07-25
+**Générée le** : 2026-07-09 06:48 UTC
+**Bot version** : v1.13.3
+**Données jusqu'à** : 2026-07-09
 **Capitaux testés** : $1 000
 **Cap notionnel** : PROPORTIONNEL `0.3 × equity` (v1.13.0, 2026-07-07) — remplace le $500 fixe. Débloque le compounding (chiffres ~9× plus élevés qu'à l'ancien cap), concentration constante, 0 cascade de marge.
 **Sémantique** : ALIGNED (phase 6, 2026-06-10) — exits/sizing via `alfred/rules.py`, identique au bot live. Anciens chiffres : `docs/backtests_legacy_pre_phase6.md`.
-**Booking des trails** : RÉALISTE (v1.15.5, 2026-07-25) — les sorties par trail (`prop_trail`, `s10_trailing`, `s8_inlife`, `opp_floor`) sont bookées au MARK de la clôture, pas à leur niveau théorique : elles ne sont évaluées qu'aux clôtures 4h et le live sort au marché à ce moment-là. L'ancien booking surévaluait le P&L d'environ 50 % sur chaque fenêtre OOS. Anciens chiffres : `docs/backtests_synthetic_trail_pre_v1_15_5.md` · analyse : `backtests/trail_booking_bias_results.md`.
 
 Chaque ligne répond à la question : *si j'avais lancé le bot avec $1 000 au début de cette fenêtre jusqu'à la date des données, avec les paramètres actuels du bot, combien aurais-je fini ?*
 
@@ -18,7 +28,7 @@ P&L calculé avec la formule corrigée v11.3.0+ (`size_usdt` est le notionnel, p
 
 Ce fichier est **régénéré automatiquement** par `python3 -m backtests.backtest_rolling`. Relancer après tout changement de règles ou de paramètres du bot.
 
-## Filtres actifs (v1.15.4)
+## Filtres actifs (v12.17.3)
 
 **S10 filters** (v11.3.4)
 - `S10_ALLOW_LONGS = False` → SHORT fades seulement (LONG fades perdaient $4.8k sur 28m, 45% WR — *fade panic = fail*)
@@ -42,47 +52,47 @@ Dérivés de `backtest_s10_walkforward.py` (train 2023-10→2025-02, test 2025-0
 
 | Fenêtre | Start | Balance finale | P&L | P&L % | DD max | Trades | WR | Best strat |
 |---|---|---|---|---|---|---|---|---|
-| 28 mois | 2024-03-25 | $23 449 | +$22 449 | +2244.9% | -45.0% | 1357 | 56% | S1 |
-| depuis 2024-08-01 | 2024-08-01 | $11 434 | +$10 434 | +1043.4% | -45.0% | 1152 | 55% | S1 |
-| depuis 2024-09-01 | 2024-09-01 | $13 584 | +$12 584 | +1258.4% | -37.2% | 1100 | 56% | S1 |
-| depuis 2024-10-01 | 2024-10-01 | $15 247 | +$14 247 | +1424.7% | -37.2% | 1053 | 55% | S1 |
-| depuis 2024-11-01 | 2024-11-01 | $17 266 | +$16 266 | +1626.6% | -37.2% | 1016 | 56% | S1 |
-| depuis 2024-12-01 | 2024-12-01 | $11 949 | +$10 949 | +1094.9% | -37.2% | 963 | 56% | S1 |
-| depuis 2025-01-01 | 2025-01-01 | $8 808 | +$7 808 | +780.8% | -37.2% | 911 | 56% | S1 |
-| depuis 2025-02-01 | 2025-02-01 | $6 420 | +$5 420 | +542.0% | -37.2% | 867 | 55% | S1 |
-| depuis 2025-03-01 | 2025-03-01 | $5 304 | +$4 304 | +430.4% | -37.2% | 812 | 56% | S1 |
-| depuis 2025-04-01 | 2025-04-01 | $5 959 | +$4 959 | +495.9% | -37.2% | 763 | 56% | S1 |
-| depuis 2025-05-01 | 2025-05-01 | $4 522 | +$3 522 | +352.2% | -37.2% | 717 | 56% | S1 |
-| depuis 2025-06-01 | 2025-06-01 | $3 991 | +$2 991 | +299.1% | -37.2% | 670 | 56% | S1 |
-| depuis 2025-07-01 | 2025-07-01 | $3 351 | +$2 351 | +235.1% | -37.2% | 627 | 56% | S1 |
-| 12 mois | 2025-07-25 | $3 210 | +$2 210 | +221.0% | -32.4% | 592 | 56% | S1 |
-| depuis 2025-08-01 | 2025-08-01 | $3 080 | +$2 080 | +208.0% | -32.4% | 585 | 55% | S1 |
-| depuis 2025-09-01 | 2025-09-01 | $3 262 | +$2 262 | +226.2% | -26.2% | 544 | 55% | S1 |
-| depuis 2025-10-01 | 2025-10-01 | $4 100 | +$3 100 | +310.0% | -25.2% | 489 | 56% | S1 |
-| depuis 2025-11-01 | 2025-11-01 | $2 885 | +$1 885 | +188.5% | -25.2% | 444 | 55% | S1 |
-| depuis 2025-12-01 | 2025-12-01 | $1 825 | +$825 | +82.5% | -25.2% | 396 | 55% | S1 |
-| depuis 2026-01-01 | 2026-01-01 | $1 650 | +$650 | +65.0% | -25.2% | 367 | 54% | S1 |
-| 6 mois | 2026-01-25 | $1 698 | +$698 | +69.8% | -25.2% | 335 | 53% | S1 |
-| depuis 2026-02-01 | 2026-02-01 | $1 615 | +$615 | +61.5% | -25.2% | 325 | 55% | S1 |
-| depuis 2026-03-01 | 2026-03-01 | $1 234 | +$234 | +23.4% | -25.2% | 264 | 55% | S1 |
-| depuis 2026-04-01 | 2026-04-01 | $1 328 | +$328 | +32.8% | -25.2% | 225 | 55% | S1 |
-| 3 mois | 2026-04-25 | $1 232 | +$232 | +23.2% | -25.2% | 182 | 52% | S1 |
-| depuis 2026-05-01 | 2026-05-01 | $1 136 | +$136 | +13.6% | -28.5% | 172 | 51% | S1 |
-| depuis 2026-06-01 | 2026-06-01 | $975 | $-25 | -2.5% | -24.1% | 109 | 51% | S10 |
-| depuis 2026-06-11 | 2026-06-11 | $1 146 | +$146 | +14.6% | -10.0% | 80 | 57% | S10 |
-| 1 mois | 2026-06-25 | $901 | $-99 | -9.9% | -17.0% | 53 | 53% | S8 |
-| depuis 2026-07-01 | 2026-07-01 | $918 | $-82 | -8.2% | -12.7% | 41 | 49% | S10 |
-| depuis 2026-07-09 | 2026-07-09 | $953 | $-47 | -4.7% | -9.6% | 22 | 50% | S10 |
+| 28 mois | 2024-03-09 | $129 816 | +$128 816 | +12881.6% | -39.3% | 1362 | 60% | S5 |
+| depuis 2024-08-01 | 2024-08-01 | $55 866 | +$54 866 | +5486.6% | -39.3% | 1131 | 59% | S5 |
+| depuis 2024-09-01 | 2024-09-01 | $58 987 | +$57 987 | +5798.7% | -29.0% | 1079 | 60% | S5 |
+| depuis 2024-10-01 | 2024-10-01 | $63 362 | +$62 362 | +6236.2% | -29.0% | 1032 | 60% | S5 |
+| depuis 2024-11-01 | 2024-11-01 | $67 315 | +$66 315 | +6631.5% | -29.0% | 995 | 60% | S5 |
+| depuis 2024-12-01 | 2024-12-01 | $35 778 | +$34 778 | +3477.8% | -29.0% | 945 | 61% | S5 |
+| depuis 2025-01-01 | 2025-01-01 | $29 174 | +$28 174 | +2817.4% | -29.0% | 890 | 61% | S5 |
+| depuis 2025-02-01 | 2025-02-01 | $19 464 | +$18 464 | +1846.4% | -29.0% | 846 | 60% | S5 |
+| depuis 2025-03-01 | 2025-03-01 | $14 957 | +$13 957 | +1395.7% | -29.0% | 791 | 60% | S5 |
+| depuis 2025-04-01 | 2025-04-01 | $17 203 | +$16 203 | +1620.3% | -29.0% | 742 | 61% | S5 |
+| depuis 2025-05-01 | 2025-05-01 | $11 265 | +$10 265 | +1026.5% | -29.0% | 696 | 61% | S5 |
+| depuis 2025-06-01 | 2025-06-01 | $9 772 | +$8 772 | +877.2% | -29.0% | 650 | 61% | S5 |
+| depuis 2025-07-01 | 2025-07-01 | $7 638 | +$6 638 | +663.8% | -29.0% | 607 | 61% | S5 |
+| 12 mois | 2025-07-09 | $8 141 | +$7 141 | +714.1% | -29.0% | 600 | 61% | S5 |
+| depuis 2025-08-01 | 2025-08-01 | $6 593 | +$5 593 | +559.3% | -29.0% | 564 | 60% | S5 |
+| depuis 2025-09-01 | 2025-09-01 | $6 540 | +$5 540 | +554.0% | -26.1% | 523 | 60% | S5 |
+| depuis 2025-10-01 | 2025-10-01 | $7 554 | +$6 554 | +655.4% | -23.4% | 469 | 60% | S5 |
+| depuis 2025-11-01 | 2025-11-01 | $4 995 | +$3 995 | +399.5% | -23.4% | 423 | 60% | S5 |
+| depuis 2025-12-01 | 2025-12-01 | $2 968 | +$1 968 | +196.8% | -23.4% | 375 | 58% | S5 |
+| depuis 2026-01-01 | 2026-01-01 | $2 609 | +$1 609 | +160.9% | -23.4% | 346 | 57% | S5 |
+| 6 mois | 2026-01-09 | $2 539 | +$1 539 | +153.9% | -23.4% | 331 | 57% | S5 |
+| depuis 2026-02-01 | 2026-02-01 | $2 450 | +$1 450 | +145.0% | -22.9% | 305 | 58% | S5 |
+| depuis 2026-03-01 | 2026-03-01 | $1 670 | +$670 | +67.0% | -22.9% | 243 | 57% | S1 |
+| depuis 2026-04-01 | 2026-04-01 | $1 625 | +$625 | +62.5% | -22.9% | 204 | 57% | S1 |
+| 3 mois | 2026-04-09 | $1 714 | +$714 | +71.4% | -22.9% | 190 | 57% | S5 |
+| depuis 2026-05-01 | 2026-05-01 | $1 373 | +$373 | +37.3% | -22.9% | 151 | 53% | S1 |
+| depuis 2026-06-01 | 2026-06-01 | $1 113 | +$113 | +11.3% | -22.0% | 92 | 53% | S5 |
+| 1 mois | 2026-06-09 | $1 337 | +$337 | +33.7% | -6.2% | 64 | 61% | S5 |
+| depuis 2026-06-10 | 2026-06-10 | $1 264 | +$264 | +26.4% | -6.2% | 61 | 59% | S8 |
+| depuis 2026-06-11 | 2026-06-11 | $1 223 | +$223 | +22.3% | -6.2% | 59 | 61% | S5 |
+| depuis 2026-07-01 | 2026-07-01 | $922 | $-78 | -7.8% | -7.7% | 23 | 52% | S10 |
 
 ## Breakdown par stratégie sur la fenêtre la plus longue (28 mois, capital $1 000)
 
 | Stratégie | Trades | Win Rate | P&L |
 |---|---|---|---|
-| S1 | 69 | 59% | +$8 361 |
-| S10 | 366 | 56% | +$5 203 |
-| S5 | 612 | 60% | +$1 792 |
-| S8 | 172 | 45% | +$4 233 |
-| S9 | 138 | 51% | +$2 859 |
+| S1 | 87 | 56% | +$33 721 |
+| S10 | 355 | 55% | +$20 672 |
+| S5 | 602 | 67% | +$57 336 |
+| S8 | 172 | 47% | +$11 721 |
+| S9 | 146 | 54% | +$5 366 |
 
 ## Méthodologie
 

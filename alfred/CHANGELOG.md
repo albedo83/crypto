@@ -3,6 +3,12 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.15.5 — 2026-07-25
+
+- **Backtest**: le moteur booke désormais les sorties par trail au prix réellement exécutable (le marché à la clôture) au lieu de leur niveau théorique — le niveau n'est pas disponible quand le prix l'a traversé à l'intérieur d'une bougie, puisque les trails ne sont évalués qu'aux clôtures. Le stop catastrophe garde son prix : c'est un ordre résident sur l'exchange, il s'exécute vraiment à son niveau. Kill-switch conservé.
+- **Backtest**: `docs/backtests.md` re-baseliné sur cette sémantique honnête — les chiffres baissent de moitié à deux tiers selon la fenêtre, le drawdown se dégrade, et la meilleure stratégie change. Anciens chiffres archivés et annotés dans `docs/backtests_synthetic_trail_pre_v1_15_5.md`.
+- **R&D**: re-validation de la règle de trail proportionnel sous booking honnête — elle détruit de la valeur sur la moyenne des fenêtres, et aucun re-réglage testé ne la sauve. Aucun changement de trading appliqué : décision à prendre séparément.
+
 ## v1.15.4 — 2026-07-25
 
 - **Paper engine**: le bot paper booke désormais ses sorties de trail au prix réaliste (le pire du niveau de la règle et du marché) au lieu du niveau théorique. Il créditait un prix qui n'était pas disponible quand le marché avait traversé le niveau à l'intérieur d'une bougie — un cas observé en live avec un écart de plusieurs centaines de points de base. Le paper redevient un miroir fidèle du bot réel. Ne touche que le paper : le live et le backtest sont inchangés. Kill-switch conservé.
