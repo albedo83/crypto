@@ -79,6 +79,20 @@ DIFFÉRENCES STRUCTURELLES CONNUES — ne les signale PAS comme anomalies :
   toujours la date du trade à la date du changement avant de conclure qu'une
   règle retirée « fonctionne encore ». La date du jour est dans le contexte.
 
+CODE EN VIGUEUR :
+`runtime_depuis` est l'heure de mise en service du code qui tourne actuellement.
+Les données qui te sont fournies sont DÉJÀ restreintes aux trades clos après
+cette heure : tout ce que tu vois a été produit par le code actuel. Tu ne peux
+donc rien conclure sur ce qui précède, et tu n'as pas à le commenter.
+Corollaire : après un redéploiement récent, l'échantillon est petit. Peu de
+trades = peu de conclusions. Dis-le plutôt que de forcer une anomalie.
+
+MÉMOIRE — NE TE RÉPÈTE PAS :
+`audits_precedents` contient les titres de tes derniers rapports. Ne resignale
+pas une anomalie déjà remontée, sauf si tu disposes d'un cas NOUVEAU postérieur
+au rapport où elle figurait. Répéter un constat déjà transmis n'apporte rien et
+noie les vraies alertes.
+
 DISCIPLINE :
 - Une différence de TAILLE de position entre instances est ATTENDUE. Ne la
   signale que si elle est extrême ou nouvelle.
@@ -100,7 +114,55 @@ Réponds UNIQUEMENT en JSON :
 PROMPT_HASH = _hl.sha256((SYSTEM_PROMPT + DOCTRINE_DIGEST).encode()).hexdigest()[:10]
 
 
-def _rows(db, since_iso):
+def _iso_to_ts(iso):
+    import datetime as dt
+    try:
+        return dt.datetime.fromisoformat(iso).replace(
+            tzinfo=dt.timezone.utc).timestamp()
+    except Exception:
+        return 0.0
+
+
+def _runtime_since():
+    """Heure de démarrage du process Alfred = mise en service du code actuel.
+    Un trade clos avant tourne sur du code qui n'existe plus."""
+    import datetime as dt
+    import subprocess
+    try:
+        pids = subprocess.run(["pgrep", "-f", "python3 -m alfred"],
+                              capture_output=True, text=True,
+                              timeout=5).stdout.split()
+        if not pids:
+            return None
+        st = min(os.stat(f"/proc/{p}").st_ctime for p in pids)
+        return dt.datetime.fromtimestamp(st, dt.timezone.utc).isoformat()[:16]
+    except Exception:
+        return None
+
+
+def _previous_audits(n=3):
+    """Titres des derniers rapports : évite de resignaler la même chose."""
+    import datetime as dt
+    try:
+        c = sqlite3.connect(BOTS["live"])
+        rows = c.execute("SELECT ts,data FROM events WHERE event='AI_SYSTEM_AUDIT'"
+                         " ORDER BY ts DESC LIMIT ?", (n,)).fetchall()
+        c.close()
+    except Exception:
+        return []
+    out = []
+    for ts, data in rows:
+        try:
+            d = json.loads(data)
+        except Exception:
+            continue
+        out.append({"le": dt.datetime.fromtimestamp(
+                        ts, dt.timezone.utc).isoformat()[:16],
+                    "titres": [a.get("titre") for a in (d.get("anomalies") or [])]})
+    return out
+
+
+def _rows(db, since_iso, since_exit):
     if not os.path.exists(db):
         return []
     c = sqlite3.connect(db)
@@ -111,8 +173,9 @@ def _rows(db, since_iso):
                 for r in c.execute(
                     "SELECT symbol,strategy,direction,entry_time,exit_time,"
                     "entry_price,exit_price,size_usdt,gross_bps,pnl_usdt,reason "
-                    "FROM trades WHERE exit_time IS NOT NULL AND entry_time>=?",
-                    (since_iso,))]
+                    "FROM trades WHERE exit_time IS NOT NULL AND entry_time>=? "
+                    "AND exit_time>=?",
+                    (since_iso, since_exit))]
     finally:
         c.close()
 
@@ -123,7 +186,13 @@ def build_context() -> dict:
     import datetime as dt
     since = (dt.datetime.now(dt.timezone.utc)
              - dt.timedelta(days=WINDOW_DAYS)).isoformat()
-    L, P = _rows(BOTS["live"], since), _rows(BOTS["paper"], since)
+    # Les trades clos avant le démarrage du process ont été produits par du code
+    # qui n'existe plus : les auditer revient à resignaler de l'histoire déjà
+    # corrigée à chaque exécution. On ne les charge pas.
+    rt = _runtime_since()
+    since_exit = max(since, rt) if rt else since
+    L = _rows(BOTS["live"], since, since_exit)
+    P = _rows(BOTS["paper"], since, since_exit)
 
     # 1. Paires appariées live/paper : même symbole, entrée à moins de MATCH_SLACK
     def key(t):
@@ -138,6 +207,7 @@ def build_context() -> dict:
         pairs.append({
             "coin": lt["symbol"], "strat": lt["strategy"], "dir": lt["direction"],
             "entree": lt["entry"][:16],
+            "sortie": (lt["exit"] or "")[:16],
             "live": {"sortie_px": lt["exit_px"], "gross_bps": lt["gross"],
                      "raison": lt["reason"], "taille": round(lt["size"], 1)},
             "paper": {"sortie_px": pt["exit_px"], "gross_bps": pt["gross"],
@@ -194,7 +264,8 @@ def build_context() -> dict:
         cnt = defaultdict(int)
         for (data,) in c.execute(
                 "SELECT data FROM events WHERE event='SKIP' AND ts>=?",
-                (time.time() - WINDOW_DAYS * 86400,)):
+                (max(time.time() - WINDOW_DAYS * 86400,
+                     _iso_to_ts(since_exit)),)):
             try:
                 cnt[json.loads(data).get("reason", "?")] += 1
             except Exception:
@@ -205,6 +276,8 @@ def build_context() -> dict:
         pass
 
     return {"date_du_jour": dt.datetime.now(dt.timezone.utc).isoformat()[:16],
+            "runtime_depuis": _runtime_since(),
+            "audits_precedents": _previous_audits(),
             "fenetre_jours": WINDOW_DAYS,
             "n_trades": {"live": len(L), "paper": len(P), "apparies": len(pairs)},
             "paires_live_vs_paper": pairs[:25],

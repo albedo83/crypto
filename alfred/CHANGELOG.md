@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.16.1 — 2026-07-27
+
+- **IA**: l'auditeur système ne relit plus que les trades produits par le code actuellement en service. Il travaillait sur une fenêtre glissante sans notion de date de déploiement : il resignalait chaque matin une anomalie déjà diagnostiquée et déjà corrigée, tant que le trade concerné restait dans la fenêtre. Il reçoit aussi les titres de ses rapports précédents avec la consigne de ne pas répéter un constat sans cas nouveau. Effet de bord assumé : juste après un redéploiement l'échantillon est petit et l'audit le dit, au lieu de conclure sur du code disparu.
+
 ## v1.16.0 — 2026-07-25
 
 - **IA**: nouvel auditeur système sur SENIOR. Contrairement aux autres outils IA, il ne juge aucune position et ne peut rien déclencher côté trading : il lit les données de cohérence du bot (les deux instances comparées trade par trade, distribution des sorties, réconciliation comptable, divergences avec le backtest) et cherche ce qui est structurellement anormal — bugs, biais de mesure, dérives. Rapport quotidien sur Telegram et sur le dashboard (dernier rapport seulement). Motivation : le biais de mesure trouvé aujourd'hui valait la moitié du P&L annoncé et a mis trois semaines à émerger, alors que sa signature était visible dans les données. Validé à l'écriture : sur les données historiques, il retrouve cette anomalie en tête de liste.

@@ -127,34 +127,6 @@ No test framework, linter, or CI pipeline is configured.
 
 ## Bot Architecture
 
-```
-Hyperliquid REST API (read)
-    ├── metaAndAssetCtxs (prices + OI + funding + premium, every 60s)
-    ├── candleSnapshot (4h candles, every hour, 30 symbols)
-    └── Yahoo Finance (DXY, every 6h, cached 48h)
-            │
-            ▼
-    analysis/bot/  (12 modules, single asyncio process)
-    ├── config.py      — constants, env, sizing
-    ├── models.py      — SymbolState, Position, Trade dataclasses
-    ├── net.py         — HTTP retry, price/candle fetching, Telegram
-    ├── features.py    — technical features, OI, crowding, BTC, DXY, sector
-    ├── signals.py     — S1/S5/S8/S9/S10 detection, squeeze, S9F observation
-    ├── db.py          — SQLite schema, tick/event logging, one-time CSV migration
-    ├── persistence.py — SQLite writes, state save/load, market snapshots
-    ├── exchange.py    — Hyperliquid SDK (open/close/reconcile)
-    ├── trading.py     — entries (ranking/limits), exits (stop/timeout), P&L
-    ├── web.py         — FastAPI dashboard + API responses
-    ├── bot.py         — MultiSignalBot class (thin orchestrator)
-    └── main.py        — entry point, signal handlers, uvicorn
-            │
-            ▼ (live mode only)
-Hyperliquid SDK (write)
-    ├── market_open / market_close (taker orders)
-    ├── update_leverage (2x cross on all symbols)
-    └── user_state (reconciliation)
-```
-
 ### Signals in one line
 
 5 active signals: **S1** (BTC momentum → LONG alts), **S5** (sector divergence follow), **S8** (capitulation flush LONG), **S9** (fade ±20%/24h extreme moves), **S10** (squeeze + false breakout fade — **v11.3.4 filters: SHORT-only + 13-token whitelist**, **v11.4.0 trailing stop: exit at MFE−150 bps when MFE > 600 bps**, kill-switch via `S10_ALLOW_LONGS` and `S10_ALLOWED_TOKENS` in `config.py`). S2 removed, S4 suspended.
@@ -196,10 +168,6 @@ Hyperliquid SDK (write)
 **v12.7.0 Universe expansion (+6 curated tokens, 29 → 35)**: `TRADE_SYMBOLS` extends with `BCH, DOT, ADA, XMR, ENA, UNI`, plus 2 new sectors in `SECTORS`: `L1-major = [BCH, DOT, ADA]` (Bitcoin-correlated mature L1s, distinct from emerging-L1 like SOL/AVAX/SUI), `Privacy = [XMR]`. DeFi sector extends with `UNI, ENA`. New sectors absorb the additions without saturating `MAX_PER_SECTOR=2`. Discovery via 3-phase R&D: Phase 1 screener (`analysis/universe_expansion_phase1.py`) filtered 230 HL perpetuals down to 137 candidates by strict liquidity/age/volatility cutoffs. Phase 2 tested Config A (+10 blue chips) — passed PnL 2/2 but DD avg +4.25pp ✗; Config B (+20 with narrative tokens) — failed 1/2 PnL + DD +16pp ✗; both showed BTC-correlated blue chips (XRP, HYPE, BNB, LTC) were net-negative contributors. Phase 3 curated set (Config C, +6 tokens dropping the BTC-correlated losers) PASSES 2/2: 6m +57.6pp, 12m +2266pp, avg DD +1.73pp (under +2pp gate). Phase 4 tested Config C-minus (drop ADA) — counter-intuitively WORSE (BCH stops trading without ADA's slot dynamics, +0.9pp 6m vs +57.6pp). Path dependence confirmed: removing a "loser" token can collapse a "winner" token's trade count. Source: `backtests/universe_expansion_results.md`, `backtests/backtest_universe_expansion.py`. The 6 new tokens use the same exit rules, modulator, sizing as the 29 existing — no code changes besides constants. Kill-switch: remove the 6 from `TRADE_SYMBOLS` and clear them from `SECTORS`.
 
 For detailed conditions, parameters, and research behind each signal see **`docs/bot.md`** (French). For the history of changes see **`CHANGELOG.md`**.
-
-### API endpoints (summary)
-
-Dashboard-facing routes live in `analysis/bot/web.py`. Read-only: `/api/health`, `/api/state`, `/api/signals`, `/api/trades`, `/api/pnl`, `/api/chart/{symbol}`. Mutating: `/api/close/{symbol}`, `/api/pause`, `/api/resume`, `/api/reset`, `/api/capital` (DCA). All require auth except `/login`, `/auth`.
 
 ## Gotchas that affect coding
 
