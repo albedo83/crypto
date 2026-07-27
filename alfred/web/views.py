@@ -5,9 +5,11 @@ module-level config. The reversal.html dashboard consumes these unchanged.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import time
+from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
 from ..analytics import (is_bot_trade, compute_signal_drift,
@@ -531,22 +533,53 @@ def build_trades_list(trades, limit: int = 50) -> list:
 # eu la position si on l'avait laissée courir jusqu'au timeout (avec plancher
 # catastrophe-stop). Sert à mesurer l'impact des sorties anticipées.
 _CF_EXCLUDE = frozenset({"timeout", "runner_ext", "stale_price", "retry_close"})
-# Catégorie de la sortie → permet de séparer l'impact CONTRÔLABLE (stops
-# manuels de l'utilisateur) du NON-CONTRÔLABLE (règles algo + catastrophe-stop).
+# Catégorie de la sortie → sépare qui a décidé la coupe anticipée.
 _CF_MANUAL = frozenset({"manual_stop_set"})
 _CF_CATASTROPHE = frozenset({"catastrophe_stop"})
+_CF_CATS = ("ai_lock", "manual", "algo", "catastrophe")
 _RE_S9_STOP = re.compile(r"stop=(-?\d+)")
 _RE_S9_R24H = re.compile(r"r24h=([+-]?\d+)")
 
 
-def _cf_category(reason: str) -> str:
-    """manual = stop manuel (contrôlable) · catastrophe = filet de sécurité ·
-    algo = toute autre règle de coupe anticipée du bot."""
-    if reason in _CF_MANUAL:
-        return "manual"
-    if reason in _CF_CATASTROPHE:
+def _ai_lock_ts(bot) -> dict:
+    """Symbole → timestamps des LOCK réellement appliqués par l'arbitre IA de
+    sortie. Nécessaire parce que le LOCK écrit dans le MÊME champ que
+    l'endpoint humain (`manual_stop_usdt`) : la raison de sortie
+    `manual_stop_set` ne dit donc pas QUI a posé le plancher. Seuls les events
+    `ARBITER_EXIT_DECISION` tranchent."""
+    out = defaultdict(list)
+    try:
+        with bot.db.lock:
+            rows = bot.db.conn.execute(
+                "SELECT ts, symbol, data FROM events "
+                "WHERE event='ARBITER_EXIT_DECISION'").fetchall()
+    except Exception as e:
+        log.warning("intervention_impact: lecture des LOCK IA échouée: %s", e)
+        return {}
+    for ts, sym, data in rows:
+        try:
+            d = json.loads(data)
+        except (ValueError, TypeError):
+            continue
+        if sym and d.get("action") == "LOCK" and d.get("acted"):
+            out[sym].append(ts)
+    return dict(out)
+
+
+def _cf_category(t, locks: dict) -> str:
+    """ai_lock = plancher posé par l'arbitre IA · manual = stop posé par
+    l'humain · catastrophe = filet de sécurité · algo = règle du moteur."""
+    if t.reason in _CF_CATASTROPHE:
         return "catastrophe"
-    return "algo"
+    if t.reason not in _CF_MANUAL:
+        return "algo"
+    try:
+        lo = datetime.fromisoformat(t.entry_time).timestamp()
+        hi = datetime.fromisoformat(t.exit_time).timestamp()
+    except (ValueError, TypeError):
+        return "manual"
+    return ("ai_lock" if any(lo <= x <= hi for x in locks.get(t.symbol, ()))
+            else "manual")
 
 
 def _parse_s9_stop(info: str, p) -> float:
@@ -579,8 +612,9 @@ def build_intervention_impact(bot, master) -> dict:
     now_ms = int(time.time() * 1000)
     out = []
     # impact FINALISÉ (timeout passé) par catégorie ; le provisoire (live) à part
-    cat_impact = {"manual": 0.0, "algo": 0.0, "catastrophe": 0.0}
-    cat_n = {"manual": 0, "algo": 0, "catastrophe": 0}
+    cat_impact = {c: 0.0 for c in _CF_CATS}
+    cat_n = {c: 0 for c in _CF_CATS}
+    locks = _ai_lock_ts(bot)
     impact_live = 0.0
     n_no_data = n_live = 0
 
@@ -603,13 +637,13 @@ def build_intervention_impact(bot, master) -> dict:
         cost_bps = t.gross_bps - t.net_bps
         cf_note = None
 
+        cat = _cf_category(t, locks)
         row = {"symbol": t.symbol, "strategy": t.strategy,
-               "direction": t.direction, "reason": t.reason,
+               "direction": t.direction, "reason": t.reason, "source": cat,
                "entry_time": t.entry_time, "exit_time": t.exit_time,
                "actual_pnl": round(t.pnl_usdt, 2), "stop_bps": round(stop_bps),
                "hold_hours": hold}
 
-        cat = _cf_category(t.reason)
         # Garde : sortie déjà au-delà du timeout (anormal pour une intervention)
         if exit_ms >= timeout_ms:
             row.update(cf_exit_price=t.exit_price, cf_pnl=round(t.pnl_usdt, 2),
@@ -680,11 +714,8 @@ def build_intervention_impact(bot, master) -> dict:
     return {
         "summary": {
             "n_trades": len(out) - n_no_data,
-            "by_category": {
-                "manual": {"n": cat_n["manual"], "impact": round(cat_impact["manual"], 2)},
-                "algo": {"n": cat_n["algo"], "impact": round(cat_impact["algo"], 2)},
-                "catastrophe": {"n": cat_n["catastrophe"], "impact": round(cat_impact["catastrophe"], 2)},
-            },
+            "by_category": {c: {"n": cat_n[c], "impact": round(cat_impact[c], 2)}
+                            for c in _CF_CATS},
             "impact_final": impact_final,
             "impact_live": round(impact_live, 2),
             "n_live": n_live,

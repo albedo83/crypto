@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.16.2 — 2026-07-27
+
+- **Dashboard**: la table « Impact des interventions » attribuait à l'humain des sorties décidées par l'arbitre IA. Cause : le verrou de gain de l'IA écrit dans le même champ que le stop posé à la main, donc la raison de sortie ne dit pas qui a agi — seuls les événements de l'arbitre tranchent. La catégorie est désormais déterminée par croisement avec ces événements, et le résumé sépare le plancher posé par l'IA de celui posé par l'opérateur, avec un marqueur par ligne. Affichage seulement : aucun calcul de P&L ni de contrefactuel n'est modifié.
+
 ## v1.16.1 — 2026-07-27
 
 - **IA**: l'auditeur système ne relit plus que les trades produits par le code actuellement en service. Il travaillait sur une fenêtre glissante sans notion de date de déploiement : il resignalait chaque matin une anomalie déjà diagnostiquée et déjà corrigée, tant que le trade concerné restait dans la fenêtre. Il reçoit aussi les titres de ses rapports précédents avec la consigne de ne pas répéter un constat sans cas nouveau. Effet de bord assumé : juste après un redéploiement l'échantillon est petit et l'audit le dit, au lieu de conclure sur du code disparu.

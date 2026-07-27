@@ -1752,10 +1752,11 @@ function refreshInterventionImpact(){
     const _tf=iso=>{const x=new Date(iso);return `${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')} ${String(x.getHours()).padStart(2,'0')}:${String(x.getMinutes()).padStart(2,'0')}`;};
     const _ca=s.computed_at?new Date(s.computed_at):null;
     const at=_ca?`${String(_ca.getHours()).padStart(2,'0')}:${String(_ca.getMinutes()).padStart(2,'0')}:${String(_ca.getSeconds()).padStart(2,'0')}`:'—';
-    const bc=s.by_category||{}, mn=bc.manual||{}, al=bc.algo||{}, ca=bc.catastrophe||{};
+    const bc=s.by_category||{}, ai=bc.ai_lock||{}, mn=bc.manual||{}, al=bc.algo||{}, ca=bc.catastrophe||{};
     sm.innerHTML=`<b>${s.n_trades||0}</b> interventions · impact finalisé <b class="${cls(s.impact_final||0)}">$${fmt(s.impact_final||0)}</b>`+
       `<span style="float:right">calculé ${at}</span>`+
-      `<br>&nbsp;&nbsp;🖐 manuel <b class="${cls(mn.impact||0)}">$${fmt(mn.impact||0)}</b> (${mn.n||0})`+
+      `<br>&nbsp;&nbsp;🧠 plancher IA <b class="${cls(ai.impact||0)}">$${fmt(ai.impact||0)}</b> (${ai.n||0})`+
+      ` · 🖐 stop humain <b class="${cls(mn.impact||0)}">$${fmt(mn.impact||0)}</b> (${mn.n||0})`+
       ` · ⚙️ règles algo <b class="${cls(al.impact||0)}">$${fmt(al.impact||0)}</b> (${al.n||0})`+
       ` · 🛑 catastrophe <b class="${cls(ca.impact||0)}">$${fmt(ca.impact||0)}</b> (${ca.n||0})`+
       (s.n_live?`<br>&nbsp;&nbsp;⏳ ${s.n_live} en cours — provisoire ${fmt(s.impact_live||0)}$ (non compté dans le finalisé)`:'')+
@@ -1774,7 +1775,7 @@ function refreshInterventionImpact(){
         <td data-label="Symbol"><b>${t.symbol}</b></td>
         <td data-label="Strat" class="dim">${t.strategy||'?'}</td>
         <td data-label="Side" class="${sc}">${t.direction}</td>
-        <td data-label="Reason" class="dim">${t.reason}</td>
+        <td data-label="Reason" class="dim">${({ai_lock:'🧠 ',manual:'🖐 '})[t.source]||''}${t.reason}</td>
         <td data-label="Réel" class="${cls(t.actual_pnl)}">$${fmt(t.actual_pnl)}</td>
         <td data-label="Au timeout">${cfTxt}</td>
         <td data-label="Impact" class="${hasDelta?cls(t.delta):'dim'}"><b>${dTxt}</b></td>
