@@ -4,12 +4,8 @@ Idea: tokens in the same sector are correlated. When one diverges:
   - Low volume divergence = noise → fade it (mean-revert)
   - High volume divergence = real signal → follow it (momentum on sector)
 
-Sectors:
-  L1:     SOL, AVAX, SUI, APT, NEAR, SEI
-  DeFi:   AAVE, MKR, CRV, SNX, PENDLE, COMP, DYDX, LDO
-  Gaming: GALA, IMX, SAND
-  Infra:  LINK, PYTH, STX, INJ, ARB, OP
-  Meme:   DOGE, WLD, BLUR, MINA
+Les secteurs sont dérivés des `Params` de production (`alfred/settings.py`), pas
+d'une copie locale — voir SECTORS ci-dessous.
 
 Usage:
     python3 -m analysis.backtest_sector
@@ -29,19 +25,20 @@ from backtests.backtest_genetic import (
     TRAIN_END, TEST_START,
 )
 
-SECTORS = {
-    "L1":     ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI"],
-    "DeFi":   ["AAVE", "MKR", "CRV", "SNX", "PENDLE", "COMP", "DYDX", "LDO"],
-    "Gaming": ["GALA", "IMX", "SAND"],
-    "Infra":  ["LINK", "PYTH", "STX", "INJ", "ARB", "OP"],
-    "Meme":   ["DOGE", "WLD", "BLUR", "MINA"],
-}
+# PARITÉ (2026-07-30) — les secteurs viennent des Params de production, comme
+# dans backtest_rolling.py. Ils étaient auparavant codés en dur ici, et figés
+# depuis v11.0.0 : 5 secteurs au lieu de 7, MKR fantôme, et 8 tokens tradés en
+# production sans secteur (ADA, BCH, DOT, ENA, GMX, TON, UNI, XMR). Comme
+# `compute_sector_features` ci-dessous est l'UNIQUE source de la divergence que
+# consomme S5, ces 8 tokens ne pouvaient émettre aucun signal S5 en backtest —
+# alors que le live en tradait (7 des 19 trades S5 depuis le reset 2026-07-09).
+# Le backtest et le bot ne calculaient donc pas la même stratégie.
+# Ces globals restent RÉASSIGNABLES : les études d'univers les patchent
+# (cf. backtests/backtest_universe_expansion.py).
+from alfred.settings import DEFAULT_PARAMS as _PROD_P    # noqa: E402
 
-# Reverse: token → sector
-TOKEN_SECTOR = {}
-for sector, tokens in SECTORS.items():
-    for t in tokens:
-        TOKEN_SECTOR[t] = sector
+SECTORS = {k: list(v) for k, v in _PROD_P.sectors.items()}
+TOKEN_SECTOR = dict(_PROD_P.token_sector())
 
 
 def compute_sector_features(features, data):

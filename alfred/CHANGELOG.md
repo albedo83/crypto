@@ -3,6 +3,12 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.17.1 — 2026-07-30
+
+- **Backtest**: correctif majeur de parité — le moteur calculait la divergence sectorielle du signal S5 sur une carte de secteurs codée en dur et figée depuis un an : deux secteurs manquants, un token fantôme, et huit tokens tradés en production qui n'y figuraient pas du tout. Comme cette divergence est l'unique entrée du signal, ces huit tokens ne pouvaient émettre aucun signal en backtest alors que le bot en tradait — le backtest et le bot ne simulaient pas la même stratégie. Les secteurs dérivent désormais des paramètres de production, source unique de vérité.
+- **Backtest**: `docs/backtests.md` régénéré sur la sémantique corrigée. Les chiffres baissent d'environ un quart sur les fenêtres longues et le drawdown se dégrade nettement : le signal concerné prend beaucoup plus de trades et évince des entrées rentables des autres signaux. Anciens chiffres archivés et annotés.
+- **Surveillance**: le critère de réversibilité posé le jour même est **invalidé**, pas re-réglé. La séparation entre période saine et période dégradée sur laquelle reposaient ses seuils était un artefact de la carte périmée ; sur l'univers réel elle disparaît, et le dernier semestre revient au milieu de la bande. Le détecteur continue de mesurer et de rapporter, sans prescrire d'action. La réduction de mise décidée en v1.17.0 reste committée mais **dormante** : aucun restart n'a été fait, le bot tourne avec la valeur d'origine, et la décision est rouverte.
+
 ## v1.17.0 — 2026-07-30
 
 - **Trading engine**: la mise du signal de divergence sectorielle est réduite d'un tiers de sa valeur nominale — au capital actuel la taille d'une position passe de $158 à $83. Décision de RISQUE, pas une amélioration d'edge validée : le signal a gagné pendant quatre semestres puis s'est dégradé continûment sur les deux derniers, en backtest comme en live. L'outil de validation habituel est structurellement muet sur ce cas (une rupture de régime lui est indiscernable d'un sur-ajustement), donc la décision est assumée comme telle. Kill-switch : la valeur d'origine est documentée en commentaire.

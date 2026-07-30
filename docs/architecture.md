@@ -419,6 +419,21 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
   slippage réel +0.1 bps moyen, intégrale funding exacte à Δ 0.0 bps).
 - Échappatoire `BACKTEST_LEGACY_SEMANTICS=1` pour reproduire l'ancien moteur.
 
+**⚠ La parité ne couvre que `rules.py` — les FEATURES ont leur propre chemin.**
+Découvert le 2026-07-30 : `backtests/backtest_sector.py` portait une carte des
+secteurs **codée en dur et figée depuis v11.0.0** (5 secteurs au lieu de 7, MKR
+fantôme, 8 tokens tradés en production sans secteur : ADA, BCH, DOT, ENA, GMX,
+TON, UNI, XMR). Or `compute_sector_features` est l'**unique** source de la
+divergence que consomme S5 — ces tokens ne pouvaient donc émettre **aucun**
+signal S5 en backtest, alors que le live en tradait (7 des 19 trades S5 depuis le
+reset). Backtest et bot ne simulaient pas la même stratégie depuis v12.7.0.
+Corrigé (les secteurs dérivent des `Params`), `docs/backtests.md` régénéré :
+**28m −27,6 %, DD −31,3 % → −40,5 %**. Anciens chiffres annotés dans
+`docs/backtests_pre_sector_parity.md`, mesure dans
+`backtests/backtest_sector_parity_impact.py`.
+Leçon : `backtests/test_feature_parity.py` ne couvrait aucune feature
+sectorielle — une règle partagée ne garantit rien si ses **entrées** divergent.
+
 **Booking des trails — réaliste depuis v1.15.4/v1.15.5 (changement majeur).**
 Les sorties par trail (`s10_trailing`, `s8_inlife`, `opp_floor`, et l'ex-`prop_trail`)
 étaient bookées **à leur niveau théorique**. Or ces règles ne sont évaluées qu'aux

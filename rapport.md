@@ -1,6 +1,22 @@
 # Rapport — Enquête sur les fondations du moteur
 
-**2026-07-30** · Alfred v1.16.5 · SENIOR (live, argent réel)
+**2026-07-30** · Alfred v1.17.1 · SENIOR (live, argent réel)
+
+> ### ⚠ À lire avant les sections 2 à 9
+>
+> Les mesures des **§ 2 à 9 ont été produites avant** la découverte documentée au
+> **§ 10** : le backtest calculait la divergence sectorielle de S5 sur une carte de
+> secteurs périmée, et ne simulait donc pas la stratégie du bot.
+>
+> Ce qui **tient** : les réfutations du § 4 (elles portent sur des mécanismes de
+> classement, pas sur la valeur absolue du P&L), la découverte que `entry_z` est une
+> constante, et le diagnostic de path-dépendance du § 3.
+>
+> Ce qui **tombe** : la table par semestre du § 5, la calibration du tripwire du
+> § 8, et la justification de la décision du § 7. Voir § 10.
+>
+> Les sections sont conservées en l'état — le chemin de raisonnement, erreurs
+> comprises, fait partie du résultat.
 
 ---
 
@@ -385,16 +401,89 @@ secteur, en pariant sur la continuation. Quatre hypothèses, classées par testa
 
 ---
 
-## 10. État d'application
+## 10. ⚠ Renversement — la base de preuve était fausse
+
+**Quelques heures après la décision du § 7, en instruisant les diagnostics
+suivants, on a découvert que le backtest ne simulait pas la stratégie du bot.**
+
+`backtests/backtest_sector.py` portait une carte des secteurs **codée en dur et
+figée depuis v11.0.0** : 5 secteurs au lieu de 7, MKR fantôme, et **8 tokens
+tradés en production sans aucun secteur** (ADA, BCH, DOT, ENA, GMX, TON, UNI, XMR).
+Or `compute_sector_features` est l'**unique** source de la divergence que consomme
+S5. Ces tokens ne pouvaient donc émettre **aucun** signal S5 en backtest — alors
+que le live en tradait : **7 des 19 trades S5** depuis le reset.
+
+### Impact sur les chiffres publiés
+
+Deux arms dans le même process, mêmes données :
+
+| fenêtre | avant | après | Δ | DD avant | DD après |
+|---|---:|---:|---:|---:|---:|
+| 28m | $13 209 | $9 563 | **−27,6 %** | −31,3 % | **−40,5 %** |
+| 12m | $2 180 | $1 640 | −24,8 % | −22,0 % | −22,7 % |
+| 6m | $872 | $795 | −8,8 % | −22,0 % | −22,7 % |
+| 3m | $652 | $694 | +6,5 % | −22,0 % | −22,0 % |
+
+138 trades S5 apparaissent sur les tokens auparavant invisibles. S5 passe de 537 à
+637 trades et **évince les autres signaux**, dont les trades supprimés étaient
+rentables — d'où la dégradation.
+
+`docs/backtests.md` régénéré ; anciens chiffres annotés dans
+`docs/backtests_pre_sector_parity.md`.
+
+### La table par semestre s'effondre
+
+| semestre | WR **avant** (faux) | WR **après** (réel) | P&L après |
+|---|---:|---:|---:|
+| 2024-S1 | 50,0 % | 53,2 % | +67 |
+| 2024-S2 | 48,5 % | **44,2 %** | −126 |
+| 2025-S1 | 50,5 % | 47,0 % | −53 |
+| 2025-S2 | 51,5 % | 46,9 % | +244 |
+| 2026-S1 | 41,3 % | 42,3 % | −1184 |
+| **2026-S2** | **33,3 %** | **48,1 %** | **+69** |
+
+**Il n'y a plus de séparation.** La « bande saine » va de 44,2 à 53,2 %, et 2026-S1
+à 42,3 % est à peine sous 2024-S2. Surtout, **le dernier semestre est revenu à
+48,1 % et en P&L positif**.
+
+Le récit « S5 a marché quatre semestres puis a cassé » **était un artefact de la
+carte périmée**. La lecture correcte est différente et moins dramatique : **S5 est
+un signal chroniquement faible** (cumulé −983 sur 28 mois, négatif dès 2024-S2),
+pas un signal qui s'est rompu.
+
+### Conséquences
+
+1. **Le tripwire du § 8 est invalidé.** Ses deux seuils reposaient sur une
+   séparation qui n'existe pas. Il n'est **pas re-réglé** — ce serait exactement la
+   re-négociation qu'il devait empêcher, et il n'y a rien à calibrer. Drapeau
+   `S5_TRIPWIRE_VALID = False` : le détecteur mesure et rapporte, sans prescrire.
+2. **La décision du § 7 perd sa justification.** Réduire la mise de S5 se défendait
+   par « il a cassé en 2026 ». Ce motif est mort. Il reste un argument plus faible :
+   S5 est le signal le plus faible et occupe 43 % des slots — mais réduire la
+   **taille** ne libère aucun slot.
+3. **Le restart est gelé** (décision utilisateur). Le bot tourne toujours avec
+   **S5 à 3.0** ; v1.17.0 est committé mais dormant.
+
+### Ce que ça dit du processus
+
+`backtests/test_feature_parity.py` ne couvrait **aucune** feature sectorielle. Une
+règle partagée ne garantit rien si ses **entrées** divergent — c'est le second biais
+de mesure majeur trouvé en une semaine, après le booking des trails.
+
+---
+
+## 11. État d'application
 
 | | |
 |---|---|
-| `signal_mult["S5"]` | **1.0** (était 3.0) — appliqué dans `alfred/settings.py` |
-| tripwire | câblé dans `analysis/strategy_review.py`, actif au prochain lundi |
-| **restart** | **requis** pour que la nouvelle taille prenne effet — non effectué |
+| bot en service | **S5 à 3.0** — inchangé, aucun restart effectué |
+| `signal_mult["S5"]` dans le code | 1.0 (v1.17.0) — **committé mais dormant**, sans effet sans restart |
+| tripwire | câblé mais **invalidé** (`S5_TRIPWIRE_VALID = False`) : mesure sans prescription |
+| parité des secteurs | **corrigée**, `docs/backtests.md` régénéré, anciens chiffres archivés |
+| **décision S5** | **rouverte** — la justification du § 7 est tombée avec le § 10 |
 
-Aucune autre modification de trading. Tout le reste livré ce jour ne touche que le
-backtest, la journalisation et la documentation.
+Aucune modification de trading n'est en service. Tout ce qui a été livré ce jour ne
+touche que le backtest, la journalisation et la documentation.
 
 ---
 

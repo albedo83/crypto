@@ -90,6 +90,23 @@ S5_TRIPWIRE_FLOOR_WR = 35.0     # sous le pire semestre observé → retirer S5
 S5_TRIPWIRE_FLOOR_ROI = -100.0  # ET ROI notionnel ≤ −100 bps
 S5_MULT_CURRENT = 1.0           # doit refléter settings.signal_mult["S5"]
 
+# ⚠ CALIBRATION INVALIDÉE le 2026-07-30, quelques heures après sa pose.
+# La séparation « bande saine 48.5-51.5 % / bande cassée 41.3-33.3 % » sur
+# laquelle reposaient les deux seuils était un ARTEFACT : le backtest calculait
+# la divergence sectorielle de S5 sur une carte de secteurs périmée (5 secteurs
+# au lieu de 7, 8 tokens sans secteur). Sur l'univers réel, la table par semestre
+# devient 53.2 / 44.2 / 47.0 / 46.9 / 42.3 / 48.1 % — **aucune séparation**, et
+# le dernier semestre est revenu au milieu de la bande. Le ROI notionnel ne
+# sépare pas davantage (+90 / −77 / −25 / +50 / −40 / +20 bps).
+#
+# On ne RE-RÈGLE pas les seuils : ce serait exactement la re-négociation que le
+# dispositif était censé empêcher, et il n'y a de toute façon rien à calibrer —
+# S5 n'apparaît pas comme un signal « cassé » mais comme un signal
+# CHRONIQUEMENT FAIBLE. Tant que ce drapeau est False, le détecteur MESURE et
+# rapporte, mais ne prescrit aucune action.
+# Cf. rapport.md § 8, backtests/backtest_sector_parity_impact.py.
+S5_TRIPWIRE_VALID = False
+
 MARKET_DB = "/home/crypto/alfred/data/market.db"
 BOTS_DIR = "/home/crypto/alfred/data/bots"
 HOLD_BY_STRAT = {"S1": 72.0, "S5": 48.0, "S8": 60.0, "S9": 48.0, "S10": 24.0}
@@ -206,9 +223,11 @@ def detect_s5_tripwire(trades: list[dict]) -> list[dict]:
             "type": "S5_TRIPWIRE",
             "strat": "S5",
             "msg": (f"S5 tripwire : non évaluable — {n}/{S5_TRIPWIRE_MIN_N} trades "
-                    f"sur {S5_TRIPWIRE_WINDOW_DAYS}j. Mise maintenue à "
-                    f"{S5_MULT_CURRENT}. (Sous ce seuil l'IC95 du WR dépasse "
-                    f"±14 pp : mesurer serait se raconter une histoire.)"),
+                    f"sur {S5_TRIPWIRE_WINDOW_DAYS}j (sous ce seuil l'IC95 du WR "
+                    f"dépasse ±14 pp : mesurer serait se raconter une histoire)."
+                    + ("" if S5_TRIPWIRE_VALID else
+                       " ⚠ Seuils INVALIDÉS le 30/07 de toute façon — cadre de "
+                       "décision à refixer.")),
             "severity": "info",
         }]
     wins = sum(1 for t in s5 if t["pnl_usdt"] > 0)
@@ -219,6 +238,15 @@ def detect_s5_tripwire(trades: list[dict]) -> list[dict]:
     head = (f"S5 sur {S5_TRIPWIRE_WINDOW_DAYS}j : n={n}, WR {wr:.1f}% "
             f"(±{ci:.1f} pp), ROI notionnel {roi:+.0f} bps")
 
+    if not S5_TRIPWIRE_VALID:
+        return [{
+            "type": "S5_TRIPWIRE", "strat": "S5", "severity": "info",
+            "msg": (f"{head}. ⚠ Seuils INVALIDÉS le 30/07 (la séparation "
+                    f"saine/cassée était un artefact de la carte des secteurs "
+                    f"périmée du backtest). Mesure rapportée à titre "
+                    f"d'observation, aucune action prescrite tant qu'un cadre "
+                    f"de décision n'a pas été refixé."),
+        }]
     if wr >= S5_TRIPWIRE_REARM_WR and roi >= S5_TRIPWIRE_REARM_ROI:
         return [{
             "type": "S5_TRIPWIRE", "strat": "S5", "severity": "warning",
