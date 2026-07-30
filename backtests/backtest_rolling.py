@@ -337,6 +337,8 @@ def run_window(features, data, sector_features, dxy_data,
                entry_slip_bps_by_strat: dict | None = None,
                trail_eval_every: int = 1,
                realistic_trail_booking: bool = True,
+               min_scan_candidates: int = 0,
+               strength_sort: str = "desc",
                aligned: bool = False) -> dict:
     """Run the portfolio backtest on a time window.
 
@@ -923,6 +925,11 @@ def run_window(features, data, sector_features, dxy_data,
                     "effn_at_open_30d": pos.get("effn_at_open_30d"),
                     "n_pos_at_open":    pos.get("n_pos_at_open"),
                     "trade_id":         pos.get("trade_id"),
+                    "entry_rank_all":   pos.get("entry_rank_all"),
+                    "entry_rank_taken": pos.get("entry_rank_taken"),
+                    "entry_z":          pos.get("entry_z"),
+                    "entry_strength":   pos.get("entry_strength"),
+                    "n_cands_at_open":  pos.get("n_cands_at_open"),
                 })
                 pos["size"] = pos["size"] - partial_size
                 pos["partial_taken"] = True
@@ -1326,6 +1333,11 @@ def run_window(features, data, sector_features, dxy_data,
                     "n_pos_at_open":    pos.get("n_pos_at_open"),
                     "trade_id":         pos.get("trade_id"),
                     "trajectory":       pos.get("trajectory"),
+                    "entry_rank_all":   pos.get("entry_rank_all"),
+                    "entry_rank_taken": pos.get("entry_rank_taken"),
+                    "entry_z":          pos.get("entry_z"),
+                    "entry_strength":   pos.get("entry_strength"),
+                    "n_cands_at_open":  pos.get("n_cands_at_open"),
                 })
                 # Cooldown: per-strat override if cooldown_by_strat is set,
                 # else global cooldown_hours. Set to 0 to disable.
@@ -1457,14 +1469,32 @@ def run_window(features, data, sector_features, dxy_data,
                         "dirs": {s["direction"] for s in _hsigs},
                         "ur_bps": _hur}
 
-        candidates.sort(key=lambda x: (x["z"], x["strength"]), reverse=True)
+        # R&D 2026-07-30 : `z` étant une CONSTANTE par stratégie (strat_z), ce
+        # tri est un ordre de priorité ENTRE stratégies, puis par force
+        # DÉCROISSANTE à l'intérieur. Or l'EDA montre que pour S1/S5/S10 la
+        # force est inversement liée au P&L. Hook pour tester l'ordre inverse
+        # à l'intérieur de chaque stratégie. "desc" = comportement historique.
+        if strength_sort == "asc":
+            candidates.sort(key=lambda x: (-x["z"], x["strength"]))
+        else:
+            candidates.sort(key=lambda x: (x["z"], x["strength"]), reverse=True)
         seen = set()
         _sector_counts: dict[str, int] = {}
         for _p_open in positions.values():
             _s_open = TOKEN_SECTOR.get(_p_open["coin"])
             if _s_open:
                 _sector_counts[_s_open] = _sector_counts.get(_s_open, 0) + 1
-        for cand in candidates:
+        # R&D 2026-07-30 (plancher de qualité transversal) : on trace le RANG
+        # de chaque entrée dans la liste triée des candidats du scan, pour
+        # mesurer si le trade marginal (bas de liste) est structurellement pire
+        # que le trade de tête. Purement descriptif — aucun effet sur le moteur.
+        # R&D 2026-07-30 : n'entrer QUE si le scan présente au moins N
+        # candidats (proxy d'agitation du marché). 0 = no-op, défaut.
+        if min_scan_candidates and len(candidates) < min_scan_candidates:
+            candidates = []
+        _n_taken_this_scan = 0
+        _n_cands_this_scan = len(candidates)
+        for _cand_rank, cand in enumerate(candidates):
             coin = cand["coin"]
             if coin in seen or coin in positions:
                 continue
@@ -1676,7 +1706,14 @@ def run_window(features, data, sector_features, dxy_data,
                 "sector_div_at_entry": _sector_div_at_entry,
                 "pain_candles":     0,
                 "trajectory":       [] if trajectory_dump_path is not None else None,
+                # R&D plancher de qualité (2026-07-30) — descriptif.
+                "entry_rank_all":   _cand_rank,          # rang parmi TOUS les candidats
+                "entry_rank_taken": _n_taken_this_scan,  # rang parmi ceux RETENUS
+                "entry_z":          cand["z"],
+                "entry_strength":   cand["strength"],
+                "n_cands_at_open":  _n_cands_this_scan,
             }
+            _n_taken_this_scan += 1
             if cand["dir"] == 1:
                 n_long += 1
             else:
@@ -1718,6 +1755,11 @@ def run_window(features, data, sector_features, dxy_data,
                 "n_pos_at_open":    pos.get("n_pos_at_open"),
                 "trade_id":         pos.get("trade_id"),
                 "trajectory":       pos.get("trajectory"),
+                "entry_rank_all":   pos.get("entry_rank_all"),
+                "entry_rank_taken": pos.get("entry_rank_taken"),
+                "entry_z":          pos.get("entry_z"),
+                "entry_strength":   pos.get("entry_strength"),
+                "n_cands_at_open":  pos.get("n_cands_at_open"),
             })
 
     # Summary stats

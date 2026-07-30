@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.16.5 — 2026-07-30
+
+- **R&D**: campagne complète sur un plancher de qualité à l'entrée, née du constat que retirer le signal perdant fait perdre de l'argent aux autres. Découverte structurelle : le classement des candidats n'a aucune dimension de qualité entre signaux — c'est un ordre de priorité fixe entre stratégies. Trois pistes instruites, trois réfutations en walk-forward sur fenêtres glissantes non chevauchantes, malgré des prémisses consistantes sur trois fenêtres. Aucun changement de trading. Le moteur de backtest gagne une instrumentation permanente (rang, force et agitation du scan à l'entrée, plus deux leviers de test neutres par défaut) qui rend cette classe de question bon marché à re-poser. Rapport : `backtests/entry_quality_floor_results.md`.
+
 ## v1.16.4 — 2026-07-30
 
 - **Backtest**: le moteur ignorait la liste des stratégies activées, que seul le bot respectait. Un override de ce champ n'avait donc aucun effet et une étude d'ablation par signal renvoyait silencieusement le stack complet. Corrigé — sans impact sur les chiffres publiés, la valeur par défaut contenant les cinq signaux.
