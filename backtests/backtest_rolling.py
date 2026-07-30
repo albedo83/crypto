@@ -1373,6 +1373,13 @@ def run_window(features, data, sector_features, dxy_data,
                 coin, _rules.adapt_bt_features(f), _btc_f,
                 sector_features.get((ts, coin)), sq, "", {}, _P)
             for sig in sigs:
+                # Parité bot/BT (2026-07-30) : le bot filtre les signaux par
+                # `p.enabled_strategies` (botinstance ~l.1322), pas le BT — un
+                # override de ce champ n'avait donc AUCUN effet ici, et une étude
+                # d'ablation par signal renvoyait silencieusement le stack
+                # complet. Le défaut (les 5) ne change rien aux runs existants.
+                if sig["strategy"] not in _P.enabled_strategies:
+                    continue
                 cand = {
                     "coin": coin, "dir": sig["direction"],
                     "strat": sig["strategy"], "z": sig["z"],

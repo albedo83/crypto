@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.16.4 — 2026-07-30
+
+- **Backtest**: le moteur ignorait la liste des stratégies activées, que seul le bot respectait. Un override de ce champ n'avait donc aucun effet et une étude d'ablation par signal renvoyait silencieusement le stack complet. Corrigé — sans impact sur les chiffres publiés, la valeur par défaut contenant les cinq signaux.
+- **R&D**: re-validation des signaux sous booking honnête, motivée par le fait que toutes les décisions ayant produit le bot ont été prises sur un backtest qui surévaluait les sorties par trail. Quatre signaux sur cinq restent en phase. Le cinquième ne l'est plus : il perd de l'argent sur toutes les fenêtres et dans les deux directions, mais aucun retrait ne passe non plus, sa présence modifiant le chemin de compounding. Aucun changement de trading appliqué. Rapports : `backtests/backtest_signal_rederivation.py`, `backtests/backtest_s5_direction_split.py`.
+
 ## v1.16.3 — 2026-07-30
 
 - **IA**: l'arbitre de sortie ne laissait aucune trace de ses verdicts non agis. On ne pouvait donc mesurer que ce qu'il avait fait, jamais ce qu'il avait refusé de faire — alors que sur le mois écoulé il a examiné des dizaines de fois des positions condamnées sans jamais proposer de les couper, et qu'on ne peut pas savoir si cette prudence est justifiée. Ces verdicts sont désormais journalisés, en distinguant le maintien assumé du verdict d'action étouffé par le seuil de confiance. Trace purement observationnelle : événement séparé, aucune influence sur le scorecard, le disjoncteur ni le trading.
