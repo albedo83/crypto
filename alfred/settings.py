@@ -95,7 +95,22 @@ class Params:
     # S5 3.67/3.25, S8 6.99, S9 8.71, S10 3.66. Réf. exit_joint_mc_results.md.
     strat_z: dict = _d(S1=6.5, S5=3.5, S8=7.0, S9=8.5, S10=3.5)
     liquidity_haircut: dict = _d(S8=0.8)
-    signal_mult: dict = _d(S1=1.0, S5=3.0, S8=1.25, S9=2.00, S10=2.00)
+    # v1.17.0 — S5 dé-risqué 3.0 → 1.0. DÉCISION DE RISQUE, pas un edge validé.
+    # Motif : S5 a rapporté +$780 sur 4 semestres (2024-S1→2025-S2, WR 48.5-51.5 %)
+    # puis perdu $3065 sur 2026 avec un WR qui décroît continûment (41.3 % puis
+    # 33.3 %). Le live confirme (S5 LONG 40 % de WR depuis le reset 07-09).
+    # Le walk-forward NE PEUT PAS trancher ce cas : il est conçu pour rejeter ce
+    # qui ne marche que sur une fenêtre récente, or une vraie rupture de régime
+    # lui est indiscernable d'un sur-ajustement (rapport.md § 5).
+    # Note : 3.0 → 2.0 est un NO-OP (le cap 0.3×equity mordait déjà) ; le
+    # dé-risquage réel commence à 1.5. À 1.0 : DD amélioré de 3 à 8.6 pp sur les
+    # 6 fenêtres testées, coût −11 % de P&L sur la période où S5 fonctionnait.
+    # RÉVERSIBILITÉ PRÉ-ENREGISTRÉE (fixée à froid le 2026-07-30, ne pas
+    # re-négocier a posteriori) — surveillée par analysis/strategy_review.py,
+    # constantes S5_TRIPWIRE_* : remonter à 3.0 si le WR glissant repasse dans la
+    # bande saine ; retirer S5 s'il passe sous le plancher. Entre les deux : ne
+    # rien faire. Aucune action automatique — l'alerte informe, l'humain décide.
+    signal_mult: dict = _d(S1=1.0, S5=1.0, S8=1.25, S9=2.00, S10=2.00)
     min_fill_abort_usdt: float = 10.0
 
     # ── Adaptive macro modulator (v11.10.0 / v12.2.0) ───────────────

@@ -64,6 +64,32 @@ BTC_Z_SHIFT_THRESHOLD = 1.0  # |Δz| over 7d ≥ 1.0 = regime shift
 # Reconstructs, for each closed traj_cut, what holding to the natural exit
 # (timeout OR catastrophe stop) would have realized, from 4h candles.
 # Aggregated across ALL bots so one weekly run gives the consolidated verdict.
+# ── Tripwire S5 (v1.17.0) — critère de réversibilité PRÉ-ENREGISTRÉ ────
+# Fixé à froid le 2026-07-30, AVANT d'observer la suite. Ne pas re-négocier a
+# posteriori : c'est tout l'intérêt du dispositif. Le but est de transformer un
+# pari one-shot (« on baisse la mise de S5 ») en règle de risque monitorée, et
+# d'éviter de re-litiger le même dossier tous les mois avec les mêmes données.
+#
+# Calibration (backtest 28m sous booking honnête, par semestre) :
+#   bande SAINE  2024-S1→2025-S2 : WR 48.5 / 48.5 / 50.5 / 51.5 %  (moy 50.1)
+#   bande CASSÉE 2026            : WR 41.3 % puis 33.3 %
+# Séparation nette de 7.2 pp, aucun recouvrement.
+#
+# Pourquoi le WR et pas le ROI : le ROI notionnel NE sépare PAS les deux bandes
+# (2024-S2 sain à −22.4 bps vs 2026-S1 cassé à −24.7). Le WR est utilisé ici
+# comme INDICATEUR DE SANTÉ d'un signal, pas comme objectif d'optimisation —
+# la doctrine « le WR n'est pas l'objectif » reste valable pour le sizing.
+#
+# Le ROI sert de second verrou (condition ET) pour éviter de ré-armer sur du
+# bruit de WR et de retirer sur un accident.
+S5_TRIPWIRE_WINDOW_DAYS = 120   # ~91 trades S5 au rythme live actuel
+S5_TRIPWIRE_MIN_N = 50          # sous ce n, non évaluable (IC95 > ±14 pp)
+S5_TRIPWIRE_REARM_WR = 48.0     # bas de la bande saine → remonter le mult à 3.0
+S5_TRIPWIRE_REARM_ROI = 0.0     # ET ROI notionnel ≥ 0 (verrou anti-bruit)
+S5_TRIPWIRE_FLOOR_WR = 35.0     # sous le pire semestre observé → retirer S5
+S5_TRIPWIRE_FLOOR_ROI = -100.0  # ET ROI notionnel ≤ −100 bps
+S5_MULT_CURRENT = 1.0           # doit refléter settings.signal_mult["S5"]
+
 MARKET_DB = "/home/crypto/alfred/data/market.db"
 BOTS_DIR = "/home/crypto/alfred/data/bots"
 HOLD_BY_STRAT = {"S1": 72.0, "S5": 48.0, "S8": 60.0, "S9": 48.0, "S10": 24.0}
@@ -161,6 +187,67 @@ def detect_strat_drift(trades: list[dict]) -> list[dict]:
                 "severity": "warning",
             })
     return alerts
+
+
+def detect_s5_tripwire(trades: list[dict]) -> list[dict]:
+    """Tripwire S5 pré-enregistré (v1.17.0) — voir le bloc de constantes.
+
+    Mesure le WR et le ROI notionnel de S5 sur une fenêtre glissante et les
+    compare à des seuils fixés AVANT observation. Trois issues : ré-armer la
+    mise, retirer le signal, ou ne rien faire. AUCUNE action automatique —
+    l'alerte informe, la décision reste humaine (cf. règle d'or : jamais de
+    changement de config sans OK explicite).
+    """
+    s5 = [t for t in filter_window(trades, S5_TRIPWIRE_WINDOW_DAYS)
+          if t["strategy"] == "S5"]
+    n = len(s5)
+    if n < S5_TRIPWIRE_MIN_N:
+        return [{
+            "type": "S5_TRIPWIRE",
+            "strat": "S5",
+            "msg": (f"S5 tripwire : non évaluable — {n}/{S5_TRIPWIRE_MIN_N} trades "
+                    f"sur {S5_TRIPWIRE_WINDOW_DAYS}j. Mise maintenue à "
+                    f"{S5_MULT_CURRENT}. (Sous ce seuil l'IC95 du WR dépasse "
+                    f"±14 pp : mesurer serait se raconter une histoire.)"),
+            "severity": "info",
+        }]
+    wins = sum(1 for t in s5 if t["pnl_usdt"] > 0)
+    wr = wins / n * 100
+    notional = sum(t.get("size_usdt") or 0.0 for t in s5)
+    roi = (sum(t["pnl_usdt"] for t in s5) / notional * 1e4) if notional > 0 else 0.0
+    ci = 1.96 * ((wr / 100) * (1 - wr / 100) / n) ** 0.5 * 100
+    head = (f"S5 sur {S5_TRIPWIRE_WINDOW_DAYS}j : n={n}, WR {wr:.1f}% "
+            f"(±{ci:.1f} pp), ROI notionnel {roi:+.0f} bps")
+
+    if wr >= S5_TRIPWIRE_REARM_WR and roi >= S5_TRIPWIRE_REARM_ROI:
+        return [{
+            "type": "S5_TRIPWIRE", "strat": "S5", "severity": "warning",
+            "msg": (f"⬆ RÉ-ARMEMENT ATTEINT — {head}. Les deux seuils de retour "
+                    f"sont franchis (WR ≥ {S5_TRIPWIRE_REARM_WR:.0f}% ET ROI ≥ "
+                    f"{S5_TRIPWIRE_REARM_ROI:.0f}). Décision pré-enregistrée : "
+                    f"remonter signal_mult['S5'] de {S5_MULT_CURRENT} à 3.0. "
+                    f"Restart requis. Vérifier d'abord qu'aucun changement de "
+                    f"règle n'explique le rebond."),
+        }]
+    if wr <= S5_TRIPWIRE_FLOOR_WR and roi <= S5_TRIPWIRE_FLOOR_ROI:
+        return [{
+            "type": "S5_TRIPWIRE", "strat": "S5", "severity": "critical",
+            "msg": (f"⬇ PLANCHER FRANCHI — {head}. Sous les deux seuils "
+                    f"(WR ≤ {S5_TRIPWIRE_FLOOR_WR:.0f}% ET ROI ≤ "
+                    f"{S5_TRIPWIRE_FLOOR_ROI:.0f} bps), pire que le pire "
+                    f"semestre mesuré. Décision pré-enregistrée : retirer S5 de "
+                    f"enabled_strategies. Rappel : le retrait libère des slots "
+                    f"que les autres signaux remplissent avec des trades "
+                    f"marginaux perdants (rapport.md § 3) — l'attendre était le "
+                    f"prix à payer pour ne pas décider sur du bruit."),
+        }]
+    return [{
+        "type": "S5_TRIPWIRE", "strat": "S5", "severity": "info",
+        "msg": (f"S5 tripwire : dans la bande — {head}. Ré-armement à "
+                f"{S5_TRIPWIRE_REARM_WR:.0f}% / plancher à "
+                f"{S5_TRIPWIRE_FLOOR_WR:.0f}%. Mise maintenue à "
+                f"{S5_MULT_CURRENT}, aucune action."),
+    }]
 
 
 def detect_token_toxic(trades: list[dict]) -> list[dict]:
@@ -466,6 +553,7 @@ def format_report(alerts: list[dict], n_trades: int) -> str:
         by_type[a["type"]].append(a)
 
     sections = [
+        ("S5_TRIPWIRE",   "🎚 Tripwire S5 (critère de réversibilité pré-enregistré)"),
         ("STRAT_DRIFT",   "🔴 Dérive par stratégie"),
         ("TOKEN_TOXIC",   "🟡 Tokens toxiques (token, direction, strat)"),
         ("TOKEN_REVIVAL", "🟢 Revivals (token précédemment perdant qui remonte)"),
@@ -479,7 +567,7 @@ def format_report(alerts: list[dict], n_trades: int) -> str:
             continue
         lines.append(f"{header}:")
         for a in by_type[tag]:
-            sev = "⚠" if a["severity"] == "warning" else "·"
+            sev = {"critical": "🔴", "warning": "⚠"}.get(a["severity"], "·")
             lines.append(f"  {sev} {a['msg']}")
         lines.append("")
         any_alerts = True
@@ -559,6 +647,7 @@ def main() -> int:
     print(f"[review] {len(trades)} trades loaded.", file=sys.stderr)
 
     alerts = []
+    alerts.extend(detect_s5_tripwire(trades))
     alerts.extend(detect_strat_drift(trades))
     alerts.extend(detect_token_toxic(trades))
     alerts.extend(detect_token_revival(trades))

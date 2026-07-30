@@ -268,7 +268,7 @@ ces 3 points ne sont pas décoratifs.
 
 ---
 
-## 7. La décision à prendre
+## 7. La décision prise
 
 Trois faits établis, en backtest **et** en live :
 
@@ -279,19 +279,122 @@ Trois faits établis, en backtest **et** en live :
 Aucun backtest ne tranchera : le walk-forward ne sait pas distinguer une rupture de
 régime d'un sur-ajustement.
 
-**Recommandation : `signal_mult["S5"] = 1.5`** — présenté pour ce que c'est, une
-décision de risque prise sur une dégradation observée, pas une amélioration d'edge
-validée.
+### `signal_mult["S5"] = 3.0 → 1.0`
 
-Les alternatives défendables :
-- **ne rien faire** — la position par défaut de la doctrine ; on attend que S5 se
-  répare ou que la dégradation devienne indiscutable
-- **1.0** — dé-risquage plus franc, drawdown bien meilleur (jusqu'à −7 points), coût
-  de −11 % sur la période saine
+Au capital actuel de SENIOR ($527.60), la taille d'une position S5 passe de
+**$158.28 à $83.10** — une réduction réelle de **47 %**, puisque 3.0 était déjà
+plafonné par le cap `0.3 × equity`.
 
-> **Aucun changement de trading n'a été appliqué.** Le bot tourne exactement comme
-> avant. Tout ce qui a été livré aujourd'hui ne touche que le backtest, la
-> journalisation et la documentation.
+C'est une **décision de risque**, pas une amélioration d'edge validée. Elle est
+prise sur une dégradation observée dans deux sources indépendantes, en assumant que
+l'outil de validation habituel est structurellement muet sur cette question.
+
+> **Ce qui a été écarté** : `1.5` (dé-risquage à moitié, drawdown amélioré de 2,3 à
+> 3,8 pp) et le **statu quo**. Le retrait complet est réservé au franchissement du
+> plancher défini ci-dessous.
+
+---
+
+## 8. Réversibilité — critères fixés à froid
+
+Le vrai risque d'une décision comme celle-ci n'est pas de se tromper : c'est de
+**re-litiger le dossier tous les mois avec les mêmes données**, en cherchant à
+chaque fois la lecture qui arrange l'humeur du moment. Les seuils ci-dessous sont
+donc fixés **maintenant, avant d'observer la suite**, et ne doivent pas être
+re-négociés a posteriori.
+
+### Calibration
+
+| semestre | n | WR | ROI notionnel |
+|---|---:|---:|---:|
+| 2024-S1 | 66 | 50,0 % | +99,0 bps |
+| 2024-S2 | 101 | 48,5 % | −22,4 |
+| 2025-S1 | 103 | 50,5 % | +10,7 |
+| 2025-S2 | 103 | 51,5 % | +52,9 |
+| **2026-S1** | 143 | **41,3 %** | −24,7 |
+| **2026-S2** | 21 | **33,3 %** | −196,9 |
+
+Bande saine **48,5–51,5 %**, bande cassée **41,3 % et 33,3 %** : séparation de
+7,2 points, **aucun recouvrement**.
+
+Le **ROI notionnel ne sépare pas** les deux régimes (2024-S2 sain à −22,4 contre
+2026-S1 cassé à −24,7). C'est le **taux de réussite** qui discrimine. Il est employé
+ici comme **indicateur de santé d'un signal**, pas comme objectif d'optimisation —
+la doctrine « le WR n'est pas l'objectif » reste valable pour le sizing. Le ROI sert
+de **second verrou** (condition ET) pour ne pas ré-armer sur du bruit ni retirer sur
+un accident.
+
+### Les deux seuils
+
+Fenêtre glissante **120 jours**, trades S5 clos de SENIOR, **n ≥ 50** requis (en
+dessous, l'IC95 du WR dépasse ±14 points — mesurer serait se raconter une histoire).
+
+| | condition | action pré-enregistrée |
+|---|---|---|
+| **Ré-armement** | WR ≥ **48 %** ET ROI ≥ **0 bps** | remonter `signal_mult["S5"]` à 3.0 |
+| **Plancher** | WR ≤ **35 %** ET ROI ≤ **−100 bps** | retirer S5 de `enabled_strategies` |
+| entre les deux | — | ne rien faire, mise à 1.0 |
+
+Le plancher à 35 % est **sous le pire semestre plein mesuré** (41,3 %) ; les 33,3 %
+de 2026-S2 ne portent que sur 21 trades.
+
+### Surveillance
+
+Câblé dans `analysis/strategy_review.py` (cron hebdomadaire, lundi 8h UTC),
+constantes `S5_TRIPWIRE_*`. Le rapport Telegram affiche à chaque passage l'état du
+tripwire : n, WR avec son intervalle de confiance, ROI, distance aux deux seuils.
+
+**Aucune action automatique** — l'alerte informe, la décision reste humaine, comme
+tout le reste de la surveillance. Au rythme actuel (16 trades S5 en 21 jours), la
+première évaluation possible tombe vers **mi-septembre 2026**.
+
+Complément à plus forte puissance statistique : re-jouer
+`backtests/backtest_s5_oos_and_decay.py` trimestriellement — le backtest donne
+~140 trades S5 par semestre là où le live en donne ~90 par trimestre.
+
+---
+
+## 9. La question causale — le meilleur critère de retour
+
+Un seuil statistique dit *quand* revenir. Il ne dit pas *pourquoi*. Si on parvient à
+formuler **ce que 2026 a cassé**, on obtient un critère de retour bien supérieur :
+on saura surveiller la cause plutôt que le symptôme.
+
+S5 suit une **divergence sectorielle** : il entre quand un token décroche de son
+secteur, en pariant sur la continuation. Quatre hypothèses, classées par testabilité :
+
+1. **Corrélations intra-sectorielles écrasées.** Si tous les alts d'un secteur
+   bougent ensemble, une « divergence sectorielle » n'est plus qu'un bruit de
+   mesure. *Mesurable* : corrélation moyenne par paire à l'intérieur de chaque
+   secteur, par trimestre, et dispersion cross-sectionnelle.
+2. **Divergences qui se referment plus vite.** L'edge était dans la continuation ;
+   si le marché est devenu plus rapide, le hold de 48h est désormais trop long.
+   *Mesurable* : distribution de `mfe_at_h` (heure du pic) des trades S5 dans le
+   temps — l'instrumentation existe déjà.
+3. **Composition d'univers.** L'ajout de 6 tokens et de 2 secteurs
+   (`L1-major`, `Privacy`) a modifié la structure sur laquelle S5 calcule ses
+   divergences. *Mesurable* : P&L S5 sur les tokens historiques vs les ajoutés.
+   Cause potentiellement **auto-infligée** — à vérifier en premier, c'est la moins
+   chère et la plus actionnable.
+4. **Régime directionnel.** 2026 est un bull marqué (`btc_z` +1.06). Une stratégie
+   de suivi de divergence peut être structurellement pénalisée quand la corrélation
+   au marché domine les écarts sectoriels.
+
+> **Aucune de ces hypothèses n'est instruite à ce jour.** Elles sont listées pour
+> que le retour sur S5 ne se joue pas uniquement sur un franchissement de seuil.
+
+---
+
+## 10. État d'application
+
+| | |
+|---|---|
+| `signal_mult["S5"]` | **1.0** (était 3.0) — appliqué dans `alfred/settings.py` |
+| tripwire | câblé dans `analysis/strategy_review.py`, actif au prochain lundi |
+| **restart** | **requis** pour que la nouvelle taille prenne effet — non effectué |
+
+Aucune autre modification de trading. Tout le reste livré ce jour ne touche que le
+backtest, la journalisation et la documentation.
 
 ---
 

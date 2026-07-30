@@ -3,6 +3,12 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.17.0 — 2026-07-30
+
+- **Trading engine**: la mise du signal de divergence sectorielle est réduite d'un tiers de sa valeur nominale — au capital actuel la taille d'une position passe de $158 à $83. Décision de RISQUE, pas une amélioration d'edge validée : le signal a gagné pendant quatre semestres puis s'est dégradé continûment sur les deux derniers, en backtest comme en live. L'outil de validation habituel est structurellement muet sur ce cas (une rupture de régime lui est indiscernable d'un sur-ajustement), donc la décision est assumée comme telle. Kill-switch : la valeur d'origine est documentée en commentaire.
+- **Surveillance**: critères de réversibilité PRÉ-ENREGISTRÉS, fixés à froid avant d'observer la suite, et surveillés chaque semaine par la revue de stratégie — un seuil de ré-armement qui remonte la mise, un plancher qui déclenche le retrait du signal, et une zone morte entre les deux. Calibrés sur la séparation mesurée entre les semestres sains et cassés. Aucune action automatique : l'alerte informe, la décision reste humaine. Objectif explicite : ne plus re-litiger le dossier tous les mois avec les mêmes données.
+- **Docs**: `rapport.md` complété — décision, calibration des seuils, et quatre hypothèses causales à instruire (un critère de retour fondé sur la cause vaut mieux qu'un seuil statistique).
+
 ## v1.16.5 — 2026-07-30
 
 - **R&D**: campagne complète sur un plancher de qualité à l'entrée, née du constat que retirer le signal perdant fait perdre de l'argent aux autres. Découverte structurelle : le classement des candidats n'a aucune dimension de qualité entre signaux — c'est un ordre de priorité fixe entre stratégies. Trois pistes instruites, trois réfutations en walk-forward sur fenêtres glissantes non chevauchantes, malgré des prémisses consistantes sur trois fenêtres. Aucun changement de trading. Le moteur de backtest gagne une instrumentation permanente (rang, force et agitation du scan à l'entrée, plus deux leviers de test neutres par défaut) qui rend cette classe de question bon marché à re-poser. Rapport : `backtests/entry_quality_floor_results.md`.
