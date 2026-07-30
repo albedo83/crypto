@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.17.2 — 2026-07-30
+
+- **Backtest**: audit systématique de la parité des ENTRÉES du noyau partagé — après deux biais de mesure en une semaine, la question n'était plus « corriger celui qu'on a trouvé » mais « où est le troisième ». Chaque entrée consommée par les règles est désormais confrontée aux deux implémentations sur les mêmes données : univers, secteurs, features par token, features BTC, divergence sectorielle, contexte transversal, compression, intérêt ouvert, coûts. Verdict : **aucun troisième biais de conséquence**. Nouveau gate `backtests/audit_input_parity.py`, à lancer après toute modification de ces entrées.
+- **Backtest**: trois durcissements issus de l'audit, sans effet sur les chiffres (vérifié) — l'univers du backtest dérive désormais des paramètres de production au lieu d'en être une copie manuelle (cette copie avait déjà causé une divergence par le passé) ; la dispersion transversale est arrondie comme le bot l'arrondit ; et une fonction dont le nom annonçait des pourcents alors qu'elle renvoyait des points de base a été renommée, avec alias de compatibilité.
+
 ## v1.17.1 — 2026-07-30
 
 - **Backtest**: correctif majeur de parité — le moteur calculait la divergence sectorielle du signal S5 sur une carte de secteurs codée en dur et figée depuis un an : deux secteurs manquants, un token fantôme, et huit tokens tradés en production qui n'y figuraient pas du tout. Comme cette divergence est l'unique entrée du signal, ces huit tokens ne pouvaient émettre aucun signal en backtest alors que le bot en tradait — le backtest et le bot ne simulaient pas la même stratégie. Les secteurs dérivent désormais des paramètres de production, source unique de vérité.

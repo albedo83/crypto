@@ -29,19 +29,15 @@ DATA_DIR = os.path.join(os.path.dirname(__file__), "output", "pairs_data")
 # XMR (v12.7.0 universe expansion). Without this sync, every backtest run
 # since v12.7.0 was simulating 28 tokens while live traded 35 → systematic
 # divergence on the 7 missing tokens.
-TOKENS = [
-    "ARB", "OP", "AVAX", "SUI", "APT", "SEI", "NEAR",
-    "AAVE", "COMP", "SNX", "PENDLE", "DYDX",
-    "DOGE", "WLD", "BLUR", "LINK", "PYTH",
-    "SOL", "INJ", "CRV", "LDO", "STX", "GMX",
-    "IMX", "SAND", "GALA", "MINA",
-    # v12.7.0 universe expansion (2026-05-16) + TON pre-existing gap
-    "ADA", "BCH", "DOT", "ENA", "TON", "UNI", "XMR",
-    # Phase 6 (2026-06-10) : MKR retiré — plus aucune candle HL depuis le
-    # 2025-09-05 (rebranding SKY). Voir docs/alfred_phase6_preview.md.
-]
+# PARITÉ (2026-07-30, v1.17.2) — l'univers est DÉRIVÉ des Params de production,
+# plus recopié à la main. La copie manuelle avait déjà causé une divergence
+# silencieuse (audit v12.9.7 : 28 tokens simulés contre 35 tradés), et la même
+# classe de bug vient de coûter un an de backtests faux sur la carte des
+# secteurs (v1.17.1). Une entrée du noyau partagé ne doit avoir qu'UNE source.
+from alfred.settings import DEFAULT_PARAMS as _PROD_P    # noqa: E402
 
-REF_TOKENS = ["BTC", "ETH"]  # Not traded, used for features
+TOKENS = list(_PROD_P.trade_symbols)
+REF_TOKENS = list(_PROD_P.reference_symbols)  # non tradés, servent aux features
 
 COST_BPS = 12.0       # 7 taker + 3 slippage + 2 funding
 MAX_POSITIONS = 6

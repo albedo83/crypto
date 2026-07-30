@@ -434,6 +434,24 @@ Corrigé (les secteurs dérivent des `Params`), `docs/backtests.md` régénéré
 Leçon : `backtests/test_feature_parity.py` ne couvrait aucune feature
 sectorielle — une règle partagée ne garantit rien si ses **entrées** divergent.
 
+**Gate de parité des ENTRÉES (v1.17.2)** — `python3 -m backtests.audit_input_parity`.
+À lancer après toute modification touchant les features, les secteurs, l'univers ou
+le contexte transversal. Il confronte les deux implémentations sur les mêmes données,
+entrée par entrée : univers · carte des secteurs · features par token · `btc_7d` /
+`btc_30d` · divergence sectorielle · `disp_24h` / `disp_7d` / `n_stress` · squeeze ·
+OI · coûts. Sortie non nulle s'il reste une divergence.
+
+Corrigé dans la foulée (v1.17.2, sans effet sur les chiffres — vérifié) :
+- `backtest_genetic.TOKENS` **dérive** de `p.trade_symbols` (c'était une copie
+  manuelle, déjà responsable d'une divergence 28-vs-35 en v12.9.7) ;
+- `disp_24h` / `disp_7d` arrondis à l'entier côté backtest **comme le bot** ;
+- `oi_delta_24h_pct` → `oi_delta_24h_bps` : le nom annonçait des pourcents et la
+  fonction renvoyait des bps (alias de compatibilité conservé).
+
+Restent deux écarts **assumés** : le modèle de coûts (divergence #12, voulue) et la
+fenêtre OI (bot : échantillon le plus proche de −24h avec tolérance 4h ; backtest :
+exactement 6 bougies — sémantiquement équivalent à cadence régulière).
+
 **Booking des trails — réaliste depuis v1.15.4/v1.15.5 (changement majeur).**
 Les sorties par trail (`s10_trailing`, `s8_inlife`, `opp_floor`, et l'ex-`prop_trail`)
 étaient bookées **à leur niveau théorique**. Or ces règles ne sont évaluées qu'aux

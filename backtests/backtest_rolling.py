@@ -146,8 +146,14 @@ def load_oi():
     return d
 
 
-def oi_delta_24h_pct(oi_data, coin, ts_ms):
-    """OI delta over 24h in bps (6 4h-candles). None if insufficient history."""
+def oi_delta_24h_bps(oi_data, coin, ts_ms):
+    """OI delta over 24h in **bps** (6 bougies 4h). None si historique court.
+
+    Nom aligné sur `alfred/features.oi_delta_24h_bps` (2026-07-30) : l'ancien
+    `oi_delta_24h_pct` annonçait des pourcents et renvoyait des bps — le genre
+    de piège qui fait passer un facteur 100 inaperçu. Alias de compatibilité
+    conservé plus bas pour les scripts R&D historiques.
+    """
     pts = oi_data.get(coin)
     if not pts:
         return None
@@ -160,6 +166,10 @@ def oi_delta_24h_pct(oi_data, coin, ts_ms):
     if oi_then <= 0:
         return None
     return (oi_now / oi_then - 1) * 1e4
+
+
+# Alias historique (renvoie des bps malgré son nom) — R&D existante.
+oi_delta_24h_pct = oi_delta_24h_bps
 
 
 def load_funding():
@@ -420,7 +430,10 @@ def run_window(features, data, sector_features, dxy_data,
         for ts, fmap in feat_by_ts.items():
             rets = [f.get("ret_6h", 0) for f in fmap.values() if "ret_6h" in f]
             if len(rets) > 4:
-                disp_by_ts[ts] = float(np.std(rets))
+                # Parité (2026-07-30) : le bot ARRONDIT à l'entier
+                # (signals.compute_cross_context:111). Écart sub-bps, mais la
+                # règle doit voir la même valeur des deux côtés.
+                disp_by_ts[ts] = round(float(np.std(rets)), 0)
 
     # EDA hook (feature_modulator_eda): precompute n_stress_global per ts —
     # mirrors signals.compute_cross_context's stress count (vol_z>1.5 AND
@@ -1514,7 +1527,7 @@ def run_window(features, data, sector_features, dxy_data,
                     n_macro=n_macro, n_token=n_token,
                     sector_counts=_sector_counts),
                 _mctx, _P, capital, TOKEN_SECTOR,
-                oi_delta_24h=(oi_delta_24h_pct(oi_data, coin, ts)
+                oi_delta_24h=(oi_delta_24h_bps(oi_data, coin, ts)
                               if oi_data is not None else None),
                 check_size_floor=aligned)
             if _reason == "max_positions":
@@ -1662,8 +1675,9 @@ def run_window(features, data, sector_features, dxy_data,
             _ts_feats = feat_by_ts.get(ts, {})
             _all_r24 = [_pf.get("ret_6h", 0) for _pf in _ts_feats.values()]
             _all_r7d = [_pf.get("ret_42h", 0) for _pf in _ts_feats.values()]
-            _disp_24h = float(np.std(_all_r24)) if _all_r24 else 0.0
-            _disp_7d  = float(np.std(_all_r7d)) if _all_r7d else 0.0
+            # Parité : arrondi entier comme signals.compute_cross_context.
+            _disp_24h = round(float(np.std(_all_r24)), 0) if _all_r24 else 0.0
+            _disp_7d  = round(float(np.std(_all_r7d)), 0) if _all_r7d else 0.0
             entry_feats = {
                 "entry_shock":        float(_entry_shock),
                 "entry_clean":        float(_entry_clean),
