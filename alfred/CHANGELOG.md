@@ -3,6 +3,10 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.16.3 — 2026-07-30
+
+- **IA**: l'arbitre de sortie ne laissait aucune trace de ses verdicts non agis. On ne pouvait donc mesurer que ce qu'il avait fait, jamais ce qu'il avait refusé de faire — alors que sur le mois écoulé il a examiné des dizaines de fois des positions condamnées sans jamais proposer de les couper, et qu'on ne peut pas savoir si cette prudence est justifiée. Ces verdicts sont désormais journalisés, en distinguant le maintien assumé du verdict d'action étouffé par le seuil de confiance. Trace purement observationnelle : événement séparé, aucune influence sur le scorecard, le disjoncteur ni le trading.
+
 ## v1.16.2 — 2026-07-27
 
 - **Dashboard**: la table « Impact des interventions » attribuait à l'humain des sorties décidées par l'arbitre IA. Cause : le verrou de gain de l'IA écrit dans le même champ que le stop posé à la main, donc la raison de sortie ne dit pas qui a agi — seuls les événements de l'arbitre tranchent. La catégorie est désormais déterminée par croisement avec ces événements, et le résumé sépare le plancher posé par l'IA de celui posé par l'opérateur, avec un marqueur par ligne. Affichage seulement : aucun calcul de P&L ni de contrefactuel n'est modifié.

@@ -440,6 +440,32 @@ class BotInstance:
                 "action": action, "confidence": conf,
                 "reason": v["reason"], "ts": nowts}
             if action == "HOLD" or conf < cfg["conf_min"]:
+                # v1.16.3 — observabilité des verdicts NON agis. Sans ça on ne
+                # mesure que ce que l'arbitre a FAIT, jamais ce qu'il a refusé
+                # de faire : 55 examens de positions mortes (juillet) n'ont
+                # laissé aucune trace. Deux populations distinctes ici :
+                # un vrai HOLD, et un CUT/LOCK étouffé par conf_min — ne jamais
+                # les confondre à l'analyse. Event SÉPARÉ à dessein : le
+                # scorecard et le disjoncteur ne lisent que
+                # ARBITER_EXIT_DECISION, cette trace ne peut donc rien altérer.
+                # Résolution du contrefactuel : join (symbol, entry_ts_ms) sur
+                # trades — l'issue réelle EST le contrefactuel du HOLD.
+                self.db.log_event("ARBITER_EXIT_HOLD", sym, {
+                    "action": action,
+                    "suppressed_low_conf": action != "HOLD",
+                    "confidence": conf, "reason": v["reason"],
+                    "risk_flags": v.get("risk_flags"),
+                    "strategy": s["strategy"], "dir": s["dir"],
+                    "unrealized_bps": round(s["ur"], 1),
+                    "net_pnl": round(s["net_pnl"], 2),
+                    "mae_bps": round(s["mae_bps"], 0),
+                    "mfe_bps": round(s["mfe_bps"], 0),
+                    "hold_hours": round(s["hold_hours"], 1),
+                    "target_hold_h": round(s["target_hold_h"], 1),
+                    "entry_ts_ms": s["entry_ts_ms"],
+                    "model": cfg.get("model"), "alfred_version": ALFRED_VERSION,
+                    "prompt_hash": getattr(_aix, "PROMPT_HASH", None),
+                    "prior_inherited": sym in _prior_syms})
                 continue
             acted, applied_stop, note = False, None, ""
             with self._pos_lock:
