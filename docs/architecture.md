@@ -1,7 +1,7 @@
 # Architecture Alfred — document de référence
 
 > **Source de vérité unique** de l'architecture du bot de trading, à jour avec le
-> code (`alfred/`, v1.14.0, 2026-07-12). Remplace le cadrage « architecture » de
+> code (`alfred/`, v1.16.5, 2026-07-30). Remplace le cadrage « architecture » de
 > `docs/bot.md` (qui décrit le stack legacy `analysis/bot/` décommissionné le
 > 2026-06-12). Pour le *rationnel R&D* derrière chaque règle, voir `docs/bot.md`
 > (détaillé) et `docs/synthese.md` (pédagogique) — leur logique de trading reste
@@ -208,7 +208,13 @@ qui matche gagne. Identique bot et backtest (mode `aligned`).
 7. **s10_trail** — trailing S10 : sortie à MFE−150 bps quand MFE > 600 bps.
 8. **s8_dead** — S8 LONG sans MFE > +50 bps après 8h (capitulation morte).
 9. **s8_inlife** — trail S8 régime-conditionné (bear/bull serré, neutral large).
-10. **prop_trail** — trail proportionnel S9 (bull seul : arme à 100 bps, lock 0.65).
+10. ~~**prop_trail**~~ — **RETIRÉE v1.15.6** (trail proportionnel S9 bull). Sa
+    validation d'origine reposait sur un prix de sortie non exécutable (cf. booking
+    des trails, § 10) ; re-mesurée honnêtement, la retirer gagne sur le P&L **et**
+    sur le DD dans la majorité des fenêtres. La variante « ordre résident sur
+    l'exchange », qui obtiendrait vraiment le niveau visé, a aussi été testée :
+    pire des trois (déclenche 41 % plus souvent sur le bruit intra-bougie —
+    meilleur WR, P&L divisé par deux). Kill-switch : re-remplir `prop_trail_params`.
 11. **traj_cut** (S5, **LONG only** v1.6.4) — coupe « courbe désespérée » en régime bear (déclin rapide depuis le pic, collé au MAE, perte > −200 bps, btc_z < −0.5). Les S5 SHORT pinnés mean-revertent → jamais coupés.
 12. **s9_early_dead** — S9 sans MFE > +150 bps après 12h.
 13. ~~**btc_drop_cut**~~ — **RETIRÉE v1.9.0** (rapport d'ablation : apport négatif 3/4 fenêtres, DD dégradé, 31 % redondante avec le stop ; kill-switch, réactivation = −300.0).
@@ -221,7 +227,7 @@ ci-dessus est la vérité machine-vérifiée (pre-commit) ; la liste ci-dessous
 est la prose descriptive.
 
 **Trails sur close 4h (v1.8.0)** : les règles « sur le pic » (opp_floor,
-s10_trail, s8_inlife, prop_trail) sont évaluées **au premier tick suivant
+s10_trail, s8_inlife) sont évaluées **au premier tick suivant
 chaque clôture 4h**, sur un MFE échantillonné à ces clôtures — la granularité
 exacte de leur validation (le tick 20 s bruité gonflait le pic et coupait les
 gagnants ~50-100 bps trop tôt, cf. `backtests/trails_on_close_results.md`).
@@ -360,9 +366,39 @@ limité à une zone candidate. Deux verdicts, asymétriques par prudence :
 - `supervisor.py` (quotidien 8h) : rapport santé flotte condensé — admin seulement.
 - `entry_judge.py` : précurseur observation-only de l'arbitre d'entrée (juge ex-post
   les events `ENTRY_CONTEXT`) — **dormant** depuis que l'arbitre synchrone existe.
+- **`ai_system_audit.py` (v1.16.0, cron 9h30, SENIOR seul)** — l'**auditeur système**.
+  Rôle distinct de tous les autres outils IA : il ne juge **aucune** position et ne
+  peut **rien** déclencher côté trading. Il lit les données de cohérence du bot
+  (live vs paper appariés trade par trade avec écarts **taille-neutralisés**,
+  distribution des sorties, réconciliation comptable DB↔state, divergence BT, skips)
+  et répond à une seule question : *qu'est-ce qui est structurellement anormal ?*
+  Motivation : le biais de booking des trails (§ 10) valait la moitié du P&L, a mis
+  trois semaines à émerger, et sa signature était **visible dans les données**
+  (« même trade, même règle de sortie, P&L opposés »). Validé à l'écriture : sur les
+  données historiques il retrouve cette anomalie en tête de liste.
+  Rapport Telegram quotidien **même en RAS** (preuve que le job tourne) + dashboard
+  SENIOR (dernier rapport seulement). Event `AI_SYSTEM_AUDIT`.
+  **v1.16.1** : ne lit que les trades clos **après le démarrage du process**
+  (`runtime_depuis`) — sur une fenêtre glissante sans notion de déploiement, il
+  resignalait chaque matin une anomalie déjà corrigée ; il reçoit aussi les titres
+  de ses rapports précédents avec consigne de ne pas se répéter sans cas nouveau.
+  Effet de bord assumé : juste après un redéploiement l'échantillon est petit, et
+  l'audit le dit au lieu de conclure sur du code disparu.
 - Tout est audité en events (`ARBITER_DECISION`, `ARBITER_EXIT_DECISION`,
-  `AI_SCORECARD`, `AI_EXIT_SCORECARD`, `POSITION_REVIEW`…) dans `live/bot.db`,
-  visibles sur `/master` (section « Arbitrage IA »).
+  `ARBITER_EXIT_HOLD`, `AI_SCORECARD`, `AI_EXIT_SCORECARD`, `POSITION_REVIEW`,
+  `AI_SYSTEM_AUDIT`…) dans `live/bot.db`, visibles sur `/master` (section
+  « Arbitrage IA »).
+
+**Trace des verdicts NON agis (`ARBITER_EXIT_HOLD`, v1.16.3).** Le `continue` sur
+HOLD / `conf < conf_min` intervenait **avant** le `log_event` : on ne mesurait que
+ce que l'arbitre avait *fait*, jamais ce qu'il avait *refusé de faire*. Constat qui
+a motivé le correctif : en juillet, 5 positions condamnées ont été examinées 9 à 23
+fois chacune (~55 examens, toutes sous −300 bps) sans laisser **aucune trace**.
+Event **séparé** à dessein — le scorecard et le disjoncteur ne lisent que
+`ARBITER_EXIT_DECISION`, aucune population n'est diluée. Distingue le HOLD assumé du
+verdict d'action étouffé par le seuil (`suppressed_low_conf`) : deux populations à
+ne jamais confondre. Le contrefactuel se résout par jointure `(symbol, entry_ts_ms)`
+sur `trades` — l'issue réelle **est** le contrefactuel du HOLD. ~7 events/jour.
 
 ---
 
@@ -382,6 +418,35 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
   Les deux validés vs fills réels le 2026-07-02 (`backtests/costs_by_signal_results.md` :
   slippage réel +0.1 bps moyen, intégrale funding exacte à Δ 0.0 bps).
 - Échappatoire `BACKTEST_LEGACY_SEMANTICS=1` pour reproduire l'ancien moteur.
+
+**Booking des trails — réaliste depuis v1.15.4/v1.15.5 (changement majeur).**
+Les sorties par trail (`s10_trailing`, `s8_inlife`, `opp_floor`, et l'ex-`prop_trail`)
+étaient bookées **à leur niveau théorique**. Or ces règles ne sont évaluées qu'aux
+clôtures 4h : quand le prix a traversé le niveau *à l'intérieur* de la bougie, ce
+prix n'était plus disponible et le live sort au marché. Le backtest et le paper
+créditaient donc un prix inexistant.
+- **Preuve live** : LDO S5 du 22/07, même entrée, **même raison de sortie** des deux
+  côtés — paper +232 bps, live −250 bps. Écart de 482 bps sur un trade apparié.
+- **Ampleur** : ~**50 % du P&L annoncé** sur chaque fenêtre OOS, DD dégradé aussi.
+- **Correctifs** : paper booke au pire du niveau et du marché (v1.15.4) ; le BT
+  booke au mark de la clôture (v1.15.5, `realistic_trail_booking=True` par défaut).
+  Le **stop catastrophe garde son prix** — c'est un ordre résident sur l'exchange,
+  il s'exécute vraiment à son niveau. Idem pour le plancher posé par le LOCK de l'IA.
+- **Conséquence** : `docs/backtests.md` re-baseliné (chiffres divisés par 2 à 3
+  selon la fenêtre, meilleure stratégie changée). Anciens chiffres archivés et
+  annotés dans `docs/backtests_synthetic_trail_pre_v1_15_5.md`.
+- Analyse : `backtests/trail_booking_bias_results.md`.
+
+**Instrumentation d'entrée du backtest (v1.16.4/v1.16.5)** — opt-in, sans effet par
+défaut : chaque trade porte `entry_rank_all` / `entry_rank_taken` / `entry_z` /
+`entry_strength` / `n_cands_at_open` ; leviers de test `min_scan_candidates` (0 =
+no-op) et `strength_sort` (`"desc"` = historique). **Correctif de parité** :
+`enabled_strategies` était honoré par le bot mais **ignoré par le backtest** — une
+ablation par signal renvoyait silencieusement le stack complet.
+À savoir avant toute R&D sur le classement des entrées : **`entry_z` est une
+constante par stratégie** (= `strat_z`). Le tri `(z, strength)` est un **ordre de
+priorité entre stratégies**, puis la force à l'intérieur — il n'existe **aucune
+dimension de qualité inter-signaux**. Cf. `backtests/entry_quality_floor_results.md`.
 
 ---
 
@@ -407,8 +472,28 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 - **Pages** : `/master` (supervision : santé données, flotte, exposition agrégée,
   lifecycle par bot, éditeur `bots.json`, journal d'audit, **coût réel couche IA**
   — tokens facturés/appel, projection mensuelle, 24h, ventilation par source/modèle,
-  v1.13.1) ; `/bot/<id>/` (dashboard par bot, incl. **fenêtre log « Divergences BT »**
-  live-vs-BT quotidienne, v1.14.0) ; derrière nginx à `https://echonym.fr/alfred/`.
+  v1.13.1) ; `/bot/<id>/` (dashboard par bot) ; derrière nginx à
+  `https://echonym.fr/alfred/`.
+- **Sections notables du dashboard par bot** :
+  - **« Live vs BT »** (v1.15.2/v1.15.3, rafraîchie toutes les 4h, alignée sur la
+    clôture de bougie — anciennement « Divergences BT », quotidienne) : bandeau
+    d'equity **BT théorique / SENIOR / paper** (même reset, même capital) avec
+    l'écart SENIOR−BT, puis les **gagnants ratés** — les positions gagnantes du BT
+    que le bot n'a pas prises, ventilées par cause précise (cooldown, position déjà
+    tenue, marge, veto IA, dérive de signal), manque à gagner par cause et perdants
+    correctement évités en regard.
+  - **« Audit système »** (v1.16.0) : dernier rapport de l'auditeur IA uniquement.
+  - **« Impact des interventions »** : pour chaque trade clos avant son terme, le
+    P&L contrefactuel s'il avait été tenu jusqu'au timeout (plancher catastrophe-stop)
+    et l'écart. **v1.16.2 — attribution corrigée** : le LOCK de l'IA écrit dans le
+    **même champ** que l'endpoint humain (`manual_stop_usdt`), donc la raison de
+    sortie `manual_stop_set` ne dit pas qui a agi. La catégorie est désormais
+    déterminée par croisement avec les events `ARBITER_EXIT_DECISION` → **🧠 plancher
+    IA** / **🖐 stop humain** séparés, marqueur par ligne. Avant le correctif, 7
+    sorties sur 7 décidées par l'IA étaient attribuées à l'opérateur.
+  - **Fenêtres de logs limitées aux 3 derniers jours** (v1.15.1, `_LOG_WINDOW_DAYS`)
+    — affichage seulement, aucune donnée supprimée : la table d'events reste la
+    source de vérité de l'audit et des scorecards.
 - **Auth** : cookies de session signés HMAC (stateless, 30j), backoff anti-brute-force,
   rate-limit sur les mutations. **Révocation globale durable** (v1.9.0) :
   `/logout` bumpe un plancher persisté sur disque (`data/session_revoked_ts`)
@@ -419,7 +504,8 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
   pour les requêtes externes (via nginx), exemptée pour les sentinelles locales
   (connexion 127.0.0.1 directe sans X-Forwarded-For).
 - API : read-only (`/api/state`, `/api/signals`, `/api/trades`, `/api/chart`,
-  `/api/pnl`, `/api/events`, `/api/bt_divergence`, `/api/intervention_impact`) + mutations (`/api/close`,
+  `/api/pnl`, `/api/events`, `/api/bt_divergence`, `/api/intervention_impact`,
+  `/api/system_audit`) + mutations (`/api/close`,
   `/api/pause`, `/api/reset`, `/api/manual_stop`, `/api/capital`).
 
 ---
@@ -433,10 +519,11 @@ les divergences connues et justifiées sont tracées dans `docs/alfred_divergenc
 | `analysis/hedge_monitor.py` | 5 min | exposition/hedge | alerte |
 | `alfred/tools/daily_report.py` | 8h30 UTC | digest flotte (balance, P&L, positions) + liens + **sentinelle expiry agents** (J−21 🔑 / J−7 🚨, v1.7.5 — JUNIOR 2026-10-26, BABY 2026-12-08) | Telegram |
 | `backtests/paper_vs_bt_tracker.py` | 9h UTC | gap equity vs BT canonique, **les 4 bots** | TG consolidé si un gap ≥ 5pp |
-| `analysis/bt_divergence.py` | 8h30 UTC | comparaison live-vs-BT SENIOR+PAPER (moteur btlive) : entrées live-only, BT-only ventilées par cause (cooldown/slot/signal-drift), appariées-Δ — **même les justifiées** | event `BT_DIVERGENCE` → **fenêtre log « Divergences BT » du dashboard per-bot**. Ancre = reset (`bt_reset_anchor.json`) |
+| `analysis/bt_divergence.py` | toutes les 4h (:10) | comparaison live-vs-BT SENIOR+PAPER (moteur btlive) : entrées live-only, BT-only ventilées par cause (cooldown/slot/signal-drift), appariées-Δ — **même les justifiées** | event `BT_DIVERGENCE` → **fenêtre log « Divergences BT » du dashboard per-bot**. Ancre = reset (`bt_reset_anchor.json`) |
 | `position_review.py` | toutes les 2h | revue LLM des positions ouvertes SENIOR | historique admin (§ 9) |
 | `ai_arbiter_scorecard.py` | horaire :20 (+ TG 8h05) | contrefactuel arbitre d'entrée + disjoncteur | § 9 |
 | `ai_exit_scorecard.py` | horaire :25 (+ TG 8h10) | contrefactuel arbitre de sortie + disjoncteur | § 9 |
+| `ai_system_audit.py` | 9h30 UTC | **auditeur système IA** (SENIOR) : cohérence live/paper appariée taille-neutre, distribution des sorties, réconciliation comptable, divergence BT — ne juge aucune position | Telegram **même en RAS** + dashboard SENIOR ; event `AI_SYSTEM_AUDIT` |
 | `overfit_monitor.py` | 9h30 UTC | thermomètre Promesse-IS → OOS-BT → Live | log seul |
 | watchdog | 5 min | relance `start_bots.sh` si Alfred absent (pgrep) | relance auto |
 | `analysis/alfred_heartbeat.py` | 2 min | teste la **VIE** (âge des ticks + web répond) — attrape les zombies que pgrep rate (incident 02-07) | TG après 2 échecs, rétablissement notifié ; flag maintenance pour les restarts |
