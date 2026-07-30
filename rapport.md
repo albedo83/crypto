@@ -472,7 +472,101 @@ de mesure majeur trouvé en une semaine, après le booking des trails.
 
 ---
 
-## 11. État d'application
+## 11. Grille de décision S5 — PRÉ-ENREGISTRÉE
+
+> **Écrite et committée le 2026-07-30 à 19h UTC, AVANT exécution des re-runs.**
+> Aucune ligne de cette section ne doit être modifiée après lecture des
+> résultats. C'est la seule protection contre le fait de se re-négocier soi-même
+> devant un 3/4 ambigu.
+
+### Protocole
+
+Trois études, **une seule passe, une seule lecture, aucune itération** — chaque
+aller-retour supplémentaire sur ces 28 mois ré-entame le budget statistique que
+la correction de parité vient de rembourser.
+
+1. **Retrait de S5** — 4 fenêtres OOS glissantes non chevauchantes (offsets
+   0/6/12/18), variantes : entier, LONG seul, SHORT seul.
+2. **Grille de sizing** — `signal_mult["S5"]` ∈ {3.0, 1.5, 1.0}, mêmes fenêtres.
+3. **Quartiles de force** — « seul le quartile faible gagne » survit-il ?
+
+**Sensibilité de coût obligatoire** : chaque étude tourne à
+`BACKTEST_SLIPPAGE_BPS` = **4** (modèle actuel) **et 6** (estimation ponctuelle
+mesurée sur les fills réels, § 12). Verdict identique aux deux → l'incertitude de
+coût n'est pas décisive. Verdict qui bascule → **on le dit, on ne choisit pas**.
+
+### La nature de la décision a changé
+
+Hier c'était du **dé-risquage sur rupture** : défensif, un 3/4 suffisait. La
+rupture n'existe pas (§ 10). Aujourd'hui c'est de l'**allocation** — garder ou non
+un signal chroniquement médiocre qui consomme 43 % de l'activité. C'est une
+décision d'edge, donc **walk-forward strict**.
+
+### La grille
+
+| résultat du retrait | décision |
+|---|---|
+| **4/4** en P&L, DD non dégradé | **Retrait de S5.** Point final. Le sizing devient sans objet. |
+| **3/4** | **Pas de retrait.** On bascule sur le sizing (ligne suivante). Un 3/4 sur une décision d'allocation ne franchit pas la barre — c'est précisément le cas piège, et il est tranché ici, à froid. |
+| **≤ 2/4** | S5 reste. Décision reportée au sizing. |
+
+| et alors, pour le sizing | décision |
+|---|---|
+| une valeur (1.5 ou 1.0) **gagne 4/4** en P&L **et** améliore le DD partout | v1.17.0 **se réveille** à cette valeur — restart à demander. |
+| une valeur améliore le **DD sur 4/4** mais perd en P&L sur ≥ 1 fenêtre | **statu quo à 3.0.** On n'achète pas du confort de drawdown avec du rendement sur une décision d'allocation ; c'était admissible pour un dé-risquage sur rupture, plus maintenant. |
+| aucune valeur ne domine | **statu quo à 3.0, dossier fermé** jusqu'aux données prospectives de septembre. |
+
+**Verrou** : si le retrait sort 4/4 à 4 bps mais pas à 6 bps (ou l'inverse), le
+verdict est « **cost-sensitive, non tranché** » et le statu quo s'applique.
+
+### Le rôle des quartiles de force
+
+Si « seul le quartile faible gagne » **survit** à la base propre, l'argument
+structurel contre S5 tient **même sans rupture** : le moteur trie par force
+décroissante, donc il priorise systématiquement les pires candidats S5. C'est cet
+argument qui départagera un verdict serré — et seulement dans ce cas.
+
+S'il ne survit pas, il ne compte pas : il ne sert pas à sauver un verdict qui
+aurait échoué par ailleurs.
+
+---
+
+## 12. Audit du modèle de coûts (avant re-runs)
+
+**Pourquoi ce détour** : la décision S5 compare un stack à 637 trades à un stack
+qui en a 100 à 150 de moins. Une erreur du modèle de coûts **par trade** ne biaise
+pas le P&L uniformément — elle biaise **contre ou pour le signal le plus actif**,
+soit exactement le verdict à rendre. Et les marges sont fines.
+
+**Première méthode, écartée.** Comparer le prix de fill à la clôture de la bougie
+4h (méthode de `measure_live_slippage.py`) donne un écart-type de **258 bps** :
+cette référence est *postérieure* à la décision, donc la mesure est dominée par la
+dérive intra-bougie. IC95 obtenu : **[−47, +135] bps** — aucune puissance à n=31.
+Elle n'avait fonctionné en juin que grâce à n=119.
+
+**Méthode retenue** : le **mark au tick le plus proche de l'ordre** (±180 s), soit
+le prix que le bot voyait en envoyant l'ordre. La table `ticks` l'enregistre à la
+minute depuis le 2026-06-10.
+
+| | |
+|---|---:|
+| slippage d'exécution aller-retour | **+5,97 bps** (médiane 3,80) |
+| écart-type | **14,4** (contre 258 pour la méthode écartée) |
+| IC95 | **[+0,88 , +11,05]** |
+| modèle du backtest | 4,0 bps |
+| par stratégie | S5 6,77 · S10 5,11 — **pas de biais par signal** |
+| funding réel | −2,42 bps moyen (le bot **encaisse**) — le backtest l'intègre déjà |
+
+**Verdict : NON RÉFUTÉ.** 4,0 est dans l'IC95. L'estimation ponctuelle est plus
+haute, donc le backtest sous-facture probablement et **favorise les configurations
+qui tradent le plus** — mais re-caler sur n=31 serait du refit, et refit dans le
+sens de la conclusion attendue : le pire des cas.
+
+D'où la sensibilité 4/6 bps imposée au § 11 plutôt qu'un choix.
+
+---
+
+## 13. État d'application
 
 | | |
 |---|---|
