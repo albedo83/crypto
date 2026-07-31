@@ -766,7 +766,53 @@ Seuils testés : **exactement ceux du 30/07** (2000, 2500, 3000, 3500, 4000, 500
 
 ---
 
-## 17. État d'application
+## 17. Plafond de force S5 — RÉSULTAT : REFUS
+
+**Exécuté le 2026-07-31 à 07h35 UTC**, grille committée à 07h31.
+
+| plafond | slip 4 bps | slip 6 bps | mord-il ? |
+|---|---:|---:|---|
+| 2000 | 2/4 | 2/4 | −18 trades S5 |
+| **2500** | **3/4** | **3/4** | −15 |
+| 3000 | 2/4 | 2/4 | −7 |
+| 3500 | 1/4 | 1/4 | −4 |
+| **4000** | **3/4** | **3/4** | −2 |
+| **5000** | **3/4** | **3/4** | **0 sur 2 fenêtres** |
+| **6000** | **3/4** | **3/4** | **0 sur 2 fenêtres** |
+
+**Aucun plafond n'atteint 4/4, dans aucun des deux régimes de coût.**
+
+### Application de la grille
+
+- **3/4 → REFUS.** Pré-engagé le 30/07, réaffirmé le 31/07 avant lancement.
+- **Aucun plateau** : 2000 (2/4) → 2500 (3/4) → 3000 (2/4) → 3500 (1/4). Le 2500
+  est un **pic isolé entre deux creux** — signature exacte d'un refit, refusée par
+  la grille indépendamment du score.
+- Les seuls autres 3/4 (5000, 6000) **ne mordent presque pas** : mêmes 168 et 115
+  trades S5 que la référence sur deux fenêtres. Ils ne gagnent rien, ils ne font
+  rien.
+- Verdicts identiques à 4 et 6 bps — non cost-sensitive, mais ça ne rachète pas un
+  3/4.
+
+> ## VERDICT : aucun plafond de force. `signal_mult["S5"] = 3.0` inchangé.
+
+### Ce que ça confirme
+
+Le fait des quartiles est **réel** — la divergence faible est le seul quartile
+rentable, sur les trois fenêtres, et il survit à la correction de parité. Mais il
+n'est **pas exploitable par un plafond**, exactement comme prévu au § 16 : le
+quartile mesure les trades *qui ont été pris*, un plafond change *lesquels sont
+pris*. Deuxième fois que ce piège se referme sur la même intuition, après le tri
+inversé du § 4 (0/6).
+
+**Septième levier d'entrée refusé** en deux campagnes. Le côté entrée est un
+plateau, et cette étude en est la démonstration la plus propre : la prémisse la
+plus solide qu'on ait jamais eue, testée sur la base la plus propre qu'on ait
+jamais eue, ne passe pas.
+
+---
+
+## 18. État d'application
 
 | | |
 |---|---|
