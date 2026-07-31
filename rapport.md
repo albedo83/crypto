@@ -1,6 +1,6 @@
 # Rapport — Enquête sur les fondations du moteur
 
-**2026-07-30 → 07-31** · Alfred v1.17.4 · SENIOR (live, argent réel)
+**2026-07-30 → 07-31** · Alfred v1.17.6 · SENIOR (live, argent réel)
 
 > ### ⚠ À lire avant les sections 2 à 9
 >
@@ -689,7 +689,44 @@ publié.
 
 ---
 
-## 15. État d'application
+## 15. Décision de risque global — ÉCHÉANCE : 2026-08-02
+
+> **Question ouverte, à trancher avant le lundi 3 août.** « À froid » sans
+> échéance devient « jamais », et un chiffre pareil qui traîne sans verdict finit
+> par se faire re-négocier un soir de drawdown à −35 %, c'est-à-dire au pire
+> moment possible.
+
+**Le fait, isolé de tout le reste :**
+
+> La configuration qui tourne actuellement avec de l'argent réel a un drawdown de
+> **−51,4 % sur 28 mois** de backtest honnête (§ 14). Et un drawdown de backtest
+> est un **plancher optimiste** du pire cas live, pas un plafond.
+
+**Ce que cette question n'est PAS** : une réouverture du verdict S5. La grille du
+§ 11 jugeait du *relatif* — le sizing réduit améliore le DD partout mais perd du
+rendement sur deux fenêtres — et le relatif est **inchangé**. Le dossier edge est
+clos.
+
+**Ce qu'elle est** : une question de **tolérance au risque**, hors du périmètre de
+toute grille de validation. Elle ne se tranche pas avec un walk-forward. Les
+leviers, s'il y en a un à tirer, sont d'une autre nature : taille du capital
+engagé, plafond d'equity, rythme de retrait.
+
+**Format du verdict attendu** — trois lignes, datées, quel qu'en soit le contenu :
+
+```
+2026-08-0X — décision de risque global
+  fait retenu : DD backtest honnête de la config en service = −51,4 % / 28m
+  décision    : …
+  motif       : …
+```
+
+« Aucun changement, assumé en connaissance de cause » est un verdict parfaitement
+valable. Ne pas décider n'en est pas un.
+
+---
+
+## 16. État d'application
 
 | | |
 |---|---|

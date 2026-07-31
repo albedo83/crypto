@@ -31,6 +31,8 @@ import sys
 import time
 import urllib.parse
 import urllib.request
+
+import measure_guards as _mg
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
@@ -134,7 +136,13 @@ CALIB_MIN_N = 10          # sous 10 trades live, on ne teste rien
 CALIB_DRAWS = 10000
 CALIB_LOW_PCT = 5.0       # sous ce percentile → suspect
 CALIB_HIGH_PCT = 95.0
-CALIB_CADENCE_RATIO = 0.5  # tire moins de la moitié de l'attendu → alerte
+# Cadence — SYMÉTRIQUE. Le premier rapport a montré S10 à ×1.84 et tout le
+# monde a lu « dans l'enveloppe » : le détecteur ne regardait que vers le bas.
+# Or rien ne dit que la prochaine divergence d'entrée fera tirer MOINS — un
+# signal qui sur-tire, c'est la même famille (whitelist, feature, univers) dans
+# l'autre sens. Un chien qui n'aboie que si on entre par la gauche.
+CALIB_CADENCE_LOW = 0.5    # tire moins de la moitié de l'attendu → muet
+CALIB_CADENCE_HIGH = 2.0   # tire plus du double → sur-tir
 CALIB_CONSECUTIVE = 2      # passages consécutifs requis
 
 MARKET_DB = "/home/crypto/alfred/data/market.db"
@@ -313,9 +321,21 @@ def detect_signal_calibration(trades: list[dict], persist: bool = True) -> list[
                          f"cadence {cad_live:.1f}/30j vs {cad_exp:.1f} attendus")
             continue
 
-        pop = b["net_bps"]
-        wins_pop = b["wins"]
-        live_net = sum(t.get("net_bps") or 0.0 for t in v) / n
+        # Garde-fous : la mesure valide ses entrées ou n'émet rien
+        # (measure_guards, principe posé après 5 mesures fausses silencieuses).
+        try:
+            pop = _mg.require_series(f"baseline {s} net_bps", b["net_bps"],
+                                     min_n=CALIB_MIN_N)
+            wins_pop = b["wins"]
+            live_nets = _mg.require_series(
+                f"live {s} net_bps", [t.get("net_bps") for t in v],
+                min_n=CALIB_MIN_N)
+        except _mg.MeasureError as e:
+            alerts.append({
+                "type": "SIGNAL_CALIB", "strat": s, "severity": "critical",
+                "msg": f"MESURE IMPOSSIBLE pour {s} — {e}. Aucun chiffre émis."})
+            continue
+        live_net = sum(live_nets) / n
         live_wr = sum(1 for t in v if t["pnl_usdt"] > 0) / n * 100
         draws_net, draws_wr = [], []
         for _ in range(CALIB_DRAWS):
@@ -330,8 +350,10 @@ def detect_signal_calibration(trades: list[dict], persist: bool = True) -> list[
             flags.append("bas")
         elif p_net > CALIB_HIGH_PCT and p_wr > CALIB_HIGH_PCT:
             flags.append("haut")
-        if cad_ratio < CALIB_CADENCE_RATIO:
+        if cad_ratio < CALIB_CADENCE_LOW:
             flags.append("muet")
+        elif cad_ratio > CALIB_CADENCE_HIGH:
+            flags.append("sur-tir")
 
         prev = state.get(s, {})
         streak = (prev.get("streak", 0) + 1) if flags and \
@@ -341,10 +363,15 @@ def detect_signal_calibration(trades: list[dict], persist: bool = True) -> list[
                     "cad_ratio": round(cad_ratio, 2),
                     "at": datetime.now(timezone.utc).isoformat()[:16]}
 
+        # Largeur de l'enveloppe à CET effectif : à petit n c'est un boulevard,
+        # et l'afficher évite de lire « dans la bande » comme « signal sain ».
+        sn = sorted(draws_net)
+        band = (sn[int(0.05 * len(sn))], sn[int(0.95 * len(sn))])
         lines.append(
-            f"{s}: n={n} · net {live_net:+.0f} bps (p{p_net:.0f}) · "
-            f"WR {live_wr:.0f}% (p{p_wr:.0f}) · cadence {cad_live:.1f} vs "
-            f"{cad_exp:.1f} (×{cad_ratio:.2f})"
+            f"{s}: n={n} · net {live_net:+.0f} bps (p{p_net:.0f}, bande 5-95 "
+            f"[{band[0]:+.0f},{band[1]:+.0f}]) · WR {live_wr:.0f}% "
+            f"(p{p_wr:.0f}) · cadence {cad_live:.1f} vs {cad_exp:.1f} "
+            f"(×{cad_ratio:.2f})"
             + (f" · {'/'.join(flags)} {streak}/{CALIB_CONSECUTIVE}" if flags else ""))
 
         if flags and streak >= CALIB_CONSECUTIVE:
@@ -358,9 +385,16 @@ def detect_signal_calibration(trades: list[dict], persist: bool = True) -> list[
                 what.append(f"MUET — {cad_live:.1f} trades/30j contre "
                             f"{cad_exp:.1f} attendus (×{cad_ratio:.2f}), "
                             f"signature d'une dérive d'ENTRÉE")
+            if "sur-tir" in flags:
+                what.append(f"SUR-TIR — {cad_live:.1f} trades/30j contre "
+                            f"{cad_exp:.1f} attendus (×{cad_ratio:.2f}) : soit "
+                            f"un régime généreux en setups, soit une divergence "
+                            f"d'entrée (whitelist, feature, univers) dans le "
+                            f"sens inverse du bug sectoriel")
             alerts.append({
                 "type": "SIGNAL_CALIB", "strat": s,
-                "severity": "warning" if "muet" not in flags else "critical",
+                "severity": ("critical" if ("muet" in flags or "sur-tir" in flags)
+                             else "warning"),
                 "msg": (f"{s} {' et '.join(what)} sur {streak} revues "
                         f"consécutives (n={n}). Baseline : config "
                         f"`{fp.get('config_hash','?')}`."),
@@ -371,7 +405,9 @@ def detect_signal_calibration(trades: list[dict], persist: bool = True) -> list[
     if lines:
         alerts.insert(0, {
             "type": "SIGNAL_CALIB", "strat": "-", "severity": "info",
-            "msg": "calibration vs attente de conception — " + " | ".join(lines)})
+            "msg": ("calibration vs attente de conception (RIEN DE DÉTECTABLE "
+                    "n'est PAS « sain » : à petit n la bande est un boulevard) — "
+                    + " | ".join(lines))})
     return alerts
 
 

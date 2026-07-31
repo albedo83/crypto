@@ -3,6 +3,13 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.17.6 — 2026-07-31
+
+- **Surveillance**: le contrôle de cadence devient **symétrique**. Son premier rapport montrait un signal tirant presque deux fois trop et personne ne l'a relevé — le seuil ne regardait que vers le bas. Rien ne garantit que la prochaine divergence d'entrée fasse tirer *moins* : un signal qui sur-tire relève de la même famille de défauts, dans l'autre sens. Seuil haut ajouté, même verrou séquentiel.
+- **Qualité**: nouveau principe, appliqué au harnais de mesure — **une chaîne valide ses entrées ou refuse d'émettre**. Cinq mesures fausses en une semaine, toutes silencieuses : aucune n'a planté, toutes ont sorti un chiffre plausible. Une colonne absente, une série constante ou un effectif sous le plancher lèvent désormais une erreur explicite au lieu de produire un rapport. C'est le pendant, côté entrées, de l'empreinte d'exécution posée côté conditions.
+- **Surveillance**: la calibration affiche la **largeur de son enveloppe** à l'effectif courant. À petit échantillon la bande est un boulevard, et « rien de détectable » se lisait comme « signal sain » — l'instrument le dit maintenant lui-même, en toutes lettres.
+- **Docs**: la question de tolérance au risque soulevée par le drawdown réel de la configuration en service reçoit une **échéance datée** et un format de verdict, dans le rapport et le backlog. Sans échéance, « à froid » devient « jamais », et un tel chiffre finit par se faire re-négocier au pire moment. Aucun lien avec le dossier edge, qui reste clos.
+
 ## v1.17.5 — 2026-07-31
 
 - **Surveillance**: la détection de dérive par stratégie était structurellement incapable d'échouer — elle comparait les trente derniers jours à un historique qui *est* essentiellement les mêmes trades depuis la remise à zéro, sans archive. Un test qui ne peut pas échouer ne teste rien : il n'a jamais déclenché en sept revues, pendant que le signal supposément dégradé passait inaperçu. Il est conservé pour plus tard mais n'est plus la surveillance réelle.

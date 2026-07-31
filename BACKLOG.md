@@ -1,3 +1,13 @@
+## ⏰ ÉCHÉANCE 2026-08-02 — décision de risque global (SENIOR)
+
+Le drawdown honnête de la configuration EN SERVICE est de **−51,4 % sur 28 mois**
+(backtest post-correctifs de parité, cf. `rapport.md` § 14-15). Ce n'est **pas**
+une question d'edge — le verdict S5 est clos et ne se rouvre pas. C'est une
+question de tolérance au risque : taille du capital engagé, plafond d'equity.
+
+À trancher à froid, avant le lundi 3 août, et à écrire daté dans `rapport.md`
+§ 15 — « aucun changement, assumé » compris.
+
 # Backlog — tests, analyses et refactors différés
 
 Ce fichier est l'index canonique de ce qu'il reste à creuser. Chaque item :
