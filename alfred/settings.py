@@ -95,6 +95,18 @@ class Params:
     # S5 3.67/3.25, S8 6.99, S9 8.71, S10 3.66. Réf. exit_joint_mc_results.md.
     strat_z: dict = _d(S1=6.5, S5=3.5, S8=7.0, S9=8.5, S10=3.5)
     liquidity_haircut: dict = _d(S8=0.8)
+    # ⚠ v1.17.3 — RETOUR À 3.0. La réduction v1.17.0 (ci-dessous) est ANNULÉE :
+    # sa prémisse (« S5 a cassé en 2026 ») était un artefact de la carte des
+    # secteurs périmée du backtest (v1.17.1). Sur la base corrigée, le
+    # walk-forward glissant tranche selon la grille pré-enregistrée
+    # (rapport.md § 11, committée avant exécution) :
+    #   retrait de S5      : 2/4 (entier) · 1/4 (LONG) · 3/4 (SHORT) → pas de retrait
+    #   sizing 1.5 et 1.0  : 2/4 en P&L, DD meilleur sur 4/4 → statu quo
+    # Règle appliquée : « DD meilleur mais P&L perdu sur ≥1 fenêtre → statu quo ».
+    # Verdict identique à 4 et à 6 bps de slippage → non cost-sensitive.
+    # Le code repasse à 3.0 pour rester cohérent avec le bot EN SERVICE : laisser
+    # 1.0 dormant armait un piège au prochain restart.
+    # Historique de la décision annulée, conservé pour traçabilité :
     # v1.17.0 — S5 dé-risqué 3.0 → 1.0. DÉCISION DE RISQUE, pas un edge validé.
     # Motif : S5 a rapporté +$780 sur 4 semestres (2024-S1→2025-S2, WR 48.5-51.5 %)
     # puis perdu $3065 sur 2026 avec un WR qui décroît continûment (41.3 % puis
@@ -110,7 +122,7 @@ class Params:
     # constantes S5_TRIPWIRE_* : remonter à 3.0 si le WR glissant repasse dans la
     # bande saine ; retirer S5 s'il passe sous le plancher. Entre les deux : ne
     # rien faire. Aucune action automatique — l'alerte informe, l'humain décide.
-    signal_mult: dict = _d(S1=1.0, S5=1.0, S8=1.25, S9=2.00, S10=2.00)
+    signal_mult: dict = _d(S1=1.0, S5=3.0, S8=1.25, S9=2.00, S10=2.00)
     min_fill_abort_usdt: float = 10.0
 
     # ── Adaptive macro modulator (v11.10.0 / v12.2.0) ───────────────

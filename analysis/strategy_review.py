@@ -88,7 +88,7 @@ S5_TRIPWIRE_REARM_WR = 48.0     # bas de la bande saine → remonter le mult à 
 S5_TRIPWIRE_REARM_ROI = 0.0     # ET ROI notionnel ≥ 0 (verrou anti-bruit)
 S5_TRIPWIRE_FLOOR_WR = 35.0     # sous le pire semestre observé → retirer S5
 S5_TRIPWIRE_FLOOR_ROI = -100.0  # ET ROI notionnel ≤ −100 bps
-S5_MULT_CURRENT = 1.0           # doit refléter settings.signal_mult["S5"]
+S5_MULT_CURRENT = 3.0           # doit refléter settings.signal_mult["S5"]
 
 # ⚠ CALIBRATION INVALIDÉE le 2026-07-30, quelques heures après sa pose.
 # La séparation « bande saine 48.5-51.5 % / bande cassée 41.3-33.3 % » sur

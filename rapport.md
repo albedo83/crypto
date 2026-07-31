@@ -1,6 +1,6 @@
 # Rapport — Enquête sur les fondations du moteur
 
-**2026-07-30** · Alfred v1.17.1 · SENIOR (live, argent réel)
+**2026-07-30 → 07-31** · Alfred v1.17.3 · SENIOR (live, argent réel)
 
 > ### ⚠ À lire avant les sections 2 à 9
 >
@@ -566,15 +566,90 @@ D'où la sensibilité 4/6 bps imposée au § 11 plutôt qu'un choix.
 
 ---
 
-## 13. État d'application
+## 13. VERDICT — application de la grille pré-enregistrée
+
+**Exécuté le 2026-07-31 sur la base corrigée (parité secteurs + parité entrées),
+une seule passe, six configurations.**
+
+### Incident : première exécution invalidée
+
+`DEFAULT_PARAMS.signal_mult["S5"]` portait déjà **1.0** (v1.17.0, dormant) alors
+que le bot en service tourne à **3.0**. La « référence » comparait donc v1.17.0 à
+lui-même. Le symptôme l'a trahi : `mult 1.0 → +0` sur les quatre fenêtres. Corrigé
+(référence forcée à la config **en service**) et relancé. Ce n'est pas une
+itération pour obtenir un meilleur résultat — c'est un baseline mal étiqueté.
+
+### Étude 1 — retrait de S5
+
+| variante | slip 4 bps | slip 6 bps | DD non dégradé |
+|---|---:|---:|---:|
+| S5 entier | **2/4** | **2/4** | 4/4 |
+| S5 LONG | 1/4 | 1/4 | 2/4 |
+| S5 SHORT | **3/4** | **3/4** | 3/4 |
+
+Détail du retrait entier (slip 4) : **+282 / −110 / −204 / +185**.
+
+### Étude 2 — grille de sizing
+
+| `signal_mult["S5"]` | P&L | DD non dégradé | DD **meilleur** |
+|---|---:|---:|---:|
+| 1.5 | **2/4** | 4/4 | **4/4** |
+| 1.0 | **2/4** | 4/4 | **4/4** |
+
+Détail de 1.0 (slip 4) : **+129 / −163 / −7 / +169**.
+
+### Application de la grille — sans re-négociation
+
+- retrait entier **2/4** → *« ≤ 2/4 : S5 reste, décision au sizing »*
+- retrait SHORT **3/4** → *« 3/4 : pas de retrait, bascule sur le sizing »*
+- sizing : **DD meilleur sur 4/4 mais P&L perdu sur 2 fenêtres** → *« DD meilleur
+  mais P&L perdu sur ≥ 1 fenêtre → statu quo à 3.0 »*
+- verdicts **identiques à 4 et 6 bps** → le verrou « cost-sensitive » ne s'applique
+  pas, l'incertitude de coût n'est pas décisive
+
+> ## VERDICT : statu quo à `signal_mult["S5"] = 3.0`.
+> **Dossier fermé jusqu'aux données prospectives de septembre.**
+
+**v1.17.0 est annulée dans le code** (retour à 3.0). Laisser `1.0` dormant armait
+un piège : le prochain restart aurait appliqué silencieusement une décision que la
+grille venait de rejeter.
+
+### Étude 3 — quartiles de force : l'argument structurel SURVIT
+
+| quartile | net moyen 28m | 12m | 6m |
+|---|---:|---:|---:|
+| **Q1 (force faible)** | **+99,3** | **+78,4** | **+91,3** |
+| Q2 | −8,9 | +104,6 | −82,5 |
+| Q3 | −49,1 | −130,8 | −148,1 |
+| Q4 (force élevée) | −72,0 | −18,3 | −94,8 |
+
+Q1 est **positif sur les trois fenêtres**, Q3 et Q4 **négatifs sur les trois**. Le
+fait structurel tient sur la base propre : **plus la divergence sectorielle est
+forte, pire est le trade** — et le moteur trie par force **décroissante**, donc il
+priorise systématiquement les pires candidats S5.
+
+Conformément à la grille, cet argument ne sert **qu'à départager un verdict
+serré**. Le verdict n'est pas serré. Il ne modifie donc rien aujourd'hui, et il ne
+sert pas à sauver une décision qui a échoué par ailleurs.
+
+**Il devient en revanche la piste n°1 pour la suite** : le plafond de force testé
+le 2026-07-30 (3/4, refusé) l'avait été sur la base **cassée**. Ce test mérite
+d'être rejoué sur la base propre — mais comme étude neuve, avec sa propre grille
+pré-enregistrée, pas comme prolongement de celle-ci.
+
+---
+
+## 14. État d'application
 
 | | |
 |---|---|
 | bot en service | **S5 à 3.0** — inchangé, aucun restart effectué |
-| `signal_mult["S5"]` dans le code | 1.0 (v1.17.0) — **committé mais dormant**, sans effet sans restart |
+| `signal_mult["S5"]` dans le code | **3.0** — v1.17.0 annulée (v1.17.3), code et bot cohérents |
 | tripwire | câblé mais **invalidé** (`S5_TRIPWIRE_VALID = False`) : mesure sans prescription |
-| parité des secteurs | **corrigée**, `docs/backtests.md` régénéré, anciens chiffres archivés |
-| **décision S5** | **rouverte** — la justification du § 7 est tombée avec le § 10 |
+| parité des secteurs | **corrigée** (v1.17.1), `docs/backtests.md` régénéré, anciens chiffres archivés |
+| parité des entrées | **auditée** (v1.17.2), 0 divergence, gate `audit_input_parity.py` |
+| modèle de coûts | **vérifié** sur les fills réels — non réfuté, sensibilité 4/6 bps appliquée |
+| **décision S5** | **TRANCHÉE : statu quo à 3.0**, dossier fermé jusqu'en septembre |
 
 Aucune modification de trading n'est en service. Tout ce qui a été livré ce jour ne
 touche que le backtest, la journalisation et la documentation.
