@@ -905,8 +905,46 @@ def build_fleet_response(bots: dict, master) -> dict:
         curve = [{"time": p["time"],
                   "pct": round((p["balance"] / cap0 - 1) * 100, 2)}
                  for p in (pts.get("points", []) if isinstance(pts, dict) else pts)]
+        # Origine à 0 % au reset : sans ça la courbe démarre au premier trade
+        # clos, donc les bots ne partent pas du même point et la comparaison
+        # visuelle est fausse dès le premier pixel.
+        start_ts = getattr(bot, "_perf_track_start_ts", 0) or 0
+        if start_ts > 0 and curve:
+            curve.insert(0, {
+                "time": datetime.fromtimestamp(start_ts, timezone.utc).isoformat(),
+                "pct": 0.0})
         curves[bot.id] = {"label": bot.label, "color": bot.color,
                           "points": curve}
+
+    # Courbe du BACKTEST canonique — même reset, même capital, mêmes règles.
+    # Source : les events BT_DIVERGENCE écrits toutes les 4h par
+    # analysis/bt_divergence.py (bt_equity présent depuis le 2026-07-13).
+    # C'est la référence visuelle « ce que le moteur aurait fait sans nous » :
+    # sans arbitre IA, sans stops posés, sans slippage réel.
+    live_bot = bots.get("live")
+    if live_bot is not None:
+        try:
+            with live_bot.db.lock:
+                rows = live_bot.db.conn.execute(
+                    "SELECT ts, data FROM events WHERE event='BT_DIVERGENCE' "
+                    "ORDER BY ts").fetchall()
+            cap0 = live_bot._capital
+            bt_pts = []
+            for ts, data in rows:
+                try:
+                    eq = json.loads(data).get("bt_equity")
+                except (ValueError, TypeError):
+                    continue
+                if not eq or cap0 <= 0:
+                    continue
+                bt_pts.append({
+                    "time": datetime.fromtimestamp(ts, timezone.utc).isoformat(),
+                    "pct": round((eq / cap0 - 1) * 100, 2)})
+            if bt_pts:
+                curves["_bt"] = {"label": "BT (théorique)", "color": "#8b949e",
+                                 "dashed": True, "points": bt_pts}
+        except Exception as e:
+            log.warning("courbe BT indisponible: %s", e)
 
     # Classement performance : equity vs capital INVESTI (principal vivant
     # bot._capital = capital de départ + DCA net), latent inclus. On normalise

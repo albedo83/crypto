@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.18.0 — 2026-07-31
+
+- **Dashboard**: les courbes d'equity de la flotte reçoivent la courbe du **backtest canonique** — même reset, même capital, mêmes règles — en trait pointillé pour qu'on ne la confonde jamais avec de l'argent réellement engagé. C'est la référence visuelle « ce que le moteur aurait fait sans nous » : sans arbitre IA, sans stops posés, sans exécution réelle. Demande utilisateur : voir l'écart plutôt que le lire en chiffres.
+- **Dashboard**: correctif au passage — l'axe horizontal était indexé sur le **numéro de trade** et non sur le temps. Un bot à cent onze trades et un autre à trente-trois étaient étirés sur la même largeur : les courbes n'étaient donc pas alignées dans le temps et leur comparaison visuelle était trompeuse. Axe temporel, repères de dates aux extrémités, et origine à zéro pour que toutes les courbes partent du même point au reset.
+
 ## v1.17.6 — 2026-07-31
 
 - **Surveillance**: le contrôle de cadence devient **symétrique**. Son premier rapport montrait un signal tirant presque deux fois trop et personne ne l'a relevé — le seuil ne regardait que vers le bas. Rien ne garantit que la prochaine divergence d'entrée fasse tirer *moins* : un signal qui sur-tire relève de la même famille de défauts, dans l'autre sens. Seuil haut ajouté, même verrou séquentiel.

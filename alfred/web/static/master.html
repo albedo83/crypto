@@ -415,7 +415,18 @@ function drawCurves(curves){
   const dpr=window.devicePixelRatio||1;
   cv.width=W*dpr;cv.height=230*dpr;cv.style.width=W+'px';cv.style.height='230px';
   const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);ctx.clearRect(0,0,W,230);
-  const all=Object.values(curves).flatMap(c=>c.points.map(p=>p.pct));
+  // Axe X TEMPOREL (et non indexé sur le n° de trade, comme avant) : sans ça
+  // un bot à 109 trades et un à 32 sont étirés sur la même largeur et les
+  // courbes ne sont pas alignées dans le temps. Indispensable pour superposer
+  // le BT, dont les points sont espacés de 4h.
+  const T=s=>{const v=Date.parse(s);return isNaN(v)?null:v;};
+  for(const c of Object.values(curves)){
+    c._pts=(c.points||[]).map(p=>({t:T(p.time),pct:p.pct})).filter(p=>p.t!==null);
+  }
+  const times=Object.values(curves).flatMap(c=>c._pts.map(p=>p.t));
+  const tMin=times.length?Math.min(...times):0, tMax=times.length?Math.max(...times):1;
+  const tSpan=Math.max(tMax-tMin,1);
+  const all=Object.values(curves).flatMap(c=>c._pts.map(p=>p.pct));
   if(!all.length){
     ctx.fillStyle='#484f58';ctx.font='13px -apple-system,sans-serif';ctx.textAlign='center';
     ctx.fillText('pas encore de trades clôturés',W/2,120);
@@ -440,15 +451,27 @@ function drawCurves(curves){
   let i=0;
   for(const[id,c]of Object.entries(curves)){
     const col=c.color||palette[i++%palette.length];
-    const pts=c.points;if(!pts.length)continue;
-    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.lineJoin='round';ctx.beginPath();
+    const pts=c._pts;if(!pts.length)continue;
+    ctx.strokeStyle=col;ctx.lineJoin='round';
+    // Le BT est une RÉFÉRENCE, pas un bot : trait pointillé plus fin pour
+    // qu'on ne le confonde jamais avec de l'argent réellement engagé.
+    ctx.lineWidth=c.dashed?1.5:2;
+    ctx.setLineDash(c.dashed?[5,4]:[]);
+    ctx.beginPath();
     pts.forEach((p,j)=>{
-      const x=padL+j/(Math.max(pts.length-1,1))*w;
+      const x=padL+(p.t-tMin)/tSpan*w;
       j?ctx.lineTo(x,Y(p.pct)):ctx.moveTo(x,Y(p.pct));
     });
-    ctx.stroke();
+    ctx.stroke();ctx.setLineDash([]);
     const last=pts[pts.length-1].pct;
-    leg+=`<span style="color:${col};font-weight:600">●</span> ${esc(c.label)} <span class="mono ${last>=0?'green':'red'}">${fmt(last,1)}%</span> &nbsp;&nbsp;`;
+    leg+=`<span style="color:${col};font-weight:600">${c.dashed?'┄':'●'}</span> ${esc(c.label)} <span class="mono ${last>=0?'green':'red'}">${fmt(last,1)}%</span> &nbsp;&nbsp;`;
+  }
+  // Repères de dates aux extrémités
+  if(tSpan>1){
+    const dstr=ms=>{const d=new Date(ms);return String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');};
+    ctx.font='10px ui-monospace,monospace';ctx.fillStyle='#484f58';
+    ctx.textAlign='left';ctx.fillText(dstr(tMin),padL,230-6);
+    ctx.textAlign='right';ctx.fillText(dstr(tMax),W-padR,230-6);
   }
   $('eqLegend').innerHTML=leg;
 }
