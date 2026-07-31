@@ -726,7 +726,47 @@ valable. Ne pas décider n'en est pas un.
 
 ---
 
-## 16. État d'application
+## 16. Plafond de force S5 — GRILLE PRÉ-ENREGISTRÉE
+
+> **Écrite et committée le 2026-07-31, AVANT exécution.** Re-jeu du test du
+> 30/07, qui avait tourné sur la base cassée (S5 y avait 537 trades au lieu de
+> 637, et 8 tokens ne pouvaient émettre aucun signal).
+
+### Ce qui justifie de re-tester
+
+Le fait des quartiles **survit** à la correction (§ 13) : la divergence faible est
+le seul quartile rentable, sur les trois fenêtres, et le moteur trie par force
+**décroissante** — il sert donc en priorité les pires candidats S5.
+
+### Ce qui doit rester en tête
+
+Le quartile mesure les trades **qui ont été pris**. Un plafond change **lesquels
+sont pris**. Ce n'est pas la même question — c'est la leçon du § 4, où inverser le
+tri perdait sur les six fenêtres alors que les quartiles disaient l'inverse.
+
+Et un plafond de force reste **une constante fittée sur 28 mois** : la classe
+d'objet qui a échoué sur toute la campagne. Elle mérite la barre haute, pas
+l'indulgence.
+
+### Protocole — aucun élargissement
+
+Seuils testés : **exactement ceux du 30/07** (2000, 2500, 3000, 3500, 4000, 5000,
+6000). Mêmes fenêtres OOS glissantes non chevauchantes. Sensibilité de coût 4 et
+6 bps. Élargir la grille « pour voir » repasserait en territoire de pêche.
+
+### La grille
+
+| résultat | décision |
+|---|---|
+| **4/4** en P&L, DD non dégradé de plus de 2 pp, sur un **plateau** d'au moins deux seuils voisins, **et** identique aux deux coûts | plafond retenu → proposition de changement |
+| **3/4** | **REFUS.** Pré-engagé, pas re-négociable. |
+| ≤ 2/4 | refus |
+| pic isolé sans plateau | **refus** — signature d'un refit |
+| verdict différent entre 4 et 6 bps | **refus** — cost-sensitive, non tranché |
+
+---
+
+## 17. État d'application
 
 | | |
 |---|---|

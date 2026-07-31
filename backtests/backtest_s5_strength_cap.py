@@ -46,6 +46,16 @@ import alfred.signals as _alf_signals
 START_CAP = 500.0
 OFFSETS = [0, 6, 12, 18]          # 4 fenêtres OOS de 6 mois, non chevauchantes
 CAPS = [2000, 2500, 3000, 3500, 4000, 5000, 6000]
+SLIPPAGES = [4.0, 6.0]   # sensibilité de coût (cf. rapport.md § 12)
+
+# ⚠ RE-JEU DU 2026-07-31 sur la base CORRIGÉE (parité secteurs v1.17.1 + parité
+# entrées v1.17.2). Le test original du 30/07 tournait sur la carte sectorielle
+# périmée : S5 y avait 537 trades au lieu de 637, et 8 tokens ne pouvaient pas
+# émettre de signal. Les seuils testés sont EXACTEMENT ceux d'origine — aucun
+# élargissement « pour voir » : élargir la grille repasserait en pêche, et un
+# plafond de force reste une constante fittée sur 28 mois, la classe d'objet
+# qui a échoué toute la campagne.
+# Grille d'interprétation pré-enregistrée : rapport.md § 16.
 
 _ORIG = _alf_signals.detect_token_signals
 
@@ -99,7 +109,21 @@ def main() -> int:
                          "n_s5": per["S5"][0], "pnl_s5": round(per["S5"][1], 2)}
         return out
 
+    from backtests.fingerprint import banner as _banner
+    print(_banner(DEFAULT_PARAMS, data, extra={"caps": CAPS}), flush=True)
     t0 = time.time()
+    all_res = {}
+    for _slip in SLIPPAGES:
+        br.BACKTEST_SLIPPAGE_BPS = _slip
+        br.COST = br.TAKER_FEE_BPS + _slip
+        print(f"\n{'='*78}\n### COÛT : taker {br.TAKER_FEE_BPS:.0f} + slippage "
+              f"{_slip:.0f} = {br.COST:.0f} bps AR")
+        all_res[str(_slip)] = _one_pass(run, wins)
+    _dump(all_res, CAPS, SLIPPAGES)
+    return 0
+
+
+def _one_pass(run, wins):
     print("\n=== référence : aucun plafond")
     base = run(None)
     for n, _, _, _ in wins:
@@ -133,18 +157,42 @@ def main() -> int:
             f"{res[cap][n]['n_s5']:>6d} /{res[cap][n]['pnl_s5']:>+7.0f}"
             for n, _, _, _ in wins))
 
+    return {"base": base, "caps": {str(k): v for k, v in res.items()},
+            "scores": {str(cap): {
+                "npos": sum(1 for n, _, _, _ in wins
+                            if res[cap][n]["end"] > base[n]["end"]),
+                "nddok": sum(1 for n, _, _, _ in wins
+                             if (base[n]["dd"] - res[cap][n]["dd"]) >= -2.0),
+            } for cap in CAPS}}
+
+
+def _dump(all_res, caps, slippages):
     out_dir = os.path.join(os.path.dirname(os.path.dirname(
         os.path.abspath(__file__))), "analysis", "output")
     path = os.path.join(out_dir, "s5_strength_cap_wf.json")
     with open(path, "w") as f:
         json.dump({"generated": datetime.now().isoformat(),
-                   "offsets": OFFSETS, "caps": CAPS,
-                   "base": base, "results": {str(k): v for k, v in res.items()}},
-                  f, indent=1, default=str)
-    print(f"\n[{time.time()-t0:.0f}s]  Dump : {path}")
-    print("\nCRITÈRE : 4/4 en P&L ET DD non dégradé de plus de 2pp, sur un"
-          " PLATEAU\n           de seuils voisins. Un seul pic isolé = refit.")
-    return 0
+                   "offsets": OFFSETS, "caps": caps, "slippages": slippages,
+                   "by_slippage": all_res}, f, indent=1, default=str)
+
+    print(f"\n{'='*78}\nSYNTHÈSE — P&L gagnés / 4, par plafond et par coût")
+    print(f"  {'cap':>6s}" + "".join(f"{'slip ' + s:>12s}" for s in all_res))
+    stable = []
+    for cap in caps:
+        cells, vals = [], []
+        for s in all_res:
+            sc = all_res[s]["scores"][str(cap)]
+            vals.append(sc["npos"])
+            cells.append(f"{sc['npos']}/4 (DD {sc['nddok']}/4)")
+        print(f"  {cap:>6d}" + "".join(f"{c:>12s}" for c in cells))
+        if len(set(vals)) == 1 and vals[0] >= 4:
+            stable.append(cap)
+    print(f"\n  plafonds à 4/4 dans LES DEUX régimes de coût : "
+          f"{stable if stable else 'AUCUN'}")
+    print("\nGRILLE PRÉ-ENREGISTRÉE (rapport.md § 16) — 4/4 en P&L ET DD non")
+    print("dégradé de plus de 2 pp, sur un PLATEAU d'au moins deux seuils")
+    print("voisins, ET verdict identique aux deux coûts. 3/4 = REFUS.")
+    print(f"Dump : {path}")
 
 
 if __name__ == "__main__":
