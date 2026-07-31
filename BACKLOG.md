@@ -1,24 +1,8 @@
-## ⏰ ÉCHÉANCE 2026-08-02 — décision de risque global (SENIOR)
+## ✅ CLOS 2026-07-31 — décision de risque global (SENIOR)
 
-Le drawdown honnête de la configuration EN SERVICE est de **−51,4 % sur 28 mois**
-(backtest post-correctifs de parité, cf. `rapport.md` § 14-15). Ce n'est **pas**
-une question d'edge — le verdict S5 est clos et ne se rouvre pas. C'est une
-question de tolérance au risque : taille du capital engagé, plafond d'equity.
-
-À trancher à froid, avant le lundi 3 août, et à écrire daté dans `rapport.md`
-§ 15 — « aucun changement, assumé » compris.
-
-# Backlog — tests, analyses et refactors différés
-
-Ce fichier est l'index canonique de ce qu'il reste à creuser. Chaque item :
-- **quoi** : la question à répondre ou le travail à faire
-- **pourquoi** : la motivation et l'origine (review, mémoire, expérience)
-- **quand** : prêt maintenant / date de revisite / condition de déclenchement
-- **comment** : script à lancer, query à écrire, ou pointeur vers le code
-
-Mettre à jour au fil de l'eau. Quand un item est traité → le supprimer et logger le résultat dans `CHANGELOG.md` ou `docs/synthese.md`.
-
----
+Verdict rendu : **aucun changement**, capital engagé et configuration inchangés,
+en connaissance du drawdown corrigé de −51,4 % (annoncé −40,5 % jusque-là).
+Motif : le capital ne peut pas être augmenté. Détail daté : `rapport.md` § 15.
 
 ## 1. Section close — 4 features observation-only testées 2026-05-11
 

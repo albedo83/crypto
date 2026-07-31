@@ -724,6 +724,24 @@ engagé, plafond d'equity, rythme de retrait.
 « Aucun changement, assumé en connaissance de cause » est un verdict parfaitement
 valable. Ne pas décider n'en est pas un.
 
+### ✅ VERDICT RENDU — 2026-07-31
+
+```
+2026-07-31 — décision de risque global
+  fait retenu : DD backtest honnête de la config en service = −51,4 % / 28m
+                (annoncé −40,5 % jusqu'au 2026-07-31)
+  décision    : AUCUN CHANGEMENT. Capital engagé inchangé, configuration
+                inchangée. On attend les données prospectives.
+  motif       : le capital ne peut pas être augmenté ; la contrainte est
+                subie, pas choisie. Décision prise en connaissance du
+                chiffre corrigé.
+```
+
+**À noter pour la relecture future** : le capital étant non rechargeable, le
+drawdown porte sur de l'argent non remplaçable. Ce n'est pas une objection au
+verdict — c'est le contexte dans lequel il a été rendu, et il devra être relu tel
+quel si la question se repose.
+
 ---
 
 ## 16. Plafond de force S5 — GRILLE PRÉ-ENREGISTRÉE
