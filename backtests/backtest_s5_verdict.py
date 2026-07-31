@@ -85,6 +85,9 @@ def main() -> int:
     BASE_P = dc.replace(DEFAULT_PARAMS, signal_mult=_sm)
     print(f"Référence = config EN SERVICE : signal_mult['S5'] = {BASELINE_S5_MULT}"
           f"  (le code porte {DEFAULT_PARAMS.signal_mult['S5']}, dormant)")
+    from backtests.fingerprint import banner as _banner, fingerprint as _fp
+    print(_banner(BASE_P, data, extra={"baseline_S5_mult": BASELINE_S5_MULT}),
+          flush=True)
     print(f"Données jusqu'au {end_dt:%Y-%m-%d}. Fenêtres OOS glissantes :")
     for n, _, _, lab in wins:
         print(f"  {n:8s} {lab}")
@@ -216,6 +219,9 @@ def main() -> int:
     path = os.path.join(out_dir, "s5_verdict.json")
     with open(path, "w") as f:
         json.dump({"generated": datetime.now(timezone.utc).isoformat(),
+                   "fingerprint": _fp(BASE_P, data,
+                                      extra={"baseline_S5_mult": BASELINE_S5_MULT,
+                                             "slippages": SLIPPAGES}),
                    "slippages": SLIPPAGES, "cost_sensitivity": results,
                    "strength_quartiles": q_out}, f, indent=1, default=str)
     print(f"\n[{time.time()-t0:.0f}s]  Dump : {path}")

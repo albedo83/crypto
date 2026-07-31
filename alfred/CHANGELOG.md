@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.17.4 — 2026-07-31
+
+- **Backtest**: chaque run déclare désormais ses conditions — empreinte de la configuration **résolue** (les valeurs effectives, pas le fichier), révision du code, horodatage du snapshot de données. Motivation : quatre incidents en une semaine, tous de la même famille — une mesure qui ne déclare pas ses conditions finit par mentir sans que personne le voie. Le hash change quand une valeur dormante diffère de celle en service, ce qui rend impossible de comparer silencieusement deux configurations qu'on croit identiques. L'empreinte figure en tête du document de résultats, du harnais principal et des études décisionnelles.
+- **Backtest**: `docs/backtests.md` régénéré — le document publié la veille avait été produit sous la configuration **dormante**, pas celle en service. Le mécanisme d'empreinte l'a détecté dans l'heure suivant sa mise en place. Correction matérielle : le drawdown réel de la configuration déployée est **onze points plus profond** qu'annoncé sur la fenêtre longue, et le P&L plus bas. Aucun changement de trading — seuls les chiffres publiés étaient faux.
+
 ## v1.17.3 — 2026-07-31
 
 - **Trading engine**: la réduction de mise du signal de divergence sectorielle décidée en v1.17.0 est **annulée** — sa prémisse était l'artefact corrigé en v1.17.1. Rejouée sur la base propre, la grille de décision pré-enregistrée (écrite et committée avant exécution) tranche pour le statu quo : le retrait du signal ne passe sur aucune de ses variantes, et les deux niveaux de mise réduits améliorent le drawdown partout mais perdent du rendement sur deux fenêtres — cas explicitement prévu par la grille. Verdict identique aux deux niveaux de coût testés, donc insensible à l'incertitude de coût. Le code repasse à la valeur d'origine pour rester cohérent avec le bot en service : laisser la valeur réduite dormante armait un piège au prochain redémarrage.

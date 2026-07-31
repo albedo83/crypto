@@ -1,6 +1,6 @@
 # Rapport — Enquête sur les fondations du moteur
 
-**2026-07-30 → 07-31** · Alfred v1.17.3 · SENIOR (live, argent réel)
+**2026-07-30 → 07-31** · Alfred v1.17.4 · SENIOR (live, argent réel)
 
 > ### ⚠ À lire avant les sections 2 à 9
 >
@@ -639,7 +639,57 @@ pré-enregistrée, pas comme prolongement de celle-ci.
 
 ---
 
-## 14. État d'application
+## 14. Le défaut de fond — et son correctif structurel
+
+Quatre incidents en une semaine, tous le même :
+
+| # | incident | ce qui n'était pas déclaré |
+|---|---|---|
+| 1 | carte sectorielle figée (v1.17.1) | quels secteurs le backtest utilisait |
+| 2 | univers copié à la main (v1.17.2) | quels tokens il simulait |
+| 3 | baseline mal étiquetée (v1.17.3) | quelle config la « référence » portait |
+| 4 | `docs/backtests.md` régénéré sous config dormante | idem, dans le document publié |
+
+**Une mesure qui ne déclare pas ses conditions finit par mentir sans que personne
+le voie.** Le correctif suit la même philosophie que celui de l'univers : rendre
+le défaut impossible à commettre silencieusement.
+
+`backtests/fingerprint.py` — chaque run imprime et persiste :
+
+```
+┌ config d7a415020619 · git f2f7636 · run 2026-07-31T06:36Z
+│ données jusqu'au 2026-07-31T04:00 (36 symboles, fichiers 2026-07-31T04:10Z)
+└ signal_mult={'S1': 1.0, 'S5': 3.0, 'S8': 1.25, 'S9': 2.0, 'S10': 2.0}
+```
+
+Le hash porte sur la config **RÉSOLUE** — les valeurs après défauts et overrides,
+pas le fichier. Un `signal_mult` dormant change le hash (`d7a4…` à 3.0 contre
+`c102…` à 1.0). L'incident n°3 aurait sauté aux yeux ; l'incident n°4 a été
+détecté par ce mécanisme dans l'heure qui a suivi sa mise en place.
+
+L'empreinte figure désormais en tête de `docs/backtests.md`, dans le harnais
+principal et dans les études décisionnelles.
+
+### Chiffres publiés corrigés
+
+`docs/backtests.md` d'hier avait été généré avec la config dormante. Régénéré
+sur la config **en service** :
+
+| | publié hier (S5 = 1.0) | réel (S5 = 3.0) |
+|---|---:|---:|
+| 28 mois | $19 127 · DD −40,5 % | **$15 463 · DD −51,4 %** |
+| 12 mois | $3 280 | $3 425 · DD −31,3 % |
+| 6 mois | $1 590 | $1 339 |
+| 3 mois | $1 389 | $1 215 |
+
+**Le drawdown réel de la configuration déployée est de −51,4 % sur 28 mois.**
+Onze points de plus qu'annoncé — cohérent avec le verdict du § 13 (le sizing
+réduit améliorait le DD sur 4/4), mais ça n'avait rien à faire dans un document
+publié.
+
+---
+
+## 15. État d'application
 
 | | |
 |---|---|

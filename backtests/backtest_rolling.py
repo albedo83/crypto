@@ -1924,6 +1924,15 @@ def build_report(results: list[dict], end_dt: datetime, version: str,
         f"**Générée le** : {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}",
         f"**Bot version** : v{version}",
         f"**Données jusqu'à** : {end_dt.strftime('%Y-%m-%d')}",
+        # Empreinte d'exécution (v1.17.4) — permet de diffier deux rapports qui
+        # « devraient » être identiques. Le hash porte sur la config RÉSOLUE.
+        (lambda _fp: (
+            f"**Empreinte** : config `{_fp['config_hash']}` · git "
+            f"`{_fp['git_rev']}` · fichiers de données du "
+            f"{_fp['data']['data_mtime']}Z · `signal_mult` = "
+            f"{_fp['loud']['signal_mult']}"
+        ))(__import__("backtests.fingerprint", fromlist=["fingerprint"])
+           .fingerprint(_P, extra={"slippage_bps": BACKTEST_SLIPPAGE_BPS})),
         f"**Capitaux testés** : {cap_phrase}",
         (f"**Cap notionnel** : PROPORTIONNEL `{_P.max_notional_frac:g} × equity` "
          f"(v1.13.0, 2026-07-07) — remplace le $500 fixe. Débloque le compounding "
@@ -2098,6 +2107,13 @@ def build_report(results: list[dict], end_dt: datetime, version: str,
 def main():
     print("Loading data...")
     data = load_3y_candles()
+    # Empreinte d'exécution (v1.17.4) : le run déclare ses conditions — config
+    # RÉSOLUE, révision git, snapshot de données. Trois incidents d'état
+    # implicite en une semaine ont montré qu'une mesure qui ne se décrit pas
+    # finit par mentir sans que personne le voie. Cf. backtests/fingerprint.py.
+    from backtests.fingerprint import banner as _banner
+    print(_banner(_P, data, extra={"slippage_bps": BACKTEST_SLIPPAGE_BPS}),
+          flush=True)
     features = build_features(data)
     print(f"Loaded {len(data)} coins, {sum(len(f) for f in features.values())} feature points")
 
