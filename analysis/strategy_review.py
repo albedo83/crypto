@@ -107,6 +107,36 @@ S5_MULT_CURRENT = 3.0           # doit refléter settings.signal_mult["S5"]
 # Cf. rapport.md § 8, backtests/backtest_sector_parity_impact.py.
 S5_TRIPWIRE_VALID = False
 
+# ── Calibration live vs attente de conception (v1.17.5) ────────────────
+# Remplace le test de dérive historique, qui était structurellement incapable
+# d'échouer : il comparait « 30 derniers jours » à un « lifetime » qui EST
+# essentiellement les mêmes trades (base live remise à zéro le 2026-07-09, sans
+# archive). STRAT_DRIFT n'a jamais déclenché en 7 revues.
+#
+# Forme du test — RÉÉCHANTILLONNAGE, pas de seuil arbitraire. À n=31, un seuil
+# sur le WR ne vaut rien : l'IC95 fait ±14 points (mesuré). On tire donc N
+# échantillons de taille n_live dans la population des trades BACKTEST du
+# signal, et on regarde où tombe la valeur live dans cette distribution.
+# « Live au 3e percentile de l'attente de conception » est défendable dès trente
+# trades ; « WR sous 45 % » ne l'est jamais à cet effectif.
+#
+# On surveille aussi la CADENCE : un signal qui se tait (deux fois moins de
+# trades qu'attendu) est la signature live d'une dérive d'ENTRÉE — exactement la
+# famille du bug de carte sectorielle, qui aurait été visible par ce canal.
+#
+# VERROU SÉQUENTIEL : une revue hebdomadaire qui compare une stat glissante à un
+# percentile fait du test répété. On exige DEUX passages consécutifs hors bande
+# avant d'alerter. Écrit maintenant, pas après la première fausse alerte.
+CALIB_BASELINE = "/home/crypto/analysis/output/signal_health_baseline.json"
+CALIB_STATE = "/home/crypto/analysis/output/signal_calibration_state.json"
+CALIB_WINDOW = "28m"      # attente de conception = historique complet
+CALIB_MIN_N = 10          # sous 10 trades live, on ne teste rien
+CALIB_DRAWS = 10000
+CALIB_LOW_PCT = 5.0       # sous ce percentile → suspect
+CALIB_HIGH_PCT = 95.0
+CALIB_CADENCE_RATIO = 0.5  # tire moins de la moitié de l'attendu → alerte
+CALIB_CONSECUTIVE = 2      # passages consécutifs requis
+
 MARKET_DB = "/home/crypto/alfred/data/market.db"
 BOTS_DIR = "/home/crypto/alfred/data/bots"
 HOLD_BY_STRAT = {"S1": 72.0, "S5": 48.0, "S8": 60.0, "S9": 48.0, "S10": 24.0}
@@ -147,7 +177,8 @@ def fetch_trades(db_path: str) -> list[dict]:
     db.row_factory = sqlite3.Row
     rows = db.execute(
         "SELECT symbol, strategy, direction, entry_time, exit_time, pnl_usdt, "
-        "size_usdt, mae_bps, mfe_bps, reason FROM trades ORDER BY entry_time"
+        "size_usdt, mae_bps, mfe_bps, reason, net_bps, gross_bps "
+        "FROM trades ORDER BY entry_time"
     ).fetchall()
     return [dict(r) for r in rows]
 
@@ -179,7 +210,15 @@ def stats_for(trades: list[dict]) -> dict:
 
 # ── Drift detection ────────────────────────────────────────────────────
 def detect_strat_drift(trades: list[dict]) -> list[dict]:
-    """Per-strategy WR drift recent vs lifetime."""
+    """Per-strategy WR drift recent vs lifetime.
+
+    ⚠ STRUCTURELLEMENT AVEUGLE depuis le reset du 2026-07-09 : « lifetime » EST
+    essentiellement « récent » (31 trades, aucune archive), donc wr_drop ≈ 0 par
+    construction. N'a jamais déclenché en 7 revues hebdomadaires. Conservé — il
+    redeviendra utile quand l'historique sera long — mais la surveillance réelle
+    est `detect_signal_calibration`, qui compare le live à l'attente de
+    CONCEPTION (backtest) et non à l'historique du bot.
+    """
     alerts = []
     by_strat = defaultdict(list)
     for t in trades:
@@ -203,6 +242,136 @@ def detect_strat_drift(trades: list[dict]) -> list[dict]:
                         f"Sum récent {s_recent['sum']:+.0f}$."),
                 "severity": "warning",
             })
+    return alerts
+
+
+def _calib_state() -> dict:
+    try:
+        with open(CALIB_STATE) as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def _calib_save(state: dict) -> None:
+    try:
+        with open(CALIB_STATE, "w") as f:
+            json.dump(state, f, indent=1)
+    except Exception as e:
+        print(f"[review] calib state non écrit: {e}", file=sys.stderr)
+
+
+def _percentile_of(sample_stats: list[float], observed: float) -> float:
+    """Percentile de `observed` dans la distribution rééchantillonnée."""
+    below = sum(1 for x in sample_stats if x < observed)
+    return below / len(sample_stats) * 100 if sample_stats else 50.0
+
+
+def detect_signal_calibration(trades: list[dict], persist: bool = True) -> list[dict]:
+    """Le live est-il dans l'enveloppe de l'attente de conception ?
+
+    Pour chaque signal : rééchantillonnage de la population BACKTEST à la taille
+    de l'échantillon live, puis percentile de la valeur live. Plus un contrôle de
+    cadence. Alerte seulement après CALIB_CONSECUTIVE passages consécutifs.
+    """
+    import random as _rnd
+    if not os.path.exists(CALIB_BASELINE):
+        return [{"type": "SIGNAL_CALIB", "strat": "-", "severity": "info",
+                 "msg": ("Baseline absente — lancer "
+                         "`python3 -m backtests.gen_signal_health_baseline`.")}]
+    with open(CALIB_BASELINE) as f:
+        base = json.load(f)
+    strats = (base.get("windows", {}).get(CALIB_WINDOW, {}) or {}).get("strats", {})
+    fp = base.get("fingerprint", {})
+    if not strats:
+        return []
+
+    live_by = defaultdict(list)
+    for t in trades:
+        live_by[t["strategy"]].append(t)
+    if not live_by:
+        return []
+    span_days = max(
+        1.0,
+        (datetime.now(timezone.utc)
+         - parse_iso(min(t["entry_time"] for t in trades))).days or 1)
+
+    state = _calib_state()
+    alerts, lines = [], []
+    _rnd.seed(42)  # reproductible : mêmes données → même verdict
+    for s in sorted(live_by, key=lambda k: -len(live_by[k])):
+        v = live_by[s]
+        b = strats.get(s)
+        if not b or not b.get("net_bps"):
+            continue
+        n = len(v)
+        cad_live = n / span_days * 30.0
+        cad_exp = b["trades_per_30d"]
+        cad_ratio = cad_live / cad_exp if cad_exp else 1.0
+        if n < CALIB_MIN_N:
+            lines.append(f"{s}: n={n} (<{CALIB_MIN_N}) — non testable ; "
+                         f"cadence {cad_live:.1f}/30j vs {cad_exp:.1f} attendus")
+            continue
+
+        pop = b["net_bps"]
+        wins_pop = b["wins"]
+        live_net = sum(t.get("net_bps") or 0.0 for t in v) / n
+        live_wr = sum(1 for t in v if t["pnl_usdt"] > 0) / n * 100
+        draws_net, draws_wr = [], []
+        for _ in range(CALIB_DRAWS):
+            idx = [_rnd.randrange(len(pop)) for _ in range(n)]
+            draws_net.append(sum(pop[i] for i in idx) / n)
+            draws_wr.append(sum(wins_pop[i] for i in idx) / n * 100)
+        p_net = _percentile_of(draws_net, live_net)
+        p_wr = _percentile_of(draws_wr, live_wr)
+
+        flags = []
+        if p_net < CALIB_LOW_PCT or p_wr < CALIB_LOW_PCT:
+            flags.append("bas")
+        elif p_net > CALIB_HIGH_PCT and p_wr > CALIB_HIGH_PCT:
+            flags.append("haut")
+        if cad_ratio < CALIB_CADENCE_RATIO:
+            flags.append("muet")
+
+        prev = state.get(s, {})
+        streak = (prev.get("streak", 0) + 1) if flags and \
+            prev.get("flags") == flags else (1 if flags else 0)
+        state[s] = {"flags": flags, "streak": streak,
+                    "p_net": round(p_net, 1), "p_wr": round(p_wr, 1),
+                    "cad_ratio": round(cad_ratio, 2),
+                    "at": datetime.now(timezone.utc).isoformat()[:16]}
+
+        lines.append(
+            f"{s}: n={n} · net {live_net:+.0f} bps (p{p_net:.0f}) · "
+            f"WR {live_wr:.0f}% (p{p_wr:.0f}) · cadence {cad_live:.1f} vs "
+            f"{cad_exp:.1f} (×{cad_ratio:.2f})"
+            + (f" · {'/'.join(flags)} {streak}/{CALIB_CONSECUTIVE}" if flags else ""))
+
+        if flags and streak >= CALIB_CONSECUTIVE:
+            what = []
+            if "bas" in flags:
+                what.append(f"sous l'enveloppe de conception (net p{p_net:.0f}, "
+                            f"WR p{p_wr:.0f})")
+            if "haut" in flags:
+                what.append(f"au-dessus (net p{p_net:.0f}, WR p{p_wr:.0f})")
+            if "muet" in flags:
+                what.append(f"MUET — {cad_live:.1f} trades/30j contre "
+                            f"{cad_exp:.1f} attendus (×{cad_ratio:.2f}), "
+                            f"signature d'une dérive d'ENTRÉE")
+            alerts.append({
+                "type": "SIGNAL_CALIB", "strat": s,
+                "severity": "warning" if "muet" not in flags else "critical",
+                "msg": (f"{s} {' et '.join(what)} sur {streak} revues "
+                        f"consécutives (n={n}). Baseline : config "
+                        f"`{fp.get('config_hash','?')}`."),
+            })
+
+    if persist:
+        _calib_save(state)
+    if lines:
+        alerts.insert(0, {
+            "type": "SIGNAL_CALIB", "strat": "-", "severity": "info",
+            "msg": "calibration vs attente de conception — " + " | ".join(lines)})
     return alerts
 
 
@@ -581,6 +750,7 @@ def format_report(alerts: list[dict], n_trades: int) -> str:
         by_type[a["type"]].append(a)
 
     sections = [
+        ("SIGNAL_CALIB",  "🎯 Calibration vs attente de conception (backtest)"),
         ("S5_TRIPWIRE",   "🎚 Tripwire S5 (critère de réversibilité pré-enregistré)"),
         ("STRAT_DRIFT",   "🔴 Dérive par stratégie"),
         ("TOKEN_TOXIC",   "🟡 Tokens toxiques (token, direction, strat)"),
@@ -675,6 +845,7 @@ def main() -> int:
     print(f"[review] {len(trades)} trades loaded.", file=sys.stderr)
 
     alerts = []
+    alerts.extend(detect_signal_calibration(trades, persist=not args.dry_run))
     alerts.extend(detect_s5_tripwire(trades))
     alerts.extend(detect_strat_drift(trades))
     alerts.extend(detect_token_toxic(trades))

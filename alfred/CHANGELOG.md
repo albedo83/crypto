@@ -3,6 +3,12 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.17.5 — 2026-07-31
+
+- **Surveillance**: la détection de dérive par stratégie était structurellement incapable d'échouer — elle comparait les trente derniers jours à un historique qui *est* essentiellement les mêmes trades depuis la remise à zéro, sans archive. Un test qui ne peut pas échouer ne teste rien : il n'a jamais déclenché en sept revues, pendant que le signal supposément dégradé passait inaperçu. Il est conservé pour plus tard mais n'est plus la surveillance réelle.
+- **Surveillance**: nouvelle calibration du live contre l'**attente de conception** issue du backtest — désormais à parité vérifiée et auto-décrit. À trente trades, un seuil sur le taux de réussite ne vaut rien (l'intervalle de confiance fait quatorze points) : le test procède donc par **rééchantillonnage** de la population de trades du backtest à la taille de l'échantillon live, et situe le live dans cette distribution. Il surveille aussi la **cadence de tir** par signal — un signal qui se tait est la signature live d'une dérive d'entrée, précisément la famille du défaut corrigé cette semaine, qui aurait été visible par ce canal. **Verrou séquentiel** écrit d'emblée : deux passages consécutifs hors bande sont exigés avant toute alerte, une revue hebdomadaire comparant une statistique glissante à un percentile faisant du test répété.
+- **Backtest**: nouveau générateur de la baseline de conception, à régénérer après tout changement de règles, de paramètres ou d'univers. Il persiste l'empreinte d'exécution, donc on sait toujours sous quelles conditions l'attente a été produite.
+
 ## v1.17.4 — 2026-07-31
 
 - **Backtest**: chaque run déclare désormais ses conditions — empreinte de la configuration **résolue** (les valeurs effectives, pas le fichier), révision du code, horodatage du snapshot de données. Motivation : quatre incidents en une semaine, tous de la même famille — une mesure qui ne déclare pas ses conditions finit par mentir sans que personne le voie. Le hash change quand une valeur dormante diffère de celle en service, ce qui rend impossible de comparer silencieusement deux configurations qu'on croit identiques. L'empreinte figure en tête du document de résultats, du harnais principal et des études décisionnelles.
