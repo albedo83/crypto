@@ -71,6 +71,25 @@ régime calme n'est jamais gonflé par le plafond.
 Tous les autres plafonds de risque sont **inchangés** : `max_positions`,
 `max_per_sector`, levier, `margin_check`, plancher de taille à $10.
 
+> **Réserve d'asymétrie, consignée avant exécution.** Le cap s'appliquant après
+> modulation, le boost ×1,5 est **absorbé** pour toute position dont la taille
+> non modulée atteint déjà 0,3 × equity : elle est ramenée au plafond et ne
+> gagne rien. La pénalité ×0,5, elle, **mord toujours** — diviser par deux
+> n'amène jamais au plafond.
+>
+> En pratique, ce modulateur est donc surtout une **pénalité de scan désert**,
+> et non un dispositif symétrique. Cela concerne au premier chef les signaux à
+> `signal_mult` élevé (S5 à 3,0, S9 et S10 à 2,0), les plus souvent plafonnés.
+>
+> Cette asymétrie est une **conséquence de l'ordre imposé au § 3**, pas un
+> défaut à corriger : appliquer le cap avant modulation laisserait le boost
+> franchir le plafond de risque, ce que l'énoncé exclut. Elle est écrite ici
+> pour que le verdict soit lu comme celui d'une pénalité asymétrique, et non
+> comme celui d'une modulation symétrique.
+>
+> **La Phase B chiffrera la part des trades boostés effectivement rognés par le
+> cap.**
+
 ### Modification moteur autorisée — une seule, et bornée
 
 Le point d'accroche existant (`size_fn`) s'applique *après* le cap, pas avant :
