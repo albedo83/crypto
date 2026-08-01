@@ -262,6 +262,7 @@ Cost: zero (no LLM calls). Uses only stdlib + the trade DB.
 - `docs/synthese.md` — pedagogical synthesis (French): "for-dummies" walkthrough of strategies, modulator, exits, observability features.
 - `docs/backtests.md` — rolling backtest results for the current parameters, regenerated via `python3 -m backtests.backtest_rolling`.
 - `docs/dd_anatomy.md` — anatomie du drawdown −51,4 % (pic/creux datés, décomposition par signal et par mois, 3 pires fenêtres 30 j, Monte Carlo). Série de référence : `data/alfred_daily_pnl.csv`. Régénéré via `python3 -m backtests.dd_anatomy`.
-- `docs/projet_a_trend_v0.md` — Projet A : spécification gelée et **grille d'acceptation pré-enregistrée** d'une stratégie de suivi de tendance destinée à décorréler le portefeuille. Grille committée avant exécution.
+- `docs/projet_a_trend_v0.md` — Projet A : spécification gelée et **grille d'acceptation pré-enregistrée** d'une stratégie de suivi de tendance destinée à décorréler le portefeuille. Grille committée avant exécution. **Verdict : REJET** (décorrélation confirmée, véhicule non rentable).
+- `docs/creux_anatomy.md` — caractérisation des régimes de creux d'Alfred (efficacité directionnelle, retournements, mèches, volatilité, corrélation intra-univers, funding, BTC vs alts), fenêtres comparées à leur distribution glissante de même longueur. Régénéré via `python3 -m backtests.creux_anatomy`.
 - `CHANGELOG.md` — release history, maintained via `/release` skill.
 - `BACKLOG.md` — tests/analyses/refactors différés. Check it when starting R&D or refactor work to remember what's pending.
