@@ -310,6 +310,8 @@ def run_window(features, data, sector_features, dxy_data,
                size_multiplier: dict | None = None,
                size_fn=None,
                size_fn_keep_modulator=False,   # v1.12.0 R&D VT : size_fn EN PLUS du modulateur (pas à sa place)
+               cap_after_size_fn: bool = False,  # M2 : cap proportionnel APRÈS size_fn
+               size_audit: list | None = None,   # M2 : trace d'écrêtage (inerte si None)
                btc_corr_exit: dict | None = None,
                runner_extension: dict | None = None,
                partial_profit: dict | None = None,
@@ -1508,6 +1510,7 @@ def run_window(features, data, sector_features, dxy_data,
         _n_taken_this_scan = 0
         _n_cands_this_scan = len(candidates)
         for _cand_rank, cand in enumerate(candidates):
+            cand["n_cands"] = _n_cands_this_scan   # M2 : lisible par size_fn
             coin = cand["coin"]
             if coin in seen or coin in positions:
                 continue
@@ -1578,6 +1581,16 @@ def run_window(features, data, sector_features, dxy_data,
                     _cap = max_notional_fn(coin, ts, capital)
                     if 0 < _cap < size:
                         size = _cap
+                elif cap_after_size_fn:
+                    # M2 (mission 2026-08-01) : le modulateur d'agitation doit
+                    # s'appliquer AVANT le plafond proportionnel, sinon un boost
+                    # ferait franchir le plafond de risque. On calcule donc sans
+                    # cap ici, et on l'applique après size_fn. Inerte tant que
+                    # cap_after_size_fn est False — chemin d'origine intact.
+                    size = _rules.position_size(
+                        cand["strat"], cand["dir"], capital, _z,
+                        _dc.replace(_P, max_notional_frac=0.0,
+                                    max_notional_per_trade=0.0))
                 else:
                     size = _rules.position_size(cand["strat"], cand["dir"],
                                                 capital, _z, _P)
@@ -1604,6 +1617,25 @@ def run_window(features, data, sector_features, dxy_data,
                                            btc_z_map.get(ts, 0.0), _P)
                 if _m is not None:
                     size *= _m
+            # M2 : plafond proportionnel appliqué APRÈS la modulation, et
+            # plancher $10 re-vérifié sur la taille finale (une taille modulée
+            # sous $10 n'est pas exécutable en live). Le compteur d'écrêtage
+            # sert à chiffrer l'asymétrie du dispositif : la pénalité mord
+            # toujours, le boost est absorbé dès que la position touche le cap.
+            if cap_after_size_fn:
+                _pcap = (_P.max_notional_frac * capital
+                         if _P.max_notional_frac > 0 else _P.max_notional_per_trade)
+                _pre = size
+                if 0 < _pcap < size:
+                    size = _pcap
+                if size_audit is not None:
+                    size_audit.append({
+                        "strat": cand["strat"], "n_cands": _n_cands_this_scan,
+                        "pre_cap": round(_pre, 2), "post_cap": round(size, 2),
+                        "capped": bool(0 < _pcap < _pre),
+                        "floored": bool(size < 10)})
+                if size < 10:
+                    continue  # modulator_floor (live SKIP)
             # basket_haircut_eda: multiplicative haircut from basket concentration.
             # Runs AFTER the adaptive modulator so it stacks on top, not in place
             # of it. Signature: basket_haircut_fn(cand, effn_dict, n_positions)

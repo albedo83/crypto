@@ -179,6 +179,129 @@ d'edge.
 
 ---
 
-## 8. Résultat
+## 8. Résultat — **REFUS (2/4)**
 
-> *À compléter en Phase B, après GO explicite. Vide à ce jour.*
+**Run de verdict** : 2026-08-01T17:12Z · empreinte config `d7a415020619` · git
+`2b5ad5d+dirty` · données jusqu'au 2026-08-01T16:00, 36 symboles, fichiers du
+2026-08-01T16:10Z · `backtests/backtest_scan_sizing.py`.
+
+Exécution unique, lecture unique. Aucun paramètre modifié entre la grille et ce
+résultat.
+
+### 8.1 La preuve d'inertie a attrapé un piège réel
+
+Le **premier** run a échoué la jambe 2 : le nouveau chemin avec un
+multiplicateur constant à 1,0 rendait des chiffres différents du chemin par
+défaut (jusqu'à −$308 sur une fenêtre). Diagnostic :
+
+> `backtest_rolling.py:575` ne construit `btc_z_map` que si
+> `size_fn is None or size_fn_keep_modulator`. **Passer un `size_fn` éteint
+> donc silencieusement tout ce qui lit `btc_z`** : le modulateur macro adaptatif
+> (v11.10.0 / v12.2.0), le trail proportionnel régime-conditionné, le trail S8
+> in-life et le `traj_cut`.
+
+Sans cette vérification, la Phase B aurait mesuré « modulateur d'agitation
+**moins quatre règles de production** » et l'aurait rapporté comme l'effet du
+modulateur. Le correctif est le drapeau prévu pour ça, `size_fn_keep_modulator=True`,
+qui fait **s'empiler** le modulateur M2 sur le modulateur adaptatif au lieu de
+s'y substituer.
+
+Après correctif, les deux jambes passent **au centime** :
+
+| fenêtre | référence (pré-modification) | chemin par défaut | nouveau chemin, mult = 1,0 |
+|---|---:|---:|---:|
+| OOS-0 | $1 386,72 | $1 386,72 (Δ 0,0000) | $1 386,72 (Δ 0,0000) |
+| OOS-6 | $2 271,84 | $2 271,84 (Δ 0,0037) | $2 271,84 (Δ 0,0000) |
+| OOS-12 | $1 611,15 | $1 611,15 (Δ 0,0035) | $1 611,15 (Δ 0,0000) |
+| OOS-18 | $1 369,42 | $1 369,42 (Δ 0,0030) | $1 369,42 (Δ 0,0000) |
+
+La modification moteur est **inerte**. Le verdict porte sur le modulateur.
+
+### 8.2 Clause de verdict — walk-forward
+
+| fenêtre | base | modulé | **ΔP&L** | DD | n | |
+|---|---:|---:|---:|---|---:|---|
+| OOS-0 · 2026-02→2026-08 | $1 386,72 | $1 388,51 | **+$1,79** | −31,3 % → −28,5 % | 313 → 313 | ✓ |
+| OOS-6 · 2025-08→2026-02 | $2 271,84 | $1 968,04 | **−$303,80** | −18,1 % → −16,7 % | 255 → 255 | ✗ |
+| OOS-12 · 2025-02→2025-08 | $1 611,15 | $1 743,65 | **+$132,50** | −20,0 % → −17,1 % | 276 → 276 | ✓ |
+| OOS-18 · 2024-08→2025-02 | $1 369,42 | $1 335,94 | **−$33,48** | −50,2 % → −47,9 % | 281 → 281 | ✗ |
+
+### **2/4 ⇒ REFUS.**
+
+Le seuil était 4/4, sans indulgence. Il n'est pas atteint, et il ne l'est pas de
+peu : une fenêtre perd $304 quand la meilleure en gagne $1,79.
+
+**Le modulateur n'a filtré aucun trade** — effectif identique sur les quatre
+fenêtres, zéro entrée sous le plancher $10. C'est bien un pur recalibrage de
+taille, comme la spec l'exigeait. L'échec n'est pas celui du filtre binaire de
+juillet ; c'est celui du levier de taille lui-même.
+
+### 8.3 La 4ᵉ réserve est confirmée — le boost n'existe presque pas
+
+| fenêtre | entrées | boostées | **dont écrêtées** | pénalisées | dont écrêtées | notionnel perdu au cap |
+|---|---:|---:|---:|---:|---:|---:|
+| OOS-0 | 313 | 159 | **135 (84,9 %)** | 154 | 10 | $58 926 |
+| OOS-6 | 255 | 127 | **110 (86,6 %)** | 128 | 7 | $35 512 |
+| OOS-12 | 276 | 148 | **132 (89,2 %)** | 128 | 5 | $56 919 |
+| OOS-18 | 281 | 183 | **168 (91,8 %)** | 98 | 1 | $50 811 |
+
+**85 à 92 % des positions boostées sont ramenées au plafond.** Le ×1,5 ne
+survit que sur une position boostée sur huit. La pénalité, elle, passe
+intégralement dans 93 à 99 % des cas.
+
+Le dispositif testé n'était donc pas une modulation symétrique mais, en
+pratique, une **réduction de taille conditionnelle** — ce que la réserve du § 3
+annonçait avant l'exécution.
+
+### 8.4 Rapporté, et ne participant PAS au verdict
+
+Sur 28 mois : base **$13 292** (DD −51,4 %) → modulé **$11 591** (DD −48,1 %),
+soit **−$1 701 de P&L pour −3,3 pp de drawdown**.
+
+| fenêtre de creux | base | modulé | Δ |
+|---|---:|---:|---:|
+| A — drawdown maximal | −$835 | −$734 | +$101 |
+| B — pire 30 j | −$432 | −$346 | +$86 |
+| C — 2ᵉ pire 30 j | −$491 | −$418 | +$73 |
+| D — 3ᵉ pire 30 j | −$1 244 | −$1 077 | +$167 |
+
+Le drawdown s'améliore sur les quatre fenêtres de doctrine et le comportement
+s'améliore dans les quatre creux.
+
+**Cela ne change rien.** La grille du § 5 l'avait écrit d'avance : *« Un
+modulateur à 3/4 en P&L mais qui améliorerait le drawdown reste un refus. La
+clause est écrite ici pour que l'argument ne puisse pas être avancé après
+coup. »* Il est à 2/4. L'argument n'est pas avancé.
+
+### 8.5 Cas non prévu par la grille — nommé
+
+La grille traitait le dispositif comme un modulateur de taille et n'avait pas
+prévu que la mesure d'asymétrie (§ 8.3) le révélerait comme une **réduction de
+taille quasi pure**. Le profil de résultat obtenu — moins de P&L, moins de
+drawdown, sur toutes les fenêtres — est celui d'un dé-risquage, pas celui d'un
+edge.
+
+Conformément à l'invariant, ce fait est **décrit et ne fonde rien** : ni une
+variante, ni un re-test avec un plafond relevé, ni une reformulation en outil de
+risque. Le dossier est clos par le verdict.
+
+### 8.6 Sort de la modification moteur
+
+`cap_after_size_fn` et `size_audit` restent dans `backtest_rolling.py`,
+**inertes par défaut** et désormais accompagnés d'une preuve de neutralité au
+centime. Le drapeau `size_fn_keep_modulator` reste le point de vigilance
+documenté : tout futur usage de `size_fn` doit le passer, sous peine d'éteindre
+quatre règles sans le dire.
+
+---
+
+## 9. Clause de clôture — ACTIVÉE
+
+L'échec déclenche le § 6.
+
+> **Le dataset historique est CLOS jusqu'aux données prospectives de
+> mi-septembre 2026.** Aucune autre étude d'edge sur ces 28 mois, quelle qu'en
+> soit l'idée, quel qu'en soit le demandeur.
+
+Restent autorisées les études de **mesure** — corrections de biais, contrôles de
+parité, régénérations de référence — qui ne cherchent pas d'edge.
