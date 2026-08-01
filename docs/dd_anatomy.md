@@ -81,7 +81,11 @@ Fenêtre du drawdown maximal : **2024-08-03 → 2024-11-06**.
 
 DD **observé** : -51.4 % — **5.5 %** des réordonnancements font pire.
 
-**Lecture.** Un DD observé proche du médian signifie que l'ordre réel n'a rien eu d'exceptionnel : le drawdown est une propriété de la **population de trades**, pas de la malchance de séquence. Un DD observé au-delà du P95 signifierait l'inverse. Dans les deux cas la queue simulée (P95/P99) est le chiffre à retenir comme pire cas plausible d'une re-exécution — et elle reste un **plancher** optimiste, puisque la population de trades elle-même est tenue fixe.
+**Lecture.** Le drawdown observé (-51.4 %) tombe entre le P90 et le P99 de la distribution simulée, très au-delà du médian (-37.2 %). La tentation est de conclure « l'ordre réel a été malchanceux ». **Ce serait faux, et le biais va dans l'autre sens.**
+
+Réordonner les trades les rend **indépendants**. Or ils ne le sont pas : jusqu'à six positions coexistent sur des alts corrélés, et elles perdent le même jour. Le mélange détruit ces grappes, donc **sous-estime mécaniquement** le drawdown. Autrement dit, le médian à -37.2 % décrit un moteur qui n'existe pas — un moteur dont les positions seraient décorrélées. Le drawdown réel est au moins aussi sévère que l'observé, et la queue simulée (-51.8 % / -58.7 %) reste un **plancher** : elle tient la population de trades pour acquise, alors que c'est elle qui porte le risque de modèle.
+
+Ce que ce Monte Carlo établit vraiment, c'est que **le drawdown ne s'explique pas par une poignée de trades exceptionnels** : même en redistribuant la totalité de la séquence, la moitié des tirages dépasse 37 % de drawdown. C'est une propriété de la population, pas un accident. Le corollaire est directement le sujet du Projet A : **la corrélation interne des positions est le mécanisme du drawdown**, et une source de P&L décorrélée est le seul levier qui s'attaque à ce mécanisme plutôt qu'à ses symptômes.
 
 
 ## 5. Note de lecture — sensibilité de la date de départ
