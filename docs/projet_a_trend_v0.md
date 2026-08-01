@@ -350,7 +350,133 @@ backtest rejette, il ne promet pas.
 
 ---
 
-## 6. Résultat
+## 6. Résultat — **REJET**
 
-> *À compléter en Phase 3, après GO explicite. Vide à ce jour — c'est le sujet
-> de tout ce document.*
+**Run de verdict** : 2026-08-01T15:13Z · empreinte config `d7a415020619` · git
+`c0605f5+dirty` (le harnais `backtests/backtest_trend_v0.py` n'était pas encore
+suivi au moment du run ; il est committé avec ce rapport) · données jusqu'au
+2026-08-01T12:00, 36 symboles, fichiers du 2026-08-01T12:10Z.
+
+Exécution unique. Lecture unique. Aucun paramètre n'a été modifié entre le
+commit de la grille et ce résultat.
+
+### Validité du run
+
+| contrôle | résultat |
+|---|---|
+| gate de parité d'univers (§ 1.1) | **passé** — 34 symboles, identiques à `Params.trade_symbols` |
+| couverture funding (§ 1.6) | **99,99 %** des 97 800 heures-position ; aucun symbole absent |
+| garde-fous `measure_guards` | aucun déclenchement |
+
+Le run est valide. Le verdict porte sur TREND-v0, pas sur la mesure.
+
+### Le run long — 2024-07-01 → 2026-08-01
+
+| | |
+|---|---|
+| trades clos | 186 (89 LONG / 97 SHORT) |
+| taux de réussite | 36,0 % |
+| durée de détention médiane | **15 jours** |
+| P&L brut | **+$13,22** |
+| frais + slippage | −$10,44 |
+| **portage funding** | **−$24,86** |
+| **P&L net** | **−$22,08** (capital final $977,92) |
+| positions ouvertes en fin de fenêtre | 5, notionnel $232 — non bookées (convention doctrine) |
+
+### Verdict clause par clause
+
+| clause | mesure | seuil | verdict |
+|---|---|---|---|
+| **C1** décorrélation | ρ Pearson = **−0,0011** | < 0,30 | **✅ PASSE** |
+| **C2** creux d'Alfred | 4 fenêtres sur 4 **négatives** | ≥ 0 partout | **❌ ÉCHOUE** |
+| **C3** viabilité propre | **1/4** fenêtres walk-forward ≥ 0 | strict 4/4 | **❌ ÉCHOUE** |
+| **C4** apport portefeuille | Calmar combiné **inférieur** aux deux allocations | > 3,709 | **❌ ÉCHOUE** |
+
+**Verdict global : REJET.** Dossier TREND-v0 clos. Aucun ajustement de
+paramètre, aucun re-run modifié.
+
+#### C1 — ✅ PASSE
+
+| | |
+|---|---|
+| Pearson, 762 jours civils | **−0,0011** |
+| Spearman | +0,0605 |
+| Pearson sur les 104 jours de co-activité | −0,0009 |
+
+La décorrélation est **réelle** et n'est pas un artefact du rembourrage par
+des zéros : restreinte aux seuls jours où les deux stratégies bookent, la
+corrélation reste nulle.
+
+#### C2 — ❌ ÉCHOUE
+
+| fenêtre | dates | P&L TREND | trades clos |
+|---|---|---:|---:|
+| A — drawdown maximal | 2024-08-03 → 2024-11-06 | **−$99** | 30 |
+| B — pire 30 j | 2024-09-22 → 2024-10-21 | **−$21** | 6 |
+| C — 2ᵉ pire 30 j | 2024-08-03 → 2024-09-01 | **−$32** | 12 |
+| D — 3ᵉ pire 30 j | 2025-07-21 → 2025-08-19 | **−$31** | 12 |
+
+La clause « C2 non informative » **ne s'applique pas** : B et C étant incluses
+dans A, TREND a clos 30 trades pendant le drawdown maximal et 12 de plus
+pendant la fenêtre D. Il n'était pas absent — il perdait en même temps
+qu'Alfred.
+
+#### C3 — ❌ ÉCHOUE (1/4)
+
+| fenêtre | n | brut | frais | portage | **net** | |
+|---|---:|---:|---:|---:|---:|---|
+| OOS-0 · 2026-02-01→2026-08-01 | 44 | −$20 | $3 | $2 | **−$25** | ✗ |
+| OOS-6 · 2025-08-01→2026-02-01 | 47 | −$98 | $2 | $1 | **−$101** | ✗ |
+| OOS-12 · 2025-02-01→2025-08-01 | 41 | −$5 | $2 | $9 | **−$17** | ✗ |
+| OOS-18 · 2024-08-01→2025-02-01 | 46 | +$82 | $3 | $14 | **+$65** | ✓ |
+
+**Effet de l'amendement 1.** Le portage n'a **pas** changé ce verdict : sans
+lui, les trois mêmes fenêtres restent négatives (−$23, −$101, −$7) et la
+quatrième positive. Il change en revanche la lecture du run long, où il pèse
+**−$24,86 contre −$10,44 de frais** — deux fois et demie le coût de
+transaction, sur une détention médiane de 15 jours. L'amendement était fondé ;
+il n'était simplement pas décisif.
+
+#### C4 — ❌ ÉCHOUE aux deux allocations
+
+| | CAGR | DD max | **Calmar** | |
+|---|---:|---:|---:|---|
+| Alfred seul (référence) | +177,1 % | −47,75 % | **3,709** | |
+| TREND seul | −1,07 % | −17,41 % | −0,061 | |
+| portefeuille 70/30 | +139,1 % | −39,50 % | **3,521** | ✗ |
+| portefeuille 50/50 | +109,5 % | −33,48 % | **3,271** | ✗ |
+
+Les deux portefeuilles réduisent le drawdown — de 8,3 pp à 70/30, de 14,3 pp à
+50/50. Ils réduisent davantage le rendement. Le Calmar baisse dans les deux
+cas.
+
+### Défaut relevé dans la grille elle-même
+
+Le § 1.5 affirmait que le budget de risque de 1 % n'était pas un levier de
+résultat, « le vol-targeting rendant les quatre clauses quasi invariantes
+d'échelle ». **Cet argument est faux pour C4** : il vaut pour le Calmar de
+TREND *seul*, pas pour celui du portefeuille *combiné*, où le poids de la poche
+TREND dépend directement de son levier interne.
+
+Cela ne change rien au verdict, pour deux raisons vérifiables :
+
+1. **C2 et C3 portent sur le SIGNE d'un P&L.** Multiplier le budget de risque
+   par *k* multiplie brut, frais et portage par *k* — le signe est invariant.
+   Ces deux clauses échouent quel que soit le budget de risque.
+2. **Le CAGR de TREND seul est négatif** (−1,07 %). Augmenter son poids
+   effectif dégraderait le portefeuille combiné, pas l'inverse.
+
+Le défaut est consigné parce qu'il porte sur la qualité du dispositif de
+pré-enregistrement, pas parce qu'il change quoi que ce soit au résultat.
+
+### Ce que le run établit
+
+**L'hypothèse de décorrélation structurelle est confirmée** : un moteur de
+suivi de tendance sur le même univers produit une série de P&L quotidiens
+orthogonale à celle d'Alfred (ρ = −0,001 sur 762 jours, confirmée sur le
+sous-échantillon de co-activité).
+
+**Le véhicule testé ne gagne pas d'argent.** Sur 25 mois, 186 trades, un brut
+de +$13 sur $1 000 de capital, effacé par $35 de coûts dont $25 de portage. Une
+source de P&L décorrélée mais non rentable dégrade le portefeuille : elle
+dilue le rendement plus qu'elle ne réduit le drawdown.
