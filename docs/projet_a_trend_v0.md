@@ -114,16 +114,35 @@ ne porte **aucune information** : il ne peut ni aider ni nuire systématiquement
 
 ### 1.6 Coûts
 
-Modèle **identique à Alfred**, sans dérogation : `9 bps taker + 4 bps slippage`
-= **13 bps round-trip**, appliqués une fois à la clôture sur le notionnel.
+> **AMENDÉ le 2026-08-01, avant exécution.** La version initiale reprenait le
+> modèle d'Alfred tel quel et reléguait le portage à une réserve annexe. C'était
+> une erreur de mesure, pas un choix de périmètre : à 48 h de détention le
+> funding est négligeable et Alfred a raison de l'ignorer ; sur des positions
+> tenues des semaines en perps d'alts, il **domine** le coût de transaction.
+> Le portage entre donc dans C3.
 
-> **Réserve documentée, qui n'est pas une clause.** Ce modèle est *favorable* à
-> TREND : Alfred tient ses positions 48 h, TREND les tiendra des semaines, et le
-> coût de portage (funding) croît avec la durée. Le rapport de Phase 3
-> **chiffrera** ce portage à partir de `load_funding()` sur les durées de
-> détention réelles et le publiera **à côté** de C3 — sans modifier le verdict
-> de C3, qui reste rendu sur le modèle instruit. Un lecteur pourra ainsi juger
-> si une réussite de C3 est confortable ou marginale.
+| composante | valeur | source |
+|---|---|---|
+| frais + slippage | **13 bps round-trip** (9 taker + 4 slippage), appliqués une fois à la clôture sur le notionnel | modèle identique à Alfred |
+| **portage** | **funding HL historique réalisé**, intégré heure par heure sur la durée de détention effective de chaque position | **donnée**, pas modèle |
+
+Le portage est calculé par `backtest_rolling.compute_funding_cost` sur la base
+de `backtests/output/funding_history.db` (937 k échantillons, 37 symboles,
+2023-05 → 2026-08) — les taux réellement pratiqués par Hyperliquid sur la
+période, pas une estimation forfaitaire.
+
+**Convention de signe.** HL prélève les LONGs quand le taux est positif et les
+rémunère quand il est négatif ; les SHORTs sont l'inverse. Le portage n'est donc
+pas une pénalité systématique : sur un marché à funding durablement positif, les
+SHORTs de TREND **encaissent**. C'est une mesure symétrique, pas un handicap
+ajouté.
+
+**Gate de couverture.** `compute_funding_cost` renvoie silencieusement `0.0`
+pour un symbole absent de la base — le mode de défaillance exact que
+`measure_guards.py` existe pour interdire. Le run mesure donc la fraction
+d'**heures-position non couvertes** par la donnée de funding et la publie.
+**Au-delà de 5 %, le run est NUL** (mesure insuffisante — cas d'invalidation
+du § 4, pas un rejet de TREND). Les symboles concernés sont nommés.
 
 ---
 
@@ -152,7 +171,54 @@ sont imprimées par l'empreinte du run de verdict.
 
 ### 2.3 Fenêtre longue — clauses C1 et C4
 
-28 mois, mêmes bornes que `docs/dd_anatomy.md`, capital de départ $1 000.
+> **AMENDÉ le 2026-08-01, avant exécution.** Voir § 2.5 : la fenêtre est
+> **tronquée à 2024-07-01** pour exclure le trimestre de mise au point.
+
+**2024-07-01 → 2026-08-01 (25 mois)**, capital de départ $1 000 pour chaque
+poche.
+
+### 2.4 Granularité du drawdown — C4
+
+Alfred booke ses trades à l'heure de leur clôture ; TREND est une stratégie à
+barres journalières. Une equity de portefeuille combinée n'est définissable
+qu'à une granularité commune, et c'est la **clôture journalière**.
+
+**C4 se lit donc sur les equity de clôture journalière, pour les deux poches.**
+Conséquence à connaître pour ne pas la prendre pour une contradiction : le
+drawdown d'Alfred lu aux clôtures journalières vaut **−47,75 %**, contre
+−51,4 % lu au booking de chaque trade. Ce n'est **pas un autre drawdown** —
+c'est le même épisode d'août-novembre 2024, mesuré à un pas de temps plus
+grossier qui rate les creux intra-journaliers. Le chiffre de référence du
+§ 15 de `rapport.md` reste −51,4 %.
+
+**Référence à battre pour C4**, calculée depuis `data/alfred_daily_pnl.csv` sur
+la fenêtre du § 2.3 et re-vérifiée dans le run de verdict :
+
+| Alfred seul, 2024-07-01 → 2026-08-01 | |
+|---|---|
+| capital final (base $1 000) | $8 360 |
+| CAGR | +177,1 %/an |
+| drawdown max (clôtures journalières) | −47,75 % |
+| **Calmar** | **3,71** |
+
+### 2.5 Statut de la fenêtre de mise au point — TRANCHÉ
+
+Le trimestre de débogage **2024-04-01 → 2024-06-30** est hors des fenêtres de
+creux (§ 2.1, la plus ancienne débute le 2024-08-03) et hors des quatre
+fenêtres walk-forward (§ 2.2, la plus ancienne débute le 2024-08-01). Il était
+en revanche **inclus** dans la fenêtre de 28 mois de C1 et C4.
+
+**Décision : ce trimestre est EXCLU des fenêtres C1 et C4**, qui démarrent au
+**2024-07-01**. La sandbox devient ainsi extérieure aux quatre clauses, et
+regarder son comportement pendant la mise au point ne peut révéler aucun
+élément de verdict.
+
+L'option « inclus, risque assumé » a été écartée : son coût est nul à côté de
+celui de l'exclusion. Tronquer coûte 3 mois sur 28 dans l'échantillon de
+corrélation, conserve intégralement l'épisode de drawdown maximal (pic le
+2024-08-03, postérieur à la troncature), et ne demande qu'un re-calcul de la
+référence Alfred depuis une série déjà produite. Payer si peu pour supprimer
+une échappatoire entière ne se discute pas.
 
 ---
 
@@ -161,7 +227,7 @@ sont imprimées par l'empreinte du run de verdict.
 ### C1 — décorrélation
 
 > **Corrélation de Pearson entre le P&L quotidien de TREND et celui d'Alfred
-> < 0,30 sur les 28 mois.**
+> < 0,30 sur la fenêtre du § 2.3 (2024-07-01 → 2026-08-01).**
 
 - Calculée sur les **rendements quotidiens en %** de chaque stratégie
   (`ret_pct`), sur **tous les jours civils** de la fenêtre, **jours sans trade
@@ -188,27 +254,34 @@ sont imprimées par l'empreinte du run de verdict.
 
 ### C3 — viabilité propre, après coûts
 
-> **P&L net de TREND ≥ 0 sur chacune des 4 fenêtres walk-forward du § 2.2.**
-> Strict **4/4**.
+> **P&L de TREND ≥ 0 sur chacune des 4 fenêtres walk-forward du § 2.2, net des
+> frais, du slippage ET DU PORTAGE FUNDING RÉALISÉ (§ 1.6).** Strict **4/4**.
 
 | cas | verdict |
 |---|---|
 | 4/4 ≥ 0 | **PASSE** |
 | exactement 0 sur une fenêtre | **PASSE** |
 | 3/4 | **ÉCHOUE** — c'est la règle du projet, elle a déjà servi à refuser sept leviers |
+| ≥ 0 avant portage, < 0 après | **ÉCHOUE.** Le portage fait partie du coût, pas d'une réserve annexe |
+| couverture funding insuffisante (> 5 % d'heures-position) | **run NUL**, pas de verdict (§ 4) |
+
+Le rapport publie, par fenêtre, le P&L **brut**, le coût de transaction et le
+portage **séparément** — pour que la marge de la clause soit lisible, et non
+seulement son signe.
 
 ### C4 — apport au portefeuille
 
 > **Calmar du portefeuille combiné > Calmar d'Alfred seul, aux DEUX allocations
 > fixes 70/30 et 50/50.**
 
-- **Calmar = CAGR / |drawdown max|**, sur la fenêtre de 28 mois.
+- **Calmar = CAGR / |drawdown max|**, sur la fenêtre du § 2.3 (25 mois), aux
+  **clôtures journalières** pour les deux poches (§ 2.4).
 - Allocation **fixe à l'origine, sans aucun rééquilibrage** (une fréquence de
   rééquilibrage serait un paramètre de plus). Chaque poche compose sur son
   propre capital ; l'equity du portefeuille est la somme des deux poches, et le
   drawdown combiné se lit sur cette somme.
-- Référence à battre : Alfred seul, **recalculé dans le run de verdict** (ordre
-  de grandeur au 2026-08-01 : CAGR ≈ +199 %/an, DD −51,4 %, Calmar ≈ 3,9).
+- Référence à battre : **Alfred seul, Calmar 3,71** (CAGR +177,1 %/an, DD
+  −47,75 %) — § 2.4, re-vérifiée dans le run de verdict.
 
 | cas | verdict |
 |---|---|
@@ -246,9 +319,9 @@ Elles ne sont pas des recommandations. Elles closent les échappatoires connues.
 ### Mise au point du code
 
 Écrire le harnais demandera des exécutions de débogage. Elles sont autorisées
-**uniquement sur la fenêtre 2024-04-01 → 2024-06-30** — hors des fenêtres de
-creux (§ 2.1) et hors des fenêtres walk-forward (§ 2.2), donc incapables de
-révéler un verdict.
+**uniquement sur la fenêtre 2024-04-01 → 2024-06-30**, désormais extérieure aux
+**quatre** clauses depuis l'amendement du § 2.5 — donc incapable de révéler un
+élément de verdict.
 
 **Le run de verdict est le PREMIER run complet conforme à la spec.** Son
 empreinte (`backtests/fingerprint.py`) est publiée dans le rapport final. S'il
@@ -257,9 +330,10 @@ au rapport.
 
 ### Cas d'invalidation du run (≠ rejet de TREND)
 
-Si le gate de parité d'univers échoue, si un garde-fou de `measure_guards.py`
-lève, ou si la série de rendements est constante, **le run est nul** : pas de
-verdict, correction, re-run. Ce n'est pas un échec de TREND-v0 — c'est
+Si le gate de parité d'univers échoue, si la couverture funding est
+insuffisante (§ 1.6), si un garde-fou de `measure_guards.py` lève, ou si la
+série de rendements est constante, **le run est nul** : pas de verdict,
+correction, re-run. Ce n'est pas un échec de TREND-v0 — c'est
 exactement le dispositif qui a manqué en juillet, quand cinq mesures fausses
 ont émis des chiffres plausibles au lieu d'une erreur.
 
