@@ -180,3 +180,176 @@ document ne dit que la Phase 1 trouvera une persistance, ni qu'elle n'en
 trouvera pas.
 
 **⛔ STOP.**
+
+---
+
+# Phase 1 — GRILLE PRÉ-ENREGISTRÉE
+
+> **⚠ ÉCRITE ET COMMITTÉE AVANT TOUT CHIFFRE.** Aucune performance n'a été
+> calculée, aucun wallet classé, aucune corrélation mesurée au moment où ces
+> lignes sont écrites. L'historique git en fait foi.
+>
+> **Rédigé le** : 2026-08-02 · les trois amendements de Seb sont intégrés.
+
+## P1.0 Principe directeur — anti-lookahead strict
+
+**La sélection d'un wallet sur une période ne peut être évaluée que sur la
+période SUIVANTE.** Panels roulants : sélection sur le trimestre T, mesure sur
+T+1. Jamais de sélection sur l'historique complet.
+
+Chaque clause quantifie sur des objets **décidables ex-ante** — c'est la leçon
+directe du projet basis, où une clause franchie 32 fois sur 32 s'est révélée
+n'être qu'une sélection ex-post.
+
+## P1.1 Métrique de classement — amendement 1
+
+> Le P&L brut en dollars classe la **taille**, pas le talent : un gros compte
+> médiocre bat un petit compte brillant.
+
+```
+métrique(compte, T) = pnl(T) / médiane( accountValue observée dans T )
+```
+
+- `pnl(T)` = `pnlHistory` cumulé au dernier point de T **moins** le cumulé au
+  dernier point précédant T. La série est **cumulative depuis l'origine** —
+  vérifié sur échantillon.
+- Dénominateur = **médiane**, pas moyenne : robuste aux dépôts ponctuels.
+- **Le premier point de chaque série est un remplissage synthétique**
+  (`accountValue = 0`, `pnl = 0`) et est écarté. Le conserver tirerait la
+  médiane vers le bas.
+
+**Biais résiduel, nommé au rapport** : les flux de capital polluent le
+dénominateur. Un compte qui double sa mise en milieu de trimestre voit sa
+métrique diluée sans que son talent change. Aucune correction n'est possible à
+cette granularité — `pnlHistory` ne distingue pas un gain d'un virement dans la
+valeur de compte, et les mouvements de dépôt ne sont pas exposés par l'API
+publique.
+
+## P1.2 Éligibilité — amendement 2, décidable ex-ante par panel roulant
+
+Un compte entre dans le panel du trimestre **T** si, et seulement si :
+
+| condition | évaluée sur |
+|---|---|
+| valeur de compte **au début de T** ≥ **$500** | le premier point de T |
+| **≥ 1 semaine de P&L non nul** dans T | les points de T |
+
+**INTERDICTIONS** — ce sont elles qui font tenir la grille :
+
+1. **Interdit de filtrer sur la valeur ACTUELLE.** Écarter « les comptes sous
+   $10 aujourd'hui » sélectionnerait sur le futur : c'est le vice exact de la
+   clause basis, version wallets.
+2. **Interdit de filtrer sur le P&L cumulé à ce jour.**
+3. **Interdit d'exiger la présence dans le panel de T+1.** L'appartenance se
+   décide **au seul trimestre T** ; la métrique de T+1 est ensuite calculée
+   pour **tout** compte du panel T disposant de données en T+1, **quelle que
+   soit sa valeur ou son activité en T+1** — y compris s'il a été ruiné.
+   Exiger la survie en T+1 exclurait mécaniquement les comptes qui explosent,
+   et gonflerait la persistance du côté des perdants.
+
+Les comptes du panel T sans aucune donnée en T+1 sont comptés comme
+**attrition** et publiés comme tels.
+
+## P1.3 Stratification par taille — amendement 3, ex-ante
+
+Trois strates, définies par la **valeur de compte au début de T**, en
+**terciles du panel T lui-même** : petit / moyen / gros.
+
+Les terciles sont préférés à des seuils en dollars parce qu'ils n'introduisent
+aucune constante inventée et s'adaptent au panel de chaque trimestre — tout en
+n'utilisant que de l'information disponible **au début de T**.
+
+Effectifs affichés par strate. Persistance mesurée **par strate ET en agrégé** —
+pour que le verdict ne soit pas celui des seuls gros comptes.
+
+**Cellule de strate sous-dotée (< 30 comptes appariés) : NON ÉMISE.**
+
+## P1.4 Mesure
+
+Pour chaque paire de trimestres adjacents (T, T+1), pour chaque strate, et pour
+chacun des trois groupes :
+
+| groupe | définition |
+|---|---|
+| **tous** | tous les comptes du panel T ayant une métrique en T+1 |
+| **gagnants** | ceux dont la métrique en T est **> 0** |
+| **perdants** | ceux dont la métrique en T est **< 0** |
+
+Statistique : **autocorrélation de rang de Spearman** entre la métrique en T et
+la métrique en T+1, au sein du groupe.
+
+C'est le test du spectre de persistance (`docs/persistence_spectrum.md`)
+appliqué aux traders au lieu des tokens.
+
+## P1.5 Statistique de verdict — mise en commun, pour maîtriser la multiplicité
+
+Le verdict ne se lit **pas** sur une paire de trimestres isolée : avec
+3 groupes × 4 strates (3 + agrégat) = **12 cellules**, et une dizaine de paires,
+un |t| ≥ 2 isolé est attendu par pur hasard.
+
+Pour chaque cellule (groupe × strate) :
+
+```
+rho_poolé = moyenne des rho sur toutes les paires de trimestres
+SE        = écart-type des rho / racine(nombre de paires)
+t         = rho_poolé / SE
+```
+
+Les rho par paire sont **publiés** pour que la dispersion soit lisible.
+
+## P1.6 CLAUSE DE VERDICT
+
+> **|t| < 2 dans TOUTES les cellules ⇒ ni copier ni fader n'a de base ⇒
+> BRANCHE CLOSE.**
+>
+> **|t| ≥ 2 dans au moins une cellule ⇒ phase de conception** (mission
+> distincte, sa propre grille), le rapport nommant précisément la ou les
+> cellules concernées.
+
+### Cas ambigus, tranchés d'avance
+
+| cas | verdict |
+|---|---|
+| |t| exactement 2,00 | **compte comme significatif** — la clause dit « < 2 » pour clore |
+| une seule cellule sur 12 franchit le seuil | **la clause littérale s'applique** : phase de conception. Mais le rapport publie le **nombre de cellules à \|t\| ≥ 2** face à l'**espérance sous l'hypothèse nulle (12 × 0,05 ≈ 0,6)**, pour que la multiplicité soit visible sans qu'on déplace le poteau |
+| rho poolé significatif mais de **signe négatif** | **compte comme significatif** — une anti-persistance est une base pour fader, ce que la clause envisage explicitement |
+| moins de 3 paires de trimestres dans une cellule | **NON ÉMISE** — SE non estimable |
+| moins de 30 comptes appariés dans une cellule | **NON ÉMISE** (§ P1.3) |
+| aucune cellule émise | **run NUL**, pas de verdict |
+
+## P1.7 Panel et exécution
+
+| | |
+|---|---|
+| taille du panel | **1 000 adresses**, échantillonnées à pas régulier dans le classement par **taille de compte** — jamais par performance |
+| trimestres | trimestres civils UTC, tous ceux que couvrent les données |
+| source | `portfolio` / `allTime`, granularité hebdomadaire (Phase 0 § 3) |
+| coût | ≈ 7 minutes (Phase 0 § 7) |
+| exécution | **unique**, lecture **unique** |
+
+## P1.8 Interdictions
+
+1. Aucun seuil ajusté après lecture des chiffres — ni $500, ni 30 comptes, ni
+   |t| = 2.
+2. Aucune variante de métrique après coup.
+3. Aucune restriction de panel *a posteriori* — ni « en excluant les comptes
+   ruinés », ni « sur les 100 plus gros ».
+4. Aucune lecture partielle : toutes les cellules sont lues en une fois.
+5. Aucun ordre, aucune clé, aucune donnée privée.
+
+## P1.9 Invalidation du run (≠ verdict)
+
+Colonne temporelle dégénérée, garde-fou `measure_guards` qui lève, aucune
+cellule émise, ou panel non constituable ⇒ **run NUL**, correction, re-run, les
+deux empreintes au rapport.
+
+## P1.10 Invariant
+
+Tout cas non prévu est **nommé comme tel**, décrit, et ne fonde aucune
+conclusion opportuniste. Clauses de repli conservatrices par défaut.
+
+---
+
+## P1.11 Résultat
+
+> *À compléter après exécution. Vide à ce jour.*
