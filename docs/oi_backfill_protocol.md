@@ -205,3 +205,57 @@ mais cela reste à **vérifier**, pas à supposer.
 
 La re-validation n'est pas lancée : l'énoncé la prévoyait « sur inputs comblés
 + sémantique None », or le comblage est refusé. Sa prémisse n'est pas réunie.
+
+---
+
+# AMENDEMENT — tir unique (2026-08-02)
+
+> **Écrit et committé AVANT le run amendé.** Aucune mesure sur la nouvelle base
+> n'a été faite au moment où ces lignes sont écrites.
+
+Décidé par Seb au checkpoint, à visage découvert : le protocole initial a échoué
+sur une base mal spécifiée par **erreur de rédaction documentée** (§ 5 —
+recouvrement réel de 5 j / 30 points au lieu des 19 j annoncés) et sur un
+**artefact d'horodatage** (:03 live contre :00 S3, sur une grandeur qui bouge).
+
+## A1. Ce qui change
+
+| | avant | **amendé** |
+|---|---|---|
+| base de validation | fichiers `*_oi_4h.json` (fin 2026-06-15) | **`oi_history.db`** — même amont S3, fin 2026-06-29 |
+| recouvrement | 5 jours, ~30 points | **19 jours, ~114 points** par token |
+| appariement | plus proche dans un rayon de 2 h | **tolérance d'alignement ±5 min**, spécifiée ici avant le run |
+
+## A2. Ce qui NE change PAS
+
+Les **trois critères et leurs seuils sont inchangés**, ainsi que le taux de
+réussite global :
+
+| critère | seuil |
+|---|---|
+| points comparables | ≥ 20 |
+| médiane de l'écart relatif | < 1,0 % |
+| p95 de l'écart relatif | < 5,0 % |
+| **tokens passant les trois** | **≥ 90 %** |
+
+TON reste exclu (retrait de cote = arrêt légitime, pas un trou).
+
+## A3. TIR UNIQUE
+
+> **Un nouvel échec clôt le sujet.** Le trou devient un **trou définitif
+> assumé** : la série reste honnêtement trouée — la garde d'âge du § 6.1 rend
+> désormais l'absence **visible** au lieu de la reboucher en silence — et
+> `market_snapshots` ne sert que de **source pérenne POST-juin**, sans backfill.
+
+Aucun troisième protocole ne sera écrit.
+
+## A4. En cas de succès
+
+Comblage appliqué, point de soudure et source marqués **dans** les données
+(`"src": "live"`), TON exclu, et `market_snapshots` inscrit dans
+`data_freshness.py` au statut le plus strict — il y est déjà (3 h, chemin
+chaud).
+
+## A5. Résultat de l'amendement
+
+> *À compléter après le run. Vide à ce jour.*
