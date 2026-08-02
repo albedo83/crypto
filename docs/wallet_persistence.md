@@ -350,6 +350,126 @@ conclusion opportuniste. Clauses de repli conservatrices par défaut.
 
 ---
 
-## P1.11 Résultat
+## P1.11 Résultat — **PHASE DE CONCEPTION**
 
-> *À compléter après exécution. Vide à ce jour.*
+**Run** : 2026-08-02T15:17Z · empreinte git `6d873cf+dirty` ·
+`backtests/wallets/phase1_persistence.py` · panel **1 000 adresses**, dont
+**997 exploitables** · 15 trimestres couverts, 2023Q1 → 2026Q3.
+
+Exécution unique, lecture unique. Aucun paramètre modifié entre la grille et ce
+résultat.
+
+### Attrition — le dispositif anti-lookahead ne fuit pas
+
+Rappel : l'appartenance se décide au seul trimestre T, et la métrique de T+1 est
+calculée pour tout compte du panel T disposant de données, **y compris ruiné**.
+
+| paire | panel | appariés | perdus | attrition |
+|---|---:|---:|---:|---:|
+| 2024Q4→2025Q1 | 192 | 191 | 1 | 0,5 % |
+| 2025Q1→2025Q2 | 331 | 325 | 6 | 1,8 % |
+| 2025Q3→2025Q4 | 448 | 442 | 6 | 1,3 % |
+| 2025Q4→2026Q1 | 489 | 474 | 15 | 3,1 % |
+| 2026Q2→2026Q3 | 546 | 537 | 9 | 1,6 % |
+
+Attrition de **0,5 % à 6,2 %** selon la paire. La quasi-totalité des comptes
+sélectionnés en T est retrouvée en T+1 : la mesure ne repose pas sur un
+sous-ensemble de survivants.
+
+### La table de verdict
+
+| groupe | strate | paires | rho poolé | SE | **t** | |
+|---|---|---:|---:|---:|---:|---|
+| tous | petit | 8 | +0,1333 | 0,0294 | **+4,54** | ◄ |
+| tous | moyen | 8 | +0,0430 | 0,0774 | +0,55 | |
+| tous | gros | 8 | +0,0268 | 0,1037 | +0,26 | |
+| tous | agrégat | 10 | +0,0900 | 0,0550 | +1,64 | |
+| **gagnants** | petit | 6 | −0,0079 | 0,0743 | **−0,11** | |
+| **gagnants** | moyen | 6 | +0,0117 | 0,1124 | **+0,10** | |
+| **gagnants** | gros | 6 | +0,0792 | 0,1427 | **+0,56** | |
+| **gagnants** | agrégat | 9 | +0,0567 | 0,0694 | **+0,82** | |
+| **perdants** | petit | 6 | **+0,1729** | 0,0259 | **+6,68** | ◄ |
+| **perdants** | moyen | 6 | **+0,1802** | 0,0453 | **+3,97** | ◄ |
+| **perdants** | gros | 6 | **+0,1318** | 0,0453 | **+2,91** | ◄ |
+| **perdants** | agrégat | 10 | **+0,1397** | 0,0380 | **+3,68** | ◄ |
+
+**5 cellules sur 12 à |t| ≥ 2**, contre **0,6 attendue** sous l'hypothèse nulle.
+La clause du § P1.6 est franchie ⇒ **PHASE DE CONCEPTION**.
+
+### Le résultat n'est pas dispersé, il est structuré
+
+Ce n'est pas cinq cellules au hasard parmi douze. C'est une **asymétrie nette** :
+
+> **Les perdants persistent — les quatre cellules, sans exception.
+> Les gagnants ne persistent pas — aucune des quatre, t entre −0,11 et +0,82.**
+
+Et le signe tient paire par paire :
+
+| cellule | rho par paire | positifs |
+|---|---|---:|
+| perdants · petit | +0,279 / +0,147 / +0,155 / +0,122 / +0,218 / +0,116 | **6/6** |
+| perdants · moyen | +0,074 / +0,236 / +0,225 / +0,250 / +0,010 / +0,287 | **6/6** |
+| perdants · gros | +0,262 / +0,177 / +0,229 / −0,022 / +0,106 / +0,039 | 5/6 |
+| perdants · agrégat | ... 8 positifs sur 10 ; les deux négatifs sont les paires de 2024 à faible effectif (n = 45 et 62) | 8/10 |
+| gagnants · agrégat | +0,304 / +0,086 / +0,138 / +0,012 / +0,180 / **−0,245** / +0,149 / +0,203 / **−0,317** | 7/9 mais dispersion double |
+
+À partir de 2025Q1, où les effectifs passent de 132 à 376 comptes appariés, les
+**six dernières paires consécutives** sont positives pour les perdants :
++0,244 · +0,196 · +0,208 · +0,174 · +0,125 · +0,256.
+
+La cellule « tous · agrégat » n'est **pas** significative (t = +1,64) : mélanger
+des gagnants sans persistance et des perdants qui persistent dilue exactement ce
+qu'on cherche. C'est cohérent avec le reste, pas contradictoire.
+
+### ⚠ Explication alternative — nommée, non tranchée
+
+Chez les perdants, toutes les métriques sont négatives : **classer par métrique,
+c'est classer par ampleur de perte**. Or l'ampleur de perte suit au moins autant
+l'**appétit pour le risque** (levier, taille de position) que la qualité des
+décisions. Une persistance de rang chez les perdants pourrait donc mesurer une
+**persistance de comportement de risque**, pas une persistance d'incompétence.
+
+Un élément va contre cette lecture, sans la réfuter : **si c'était uniquement du
+levier persistant, les gagnants le montreraient aussi** — un compte à fort levier
+qui gagne aurait une métrique de forte amplitude deux trimestres de suite. Or les
+gagnants n'exhibent aucune persistance. L'asymétrie n'est pas expliquée par le
+seul appétit pour le risque.
+
+Départager les deux demanderait le détail au trade — que la Phase 0 § 4 a établi
+**inaccessible** pour une adresse tierce.
+
+### Ce que le résultat ne dit pas
+
+1. **L'ampleur est faible.** rho ≈ +0,14 explique environ **2 % de la variance
+   de rang**. Statistiquement robuste, économiquement modeste.
+2. **La métrique porte le biais nommé au § P1.1** : les flux de capital polluent
+   le dénominateur, sans correction possible à cette granularité.
+3. **Persistance de rang ≠ rentabilité d'un fade.** Savoir qu'un perdant a des
+   chances de rester mal classé **parmi les perdants** ne dit rien du rendement
+   d'une position opposée, ni de son coût d'exécution, ni de sa capacité.
+4. **Les trimestres antérieurs à 2025 sont peu dotés** (3 à 192 comptes) ; le
+   signal est porté par les six dernières paires.
+
+### Ce qu'une phase de conception devrait résoudre
+
+Énoncé factuellement, sans recommandation — la conception est une mission
+distincte avec sa propre grille :
+
+- traduire une persistance de **rang** en une règle de position, à partir d'une
+  série **hebdomadaire** et sans détail au trade ;
+- établir que le côté perdant reste identifiable **en temps réel**, et pas
+  seulement dans un panel reconstruit a posteriori ;
+- chiffrer la capacité et le coût — 537 comptes appariés au dernier trimestre,
+  mais leurs positions ne sont pas observables (Phase 0 § 4) ;
+- départager persistance d'incompétence et persistance d'appétit pour le risque,
+  ou assumer de ne pas pouvoir le faire.
+
+### Verdict
+
+> **PHASE DE CONCEPTION**, sur la cellule **perdants** — les quatre strates,
+> t de +2,91 à +6,68, contre zéro cellule significative côté gagnants.
+>
+> **Copier les gagnants n'a aucune base dans ces données.** Fader les perdants
+> en a une, statistiquement robuste et économiquement modeste, dont la nature
+> exacte — incompétence ou appétit pour le risque — n'est pas départageable avec
+> les données publiques disponibles.
