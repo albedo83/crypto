@@ -146,6 +146,11 @@ def load_oi():
     return d
 
 
+# Âge maximal d'un relevé OI avant que la mesure soit déclarée indisponible.
+# 4 h = une bougie : au-delà, la série ne répond plus à la question posée.
+OI_MAX_STALE_H = 4.0
+
+
 def oi_delta_24h_bps(oi_data, coin, ts_ms):
     """OI delta over 24h in **bps** (6 bougies 4h). None si historique court.
 
@@ -160,6 +165,15 @@ def oi_delta_24h_bps(oi_data, coin, ts_ms):
     times = [p[0] for p in pts]
     i = bisect_right(times, ts_ms) - 1
     if i < 6:
+        return None
+    # ── PARITÉ avec alfred/features.oi_delta_24h_bps (2026-08-02) ──────
+    # Sans cette garde, au-delà de la fin des données `bisect_right - 1`
+    # retient le DERNIER point connu et renvoie un delta FIGÉ : un nombre
+    # parfaitement crédible au lieu d'une absence. Les fichiers OI étaient
+    # arrêtés depuis 48 jours et chaque backtest évaluait la gate OI LONG
+    # sur une valeur du 15 juin, sans que rien ne le signale.
+    # Le live, lui, rend None dès que l'échantillon s'éloigne de la cible.
+    if ts_ms - times[i] > OI_MAX_STALE_H * 3600 * 1000:
         return None
     oi_now = pts[i][1]
     oi_then = pts[i - 6][1]

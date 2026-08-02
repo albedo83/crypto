@@ -274,6 +274,18 @@ class Params:
 
     # ── Entry gates ──────────────────────────────────────────────────
     oi_long_gate_bps: float = 1000.0
+    # SÉMANTIQUE DE L'ABSENCE (2026-08-02) — que fait la gate OI LONG quand
+    # `oi_delta_24h_bps` rend None ?
+    #   "open"  (défaut actuel) : gate inapplicable, le LONG passe.
+    #   "block"                 : pas de LONG sans donnée OI — « pas de mesure,
+    #                             pas d'émission ».
+    #   "block_stale"           : bloque quand la SOURCE est morte, laisse
+    #                             passer quand l'historique est simplement en
+    #                             cours de constitution (démarrage à froid).
+    # ⚠ "block" bloque TOUS les LONG pendant ~23 h après chaque redémarrage du
+    # bot, l'historique OI vivant en mémoire. Conséquence non anticipée par
+    # l'énoncé : le choix reste ouvert, le défaut ne change rien en silence.
+    oi_missing_policy: str = "open"
     oi_gate_min_history_hours: float = 23.0
     disp_gate_bps: float = 99999.0            # v12.8.0: retired (700 to re-enable)
     disp_gate_strategies: frozenset[str] = frozenset({"S5", "S9"})

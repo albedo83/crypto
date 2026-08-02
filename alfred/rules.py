@@ -390,6 +390,7 @@ def entry_skip_reason(sig: dict, c: PortfolioCounters, m: MarketCtx, p: Params,
                       in_cooldown: bool = False,
                       paused: bool = False,
                       oi_delta_24h: float | None = None,
+                      oi_stale: bool | None = None,
                       check_size_floor: bool = True) -> str | None:
     """Why `sig` would be skipped, or None ("would enter").
 
@@ -397,8 +398,12 @@ def entry_skip_reason(sig: dict, c: PortfolioCounters, m: MarketCtx, p: Params,
     gates are conjunctive so the outcome is order-independent; the order
     only fixes WHICH reason is reported.
 
-    `oi_delta_24h`: pass features.oi_delta_24h_bps(...) (None = fail-open,
-    matching the <23h-history behavior).
+    `oi_delta_24h`: pass features.oi_delta_24h_bps(...). None = absence de
+    mesure ; ce qu'on en fait dépend de `Params.oi_missing_policy`.
+    `oi_stale`: True si l'absence vient d'une SOURCE PÉRIMÉE, False si elle
+    vient d'un historique en cours de constitution (démarrage à froid), None
+    si indéterminé. Sert à distinguer « jauge débranchée » de « jauge qui
+    chauffe » sous la politique "block_stale".
     `check_size_floor=False` reproduces the legacy backtest (which enters
     sub-$10 post-modulator sizes the live exchange would reject).
     """
@@ -429,9 +434,14 @@ def entry_skip_reason(sig: dict, c: PortfolioCounters, m: MarketCtx, p: Params,
     sym_sector = token_sector.get(sig["symbol"])
     if sym_sector and c.sector_counts.get(sym_sector, 0) >= p.max_per_sector:
         return "max_sector"
-    if (direction == 1 and oi_delta_24h is not None
-            and oi_delta_24h < -p.oi_long_gate_bps):
-        return "oi_gate"
+    if direction == 1:
+        if oi_delta_24h is None:
+            # Sémantique de l'absence — cf. Params.oi_missing_policy.
+            pol = getattr(p, "oi_missing_policy", "open")
+            if pol in ("block", "block_stale") and oi_stale is not False:
+                return "oi_gate_no_data"
+        elif oi_delta_24h < -p.oi_long_gate_bps:
+            return "oi_gate"
     if check_size_floor:
         if position_size(strategy, direction, capital, m.btc_z, p) < 10:
             return "modulator_floor"
