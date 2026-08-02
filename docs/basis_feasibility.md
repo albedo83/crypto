@@ -158,6 +158,11 @@ aucune conclusion opportuniste. Clauses de repli conservatrices par défaut.
 
 ---
 
+> **⚠ LIRE LE § 10 AVANT LE § 9.** Le verdict « phase de conception » du § 9.1 a
+> été **annulé** : la clause d'épisodes qui le produit a été jugée **mal formée**
+> par Seb le 2026-08-02, et la mesure de clôture du § 10 ferme la branche
+> définitivement.
+
 ## 9. Résultat
 
 **Run de verdict** : 2026-08-02T14:46Z · empreinte config `d7a415020619` · git
@@ -314,3 +319,130 @@ benchmark passif sur 12 mois.
 Le point 1 est le verdict. Les points 3 à 5 sont ce qu'une phase de conception
 devrait résoudre avant de valoir quoi que ce soit, et aucun d'eux n'est un
 problème de réglage.
+
+---
+
+## 10. CLÔTURE DE BRANCHE — le portage permanent
+
+> **Décision de Seb, 2026-08-02** : la clause d'épisodes du § 3 est jugée **mal
+> formée** — elle sélectionne les épisodes après coup (§ 9.2). **Aucune phase de
+> conception n'est ouverte sur cette base.** C'est le **5ᵉ écart de grille** de
+> la série, consigné au même titre que les quatre précédents. Lecture
+> conservatrice appliquée : une mesure sans degré de liberté ex-post tranche.
+
+**Run** : 2026-08-02T14:54Z · empreinte config `d7a415020619` · git `a34af8a+dirty`
+· `backtests/basis/permanent_carry.py`
+
+### 10.1 La mesure
+
+Aucun degré de liberté ex-post, contrairement à la clause d'épisodes :
+
+| | |
+|---|---|
+| positions | **une entrée, une sortie** sur toute la fenêtre d'intersection |
+| frais | **un seul aller-retour** de 19 bps, pas un par épisode |
+| direction | **fixée a priori** — short HL perp / long Binance perp, sur le fait structurel que le funding HL est persistamment positif (78,7 % d'échantillons positifs), pas sur le signe observé du résultat |
+
+Un token au différentiel cumulé négatif apparaît donc **en perte**. C'est le prix
+de ne pas choisir la direction après coup — et trois tokens le paient (CRV
+−3,58 %, GMX −1,95 %, SAND −1,17 %).
+
+### 10.2 Résultat brut
+
+| | |
+|---|---|
+| tokens à net > 0 | **29 / 32** |
+| médiane | **+3,915 %/an de notionnel** |
+| meilleur | NEAR +13,32 % · PENDLE +11,94 % · LDO +11,66 % |
+| pire | CRV −3,58 % · GMX −1,95 % · SAND −1,17 % |
+| fenêtres | 1,60 à 3,08 ans selon token |
+
+**Le différentiel est réel.** 29 tokens sur 32 positifs sur trois ans, avec une
+direction fixée d'avance : ce n'est pas du bruit.
+
+### 10.3 Rendement sur CAPITAL — deux hypothèses
+
+La structure immobilise de la marge sur **deux** venues. Les deux hypothèses sont
+rendues pour que le verdict ne dépende pas de celle qu'on retient.
+
+| hypothèse | capital | **médiane** | min | max | positifs |
+|---|---|---:|---:|---:|---:|
+| **favorable** — « notionnel/2 » | 0,5 × notionnel (levier 4× par jambe) | **+7,830 %/an** | −7,15 % | +26,63 % | 29/32 |
+| **conservatrice** — levier d'Alfred | 1,0 × notionnel (levier 2× par jambe) | **+3,915 %/an** | −3,58 % | +13,32 % | 29/32 |
+
+### 10.4 Application de la grille — les trois barres, aucune écartée
+
+| barre | valeur | favorable (+7,83 %) | conservatrice (+3,92 %) |
+|---|---:|---|---|
+| **HLP, 12 mois glissants** | **+16,51 %** | **ÉCHOUE** | **ÉCHOUE** |
+| **HLP, neuf derniers mois** (annualisé) | +0,17 % | passe | passe |
+| **2 × sans-risque** (T-bill 3 mois 3,78 %, [2026-07-31](https://tradingeconomics.com/united-states/3-month-bill-yield)) | **+7,56 %** | passe de justesse | **ÉCHOUE** |
+
+La clause est un **OU** : une seule barre franchie à la baisse ferme la branche.
+
+**La barre HLP 12 mois échoue sous les deux hypothèses de capital.** Le verdict
+ne dépend donc ni du choix d'hypothèse, ni du choix de régime HLP — et le régime
+le plus commode (+0,17 %) n'a pas été retenu pour trancher, conformément à
+l'énoncé.
+
+### 10.5 Ce que ça vaut à la taille réelle
+
+Le verdict parle de « taille/structure ». Le chiffrage :
+
+- médiane **+3,9 %/an de notionnel**, soit **+3,9 %/an de capital** sous
+  l'hypothèse conservatrice ;
+- sur un capital de l'ordre de **$518**, cela fait **≈ $20/an** ;
+- le même capital placé au sans-risque rapporte **≈ $19,6/an**.
+
+**L'édge entier vaut un bon du Trésor** — avant tout risque d'exécution, avant
+la divergence de basis entre les deux perpétuels (§ 9.3 : ±20 bps, du même ordre
+que l'aller-retour), avant les frais de transfert entre venues, et avant le
+risque de liquidation sur l'une des deux jambes.
+
+Et ce chiffre suppose **32 positions simultanées sur deux venues**, ce qui
+demanderait un notionnel de plusieurs milliers de dollars par côté. À la taille
+disponible, la structure n'est pas déployable telle qu'elle est mesurée.
+
+### 10.6 Pendant les creux d'Alfred
+
+| creux | médiane | net médian | tokens positifs |
+|---|---:|---:|---:|
+| A · 2024-08-03→2024-11-06 | +1,86 %/an | +48,1 bps | 21/31 |
+| B · 2024-09-22→2024-10-21 | +0,72 %/an | +5,7 bps | 17/31 |
+| C · 2024-08-03→2024-09-01 | **−0,93 %/an** | −7,4 bps | 15/31 |
+| D · 2025-07-21→2025-08-19 | **+5,20 %/an** | +40,8 bps | 28/32 |
+
+Aucun motif : négatif dans un creux, deux fois meilleur que la moyenne dans un
+autre. Le portage ne constitue pas une couverture des creux d'Alfred — ce qui
+était de toute façon hors verdict.
+
+---
+
+# VERDICT FINAL — **BRANCHE CLOSE**
+
+> **Différentiel réel, non exploitable à cette taille/structure.**
+
+| | |
+|---|---|
+| le différentiel existe | **oui** — 29 tokens sur 32 positifs sur ~3 ans, direction fixée a priori, médiane +3,9 %/an de notionnel |
+| il bat le benchmark passif | **non** — +7,83 % au mieux contre +16,51 % pour HLP sur 12 mois |
+| il bat deux fois le sans-risque | **non** sous l'hypothèse de capital conservatrice ; de justesse sous la favorable |
+| il est déployable à la taille disponible | **non** — ≈ $20/an sur $518, contre ≈ $19,6/an au sans-risque |
+
+**La branche est close définitivement.** Aucune phase de conception n'est
+ouverte, ni sur les épisodes ex-post (clause mal formée, § 9.2), ni sur le
+portage permanent (grille du § 10.4).
+
+## Ce que la branche laisse derrière elle
+
+- **Un fait établi et daté** : Hyperliquid paie structurellement plus cher ses
+  longs que Binance, sur 26 tokens sur 32, de façon persistante sur trois ans.
+  Ce fait ne disparaît pas avec la clôture ; il est simplement trop petit pour
+  être monétisé à cette taille avec cette structure.
+- **Un cache de données réutilisable** : `backtests/output/basis_cache.db`,
+  120 729 règlements Binance, 121 116 Bybit, 221 943 bougies spot 4 h, 32 tokens
+  sur ~3 ans.
+- **Un 5ᵉ écart de grille consigné** : une clause peut être franchie et
+  néanmoins mal formée. Les quatre précédents portaient sur le vocabulaire
+  (magnitude contre signe, invariance isolée contre combinée) ; celui-ci porte
+  sur la **structure de la mesure** — une sélection ex-post déguisée en critère.
