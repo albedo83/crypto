@@ -161,6 +161,127 @@ conclusion opportuniste. Clauses de repli conservatrices par défaut.
 
 ---
 
-## 9. Résultat
+## 9. Résultat — **BRANCHE CLOSE**
 
-> *À compléter après exécution. Vide à ce jour.*
+**Run** : 2026-08-02T15:32Z · empreinte git `fce59d0+dirty` ·
+`backtests/wallets/fade_step1.py` · 997 comptes, 11 trimestres avec décile
+constitué, **183 comptes-décile** au total.
+
+### 9.0 ⚠ Mesure 1 NON ÉVALUABLE — et pourquoi
+
+La mesure 1 telle que spécifiée divise le P&L de T+1 par la **valeur de compte
+au début de T+1**. Or ce dénominateur vaut quelques centimes pour un compte
+ruiné. Le calcul littéral produit :
+
+```
+2024Q3→2024Q4  moyenne +264 186 115 469,59 %  IC [−91 754 391 990 , +620 126 622 929]
+2025Q4→2026Q1  moyenne    +289 848 419,98 %
+```
+
+**Ce ne sont pas des rendements, ce sont des divisions par zéro déguisées.**
+La clause C1 se déclenchait sur ces chiffres (8 paires sur 9 avec un IC
+contenant 0) — et le verdict qu'elle produisait allait dans le sens de la
+clôture. **Je ne le retiens pas** : une clause conservatrice rendue sur une
+statistique explosée reste une clause rendue sur une statistique explosée.
+
+**Mesure 1 : NON ÉVALUABLE.** C1 n'est pas rendue.
+
+### 9.1 Le cas non prévu — la population est majoritairement infadable
+
+L'explosion n'est pas un défaut de code, c'est une propriété de la population,
+et elle est mesurable proprement :
+
+| sur les 183 comptes-décile | n | part |
+|---|---:|---:|
+| sans aucune donnée en T+1 | 5 | 3 % |
+| **valeur de compte < $10 au début de T+1** | **91** | **50 %** |
+| **P&L exactement nul en T+1** (arrêt d'activité) | **34** | **19 %** |
+| **solvables (≥ $500) ET actifs en T+1** | **32** | **17 %** |
+
+> **On ne fade pas quelqu'un qui est ruiné, et on ne fade pas quelqu'un qui a
+> arrêté de trader.** Quatre comptes sur cinq du décile inférieur sont, en T+1,
+> hors d'état d'être fadés — non pas parce qu'ils gagnent, mais parce qu'ils ne
+> sont plus là.
+
+Ce fait n'était prévu par aucune clause. Il est **nommé** et il ne fonde à lui
+seul aucun verdict — mais il explique pourquoi la mesure 1 ne pouvait pas
+fonctionner, et il devra figurer dans toute reprise du sujet.
+
+### 9.2 Mesure 2 — la clause C2 se déclenche
+
+Décomposition sur **95 régressions** retenues (≥ 10 intervalles chacune) :
+
+| strate | n | **friction** | direction | α médian (/intervalle) | β_btc médian |
+|---|---:|---:|---:|---:|---:|
+| petit | 44 | **75,4 %** | 24,6 % | −0,287 % | +0,022 |
+| moyen | 28 | **71,7 %** | 28,3 % | −2,945 % | −0,567 |
+| gros | 23 | **66,4 %** | 33,6 % | +0,004 % | +0,034 |
+| **agrégat** | **95** | **73,6 %** | **26,4 %** | −0,040 % | +0,011 |
+
+**Friction médiane 73,6 % > 60 % ⇒ C2 SE DÉCLENCHE**, et sur **les trois
+strates** prises séparément (75,4 / 71,7 / 66,4). Aucun désaccord entre strates
+à signaler.
+
+Par compte, **68 % des régressions** ont une part de friction supérieure à 60 %.
+
+#### Contrôle de robustesse — le ratio n'est pas un artefact du dénominateur
+
+La part de friction est un **rapport** `|α| / (|α| + |directionnelle|)` : un
+dénominateur trop petit gonfle α et la part directionnelle **dans la même
+proportion**, et le rapport en est largement protégé. Vérifié :
+
+| population | n | friction médiane | p25 | p75 | part > 60 % |
+|---|---:|---:|---:|---:|---:|
+| toutes les régressions | 95 | **73,6 %** | 49,8 % | 87,9 % | 68 % |
+| **restreinte aux comptes solvables** (AV ≥ $500 au début de T+1) | 17 | **73,0 %** | 50,7 % | 83,1 % | 65 % |
+
+Le chiffre ne bouge pas de 0,6 point. Ce contrôle est **rapporté comme
+sensibilité**, pas comme redéfinition de la population de verdict (§ 6.2).
+
+> **Rappel de la réserve inscrite au § 3** : l'indice alt est un proxy sur
+> 34 tokens quand les wallets tradent tout Hyperliquid. Un facteur incomplet
+> laisse de l'exposition dans le résidu et **surestime donc la friction**. La
+> valeur de 73,6 % est à lire comme un **plafond**. Elle reste au-dessus du
+> seuil de 60 % même en accordant une marge substantielle à cette réserve —
+> mais le plafond est nommé, pas dissimulé.
+
+### 9.3 Mesure 3 — NON ÉMISE
+
+**0 compte apparié** sur les 30 requis. Aucun compte du décile n'apparaît dans
+deux trimestres consécutifs avec ≥ 10 intervalles exploitables de chaque côté —
+conséquence directe du § 9.1 : ils disparaissent avant d'avoir un second
+trimestre.
+
+C'est en soi un fait : **la population du décile ne se reconduit pas**.
+
+### 9.4 Verdict
+
+| clause | état | résultat |
+|---|---|---|
+| **C1** — P&L forward non négatif | **NON ÉVALUABLE** (§ 9.0) | non rendue |
+| **C2** — friction > 60 % de la perte | **ÉVALUABLE et ROBUSTE** | **SE DÉCLENCHE** (73,6 %) |
+| **C3** — direction substantielle et stable | direction à 26,4 % < 40 % ; stabilité NON ÉMISE | ne peut pas se déclencher |
+
+> # **BRANCHE CLOSE**
+>
+> **Motif C2 — « ils meurent de leurs frais, pas de leur direction ».**
+
+Le verdict repose sur la **mesure 2 seule**, la seule des trois qui soit
+évaluable et robuste. Les deux autres pointent dans le même sens sans porter la
+décision : la mesure 1 est cassée par la population, la mesure 3 est vide faute
+de comptes reconductibles.
+
+### 9.5 Ce que l'étape 1 établit
+
+1. **La persistance de rang des perdants ne se convertit pas en cible fadable.**
+   Trois quarts de leur perte est une dérive de friction — frais, funding,
+   slippage — que la position inverse **paie aussi**.
+2. **Quatre comptes sur cinq du décile inférieur sont hors d'état d'être fadés
+   en T+1** : ruinés (50 % sous $10) ou inactifs (19 %).
+3. **Le décile ne se reconduit pas** d'un trimestre au suivant — aucun compte
+   apparié sur deux trimestres consécutifs.
+4. La part directionnelle existe (**26,4 %**) mais reste **sous le seuil de
+   40 %** fixé avant les chiffres, et sa stabilité n'a pas pu être mesurée.
+
+Aucune étape 2 n'est ouverte. Aucun collecteur de positions live n'est
+spécifié.
