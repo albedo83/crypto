@@ -51,6 +51,7 @@ class Source:
     frozen_reason: str = ""
     suffix: str = ".json"            # pour kind=filedir
     only_traded: bool = False        # filedir : ne garder que Params.trade_symbols
+    exclude: tuple = ()              # tokens dont le gel est LÉGITIME et déclaré
 
 
 SOURCES: list[Source] = [
@@ -82,10 +83,14 @@ SOURCES: list[Source] = [
                 "dossier sont héritées et hors périmètre"),
     Source("OI 4h backtest — LU PAR load_oi() ET LA GATE OI LONG",
            "backtests/output/pairs_data", 24.0, kind="filedir",
-           suffix="_oi_4h.json", only_traded=True,
-           note=("alimente oi_delta_24h_bps, qui ne renvoie PAS None après la "
-                 "fin des données : il rend la dernière valeur connue, FIGÉE. "
-                 "Un gel ici ne se voit pas — il se déguise en mesure.")),
+           suffix="_oi_4h.json", only_traded=True, exclude=("TON",),
+           note=("alimente oi_delta_24h_bps. Garde d'âge ajoutée le 2026-08-02 "
+                 "(OI_MAX_STALE_H) : au-delà, l'absence est désormais VISIBLE "
+                 "au lieu d'être rebouchée par la dernière valeur connue. "
+                 "TON est exclu du contrôle : son arrêt est un retrait de cote, "
+                 "pas un trou — un gel légitime ne doit pas mettre toute la "
+                 "source en alarme permanente, même doctrine que le statut "
+                 "FROZEN mais au niveau du token.")),
     Source("funding_history.db (deep history)",
            "backtests/output/funding_history.db", 24.0,
            query="SELECT MAX(ts) FROM funding", unit="ms"),
@@ -117,7 +122,8 @@ def _last_ts(s: Source) -> float | None:
         if s.only_traded:
             try:
                 from alfred.settings import DEFAULT_PARAMS as _P
-                want = {f"{sym}{s.suffix}" for sym in _P.trade_symbols}
+                want = {f"{sym}{s.suffix}" for sym in _P.trade_symbols
+                        if sym not in s.exclude}
                 names = [f for f in names if f in want]
             except Exception:
                 pass

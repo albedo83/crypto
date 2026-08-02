@@ -256,6 +256,48 @@ Comblage appliqué, point de soudure et source marqués **dans** les données
 `data_freshness.py` au statut le plus strict — il y est déjà (3 h, chemin
 chaud).
 
-## A5. Résultat de l'amendement
+## A5. Résultat de l'amendement — **SUCCÈS, 33/33**
 
-> *À compléter après le run. Vide à ce jour.*
+**Run** : 2026-08-02 · `backtests/oi_backfill.py` · tir unique.
+
+| | protocole initial | **amendé** |
+|---|---:|---:|
+| points comparables par token | 30 | **117** |
+| tokens réussissant les trois critères | 16/33 — 48,5 % | **33/33 — 100,0 %** |
+| écart médian, plage sur l'univers | 0,10 % à 2,94 % | **0,003 % à 0,104 %** |
+| p95, plage sur l'univers | 0,49 % à 15,42 % | **0,06 % à 1,37 %** |
+
+**L'appariement était bien l'artefact.** Passer d'un rayon de 2 h à ±5 min
+divise l'écart médian par un facteur **~30**. Les deux sources ne divergeaient
+pas : on comparait des relevés distants de deux heures sur une grandeur qui
+bouge de 0,1 à 0,3 % par heure.
+
+Les seuils n'ont pas bougé d'un centième — c'est la base de comparaison qui
+était fausse, et elle l'était par une erreur de rédaction documentée au § 5.
+
+### Comblage appliqué
+
+| | |
+|---|---|
+| fichiers comblés | **33** |
+| points ajoutés par fichier | **290** |
+| point de soudure | **2026-06-15 08:00** |
+| couverture après comblage | jusqu'au **2026-08-02 16:00** |
+| marquage dans les données | `"src": "live"` sur chaque point ajouté |
+| sauvegardes | `*_oi_4h.json.pre_backfill` (33) |
+| **TON** | **intact** — 273 points, 0 ajouté, s'arrête toujours au 2026-06-15 |
+
+Aucun point historique n'a été réécrit : le comblage est purement additif.
+
+### Un dernier défaut du garde, corrigé
+
+Après comblage, `data_freshness` restait au rouge : le contrôle retient le
+fichier **le plus vieux** des tokens tradés — et TON, gelé **à raison**, tirait
+toute la source en alarme permanente.
+
+C'est le même défaut que celui que le statut `FROZEN` corrige au niveau de la
+source, mais au niveau du **token**. TON est désormais exclu du contrôle avec
+son motif inscrit dans le code. Une alarme qui hurle pour une raison légitime
+finit par ne plus être lue — c'est ainsi qu'on arrive au 8ᵉ incident.
+
+**Contrôle de fraîcheur : 0 anomalie.**

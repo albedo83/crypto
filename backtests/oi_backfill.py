@@ -35,7 +35,13 @@ PAIRS = os.path.join(ROOT, "backtests", "output", "pairs_data")
 MARKET_DB = os.path.join(ROOT, "alfred", "data", "market.db")
 
 # ── LE PROTOCOLE (docs/oi_backfill_protocol.md § 2) ─────────────────────
-SNAP_RADIUS_H = 2.0        # § 1 — rayon de ré-échantillonnage sur la grille 4h
+# ── AMENDEMENT du 2026-08-02 (tir unique, § A1) ────────────────────────
+# La validation se fait contre oi_history.db — MÊME amont S3 que les fichiers
+# à combler, mais qui va jusqu'au 2026-06-29 : 19 jours de recouvrement et
+# ~114 points par token, au lieu des 5 jours / 30 points du protocole initial.
+# Appariement à ±5 min : les relevés live tombent à :03, la grille 4h à :00.
+OI_HISTORY_DB = os.path.join(ROOT, "backtests", "output", "oi_history.db")
+MATCH_TOL_MS = 5 * 60 * 1000
 MIN_POINTS = 20            # § 2 — points comparables minimaux
 MAX_MEDIAN_DEV = 0.010     # § 2 — écart relatif médian < 1,0 %
 MAX_P95_DEV = 0.050        # § 2 — p95 < 5,0 %
@@ -56,23 +62,44 @@ def live_oi(sym: str) -> list[tuple[int, float]]:
     return [(int(t) * 1000, float(o)) for t, o in rows]
 
 
+def s3_hourly(sym: str) -> list[tuple[int, float]]:
+    """Série OI de l'archive S3 (oi_history.db) — base de validation amendée."""
+    con = sqlite3.connect(f"file:{OI_HISTORY_DB}?mode=ro", uri=True)
+    rows = con.execute("SELECT ts, oi FROM asset_ctx WHERE symbol=? AND oi>0 "
+                       "ORDER BY ts", (sym,)).fetchall()
+    con.close()
+    return [(int(t) * 1000, float(o)) for t, o in rows]
+
+
+def at_grid(pts: list[tuple[int, float]], g: int) -> float | None:
+    """Valeur au point de grille g, à ±MATCH_TOL_MS près. Sinon None."""
+    if not pts:
+        return None
+    ts = [p[0] for p in pts]
+    i = bisect.bisect_left(ts, g)
+    best, bd = None, None
+    for j in (i - 1, i):
+        if 0 <= j < len(ts):
+            d = abs(ts[j] - g)
+            if bd is None or d < bd:
+                bd, best = d, pts[j][1]
+    return best if (best is not None and bd <= MATCH_TOL_MS) else None
+
+
 def resample_4h(pts: list[tuple[int, float]], t0: int, t1: int) -> list[tuple[int, float]]:
-    """Grille 4 h : relevé le plus proche dans un rayon de 2 h, sinon rien."""
+    """Grille 4 h, même tolérance d'appariement que la validation (±5 min).
+
+    Une seule tolérance pour valider ET pour produire : en inventer une seconde
+    reviendrait à valider une chose et à en écrire une autre.
+    """
     if not pts:
         return []
-    ts = [p[0] for p in pts]
     out = []
     g = (t0 // STEP_MS) * STEP_MS
     while g <= t1:
-        i = bisect.bisect_left(ts, g)
-        best, bd = None, None
-        for j in (i - 1, i):
-            if 0 <= j < len(ts):
-                d = abs(ts[j] - g)
-                if bd is None or d < bd:
-                    bd, best = d, pts[j][1]
-        if best is not None and bd <= SNAP_RADIUS_H * 3600 * 1000:
-            out.append((g, best))
+        v = at_grid(pts, g)
+        if v is not None:
+            out.append((g, v))
         g += STEP_MS
     return out
 
@@ -119,9 +146,18 @@ def main() -> int:
         grid = resample_4h(lv, min(p[0] for p in lv), max(p[0] for p in lv))
         gmap = dict(grid)
 
-        # recouvrement : points présents des DEUX côtés
-        devs = [abs(gmap[t] - old_map[t]) / old_map[t]
-                for t in sorted(set(gmap) & set(old_map)) if old_map[t] > 0]
+        # ── validation AMENDÉE : live contre oi_history.db (§ A1) ──────
+        s3 = s3_hourly(s)
+        devs = []
+        if s3:
+            lo = max(min(p[0] for p in lv), min(p[0] for p in s3))
+            hi = min(max(p[0] for p in lv), max(p[0] for p in s3))
+            g = ((lo + STEP_MS - 1) // STEP_MS) * STEP_MS
+            while g <= hi:
+                a, b = at_grid(s3, g), at_grid(lv, g)
+                if a is not None and b is not None and a > 0:
+                    devs.append(abs(b - a) / a)
+                g += STEP_MS
         add = [(t, v) for t, v in grid if t > last_old]
         if len(devs) < MIN_POINTS:
             results[s] = {**rec, "pass": False, "n_overlap": len(devs),
