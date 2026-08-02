@@ -160,4 +160,157 @@ aucune conclusion opportuniste. Clauses de repli conservatrices par défaut.
 
 ## 9. Résultat
 
-> *À compléter après exécution. Vide à ce jour.*
+**Run de verdict** : 2026-08-02T14:46Z · empreinte config `d7a415020619` · git
+`c37140f+dirty` · données HL jusqu'au 2026-08-02T12:00 · cache venue B :
+120 729 règlements Binance, 121 116 Bybit, 221 943 bougies spot 4 h, 32 symboles.
+
+### 9.0 Un run NUL, déclaré (§ 7)
+
+Le **premier** passage a sorti 25 tokens sur 32 en « NON ÉMISE, couverture < 95 % »,
+avec des valeurs suspectement identiques d'un token à l'autre (94,7 % côté
+Binance, 95,9 % côté Bybit) et SAND à 49,2 %.
+
+Diagnostic : la couverture était calculée sur **tout** l'historique de la venue
+B, y compris la portion antérieure au démarrage du funding Hyperliquid. Elle ne
+mesurait donc pas la qualité de la donnée mais le **recouvrement des deux
+séries** — SAND à 49,2 % parce que son funding HL ne commence qu'au 2024-12-04.
+
+Correction : la fenêtre d'étude est l'**intersection** des deux historiques, et
+la couverture qualifie la donnée **dans** cette fenêtre. Le run NUL est archivé
+(`analysis/output/basis_phase1_NUL.log`). Après correction : couverture minimale
+**95,6 %**, médiane **97,2 %**, **32/32 tokens émettent**.
+
+Fenêtres communes : la plus longue démarre au 2023-06-08, la plus courte au
+2024-12-05 (SAND).
+
+### 9.1 Verdict de la clause — **PHASE DE CONCEPTION**
+
+> Net > 0 sur ≥ 3 tokens avec persistance ≥ 24 h.
+
+**32 tokens sur 32** présentent au moins un épisode de durée ≥ 24 h et de net
+positif, sur Binance comme sur Bybit. La clause est franchie très au-delà de son
+seuil, et pas par des accidents isolés : chaque token compte **12 à 60 épisodes
+qualifiants** (médiane 13,2 % des épisodes ≥ 24 h).
+
+Net agrégé des épisodes qualifiants, par token : médiane **+2 114 bps**, de
++257 (SAND) à +3 849 (SEI).
+
+**Le verdict de la grille est donc : PHASE DE CONCEPTION.**
+
+### 9.2 ⚠ CAS NON PRÉVU — ce que la clause mesure réellement
+
+> Nommé conformément à l'invariant du § 8. Ne modifie pas le verdict ; doit être
+> lu avant toute décision d'ouvrir la phase de conception.
+
+La clause sélectionne les épisodes **dont le net est positif**. Or ces épisodes
+ne sont identifiables qu'**après coup** : leurs bornes sont définies par le
+retournement du signe, qu'on ne connaît qu'une fois survenu. La clause mesure
+donc une **sélection ex-post**, pas une économie exécutable.
+
+Le contre-calcul, sur les mêmes données et la même structure — jouer **tous** les
+épisodes de durée ≥ 24 h, sans savoir lesquels qualifieront :
+
+| | médiane par token | total 32 tokens | annualisé (~3,25 ans) |
+|---|---:|---:|---:|
+| épisodes qualifiants seuls (ex-post) | **+2 114 bps** | **+66 200 bps** | **+6,51 %/an** de notionnel |
+| **tous les épisodes ≥ 24 h** | **−1 748 bps** | **−60 551 bps** | **−5,38 %/an** de notionnel |
+
+**Tokens net-positifs si tous les épisodes ≥ 24 h sont joués : 2 sur 32**
+(AAVE +47 bps, SEI +360 bps). Les trente autres perdent.
+
+La sélection ex-post vaut **+126 751 bps** — c'est-à-dire la totalité du
+résultat, et davantage. Seuls 4,5 % à 19,1 % des épisodes ≥ 24 h couvrent
+l'aller-retour de 19 bps ; les autres le paient sans le rembourser.
+
+### 9.3 Une seconde lecture qui vient de la mesure (a)
+
+Le basis mesuré en (a) donne l'ordre de grandeur du bruit de prix entre venues :
+p5/p95 typiquement **−20 / +20 bps**, |basis| p99 jusqu'à **57 bps** (DYDX),
+médiane par token entre −9,4 et +1,0 bps.
+
+Ce bruit est du **même ordre** que l'aller-retour (19 bps) et que le net médian
+d'un épisode qualifiant (~+20 bps). La structure est quasi neutre en prix par
+construction — deux perpétuels du même token, sens opposés — mais son résidu de
+basis n'est pas petit devant l'édge théorique qu'elle vise.
+
+### 9.4 (a) ARBITRAGE — descriptif
+
+Basis perp HL / spot Binance, grille 4 h, seuil 2×AR = 58 bps.
+
+| | valeur |
+|---|---|
+| médiane par token | entre **−9,44** (DOT) et **+0,97** (AAVE) bps |
+| |basis| p90 | 8,4 à 30,7 bps |
+| |basis| p99 | 13,0 à 57,8 bps |
+| **fraction du temps au-dessus de 58 bps** | **0,000 % à 0,909 %** |
+
+Sept tokens ne dépassent jamais le seuil (ADA, BCH, DOT, UNI à 0,000 %). Le
+maximum est IMX à 0,909 % du temps, soit environ 3 heures par quinzaine.
+
+Rappel du § 2 : cette mesure lit un **niveau**, pas une convergence. Elle
+**surestime** ce qui serait capturable.
+
+### 9.5 (b) CARRY — détail
+
+| | |
+|---|---|
+| épisodes par token | 584 à 1 857 |
+| dont ≥ 24 h | 186 à 377 |
+| dont qualifiants | 12 à 60 |
+| durée médiane d'un épisode | 8 à 16 h selon token |
+| différentiel moyen | **−1,15 à +5,18 bps/jour** selon token |
+
+Le différentiel moyen est **positif sur 26 tokens sur 32** côté Binance : HL paie
+structurellement plus cher ses longs que Binance. C'est cohérent avec le
+funding HL mesuré la veille (+1,455 bps/jour de moyenne, 78,7 % d'échantillons
+positifs, `docs/mm_phase0_economics.md` § 3).
+
+Bybit donne le même verdict (32 tokens) avec des valeurs très proches. La clause
+du § 3 sur la sélection de venue *a posteriori* n'a donc pas eu à jouer.
+
+### 9.6 Croisement avec les creux d'Alfred — HORS VERDICT
+
+| creux | différentiel moyen DANS | HORS | épisodes qualifiants démarrant dedans |
+|---|---:|---:|---:|
+| A · 2024-08-03→2024-11-06 | +0,61 bps/j | +1,36 | 63 |
+| B · 2024-09-22→2024-10-21 | +0,96 bps/j | +1,31 | 22 |
+| C · 2024-08-03→2024-09-01 | +0,52 bps/j | +1,32 | 13 |
+| D · 2025-07-21→2025-08-19 | **+2,12 bps/j** | +1,27 | 14 |
+
+**Ni inversion, ni explosion systématique.** Le différentiel est *réduit* de
+moitié dans trois creux sur quatre et *doublé* dans le quatrième. Aucun motif
+exploitable, et ce croisement ne participe de toute façon pas au verdict.
+
+### 9.7 Comparaison au benchmark passif HLP
+
+| | rendement |
+|---|---:|
+| HLP, 12 mois glissants | **+16,5 %** |
+| HLP, neuf derniers mois | **+0,13 %** |
+| carry inter-venues, sélection ex-post parfaite | +6,51 %/an de notionnel |
+| carry inter-venues, tous épisodes ≥ 24 h joués | **−5,38 %/an** de notionnel |
+
+Comparaison donnée en pourcentage de **notionnel**, pas de capital : la
+structure immobilise du capital sur **deux** venues (Phase 0 § 3), ce qui dégrade
+encore le rendement sur capital. Le chiffre le plus favorable reste inférieur au
+benchmark passif sur 12 mois.
+
+### 9.8 Ce que le run établit
+
+1. **La clause de la grille est franchie, 32 tokens sur 32.** Verdict :
+   phase de conception.
+2. **Le différentiel de funding HL vs venue B est réel et de signe stable** —
+   positif sur 26 tokens sur 32, cohérent avec le funding HL mesuré
+   indépendamment la veille.
+3. **La clause mesure une sélection ex-post.** Jouer tous les épisodes ≥ 24 h
+   perd sur **30 tokens sur 32**, pour −5,38 %/an de notionnel.
+4. **Le bruit de basis entre venues est du même ordre que l'édge visé**
+   (±20 bps contre 19 bps d'aller-retour).
+5. **L'arbitrage de basis est quasi inexistant** au seuil de 58 bps : 0 à 0,9 %
+   du temps, jamais pour sept tokens.
+6. **Les creux d'Alfred ne produisent ni inversion ni explosion** du
+   différentiel.
+
+Le point 1 est le verdict. Les points 3 à 5 sont ce qu'une phase de conception
+devrait résoudre avant de valoir quoi que ce soit, et aucun d'eux n'est un
+problème de réglage.
