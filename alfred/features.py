@@ -120,6 +120,41 @@ def oi_delta_24h_bps(oi_history) -> float | None:
     return (oi_now / oi_then - 1) * 1e4
 
 
+def oi_absence_reason(oi_history, now_ts: float | None = None) -> str:
+    """Pourquoi `oi_delta_24h_bps` rend None : "ok" | "cold" | "stale".
+
+    Distinction introduite le 2026-08-02 pour la politique `block_stale` :
+    une jauge DÉBRANCHÉE (source morte, trou d'échantillonnage) n'est pas une
+    jauge QUI CHAUFFE (historique en cours de constitution après un
+    redémarrage). Bloquer les deux reviendrait à geler tous les LONG pendant
+    ~23 h après chaque restart.
+    """
+    if not oi_history:
+        return "cold"
+    h = list(oi_history)
+    if len(h) < 2:
+        return "cold"
+    last_ts, oi_now = h[-1]
+    # ⚠ Trouvé par le test de parité (2026-08-02) : sans horloge externe, le
+    # live prend son DERNIER échantillon pour « maintenant » — il ne peut donc
+    # pas détecter que son propre flux est mort. Si le poll REST s'arrête, la
+    # série gèle et le bot calcule un delta 24 h vieux de plusieurs heures en
+    # le croyant courant. C'est le pendant exact du bug corrigé côté backtest.
+    if now_ts is not None and now_ts - last_ts > 4 * 3600:
+        return "stale"
+    if oi_now <= 0:
+        return "stale"
+    if last_ts - h[0][0] < 23 * 3600:
+        return "cold"
+    target = last_ts - 24 * 3600
+    for t, oi in h:
+        if t >= target:
+            if t - target > 4 * 3600:
+                return "stale"      # trou d'échantillonnage
+            return "ok" if oi > 0 else "stale"
+    return "stale"
+
+
 def compute_oi_features(oi_history: list, funding: float = 0.0) -> dict:
     """OI delta as % change over 1h/4h from live 60s samples. Observation only."""
     if len(oi_history) < 30:

@@ -1489,7 +1489,10 @@ class BotInstance:
                 in_position=sym in self.positions,
                 in_cooldown=sym in self._cooldowns and time.time() < self._cooldowns[sym],
                 paused=(sig["strategy"], side) in self._paused_strats,
-                oi_delta_24h=oi_d, check_size_floor=True)
+                oi_delta_24h=oi_d,
+            oi_stale=(features.oi_absence_reason(st.oi_history, time.time())
+                      == "stale" if st else None),
+            check_size_floor=True)
             if reason == "max_positions":
                 self.db.log_event("SKIP", sym, {"strategy": sig["strategy"],
                                                 "dir": side, "reason": reason})

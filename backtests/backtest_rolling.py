@@ -182,6 +182,29 @@ def oi_delta_24h_bps(oi_data, coin, ts_ms):
     return (oi_now / oi_then - 1) * 1e4
 
 
+def oi_absence_reason(oi_data, coin, ts_ms) -> str:
+    """Miroir exact de alfred.features.oi_absence_reason, côté backtest.
+
+    "cold"  : début de série, l'historique 24 h n'existe pas encore.
+    "stale" : la série ne couvre pas ce moment — source morte ou trou.
+    """
+    pts = oi_data.get(coin) if oi_data else None
+    if not pts:
+        return "stale"
+    times = [p[0] for p in pts]
+    i = bisect_right(times, ts_ms) - 1
+    if i < 0:
+        return "cold"
+    # Le « froid » se mesure en TEMPS écoulé, pas en nombre de points : le test
+    # de parité a montré qu'un compte de points (i < 6) suppose un pas de 4 h
+    # et diverge du live dès que le pas change. Aligné sur les 23 h du live.
+    if times[i] - times[0] < 23 * 3600 * 1000 or i < 6:
+        return "cold"
+    if ts_ms - times[i] > OI_MAX_STALE_H * 3600 * 1000:
+        return "stale"
+    return "ok" if pts[i - 6][1] > 0 else "stale"
+
+
 # Alias historique (renvoie des bps malgré son nom) — R&D existante.
 oi_delta_24h_pct = oi_delta_24h_bps
 
@@ -1546,6 +1569,8 @@ def run_window(features, data, sector_features, dxy_data,
                 _mctx, _P, capital, TOKEN_SECTOR,
                 oi_delta_24h=(oi_delta_24h_bps(oi_data, coin, ts)
                               if oi_data is not None else None),
+                oi_stale=(oi_absence_reason(oi_data, coin, ts) == "stale"
+                          if oi_data is not None else None),
                 check_size_floor=aligned)
             if _reason == "max_positions":
                 if skip_log is not None:

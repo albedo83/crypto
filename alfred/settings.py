@@ -285,7 +285,7 @@ class Params:
     # ⚠ "block" bloque TOUS les LONG pendant ~23 h après chaque redémarrage du
     # bot, l'historique OI vivant en mémoire. Conséquence non anticipée par
     # l'énoncé : le choix reste ouvert, le défaut ne change rien en silence.
-    oi_missing_policy: str = "open"
+    oi_missing_policy: str = "block_stale"
     oi_gate_min_history_hours: float = 23.0
     disp_gate_bps: float = 99999.0            # v12.8.0: retired (700 to re-enable)
     disp_gate_strategies: frozenset[str] = frozenset({"S5", "S9"})

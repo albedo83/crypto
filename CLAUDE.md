@@ -217,6 +217,32 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - Dashboard auth: HTML login form via `DASHBOARD_USER`/`DASHBOARD_PASS` in `.env`. HMAC-signed stateless session cookies (30-day expiry) survive restarts. 10 attempts/5min/IP rate limit.
 - Admin panel on `:8090` (behind `/crypto/` on nginx). Aggregates all bots via `admin_config.json` and proxies with cached auth cookies.
 
+### Sémantique de l'absence de donnée OI — `block_stale` (2026-08-02)
+
+**Décision d'INTÉGRITÉ, pas d'edge.** L'effet chiffré est non systématique :
++550 sur OOS-6, −246 sur OOS-12, deux fenêtres gagnent, deux perdent. Elle est
+prise parce qu'on ne trade pas sur une jauge débranchée, pas parce qu'elle
+rapporte.
+
+`Params.oi_missing_policy = "block_stale"` — appliqué dans le noyau partagé
+`alfred/rules.py`, donc bot **et** backtest :
+
+| situation | `oi_delta_24h_bps` | gate OI LONG |
+|---|---|---|
+| donnée fraîche | valeur | règle normale (< −1000 bps ⇒ skip) |
+| **source périmée** (flux mort, trou > 4 h) | `None`, raison `stale` | **BLOQUE** — `oi_gate_no_data` |
+| **démarrage à froid** (< 23 h d'historique) | `None`, raison `cold` | **laisse passer** — état connu, borné, déclaré |
+
+La distinction vient de `features.oi_absence_reason` / `backtest_rolling.oi_absence_reason`,
+et **la parité est vérifiée par test** : `python3 -m backtests.test_oi_parity`
+(6 cas, doit sortir « parité VÉRIFIÉE »). Sans ce test, trois divergences
+seraient passées — dont une réelle : le live prenait son dernier échantillon
+pour « maintenant » et **ne pouvait donc pas détecter que son propre flux
+était mort**. Il reçoit désormais l'horloge réelle.
+
+⚠ **Application AU PROCHAIN RESTART PLANIFIÉ**, pas de hotfix. Le process en
+cours continue en `open` jusqu'à ce qu'il relise `settings.py`.
+
 ### Fraîcheur des données (2026-08-02, 7e incident silencieux)
 
 `data_freshness.py` donne à chaque source un **âge maximal** ; dépassement ⇒
