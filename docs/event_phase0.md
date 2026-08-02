@@ -42,9 +42,14 @@ Plafond mesuré : **5 000 bougies par requête** (une demande de 7 200 en rend
 | couverture | **2023-05-20 → 2026-06-29** |
 | pas | 1,00 h |
 
-> **À signaler** : la collecte d'OI **s'arrête au 2026-06-29**, soit 34 jours
-> avant ce run. Ce n'est pas une limite d'API — c'est une collecte qui ne tourne
-> plus. Elle tronque la fenêtre exploitable par la droite.
+> **Correction du 2026-08-02** : la première rédaction disait « une collecte qui
+> ne tourne plus ». C'est **faux**. `fetch_oi_history.py` est un backfill
+> **manuel** depuis S3, sans entrée cron — et l'archive amont
+> `s3://hyperliquid-archive/asset_ctxs/` **ne publie plus après le 2026-06-29**
+> (1137 dates, la dernière est `20260629`, préfixe inchangé). Notre copie est
+> **complète jusqu'à la dernière date publiée** : rien n'a été raté de notre
+> côté, et il n'y a rien à redémarrer. La fenêtre reste tronquée par la droite,
+> mais la cause est amont. Voir `data_freshness.py`.
 
 ## 3. ⚠ La définition n'est calculable que sur 176 jours
 

@@ -217,6 +217,33 @@ Things that will bite you when modifying the code. For signal-specific details, 
 - Dashboard auth: HTML login form via `DASHBOARD_USER`/`DASHBOARD_PASS` in `.env`. HMAC-signed stateless session cookies (30-day expiry) survive restarts. 10 attempts/5min/IP rate limit.
 - Admin panel on `:8090` (behind `/crypto/` on nginx). Aggregates all bots via `admin_config.json` and proxies with cached auth cookies.
 
+### Fraîcheur des données (2026-08-02, 7e incident silencieux)
+
+`data_freshness.py` donne à chaque source un **âge maximal** ; dépassement ⇒
+anomalie critique dans la revue quotidienne de `ai_system_audit.py`. Trois
+statuts : `STALE` (retard), `INVALID` (horodatage aberrant — unité mal
+déclarée), `FROZEN` (arrêt **déclaré avec son motif**, silencieux par
+construction pour ne pas noyer les vraies alertes).
+
+Deux gels trouvés le 2026-08-02, tous deux **sans impact sur le bot live** —
+Alfred lit son OI d'un poll REST `metaAndAssetCtxs` en mémoire et n'ouvre
+aucun de ces fichiers :
+
+- `backtests/output/oi_history.db` — figé au 2026-06-29 parce que **l'archive
+  amont S3 ne publie plus**. Rien à redémarrer. Remplaçant disponible :
+  `market_snapshots` de `market.db` (horaire, 35 symboles, depuis 2026-06-10).
+- `backtests/output/pairs_data/*_oi_4h.json` — figés au **2026-06-15** (48 j).
+  ⚠ **Ceux-là sont lus par `load_oi()` et alimentent la gate OI LONG.**
+  `oi_delta_24h_bps` ne renvoie **pas** `None` au-delà des données : il rend la
+  **dernière valeur connue, figée**. Conséquence sur tout backtest récent :
+  4 tokens (SAND, SNX, STX, TON) voient leurs LONG bloqués sur les 48 derniers
+  jours, les 30 autres jamais. Touche 26 % de la fenêtre OOS-0.
+
+Deux pièges de conception du garde lui-même, corrigés : un âge **négatif**
+passait « OK » (unité ms déclarée en s), et un contrôle au niveau du dossier
+prenant le **max** des mtime masquait les fichiers en retard. Le garde retient
+désormais le fichier **le plus vieux** des tokens réellement tradés.
+
 ### Observation-only data (don't use for decisions yet)
 - OI / funding / premium / `entry_crowding` / `entry_confluence` / `entry_session` are logged in each trade and in hourly market snapshots — not used for signals until 50+ trades per pre-registered protocols.
 - `/api/state.signal_drift` exposes rolling WR/avg bps/P&L for monitoring. Quarantine logic itself is disabled (protections list in `docs/bot.md`).

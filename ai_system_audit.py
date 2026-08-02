@@ -59,6 +59,12 @@ CE QUE TU CHERCHES (par ordre de gravité) :
    qui disparaît ou explose d'un coup, une comptabilité qui ne réconcilie pas.
 3. DÉRIVE — la distribution des sorties, des tailles ou des causes de skip
    change de façon marquée sans changement de configuration connu.
+4. PLOMBERIE — `fraicheur_des_donnees` liste chaque source avec son âge et son
+   plafond. Toute ligne en STALE, MISSING ou INVALID est une anomalie
+   **critique** : une source qui ne se rafraîchit plus fait mentir tout ce qui
+   la consomme, en silence. INVALID signale un horodatage aberrant (unité mal
+   déclarée), pas un retard. Les lignes FROZEN sont des arrêts **déclarés avec
+   leur motif** — ce ne sont PAS des anomalies, ne les signale pas.
 
 CE QUE TU NE FAIS PAS :
 - juger si un trade était bon (ce n'est pas ton rôle, d'autres outils le font) ;
@@ -180,6 +186,23 @@ def _rows(db, since_iso, since_exit):
         c.close()
 
 
+def _freshness() -> dict:
+    """Âge de chaque source de données (2026-08-02, 7e incident silencieux).
+
+    La supervision surveillait les performances et les mesures ; personne ne
+    surveillait les tuyaux. Une base figée depuis cinq semaines n'a été
+    découverte que par accident, au détour d'une autre étude.
+    """
+    try:
+        from data_freshness import check_all, critical
+        rows = check_all()
+        return {"sources": rows,
+                "anomalies": [r["source"] for r in critical(rows)],
+                "n_anomalies": len(critical(rows))}
+    except Exception as e:                       # la sonde ne casse pas l'audit
+        return {"erreur": f"{type(e).__name__}: {e}"[:200]}
+
+
 def build_context() -> dict:
     """Assemble les données de cohérence système. Aucune donnée de marché :
     l'auditeur regarde le BOT, pas le marché."""
@@ -284,7 +307,8 @@ def build_context() -> dict:
             "distribution_raisons_sortie": dist,
             "coherence_comptable": coherence,
             "divergence_live_vs_backtest": div,
-            "skips_live": skips}
+            "skips_live": skips,
+            "fraicheur_des_donnees": _freshness()}
 
 
 def call_claude(ctx: dict, model: str) -> dict:
