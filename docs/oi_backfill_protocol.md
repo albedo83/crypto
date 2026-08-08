@@ -173,9 +173,14 @@ doctrine bougent :
 | `block` | pas de LONG sans donnée OI |
 | `block_stale` | bloque si la **source est morte**, laisse passer si l'historique **se constitue** (démarrage à froid) |
 
-**Coût mesuré de `block`** contre la référence d'avant correctif :
+**Coût mesuré de la politique retenue** contre la référence d'avant correctif.
+⚠ La colonne était étiquetée `block` : elle mesure en réalité **`block_stale`**,
+car le backtest transmet `oi_stale=False` sur les débuts de série. Étiquette
+corrigée le 2026-08-02 ; les chiffres, eux, sont bien ceux de la politique
+retenue. (`block` et `block_stale` étaient alors identiques dans le code — un
+défaut latent corrigé depuis : `block` bloque désormais aussi à froid.)
 
-| fenêtre | `open` | `block` | Δ`block` | n `open`/`block` |
+| fenêtre | `open` | `block_stale` | Δ | n `open`/`block_stale` |
 |---|---:|---:|---:|---:|
 | OOS-0 | $1 223,52 | $1 371,11 | −15,61 | 315 / 290 |
 | OOS-6 | $2 363,21 | $2 822,36 | **+550,52** | 256 / 250 |

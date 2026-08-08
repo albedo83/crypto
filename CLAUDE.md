@@ -233,6 +233,10 @@ rapporte.
 | **source périmée** (flux mort, trou > 4 h) | `None`, raison `stale` | **BLOQUE** — `oi_gate_no_data` |
 | **démarrage à froid** (< 23 h d'historique) | `None`, raison `cold` | **laisse passer** — état connu, borné, déclaré |
 
+`block` bloque aussi au démarrage à froid ; `block_stale` non — c'est toute
+la différence, et elle a dû être corrigée : les deux étaient identiques à la
+première écriture.
+
 La distinction vient de `features.oi_absence_reason` / `backtest_rolling.oi_absence_reason`,
 et **la parité est vérifiée par test** : `python3 -m backtests.test_oi_parity`
 (6 cas, doit sortir « parité VÉRIFIÉE »). Sans ce test, trois divergences

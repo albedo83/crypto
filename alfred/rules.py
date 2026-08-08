@@ -438,7 +438,13 @@ def entry_skip_reason(sig: dict, c: PortfolioCounters, m: MarketCtx, p: Params,
         if oi_delta_24h is None:
             # Sémantique de l'absence — cf. Params.oi_missing_policy.
             pol = getattr(p, "oi_missing_policy", "open")
-            if pol in ("block", "block_stale") and oi_stale is not False:
+            # "block"       : aucune donnée ⇒ aucun LONG, y compris à froid.
+            # "block_stale" : bloque une source PÉRIMÉE, laisse passer une
+            #                 jauge qui chauffe (oi_stale=False). `None` =
+            #                 indéterminé ⇒ traité comme périmé, par prudence.
+            if pol == "block":
+                return "oi_gate_no_data"
+            if pol == "block_stale" and oi_stale is not False:
                 return "oi_gate_no_data"
         elif oi_delta_24h < -p.oi_long_gate_bps:
             return "oi_gate"
