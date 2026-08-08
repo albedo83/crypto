@@ -255,6 +255,17 @@ statuts : `STALE` (retard), `INVALID` (horodatage aberrant — unité mal
 déclarée), `FROZEN` (arrêt **déclaré avec son motif**, silencieux par
 construction pour ne pas noyer les vraies alertes).
 
+Le comblage OI est **planifié** depuis le 2026-08-08 :
+```
+20 0,4,8,12,16,20 * * * /home/crypto/.venv/bin/python3 /home/crypto/backtests/oi_backfill.py >> /home/crypto/analysis/output/oi_backfill_cron.log 2>&1
+```
+Idempotent (n'ajoute que les points postérieurs au dernier existant),
+re-valide ses trois critères à chaque passage, et **écrit zéro fichier** si le
+taux de réussite tombe sous 90 % — auquel cas la garde de fraîcheur reprend la
+main. Appelé par **chemin absolu** : le script insère lui-même sa racine dans
+`sys.path`, donc aucune dépendance au répertoire de travail de cron.
+L'original reste reconstructible exactement en filtrant `src != "live"`.
+
 Deux gels trouvés le 2026-08-02, tous deux **sans impact sur le bot live** —
 Alfred lit son OI d'un poll REST `metaAndAssetCtxs` en mémoire et n'ouvre
 aucun de ces fichiers :

@@ -211,7 +211,13 @@ def main() -> int:
                for t, v in grid if t > last_old]
         if not add:
             continue
-        shutil.copy2(path, path + ".pre_backfill")
+        # La sauvegarde ne doit être prise QU'UNE FOIS : ce script devient un
+        # job récurrent, et la réécrire à chaque passage ferait dire à
+        # « .pre_backfill » non plus « avant comblage » mais « avant le dernier
+        # passage » — une sauvegarde qui ment sur ce qu'elle sauvegarde.
+        bak = path + ".pre_backfill"
+        if not os.path.exists(bak):
+            shutil.copy2(path, bak)
         with open(path, "w") as f:
             json.dump(old + add, f)
         written.append({"symbol": s, "n_added": len(add),
