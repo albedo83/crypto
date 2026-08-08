@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.19.0] — 2026-08-08
+- **Trading engine**: la gate OI LONG ne s'applique plus sur une donnée périmée — elle bloque au lieu de laisser passer. Le démarrage à froid reste ouvert.
+- **Infra**: garde de fraîcheur des sources de données remontée dans l'audit quotidien, et comblage de la série OI planifié.
+
 ## [12.17.3] — 2026-06-08
 - **Infra**: fix faux positif "Coherence DRIFT" dans `analysis/btlive_compare.py`. Le check comparait la somme DB windowed avec state.total_pnl (compteur lifetime) → drift = sum trades pré-fenêtre. Maintenant compare avec sum DB lifetime.
 
