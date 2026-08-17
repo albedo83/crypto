@@ -194,11 +194,14 @@ def _freshness() -> dict:
     découverte que par accident, au détour d'une autre étude.
     """
     try:
-        from data_freshness import check_all, critical
+        from data_freshness import check_all, check_dependencies, critical
         rows = check_all()
-        return {"sources": rows,
-                "anomalies": [r["source"] for r in critical(rows)],
-                "n_anomalies": len(critical(rows))}
+        deps = check_dependencies()
+        bad = critical(rows + deps)
+        return {"sources": rows, "dependances_de_service": deps,
+                "anomalies": [r.get("source_name") or r.get("dependance")
+                              for r in bad],
+                "n_anomalies": len(bad)}
     except Exception as e:                       # la sonde ne casse pas l'audit
         return {"erreur": f"{type(e).__name__}: {e}"[:200]}
 
@@ -375,7 +378,13 @@ def main() -> int:
           f"paper={ctx['n_trades']['paper']} appariés={ctx['n_trades']['apparies']}")
     if args.dry_run:
         print(json.dumps(ctx, indent=1, default=str, ensure_ascii=False)[:6000])
-        print(f"\n[audit] --dry-run : arrêt avant Claude (prompt_hash={PROMPT_HASH})")
+        # Le dump est tronqué à 6000 caractères et le bloc PLOMBERIE est en fin
+        # de dictionnaire : il se faisait couper, alors que c'est justement le
+        # bloc qui révèle les pannes silencieuses. On l'imprime toujours.
+        fr = ctx.get("fraicheur_des_donnees") or {}
+        print(f"\n[audit] PLOMBERIE — {fr.get('n_anomalies', '?')} anomalie(s)"
+              + (f" : {fr.get('anomalies')}" if fr.get("anomalies") else ""))
+        print(f"[audit] --dry-run : arrêt avant Claude (prompt_hash={PROMPT_HASH})")
         return 0
     if not ctx["n_trades"]["apparies"]:
         print("[audit] aucun trade apparié sur la fenêtre — rien à auditer")

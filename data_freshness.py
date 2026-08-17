@@ -20,6 +20,13 @@ Deux statuts, et la distinction est le cœur du dispositif :
 Sans le second statut, une source définitivement morte hurlerait tous les jours
 jusqu'à ce qu'on cesse de lire les alertes — c'est-à-dire jusqu'au 8ᵉ incident.
 
+**Second volet (2026-08-17)** : les DÉPENDANCES DE SERVICE. Le crédit API
+Anthropic s'est épuisé le 2026-08-05 et la couche IA est restée éteinte
+**douze jours**. Le bot le disait pourtant : 34 événements `ARBITER_FAILOPEN`
+horodatés, avec la cause en clair, dans sa propre base. Personne ne lisait la
+table. Même défaut que l'incident OI — la donnée du problème existait, il
+manquait quelqu'un pour la regarder.
+
 Stdlib uniquement : importable par les sentinelles comme par n'importe quel
 script d'analyse.
 
@@ -149,6 +156,114 @@ def _last_ts(s: Source) -> float | None:
     return v / 1000.0 if s.unit == "ms" else v
 
 
+@dataclass
+class Dependency:
+    """Un composant qui APPELLE un service externe — pas une source de données.
+
+    Sa santé se lit sur deux traces : la date de son dernier **succès**, et
+    celle de son dernier **échec**. Les deux doivent porter sur le MÊME
+    composant, sinon la sonde se laisse berner : le 2026-08-17, l'audit venait
+    de réussir (16:10) pendant que l'arbitre d'entrée était mort depuis le 4
+    août — une sonde qui aurait regardé « le dernier appel IA, toutes sources
+    confondues » aurait affiché OK. C'est le masquage du dossier `pairs_data`,
+    où les bougies fraîches cachaient les fichiers OI figés.
+    """
+    name: str
+    source: str                      # valeur de AI_COST.source
+    max_age_h: float                 # dérivé du p90 observé, + marge
+    failure_event: str = ""          # événement d'échec du MÊME composant
+    failure_db: str = ""             # défaut : la base des bots
+    note: str = ""
+
+
+BOT_DB = "alfred/data/bots/live/bot.db"
+MARKET_DB = "alfred/data/market.db"
+
+# Plafonds dérivés de la cadence RÉELLEMENT observée de chaque composant
+# (espacement p90 des AI_COST au 2026-08-17), plus une marge — pas de
+# constante inventée :
+#   audit 24 h · entry 36 h · exit 8 h · review 2 h · supervisor 24 h
+DEPENDENCIES: list[Dependency] = [
+    Dependency("arbitre d'ENTRÉE (haircut)", "entry", 48.0,
+               failure_event="ARBITER_FAILOPEN",
+               note="p90 36 h — ne tourne que s'il y a des candidats"),
+    Dependency("arbitre de SORTIE (LOCK/CUT)", "exit", 12.0,
+               note="p90 8 h — le seul dispositif rentable sur juillet-août"),
+    Dependency("revue de position", "review", 6.0, note="p90 2 h"),
+    Dependency("superviseur quotidien", "supervisor", 36.0,
+               failure_event="SUPERVISOR_ERROR", failure_db=MARKET_DB,
+               note="p90 24 h"),
+    Dependency("audit système IA", "audit", 36.0, note="p90 24 h"),
+]
+
+
+def _last_ai_cost(source: str) -> float | None:
+    """Horodatage du dernier appel RÉUSSI de ce composant précis."""
+    p = os.path.join(ROOT, BOT_DB)
+    if not os.path.exists(p):
+        return None
+    try:
+        con = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+        rows = con.execute("SELECT ts, data FROM events WHERE event='AI_COST' "
+                           "ORDER BY ts DESC").fetchall()
+        con.close()
+    except Exception:
+        return None
+    import json as _json
+    for ts, data in rows:
+        try:
+            if _json.loads(data).get("source") == source:
+                return float(ts)
+        except Exception:
+            continue
+    return None
+
+
+def _last_event(db: str, event: str) -> float | None:
+    p = os.path.join(ROOT, db)
+    if not os.path.exists(p):
+        return None
+    try:
+        con = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+        v = con.execute("SELECT MAX(ts) FROM events WHERE event=?",
+                        (event,)).fetchone()[0]
+        con.close()
+    except Exception:
+        return None
+    return None if v is None else float(v)
+
+
+def check_dependencies(now: float | None = None) -> list[dict]:
+    now = now or time.time()
+    out = []
+    for d in DEPENDENCIES:
+        ok_ts = _last_ai_cost(d.source)
+        ko_ts = (_last_event(d.failure_db or BOT_DB, d.failure_event)
+                 if d.failure_event else None)
+        age_h = None if ok_ts is None else (now - ok_ts) / 3600.0
+        if ok_ts is None:
+            status, msg = "MISSING", "aucun appel réussi enregistré"
+        elif ko_ts is not None and ko_ts > ok_ts:
+            # Le test qui ne se laisse pas berner : un échec POSTÉRIEUR au
+            # dernier succès du même composant. Il se déclenche quel que soit
+            # l'âge — c'est ce qui aurait sonné le 2026-08-05.
+            status = "BROKEN"
+            msg = (f"dernier ÉCHEC ({d.failure_event}) postérieur au dernier "
+                   f"succès de {(ko_ts - ok_ts) / 3600:.1f} h")
+        elif age_h > d.max_age_h:
+            status = "STALE"
+            msg = (f"dernier appel réussi il y a {age_h:.1f} h, plafond "
+                   f"{d.max_age_h:.0f} h")
+        else:
+            status = "OK"
+            msg = f"actif ({age_h:.1f} h / {d.max_age_h:.0f} h)"
+        out.append({"dependance": d.name, "source": d.source,
+                    "status": status, "age_h": None if age_h is None
+                    else round(age_h, 2), "max_age_h": d.max_age_h,
+                    "message": msg, "note": d.note})
+    return out
+
+
 def check_all(now: float | None = None) -> list[dict]:
     now = now or time.time()
     out = []
@@ -183,7 +298,8 @@ def check_all(now: float | None = None) -> list[dict]:
         else:
             status = "OK"
             msg = f"fraîche ({age_h:.1f} h / {s.max_age_h:.0f} h)"
-        out.append({"source": s.name, "path": s.path, "status": status,
+        out.append({"source": s.name, "source_name": s.name,
+                    "path": s.path, "status": status,
                     "age_h": None if age_h is None else round(age_h, 2),
                     "max_age_h": s.max_age_h, "message": msg,
                     "note": s.note,
@@ -192,24 +308,36 @@ def check_all(now: float | None = None) -> list[dict]:
 
 
 def critical(rows: list[dict] | None = None) -> list[dict]:
-    """Les lignes qui doivent remonter en anomalie — STALE et MISSING."""
-    rows = rows if rows is not None else check_all()
-    return [r for r in rows if r["status"] in ("STALE", "MISSING", "INVALID")]
+    """Les lignes qui doivent remonter en anomalie, sources ET dépendances."""
+    rows = rows if rows is not None else (check_all() + check_dependencies())
+    return [r for r in rows
+            if r["status"] in ("STALE", "MISSING", "INVALID", "BROKEN")]
 
 
 def main() -> int:
     rows = check_all()
     ic = {"OK": "✓", "STALE": "🔴", "MISSING": "🔴", "INVALID": "🔴",
-          "FROZEN": "❄"}
+          "BROKEN": "🔴", "FROZEN": "❄"}
     print(f"{'':2s} {'source':52s} {'âge':>9s} {'plafond':>8s}  statut")
     for r in rows:
         age = "—" if r["age_h"] is None else f"{r['age_h']:.1f} h"
         cap = "—" if r["max_age_h"] is None else f"{r['max_age_h']:.0f} h"
         print(f"{ic.get(r['status'], '?'):2s} {r['source'][:52]:52s} "
               f"{age:>9s} {cap:>8s}  {r['status']}")
+    print(f"\n{'':2s} {'dépendance de service':52s} {'âge':>9s} {'plafond':>8s}  statut")
+    deps = check_dependencies()
+    for r in deps:
+        age = "—" if r["age_h"] is None else f"{r['age_h']:.1f} h"
+        print(f"{ic.get(r['status'], '?'):2s} {r['dependance'][:52]:52s} "
+              f"{age:>9s} {r['max_age_h']:>6.0f} h  {r['status']}")
+        if r["status"] != "OK":
+            print(f"     → {r['message']}")
+    rows = rows + deps
     bad = critical(rows)
-    print(f"\n{len(bad)} anomalie(s) de fraîcheur"
-          + (" — " + " · ".join(r["source"] for r in bad) if bad else ""))
+    print(f"\n{len(bad)} anomalie(s)"
+          + (" — " + " · ".join(r.get("source_name") or r.get("dependance")
+                                   or r.get("source", "?") for r in bad)
+             if bad else ""))
     for r in rows:
         if r["status"] == "FROZEN":
             print(f"\n❄ {r['source']} — gelée déclarée depuis "
