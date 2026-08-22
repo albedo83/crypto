@@ -258,7 +258,7 @@ def arbitrate_safe(positions: list[dict], market: dict, *,
         fut.cancel()
         return {"verdicts": {}, "meta": {"failopen": f"timeout>{timeout}s"}}
     except Exception as e:
-        return {"verdicts": {}, "meta": {"failopen": f"{type(e).__name__}:{str(e)[:80]}"}}
+        return {"verdicts": {}, "meta": {"failopen": f"{type(e).__name__}:{str(e)[:300]}"}}
 
 
 # ── CLI (test seulement — n'agit sur rien) ──────────────────────────────

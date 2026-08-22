@@ -117,6 +117,31 @@ le gain ne l'est pas**. Sur les 28 décotes : +18,45 $ épargnés sur les perdan
 chaîne de sorties : intacts. Paper, junior et baby : inchangés, et ils restent la
 ligne de contrôle sans IA.
 
+## 5 bis. Deux défauts trouvés en vérifiant, et réparés
+
+La garde de fraîcheur a signalé l'arbitre d'entrée **BROKEN** au moment du
+contrôle : dernier échec postérieur au dernier succès. **40 `ARBITER_FAILOPEN`
+journalisés**, deux modes distincts :
+
+| mode | occurrences | effet |
+|---|---|---|
+| `timeout>12.0s` | 6 depuis le 20/08 | l'arbitre n'est pas consulté → entrée à taille pleine |
+| `BadRequestError 400` | 08-12 → 08-17 | idem |
+
+1. **Aucun des 40 n'était diagnosticable.** La raison était tronquée à 80
+   caractères, or un 400 Anthropic s'ouvre sur ~90 caractères de boilerplate :
+   le message utile était **toujours** coupé. Porté à 300, dans les deux
+   arbitres. C'est le même motif que les défauts silencieux de la campagne
+   d'août — le dispositif journalisait consciencieusement une chaîne vide de
+   sens.
+2. **`AI_ARBITER_TIMEOUT` 12 → 25 s.** L'arbitre d'entrée batche ses candidats ;
+   son prompt est plus lourd que celui de la sortie (qui, lui, ne time-out pas).
+
+Le second point touche la mesure et mérite d'être dit : un arbitre à moitié
+éteint produit des entrées à taille pleine **pour la mauvaise raison**. Sans ce
+correctif, le contrôle du § 8 aurait pu afficher un bon ratio sans rien prouver.
+Le relever rend le test plus sévère, pas moins.
+
 ## 6. Ce qui N'est PAS changé, et pourquoi
 
 **L'arbitre de SORTIE reste en l'état.** Son bucket `LOCK S5 LONG` mesure −20,56 $

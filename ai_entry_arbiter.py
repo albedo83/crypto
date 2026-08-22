@@ -292,7 +292,10 @@ def arbitrate_safe(candidates: list[dict], market: dict, *,
         fut.cancel()
         return {"verdicts": {}, "meta": {"failopen": f"timeout>{timeout}s"}}
     except Exception as e:
-        return {"verdicts": {}, "meta": {"failopen": f"{type(e).__name__}:{str(e)[:80]}"}}
+        # 80 caractères ne suffisaient pas : un 400 Anthropic ouvre sur ~90
+        # caractères de boilerplate, donc le message utile était TOUJOURS
+        # coupé. 40 fail-opens journalisés, aucun diagnosticable.
+        return {"verdicts": {}, "meta": {"failopen": f"{type(e).__name__}:{str(e)[:300]}"}}
 
 
 # ── CLI (test seulement — n'agit sur rien) ──────────────────────────────
