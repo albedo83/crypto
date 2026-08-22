@@ -36,3 +36,4 @@ backtests/s5_prop_trail_artifacts.json
 
 # Alfred runtime data (market.db, state, locks)
 alfred/data/
+.env.bak.*

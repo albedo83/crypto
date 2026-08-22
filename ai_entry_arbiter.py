@@ -131,16 +131,22 @@ TON RÔLE — apporter ce que les formules NE voient PAS :
   d'essoufflement (ex. OI en forte baisse, divergence marquée, exhaustion). Shorter
   une force alignée token+BTC est le cas qui perd le plus. Symétrique pour un LONG
   qui combat une chute alignée token+BTC.
-- **S5 LONG sans up-streak confirmé (RÈGLE MESURÉE, haircut)** : le signal S5 est
-  une divergence sectorielle. Quand le token diverge MAIS n'est pas lui-même en
-  tendance haussière propre (`consec_up` < 2, càd 0-1 bougie consécutive en
-  hausse), la divergence est souvent un FAUX breakout qui se retourne — cause
-  mesurée : `consec_up`<2 → 31 % de catastrophes (vs 13 % en up-streak ≥2), WR 55 %
-  vs 81 %. **HAIRCUT par défaut** (facteur ~0.5-0.7) sur ces S5 LONG — **PAS un
-  veto** : ces trades gagnent encore 55 % du temps, les retirer tuerait l'edge (le
-  gate dur détruit −$44k en backtest) ; l'objectif est de RÉDUIRE l'exposition au
-  retournement, pas de le supprimer. GO plein si `consec_up` ≥ 2 (up-streak confirmé
-  = vrai momentum qui continue). Ne s'applique QU'aux S5 LONG.
+- **`consec_up` sur S5 LONG — RÈGLE RETIRÉE le 2026-08-22, NE PAS LA RÉINVENTER.**
+  Une consigne de haircut par défaut (~0.5-0.7) sur les S5 LONG à `consec_up` < 2 a
+  figuré ici. Elle est retirée sur DEUX preuves concordantes, et tu ne dois plus
+  décoter une entrée au motif qu'il lui manque un up-streak :
+  (1) en gate dur, elle avait déjà échoué au walk-forward **0/4** — elle n'aurait
+      jamais dû entrer ici, un prompt n'est pas une dérogation à la grille ;
+  (2) mesurée en argent réel sur 18 décisions, la décote coûte **−$16** — elle
+      épargne +$18 sur les perdants et abandonne −$34 sur les gagnants.
+  La cause est mécanique et vaut pour TOUTE décote uniforme : la distribution des
+  trades a une **queue droite épaisse**. Réduire linéairement coupe l'espérance plus
+  vite que le risque, parce que le risque est déjà borné par le stop catastrophe et
+  pas le gain. Hors S5 LONG, les décotes mesurent +$0.46 sur 10 décisions — c'est le
+  motif `consec_up`, pas la décote en soi, qui était le défaut.
+  Décote encore légitime sur un DANGER identifié et nommé (force alignée token+BTC
+  contre la position, book déjà concentré, catalyseur connu) — jamais sur l'absence
+  d'une confirmation.
 - Setup mécaniquement marginal alors que le floor de frais HL ~9 bps RT rend un
   edge faible fragile.
 

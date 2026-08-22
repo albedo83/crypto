@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.20.0] — 2026-08-22
+- **Couche IA**: retrait d'une consigne de décote de taille du prompt de l'arbitre d'entrée, remplacée par une interdiction explicite. La règle visée avait déjà été refusée en walk-forward ; sa mesure en argent réel confirme le refus. Voir `docs/ai_haircut_verdict.md`.
+- **Couche IA**: coupe-circuit de l'arbitre d'entrée resserré — son seuil était hors d'atteinte au capital courant.
+
 ## [1.19.0] — 2026-08-08
 - **Trading engine**: la gate OI LONG ne s'applique plus sur une donnée périmée — elle bloque au lieu de laisser passer. Le démarrage à froid reste ouvert.
 - **Infra**: garde de fraîcheur des sources de données remontée dans l'audit quotidien, et comblage de la série OI planifié.
