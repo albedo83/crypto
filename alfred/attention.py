@@ -114,6 +114,18 @@ def llm_review(st: dict, trigger: str, context: str, symbols: list[str] | None,
         print(f"cap LLM journalier atteint ({cap}) — trigger {trigger} loggé sans revue")
         log_event({"trigger": trigger, "context": context, "llm": "capped"})
         return None
+    # Plafond ABSOLU, `safety` compris. Le contournement du cap par `safety` est
+    # voulu — un jour de chaos ne doit pas faire taire le filet — mais il rendait
+    # le coût NON BORNÉ : n'importe quel défaut de détection dans un déclencheur
+    # safety dépense sans limite. C'est exactement ce qui s'est produit le
+    # 2026-08-22. Le plancher est très au-dessus d'une vraie journée de crise
+    # (record réel hors bug : 5 déclenchements/jour) : il n'attrape que la boucle.
+    hard = int(env("ATTENTION_LLM_HARD_CAP", "40"))
+    if daily["llm_calls"] >= hard:
+        print(f"PLAFOND ABSOLU atteint ({hard}) — {trigger} loggé, revue coupée")
+        log_event({"trigger": trigger, "context": context, "llm": "hard_capped",
+                   "priority": priority})
+        return None
     daily["llm_calls"] += 1
     cmd = [os.path.join(ROOT, ".venv", "bin", "python3"),
            os.path.join(ROOT, "position_review.py"),
@@ -156,10 +168,18 @@ def main() -> int:
     ldb.row_factory = sqlite3.Row
 
     # ── 1. net_fired : fermeture exchange-side depuis le dernier scan ──
+    # CAST obligatoire : strftime('%s', …) rend du TEXTE, et SQLite classe
+    # TOUJOURS le texte au-dessus des entiers (NULL < INTEGER/REAL < TEXT).
+    # Sans lui la condition est vraie INCONDITIONNELLEMENT, quels que soient
+    # les nombres — chaque fermeture exchange-side de l'historique remontait à
+    # chaque tick, à vie. Incident du 2026-08-22 : 1 trade MINA → 1760 revues
+    # LLM et autant de Telegram identiques, ~$23/jour. Ne jamais comparer une
+    # sortie de strftime à un paramètre numérique sans CAST.
     rows = ldb.execute(
         "SELECT symbol, reason, pnl_usdt, exit_time FROM trades WHERE reason IN "
         "('exchange_stop','liquidation','adl') AND "
-        "strftime('%s', exit_time) > ?", (int(last_scan),)).fetchall()
+        "CAST(strftime('%s', exit_time) AS INTEGER) > ?",
+        (int(last_scan),)).fetchall()
     for r in rows:
         ctx = (f"le FILET a parlé : {r['symbol']} fermée côté exchange "
                f"({r['reason']}, {r['pnl_usdt']:+.2f}$). Le process était mort "
