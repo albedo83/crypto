@@ -206,6 +206,57 @@ def _freshness() -> dict:
         return {"erreur": f"{type(e).__name__}: {e}"[:200]}
 
 
+def _ai_budget() -> dict:
+    """Dépense IA du mois contre AI_BUDGET_MONTHLY_USD (2026-08-24).
+
+    Le plafond existait, était calculé, et n'alertait personne : il s'affichait
+    sur /master et nulle part ailleurs. Une boucle de déclenchement a dépensé
+    15x le budget déclaré pendant trois jours sans qu'aucune alarme sonne —
+    exactement le motif de l'incident OI : un instrument qui MESURE mais ne
+    RÉVEILLE pas. Un plafond qu'on doit aller consulter n'est pas un plafond.
+    """
+    import datetime as dt
+    from collections import defaultdict
+    try:
+        cap = float(os.environ.get("AI_BUDGET_MONTHLY_USD", "30") or 30)
+        now = dt.datetime.now(dt.timezone.utc)
+        month = now.strftime("%Y-%m")
+        db = sqlite3.connect(f"file:{BOTS['live']}?mode=ro", uri=True)
+        try:
+            rows = db.execute("SELECT ts, data FROM events "
+                              "WHERE event='AI_COST'").fetchall()
+        finally:
+            db.close()
+        spent, d7, by_src = 0.0, 0.0, defaultdict(float)
+        for ts, d in rows:
+            try:
+                j = json.loads(d) if d else {}
+            except Exception:
+                continue
+            c = float(j.get("cost_usd") or 0)
+            when = dt.datetime.fromtimestamp(ts, dt.timezone.utc)
+            if when.strftime("%Y-%m") == month:
+                spent += c
+                by_src[j.get("source", "?")] += c
+            if ts >= now.timestamp() - 7 * 86400:
+                d7 += c
+        proj = d7 / 7 * 30
+        out = {"mois": month, "depense_usd": round(spent, 2),
+               "plafond_usd": cap, "projection_30j_usd": round(proj, 2),
+               "par_role": {k: round(v, 2) for k, v in
+                            sorted(by_src.items(), key=lambda x: -x[1])}}
+        if proj >= cap or spent >= cap:
+            out["ANOMALIE"] = (
+                f"budget IA dépassé : {spent:.2f}$ dépensés ce mois, projection "
+                f"{proj:.2f}$/30j contre un plafond de {cap:.0f}$. Le rôle le "
+                f"plus cher est '{max(by_src, key=by_src.get) if by_src else '?'}'. "
+                f"À traiter comme une anomalie CRITIQUE : un dépassement de ce "
+                f"type vient d'une boucle de déclenchement, pas d'un usage normal.")
+        return out
+    except Exception as e:                       # la sonde ne casse pas l'audit
+        return {"erreur": f"{type(e).__name__}: {e}"[:200]}
+
+
 def build_context() -> dict:
     """Assemble les données de cohérence système. Aucune donnée de marché :
     l'auditeur regarde le BOT, pas le marché."""
@@ -311,7 +362,8 @@ def build_context() -> dict:
             "coherence_comptable": coherence,
             "divergence_live_vs_backtest": div,
             "skips_live": skips,
-            "fraicheur_des_donnees": _freshness()}
+            "fraicheur_des_donnees": _freshness(),
+            "budget_ia": _ai_budget()}
 
 
 def call_claude(ctx: dict, model: str) -> dict:
