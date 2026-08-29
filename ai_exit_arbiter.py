@@ -67,17 +67,30 @@ def rearm() -> None:
 def config() -> dict:
     """Config arbitre de sortie depuis l'environnement (.env chargé par le bot).
 
-    enabled=0 ⇒ kill-switch total. cut_mode gate UNIQUEMENT le CUT (LOCK agit dès
-    enabled, choix hybride). conf_min = confiance mini pour agir. throttle_s = un
-    appel LLM au plus toutes les N s. cut_ur_max / lock_ur_min = zone candidate."""
+    enabled=0 ⇒ kill-switch total. cut_mode et lock_mode gatent séparément les
+    deux actions ; les deux défaultent à shadow (décide et se fait mesurer, mais
+    n'engage pas l'argent). conf_min = confiance mini pour agir. throttle_s = un
+    appel LLM au plus toutes les N s. cut_ur_max / lock_ur_min = zone candidate.
+
+    LOCK agissait inconditionnellement dès enabled (choix hybride d'origine).
+    Mesuré sur 23 LOCK résolus au 2026-08-29 : Δ −10,56 $ contre les règles
+    seules, dont −57,01 $ sur le seul bucket S5 LONG. Le mécanisme perdant est
+    la protection UNIFORME contre une queue droite épaisse — le stop catastrophe
+    borne déjà le risque, rien ne borne le gain, donc verrouiller ne peut que
+    raboter la tête de la distribution. Même mode d'échec que la décote d'entrée
+    retirée en v1.20.0. D'où un gate explicite, défaut shadow."""
     env = os.environ.get
     enabled = env("AI_EXIT_ENABLED", "0") == "1"          # OFF par défaut (opt-in)
     cut_mode = env("AI_EXIT_CUT_MODE", "shadow").strip().lower()
     if cut_mode not in ("shadow", "act"):
         cut_mode = "shadow"
+    lock_mode = env("AI_EXIT_LOCK_MODE", "shadow").strip().lower()
+    if lock_mode not in ("shadow", "act"):
+        lock_mode = "shadow"
     return {
         "enabled": enabled,
-        "cut_mode": cut_mode,                              # shadow|act (CUT seulement)
+        "cut_mode": cut_mode,                              # shadow|act (CUT)
+        "lock_mode": lock_mode,                            # shadow|act (LOCK)
         "model": env("AI_EXIT_MODEL", DEFAULT_MODEL),
         "timeout": float(env("AI_EXIT_TIMEOUT", str(DEFAULT_TIMEOUT))),
         "conf_min": float(env("AI_EXIT_CONF_MIN", "0.6")),

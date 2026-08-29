@@ -205,7 +205,18 @@ def build_user_prompt(candidates: list[dict], market: dict) -> str:
     )
 
 
-def _call_opus(system: str, user: str, model: str) -> dict:
+def _max_tokens(n_items: int) -> int:
+    """Budget de sortie proportionnel au nombre de candidats.
+
+    Le forfait 1500 était calibré sur ~10 candidats. À 26-31 (univers élargi à
+    35 tokens), la réponse était tronquée EN PLEIN JSON : json.loads levait, le
+    wrapper fail-open avalait, et l'arbitre a été débranché 6 fois par jour du
+    2026-08-24 au 2026-08-29 sans que rien ne le signale. Un verdict pèse
+    ~60-90 tokens (decision/factor/confidence/reason≤200c/risk_flags)."""
+    return min(8000, 300 + 120 * max(1, n_items))
+
+
+def _call_opus(system: str, user: str, model: str, *, n_items: int = 1) -> dict:
     """Appel brut Anthropic, parse l'objet JSON. Lève sur erreur."""
     import anthropic
 
@@ -217,7 +228,7 @@ def _call_opus(system: str, user: str, model: str) -> dict:
          "cache_control": {"type": "ephemeral"}},
     ]
     resp = client.messages.create(
-        model=model, max_tokens=1500, system=sysblocks,
+        model=model, max_tokens=_max_tokens(n_items), system=sysblocks,
         messages=[{"role": "user", "content": user}],
     )
     parts = [b.text for b in resp.content if getattr(b, "type", None) == "text"]
@@ -266,7 +277,8 @@ def arbitrate(candidates: list[dict], market: dict, *,
               factor_min: float = DEFAULT_FACTOR_MIN) -> dict:
     """Appel direct (peut lever / bloquer). Retourne
     {"verdicts": {sym: {...}}, "meta": {...}}. Préférer arbitrate_safe()."""
-    out = _call_opus(SYSTEM_PROMPT, build_user_prompt(candidates, market), model)
+    out = _call_opus(SYSTEM_PROMPT, build_user_prompt(candidates, market), model,
+                     n_items=len(candidates))
     syms = {c["symbol"] for c in candidates}
     norm = {s: _normalize(v, factor_min)
             for s, v in (out["verdicts"] or {}).items() if s in syms}

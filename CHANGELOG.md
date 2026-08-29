@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.21.0] — 2026-08-29
+- **Couche IA**: le verrou protecteur de l'arbitre de sortie passe en shadow — il décide et se fait scorer, sans engager l'argent. Sa mesure contrefactuelle le donne perdant face aux règles seules. Nouveau gate `AI_EXIT_LOCK_MODE`.
+- **Couche IA**: l'arbitre d'entrée passe en shadow, et son budget de sortie devient proportionnel au nombre de candidats — le forfait tronquait la réponse en plein JSON et le débranchait silencieusement à chaque scan.
+
 ## [1.20.0] — 2026-08-22
 - **Couche IA**: retrait d'une consigne de décote de taille du prompt de l'arbitre d'entrée, remplacée par une interdiction explicite. La règle visée avait déjà été refusée en walk-forward ; sa mesure en argent réel confirme le refus. Voir `docs/ai_haircut_verdict.md`.
 - **Couche IA**: coupe-circuit de l'arbitre d'entrée resserré — son seuil était hors d'atteinte au capital courant.

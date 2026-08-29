@@ -476,6 +476,10 @@ class BotInstance:
             if action == "LOCK":
                 ok, note = (self._protective_stop_ok(pos, v.get("stop_usdt"),
                                                      st.price if st else 0.0))
+                if ok and cfg["lock_mode"] != "act":
+                    # shadow : le verdict est loggé et scoré en contrefactuel
+                    # (ai_exit_scorecard rejoue le stop), mais aucun stop posé.
+                    ok, note = False, "lock_shadow"
                 if ok and not tripped:
                     with self._pos_lock:
                         if self.positions.get(sym) is pos:   # L4 : même objet position
@@ -509,7 +513,8 @@ class BotInstance:
                             f"🧠 IA — CUT {pos.strategy} {sym}: {s['net_pnl']:+.2f}$ — "
                             f"{v['reason']}", category="trade", actionable=True)
             self.db.log_event("ARBITER_EXIT_DECISION", sym, {
-                "cut_mode": cfg["cut_mode"], "acted": acted, "action": action,
+                "cut_mode": cfg["cut_mode"], "lock_mode": cfg["lock_mode"],
+                "acted": acted, "action": action,
                 # Traçabilité populations (revue 2026-07-04) : sans modèle ni
                 # version, le scorecard mélange des populations sans le savoir.
                 "model": cfg.get("model"), "alfred_version": ALFRED_VERSION,
