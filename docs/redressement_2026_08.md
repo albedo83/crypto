@@ -254,3 +254,77 @@ ce qui justifie le retrait est l'argument mécanique.
 3. **Arbitre d'entrée** : au moins un `ARBITER_DECISION` réussi. Sinon le
    problème n'est ni la troncature ni le délai.
 4. **Le compte** : critère d'arrêt inchangé, paper sous −25 % de son pic.
+
+
+---
+
+## 8. Quand peut-on juger le moteur ? — cadre pré-enregistré du 2026-09-06
+
+> Question posée : *si le moteur n'est pas gagnant, il est inutile — à partir de
+> quand peut-on le réévaluer globalement ?* C'est un problème de puissance
+> statistique. Réponse chiffrée sur les données réelles, écrite avant échéance.
+
+### La voie directe est fermée
+
+Distribution du P&L par trade du paper (ligne propre : ni IA, ni miroir) :
+n=93, moyenne **+46,4 bps**, σ **832 bps**, asymétrie +2,28 → **σ/μ = 17,9**.
+
+Nombre de trades pour établir que l'edge est > 0 :
+
+| test | n requis | durée au rythme actuel (1,58 trade/j) |
+|---|---:|---|
+| unilatéral 95 % | 1 984 | **3,4 ans** |
+| bilatéral 95 % | 2 518 | **4,4 ans** |
+
+Prouver directement que le moteur gagne n'est donc pas un critère disponible.
+Aucun bot de la flotte n'en est proche : t = +0,54 (paper) · −0,50 (live) ·
+−0,90 (junior) · +0,40 (baby). **Tous indiscernables de zéro.**
+
+Contexte à garder en tête : le backtest 28 mois lui-même n'a qu'un
+**t = 2,80** sur 853 jours. La référence n'est pas non plus une certitude.
+
+### La voie qui marche : comparer à la distribution du moteur, pas à zéro
+
+Fenêtres glissantes du backtest 28 mois (853 j, rendements composés) :
+
+| durée | p5 | p25 | médiane | p95 | **% de fenêtres négatives** |
+|---|---:|---:|---:|---:|---:|
+| 30 j | −21,1 % | −5,7 % | +10,9 % | +54,6 % | 31 % |
+| 90 j | −26,8 % | +3,1 % | +31,4 % | +118,0 % | **23 %** |
+| 180 j | **+4,7 %** | +45,9 % | +70,1 % | +239,9 % | **4 %** |
+| 365 j | +137,6 % | +181,0 % | +213,9 % | +427,2 % | **0 %** |
+
+Lecture : un moteur **en bonne santé** perd de l'argent sur près d'un quart des
+fenêtres de 90 jours. À 90 jours, une perte ne prouve donc rien. À 180 jours
+elle devient un événement à 1 sur 25. À 365 jours elle ne s'est jamais produite.
+
+### Les dates (horloge = reset du paper, 2026-07-09)
+
+| échéance | date | ce qu'on peut conclure |
+|---|---|---|
+| 90 j | **2026-10-07** | alerte seulement : sous **−26,8 %** = hors du p5, signal réel. Au-dessus, non concluant. |
+| 180 j | **2027-01-05** | **VERDICT.** Un moteur sain est positif 96 % du temps. Négatif ⇒ le moteur ne fonctionne plus. |
+| 365 j | 2027-07-09 | décisif. 0 fenêtre saine négative sur 489. |
+
+La ligne d'évaluation du **moteur** est le **paper** : il n'a jamais porté ni la
+couche IA ni le miroir de stops. Le live mesure l'**implémentation**, et son
+horloge propre ne démarre qu'au 2026-09-06.
+
+### Où on en est déjà
+
+Paper à 59 jours : 518,34 → 586,27 $ = **+13,1 %**, soit le **43ᵉ percentile**
+de la bande à 59 jours (p25 −2,2 % · médiane +20,8 %). Dans la bande, un peu
+sous la médiane. Rien d'anormal, rien de probant.
+
+### Deux résultats intermédiaires écartés
+
+1. **La bande « petit capital » est circulaire.** Segmenter le backtest sur
+   `equity < 2 000 $` donne 38 % de fenêtres 180 j négatives — mais ces 256
+   jours sont exactement 2024-04 → 2024-12, c'est-à-dire le drawdown −51,4 %
+   lui-même. Le segment est sélectionné sur le résultat. **Inutilisable.**
+2. **Le cap n'est pas un effet de taille de compte.** `base_size` et le cap sont
+   tous deux proportionnels au capital : le facteur `pct × poids_z ×
+   signal_mult` vaut S1 0,341 · S5 0,473 · S8 0,459 · S9 0,840 · S10 0,315,
+   tous > 0,30. Le cap mord **à tout niveau de capital**, backtest inclus.
+   Corrige la note du 2026-08-29 qui suggérait de rouvrir le sujet « si le
+   capital double » : doubler le capital n'y changerait rien.
