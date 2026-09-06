@@ -181,3 +181,76 @@ Fixés **avant** observation, comme toujours.
 4. **Le compte.** Si le paper (hors IA) passe sous **−25 %** de son pic, on est
    en territoire de deuxième pire fenêtre historique et la question de l'arrêt
    se pose sur des bases factuelles, pas sur l'humeur d'un mauvais mois.
+
+
+---
+
+## 7. Revue de la semaine 1 — 2026-09-06
+
+**Le régime a tourné.** Le paper (aucune couche IA) est à **586,27 $**, son plus
+haut, soit **+13,1 %** depuis le reset. baby aussi est à son pic. La thèse du § 5
+— « attendre que le régime tourne » — s'est vérifiée en 8 jours. Le critère
+d'arrêt (paper sous −25 %) n'a jamais été approché.
+
+| bot | 29/08 | 06/09 | Δ |
+|---|---:|---:|---:|
+| paper | 498,28 | **586,27** | +88,0 |
+| baby | 152,51 | **183,87** | +31,4 |
+| junior | 195,26 | 213,63 | +18,4 |
+| live | 459,11 | 473,19 | +14,1 |
+
+### Les quatre critères du § 6
+
+1. **Convergence live/paper — ÉCHEC.** L'écart s'est creusé. Cause identifiée
+   ci-dessous : ce n'est plus la couche IA.
+2. **LOCK en shadow — RÉUSSI.** 198 verdicts, tous `acted=False`, note
+   `lock_shadow`, **0** sortie `manual_stop_set` depuis le restart.
+3. **Fail-opens — symptôme corrigé, panne déplacée.** Zéro `JSONDecodeError`
+   (le budget proportionnel a marché) mais **47 timeouts à 25 s et 0 succès** :
+   multiplier `max_tokens` par 2,7 a allongé la génération au-delà du délai.
+   Erreur de ma part, corrigée en v1.22.0 (`AI_ARBITER_TIMEOUT` 25 → 60).
+4. **Paper sous −25 % — NON.** Il est à son pic.
+
+### La cause du critère 1 : le miroir exchange recopiait un profit-taking
+
+L'écart de la semaine tient à **un seul trade** :
+
+```
+live   ARB S1 LONG  02/09 16:03 → 04/09 12:55  44,9h  MFE 2444 bps  +13,00 $  exchange_stop
+paper  ARB S1 LONG  03/09 08:03 → 06/09 08:03  72,0h  MFE 4843 bps  +73,46 $  timeout
+```
+
+Le live est sorti **à 12h55, en pleine bougie**, par le trigger résident.
+Contrefactuel à qualité égale (son propre timeout, 05/09 16:03, clôture
+0,14963) : **+38,04 $ contre +13,00 $ réalisés — le miroir a coûté 25,04 $.**
+
+`hardstop.py` déclarait pourtant son périmètre : *« Les trails dynamiques
+(s10/s8_inlife/prop_trail) ne sont PAS miroités (profit-taking, pas sécurité) »*.
+`opp_floor` — cliquet à 0,80 × gain armé dès +300 bps — **est** du profit-taking,
+et était miroité. Or `trail_eval_4h_close=True` fait que ces règles ne sont
+évaluées qu'aux clôtures 4h (v1.8.0, prise parce que l'évaluation intra-bougie
+était la cause n°1 de gagnants coupés). Sur ARB le trigger a été touché en mèche
+**4 fois** alors qu'aucune clôture 4h n'est passée dessous.
+
+La comptabilité le montre en creux : `opp_floor` évalué normalement est positif
+partout (paper +71,64 $/n=5 · junior +34,08 $/n=6 · baby +10,46 $/n=1), et
+SENIOR n'en enregistre **aucun** — le miroir tirait avant et bookait
+`exchange_stop`. Les deux `exchange_stop` du live sont intra-bougie, sur des
+gagnants (MFE 1298 et 2444 bps).
+
+**Corrigé en v1.22.0** : `protective_level_bps` ne miroite plus que le stop
+catastrophe et le `manual_stop` de l'utilisateur. Vérifié par reconstruction —
+le trigger recalculé (0,100411) coïncide au chiffre près avec le `HARD_STOP_SET`
+réel du 02/09. Réserve : **n = 2**, le chiffre ne prouve rien statistiquement ;
+ce qui justifie le retrait est l'argument mécanique.
+
+### Critères de la semaine 2
+
+1. **Zéro sortie `exchange_stop` sur un gagnant** (MFE > 300 bps). Le filet ne
+   doit plus tirer que sur des pertes, ou pas du tout.
+2. **Convergence live/paper** : l'écart de P&L réalisé sur trades appariés doit
+   passer sous 5 $. S'il persiste après le retrait du miroir ET de la couche IA,
+   la cause restante est la dépendance au chemin, qui est irréductible.
+3. **Arbitre d'entrée** : au moins un `ARBITER_DECISION` réussi. Sinon le
+   problème n'est ni la troncature ni le délai.
+4. **Le compte** : critère d'arrêt inchangé, paper sous −25 % de son pic.

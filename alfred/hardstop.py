@@ -24,22 +24,33 @@ from alfred.settings import Params
 def protective_level_bps(pos, p: Params) -> float:
     """Niveau BRUT (bps vs entrée) du plancher soft le plus serré actif.
 
-    Trois planchers possibles, on prend le plus haut (étape B, v1.7.3) :
+    Deux planchers possibles, on prend le plus haut :
     - catastrophe : `effective_stop` (S8 serré, S9 adaptatif via pos.stop_bps) ;
-    - `manual_stop_usdt` (posé par l'utilisateur OU par le LOCK de l'arbitre
-      IA) : plancher $ sur le pnl NET → brut = usdt/size×1e4 + cost_bps
-      (sémantique exacte de rules.manual_stop_rule) ;
-    - `opp_floor_bps` : plancher cliquet armé par signal opposé (brut direct).
-    Les trails dynamiques (s10/s8_inlife/prop_trail) ne sont PAS miroités
-    (profit-taking, pas sécurité — périmètre acté 2026-07-02).
+    - `manual_stop_usdt` (posé par l'utilisateur) : plancher $ sur le pnl NET
+      → brut = usdt/size×1e4 + cost_bps (sémantique de rules.manual_stop_rule).
+
+    Aucun mécanisme de PRISE DE PROFIT n'est miroité — ni les trails
+    dynamiques (s10/s8_inlife/prop_trail), ni `opp_floor` (retiré le
+    2026-09-06). Périmètre acté le 2026-07-02, `opp_floor` y contrevenait :
+    c'est un cliquet à 0,80×gain armé dès +300 bps, donc du profit-taking, pas
+    de la sécurité.
+
+    Pourquoi ça comptait : `trail_eval_4h_close=True` fait que ces règles ne
+    sont évaluées QU'AUX CLÔTURES 4h (v1.8.0 — l'évaluation intra-bougie était
+    la cause n°1 de gagnants coupés). Un trigger résident, lui, se déclenche
+    sur n'importe quelle mèche. Sur ARB S1 LONG (02→04/09) le trigger a été
+    touché en mèche 4 fois alors qu'AUCUNE clôture 4h n'est passée dessous :
+    sortie à +13,00 $ contre +38,04 $ au timeout naturel, soit −25,04 $.
+    Symétriquement, `opp_floor` évalué normalement est positif partout
+    (paper +71,64 $/n=5 · junior +34,08 $/n=6 · baby +10,46 $/n=1) tandis que
+    SENIOR n'en enregistrait AUCUN : le miroir tirait avant et bookait
+    `exchange_stop`. Échantillon mince (n=2) — ce qui justifie le retrait est
+    l'argument mécanique, pas ces deux trades.
     """
     level = rules.effective_stop(pos, p)             # duck: strategy+stop_bps
     ms = getattr(pos, "manual_stop_usdt", None)
     if ms is not None and pos.size_usdt > 0:
         level = max(level, ms / pos.size_usdt * 1e4 + p.cost_bps)
-    of = getattr(pos, "opp_floor_bps", None)
-    if of is not None:
-        level = max(level, of)
     return level
 
 

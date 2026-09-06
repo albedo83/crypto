@@ -1,5 +1,9 @@
 # Changelog
 
+## [1.22.0] — 2026-09-06
+- **Trading engine**: le filet de stops côté exchange ne recopie plus le cliquet de gain — il ne miroite que les planchers de sécurité. Une règle qui n'est évaluée qu'aux clôtures 4h ne doit pas être armée en continu : le trigger résident se déclenchait sur des mèches que la règle n'aurait jamais vues.
+- **Couche IA**: délai d'attente de l'arbitre d'entrée relevé — le budget de réponse proportionnel de v1.21.0 avait supprimé les troncatures mais déplacé la panne vers le timeout.
+
 ## [1.21.0] — 2026-08-29
 - **Couche IA**: le verrou protecteur de l'arbitre de sortie passe en shadow — il décide et se fait scorer, sans engager l'argent. Sa mesure contrefactuelle le donne perdant face aux règles seules. Nouveau gate `AI_EXIT_LOCK_MODE`.
 - **Couche IA**: l'arbitre d'entrée passe en shadow, et son budget de sortie devient proportionnel au nombre de candidats — le forfait tronquait la réponse en plein JSON et le débranchait silencieusement à chaque scan.
