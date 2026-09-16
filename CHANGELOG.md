@@ -1,5 +1,8 @@
 # Changelog
 
+## [1.23.0] — 2026-09-16
+- **Trading engine**: une place supplémentaire pour les entrées macro. Le plafond avait été calibré sur une fenêtre où ce signal ne tirait quasiment pas ; il est devenu le signal dominant et bloquait la grande majorité des scans. Re-validé walk-forward strict sur les quatre fenêtres, drawdown inchangé.
+
 ## [1.22.0] — 2026-09-06
 - **Trading engine**: le filet de stops côté exchange ne recopie plus le cliquet de gain — il ne miroite que les planchers de sécurité. Une règle qui n'est évaluée qu'aux clôtures 4h ne doit pas être armée en continu : le trigger résident se déclenchait sur des mèches que la règle n'aurait jamais vues.
 - **Couche IA**: délai d'attente de l'arbitre d'entrée relevé — le budget de réponse proportionnel de v1.21.0 avait supprimé les troncatures mais déplacé la panne vers le timeout.

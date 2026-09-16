@@ -138,7 +138,7 @@ class Params:
     max_positions: int = 6
     max_same_direction: int = 4
     max_per_sector: int = 2
-    max_macro_slots: int = 3
+    max_macro_slots: int = 4
     max_token_slots: int = 4
     macro_strategies: frozenset[str] = frozenset({"S1"})
 
