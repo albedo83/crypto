@@ -1,0 +1,210 @@
+{
+  "version": "1.24.0",
+  "release_commit": "7bb5795",
+  "verified_at_utc": "2026-09-17T15:24:25.564608+00:00",
+  "restart": {
+    "old_pid": 1613078,
+    "new_pid": 1626835,
+    "started_ts": 1789657583.0838382,
+    "launch_ts": 1789657585.1092198
+  },
+  "health": {
+    "master": {
+      "version": "1.24.0",
+      "ws_connected": true,
+      "ws_reconnects": 0,
+      "last_price_s": 40.0,
+      "snapshot_version": 2,
+      "snapshot_age_s": 879.0,
+      "btc_z": 1.244,
+      "n_bots": 4
+    },
+    "bots": {
+      "paper": {
+        "status": "ok",
+        "price_age_s": 40.0,
+        "scan_age_s": 879.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 4,
+        "paused": false
+      },
+      "live": {
+        "status": "ok",
+        "price_age_s": 40.0,
+        "scan_age_s": 879.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 3,
+        "paused": false
+      },
+      "junior": {
+        "status": "ok",
+        "price_age_s": 40.0,
+        "scan_age_s": 879.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 5,
+        "paused": false
+      },
+      "baby": {
+        "status": "ok",
+        "price_age_s": 40.0,
+        "scan_age_s": 879.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 3,
+        "paused": false
+      }
+    },
+    "experiments": {
+      "enabled": true,
+      "version": "shadow-v1",
+      "status": "running",
+      "started_at": "2026-09-17T15:09:05.290178+00:00",
+      "review_at": "2026-10-15T15:09:05.290178+00:00",
+      "observation_days": 0.010218294594022962,
+      "review_due": false,
+      "warnings": [],
+      "gap_count": 0,
+      "last_observation_at": "2026-09-17T15:23:48.150831+00:00",
+      "books": [
+        {
+          "equity": 500.0,
+          "realized_pnl": 0.0,
+          "unrealized_pnl": 0.0,
+          "positions_count": 0,
+          "closed_trades": 0,
+          "exposure_usdt": 0.0,
+          "s1_extensions": 0,
+          "cohort_skips": 0,
+          "status": "running",
+          "warnings": [],
+          "funding_gap_count": 0,
+          "funding_missing_seconds": 0.0,
+          "id": "exp_control",
+          "variant": "control",
+          "label": "T\u00e9moin",
+          "initial_capital": 500,
+          "pnl": 0.0,
+          "drawdown_pct": 0,
+          "series": [
+            [
+              1789657745,
+              500.0
+            ],
+            [
+              1789658048,
+              500.0
+            ],
+            [
+              1789658348,
+              500.0
+            ]
+          ],
+          "delta_vs_control": 0.0
+        },
+        {
+          "equity": 500.0,
+          "realized_pnl": 0.0,
+          "unrealized_pnl": 0.0,
+          "positions_count": 0,
+          "closed_trades": 0,
+          "exposure_usdt": 0.0,
+          "s1_extensions": 0,
+          "cohort_skips": 0,
+          "status": "running",
+          "warnings": [],
+          "funding_gap_count": 0,
+          "funding_missing_seconds": 0.0,
+          "id": "exp_s1",
+          "variant": "s1",
+          "label": "S1 gagnant : +24 h",
+          "initial_capital": 500,
+          "pnl": 0.0,
+          "drawdown_pct": 0,
+          "series": [
+            [
+              1789657745,
+              500.0
+            ],
+            [
+              1789658048,
+              500.0
+            ],
+            [
+              1789658348,
+              500.0
+            ]
+          ],
+          "delta_vs_control": 0.0
+        },
+        {
+          "equity": 500.0,
+          "realized_pnl": 0.0,
+          "unrealized_pnl": 0.0,
+          "positions_count": 0,
+          "closed_trades": 0,
+          "exposure_usdt": 0.0,
+          "s1_extensions": 0,
+          "cohort_skips": 0,
+          "status": "running",
+          "warnings": [],
+          "funding_gap_count": 0,
+          "funding_missing_seconds": 0.0,
+          "id": "exp_cap3",
+          "variant": "cap3",
+          "label": "Maximum 3 par strat\u00e9gie et sens",
+          "initial_capital": 500,
+          "pnl": 0.0,
+          "drawdown_pct": 0,
+          "series": [
+            [
+              1789657745,
+              500.0
+            ],
+            [
+              1789658048,
+              500.0
+            ],
+            [
+              1789658348,
+              500.0
+            ]
+          ],
+          "delta_vs_control": 0.0
+        }
+      ],
+      "references": [
+        {
+          "id": "live",
+          "label": "SENIOR",
+          "equity": 486.1731494475001,
+          "start_equity": 486.2255914475001,
+          "started_at": "2026-09-17T15:09:13.045218+00:00",
+          "pnl_since_start": -0.052441999999985,
+          "return_pct": -0.010785528553498071,
+          "note": "Comptabilit\u00e9 interne, latent brut ; positions et capital initiaux diff\u00e9rents. R\u00e9f\u00e9rence ancr\u00e9e au premier prix frais : 2026-09-17T15:09:13.045218+00:00"
+        },
+        {
+          "id": "paper",
+          "label": "PAPER-ALFRED",
+          "equity": 568.8712664065778,
+          "start_equity": 569.9521157210568,
+          "started_at": "2026-09-17T15:09:13.045218+00:00",
+          "pnl_since_start": -1.0808493144789963,
+          "return_pct": -0.18963861781819938,
+          "note": "Comptabilit\u00e9 interne, latent brut ; positions et capital initiaux diff\u00e9rents. R\u00e9f\u00e9rence ancr\u00e9e au premier prix frais : 2026-09-17T15:09:13.045218+00:00"
+        }
+      ],
+      "comparison_valid": true,
+      "cost_model": {
+        "description": "Virtuel : frais 9 bps + glissement 4 bps aller-retour ; funding estim\u00e9 au taux pr\u00e9c\u00e9dent. Liquidit\u00e9 illimit\u00e9e, sans liquidation simul\u00e9e. Hors abonnement assistant. Revue \u00e0 28 jours, aucune promotion automatique en Live."
+      }
+    },
+    "dashboard_release_notes_verified": true
+  },
+  "python_tests_passed": 61,
+  "dashboard_dom_test_passed": true,
+  "profitability_validated": false
+}
