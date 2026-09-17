@@ -1,0 +1,18 @@
+{
+  "event_horizon_rows_independently_verified": 729,
+  "eligible_down_hours_by_month": {
+    "2026-02": 7970,
+    "2026-03": 10724,
+    "2026-04": 9961,
+    "2026-05": 9642
+  },
+  "hours_without_full_rolling_oi_history": {
+    "2026-01": 21080,
+    "2026-02": 7464,
+    "2026-05": 6342,
+    "2026-06": 23314,
+    "2026-03": 5208,
+    "2026-04": 5040
+  },
+  "all_checks_passed": true
+}
