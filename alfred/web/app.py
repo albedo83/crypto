@@ -407,6 +407,23 @@ def create_app(bots: dict, master) -> FastAPI:
     async def master_page():
         return (_STATIC / "master.html").read_text()
 
+    @app.get("/api/master/experiments")
+    async def api_master_experiments():
+        """Read-only shadow portfolios; existing master-route auth scopes apply."""
+        manager = getattr(master, "experiments", None)
+        headers = {"Cache-Control": "no-store"}
+        if manager is None:
+            return JSONResponse({"enabled": False, "books": [], "references": []},
+                                headers=headers)
+        try:
+            snapshot = await asyncio.to_thread(manager.snapshot)
+            return JSONResponse(snapshot, headers=headers)
+        except Exception:
+            log.exception("Shadow experiment snapshot unavailable")
+            return JSONResponse({"enabled": True, "status": "error",
+                                 "detail": "Experiments temporarily unavailable"},
+                                status_code=503, headers=headers)
+
     @app.get("/api/master/health")
     def api_master_health():
         return JSONResponse(views._to_py(

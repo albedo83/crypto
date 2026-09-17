@@ -3,6 +3,15 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.24.0 — 2026-09-17
+
+- **Expériences prospectives** : trois portefeuilles indépendants de 500 USDT : témoin, prolongation unique de 24 h des S1 gagnants à expiration, et plafond de trois positions par stratégie et sens. Aucun ordre réel ni appel IA dans ces portefeuilles.
+- **Comparaison** : même configuration initiale issue de Live, mêmes observations, capital et positions propres. Coûts simulés : frais 9 bps + glissement 4 bps aller-retour, funding estimé. Suivi des écarts au témoin, du capital et du drawdown ; Live/Paper restent des références séparées.
+- **Fiabilité** : sauvegardes et checkpoints, gel des expériences en cas d'état incohérent ou de changement du moteur, lacunes visibles. Première revue à 28 jours, aucune activation automatique en réel.
+- **Dashboard** : onglet Expériences en lecture seule. Les quatre bots officiels restent dans leur registre habituel.
+- **Backtest** : refuse une entrée au prochain open après la borne de fin ; tests reproduisant l'ancien défaut. Référence historique inchangée : 500 → 811,3296886635744, 293 trades sur le semestre vérifié.
+- Les règles et paramètres de trading de Live/Paper ne changent pas. Les expériences testent des hypothèses, sans gain de rentabilité acquis.
+
 ## v1.23.2 — 2026-09-17
 
 - **Coûts IA** : en observation, l'arbitre d'entrée ne reçoit plus les candidats déjà refusés par les contrôles du portefeuille courant (capacité, direction, secteur, cooldown, pause, OI et taille minimale). Un lot vide évite l'appel API.

@@ -118,6 +118,9 @@ def save_state(bot) -> None:
         "_arbiter_last": bot._arbiter_last,
         "_exit_arbiter_last": bot._exit_arbiter_last,
     }
+    extra = getattr(bot, "persistence_extra", None)
+    if extra is not None:
+        data["experiment"] = extra()
     tmp = state_file + ".tmp"
     try:
         payload = orjson.dumps(data, option=orjson.OPT_SERIALIZE_NUMPY)

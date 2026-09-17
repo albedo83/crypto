@@ -73,15 +73,30 @@ async def scheduler(master, bots: dict, shutdown: asyncio.Event):
                 if b.broker.is_live:
                     await asyncio.to_thread(b.safe_refresh_equity)
 
+            # Experiments are observers: run after official bots, and never
+            # let an experiment failure suppress their next tick or scan.
+            experiments = getattr(master, "experiments", None)
+            if experiments is not None:
+                try:
+                    await asyncio.to_thread(experiments.tick)
+                except Exception:
+                    log.exception("Experiment tick failed")
+
             now_t = time.time()
             last_4h = (int(now_t) // 14400) * 14400
+            experiment_scan_due = False
+            if experiments is not None and now_t - last_4h >= BOUNDARY_GRACE_S:
+                try:
+                    experiment_scan_due = experiments.needs_scan(last_4h)
+                except Exception:
+                    log.exception("Experiment scan readiness failed")
             # Les bots stopped ne scannent jamais (safe_on_scan sort avant
             # on_scan) → les inclure laisserait post_4h vrai en permanence
             # (scan-storm 20 s). Un bot paused consomme son gate dans on_scan.
             post_4h = (now_t - last_4h >= BOUNDARY_GRACE_S
-                       and any(b._last_entry_scan_4h_close < last_4h
+                       and (experiment_scan_due or any(b._last_entry_scan_4h_close < last_4h
                                for b in bots.values()
-                               if b.status != "stopped"))
+                               if b.status != "stopped")))
             if now_t - last_scan >= SCAN_SECONDS or post_4h:
                 log.info("Scan (trigger: %s)",
                          "4h-boundary" if post_4h and now_t - last_scan < SCAN_SECONDS
@@ -95,6 +110,11 @@ async def scheduler(master, bots: dict, shutdown: asyncio.Event):
                     if b.broker.is_live:
                         await asyncio.to_thread(b.safe_reconcile)
                         await asyncio.to_thread(b.safe_refresh_equity, True)
+                if experiments is not None:
+                    try:
+                        await asyncio.to_thread(experiments.scan)
+                    except Exception:
+                        log.exception("Experiment scan failed")
                 last_scan = now_t
         except asyncio.CancelledError:
             return
@@ -181,6 +201,15 @@ async def run():
             await asyncio.to_thread(b.boot_reconcile)
             await asyncio.to_thread(b.safe_refresh_equity, True)
 
+    # Virtual portfolios have separate persistence and no exchange broker.
+    # Startup failure disables observation without interrupting real bots.
+    master.experiments = None
+    try:
+        from alfred.experiments import ExperimentManager
+        master.experiments = ExperimentManager(master, bots, data_dir)
+    except Exception:
+        log.exception("Experiments unavailable; official bots continue")
+
     # ── Web app ──
     import uvicorn
     from alfred.web.app import create_app
@@ -212,6 +241,11 @@ async def run():
     for t in tasks:
         t.cancel()
     await asyncio.gather(*tasks, return_exceptions=True)
+    if master.experiments is not None:
+        try:
+            master.experiments.close()
+        except Exception:
+            log.exception("Experiment close failed")
     master.flow.flush_all()
     db.log_event("MASTER_STOP")
     db.close()

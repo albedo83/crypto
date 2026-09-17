@@ -12,8 +12,9 @@ API du bot et serveur s’ajoutent ; distinguer les coûts API estimés en USD ;
 ne pas additionner EUR et USD sans conversion explicitée, ni doubler les coûts.
 L'utilisateur autorise les recherches et changements de moteur/backtests et
 exige une contre-vérification systématique ; aucun rendement n'est promis.
-Livraison courante 1.23.2 : filtre des consultations IA d'entrée en observation,
-25 tests, déployée avec les quatre bots vérifiés OK ; voir `docs/objectif_et_couts_2026_09_17.md`. Ne pas augmenter le risque
+Livraison courante 1.24.0 : expériences prospectives indépendantes (témoin,
+S1 +24 h gagnant, plafond 3 par stratégie/sens), dashboard et correctif de borne
+backtest. Voir `docs/experiments_shadow_v1.md`. Ne pas augmenter le risque
 pour rattraper un objectif mensuel. « Restart » couvre tous les bots.
 L'audit `audit_live_paper.py` ne calcule qu'une attribution comptable ; ne pas
 transformer ses écarts en économies causales imputées à l'IA.

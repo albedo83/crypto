@@ -193,6 +193,7 @@ textarea:focus{outline:none;border-color:var(--blue)}
   <div class="tab active" data-p="global">Vue globale</div>
   <div class="tab" data-p="sys">Système</div>
   <div class="tab" data-p="fleet">Flotte <span class="count" id="cntBots">–</span></div>
+  <div class="tab" data-p="experiments">Expériences</div>
   <div class="tab" data-p="admin">Admin</div>
 </div>
 
@@ -246,6 +247,24 @@ textarea:focus{outline:none;border-color:var(--blue)}
   </div>
 </div>
 
+<!-- Shadow portfolios remain separate from the four official fleet bots. -->
+<div class="panel" id="p-experiments">
+  <div class="card"><h3>Comparaison prospective · portefeuilles virtuels</h3>
+    <p>500 USDT simulés par portefeuille. Aucun ordre réel, aucun appel IA supplémentaire.</p>
+    <p class="dim">Bilan après quatre semaines : aucune validation automatique. Frais et funding estimés ; les résultats simulés ne garantissent pas une exécution réelle.</p>
+    <div id="researchStatus" role="status">Chargement…</div>
+    <div id="researchWarnings" class="yellow"></div>
+    <div id="researchCosts" class="dim"></div>
+  </div>
+  <div class="card mt"><h3>Témoin et variantes · USDT</h3><div style="overflow-x:auto">
+    <table><thead><tr><th>Portefeuille</th><th>Statut</th><th class="num">Equity</th><th class="num">P&amp;L net</th><th class="num">Réalisé</th><th class="num">Latent</th><th class="num">Écart témoin</th><th class="num">DD max %</th><th class="num">Exposition</th><th class="num">Positions</th><th class="num">Clôtures</th><th class="num">S1 prolongés</th><th class="num">Entrées ignorées (cohorte)</th></tr></thead><tbody id="researchBooks"></tbody></table>
+    </div><canvas id="researchCanvas" height="230" aria-label="Equity des portefeuilles simulés"></canvas><div id="researchLegend"></div></div>
+  <div class="card mt"><h3>Live et Paper · contexte</h3>
+    <p class="dim">Portefeuilles existants avec capital et positions de départ différents : ces références ne mesurent pas l'effet causal des variantes.</p>
+    <div style="overflow-x:auto"><table><thead><tr><th>Référence</th><th class="num">Equity initiale</th><th class="num">Equity actuelle</th><th class="num">Variation depuis lancement</th><th class="num">Variation %</th><th>Note</th></tr></thead><tbody id="researchRefs"></tbody></table></div>
+  </div>
+</div>
+
 <!-- ════ ADMIN ════ -->
 <div class="panel" id="p-admin">
   <div id="botAdmins"></div>
@@ -282,6 +301,7 @@ document.querySelectorAll('.tab').forEach(t=>t.onclick=()=>{
   document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
   t.classList.add('active');$('p-'+t.dataset.p).classList.add('active');
   if(t.dataset.p==='fleet'&&fleetData)drawCurves(fleetData.curves||{});
+  if(t.dataset.p==='experiments')drawResearchCurves();
 });
 
 function kv(k,v,c=''){return `<div class="kv"><span class="k">${k}</span><span class="${c} mono">${v}</span></div>`}
@@ -752,9 +772,60 @@ function renderGlobal(d){
   }).join('');
 }
 
+// Experiments: use textContent for all external strings and explicit missing values.
+let researchData=null, researchBusy=false;
+const researchNumber=(v,d=2)=>typeof v==='number'&&Number.isFinite(v)?v.toFixed(d):'—';
+function researchRow(target,values){
+  const tr=document.createElement('tr');
+  values.forEach((v,i)=>{const td=document.createElement('td');td.textContent=String(v??'—');if(i>1)td.className='num';tr.appendChild(td);});
+  target.appendChild(tr);
+}
+function clearResearch(){
+  researchData=null;
+  ['researchBooks','researchRefs','researchLegend','researchWarnings','researchCosts'].forEach(id=>$(id).replaceChildren());
+  const canvas=$('researchCanvas');canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+}
+function renderExperiments(d){
+  clearResearch();
+  if(!d.enabled){$('researchStatus').textContent='Expériences désactivées.';return;}
+  researchData=d;
+  const when=v=>v?String(v):'—';
+  $('researchStatus').textContent=`Statut : ${d.status??'—'} · ${researchNumber(d.observation_days,1)} jours · début ${when(d.started_at)} · bilan ${when(d.review_at)}${d.review_due?' (échéance atteinte)':''} · dernière observation ${when(d.last_observation_at)} · interruptions ${researchNumber(d.gap_count,0)}`;
+  $('researchWarnings').textContent=[...(d.comparison_valid===false?['Comparaison non valide : examiner les interruptions ou changements de configuration.']:[]),...(d.warnings||[])].join(' · ');
+  $('researchCosts').textContent=d.cost_model?.description??'Modèle de coûts indisponible.';
+  (d.books||[]).forEach(b=>researchRow($('researchBooks'),[b.label,b.status,...['equity','pnl','realized_pnl','unrealized_pnl','delta_vs_control','drawdown_pct','exposure_usdt'].map(k=>researchNumber(b[k])),...['positions_count','closed_trades','s1_extensions','cohort_skips'].map(k=>researchNumber(b[k],0))]));
+  (d.references||[]).forEach(r=>researchRow($('researchRefs'),[r.label,researchNumber(r.start_equity),researchNumber(r.equity),researchNumber(r.pnl_since_start),researchNumber(r.return_pct),r.note]));
+  drawResearchCurves();
+}
+function drawResearchCurves(){
+  const canvas=$('researchCanvas'),ctx=canvas.getContext('2d');
+  const width=canvas.clientWidth;if(!width)return;
+  canvas.width=width;canvas.height=230;
+  ctx.clearRect(0,0,width,230);$('researchLegend').replaceChildren();
+  const colors=['#7c9bff','#36ce9d','#ffbf69'];
+  const books=(researchData?.books||[]).map(b=>({...b,points:(b.series||[]).filter(p=>Array.isArray(p)&&p.length>=2&&p.every(v=>typeof v==='number'&&Number.isFinite(v)))}));
+  const points=books.flatMap(b=>b.points);if(!points.length)return;
+  let loX=Infinity,hiX=-Infinity,loY=Infinity,hiY=-Infinity;
+  points.forEach(p=>{loX=Math.min(loX,p[0]);hiX=Math.max(hiX,p[0]);loY=Math.min(loY,p[1]);hiY=Math.max(hiY,p[1]);});
+  const x=t=>55+(t-loX)/Math.max(hiX-loX,1)*Math.max(width-75,1),y=v=>195-(v-loY)/Math.max(hiY-loY,1)*165;
+  ctx.fillStyle='#91a0b5';ctx.font='11px sans-serif';
+  ctx.fillText(hiY.toFixed(2),2,30);ctx.fillText(loY.toFixed(2),2,195);
+  ctx.fillText(new Date(loX*1000).toISOString().slice(5,16).replace('T',' '),55,222);
+  if(width>320)ctx.fillText(new Date(hiX*1000).toISOString().slice(5,16).replace('T',' '),width-105,222);
+  books.forEach((b,i)=>{ctx.strokeStyle=colors[i%colors.length];ctx.fillStyle=ctx.strokeStyle;ctx.lineWidth=2;ctx.beginPath();b.points.forEach((p,j)=>j?ctx.lineTo(x(p[0]),y(p[1])):ctx.moveTo(x(p[0]),y(p[1])));ctx.stroke();if(b.points.length===1){ctx.beginPath();ctx.arc(x(b.points[0][0]),y(b.points[0][1]),3,0,Math.PI*2);ctx.fill();}const label=document.createElement('span');label.style.color=colors[i%colors.length];label.style.marginRight='16px';label.textContent=b.label;$('researchLegend').appendChild(label);});
+}
+async function refreshExperiments(){
+  if(researchBusy)return;researchBusy=true;
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+  try{const r=await fetch('api/master/experiments',{credentials:'same-origin',cache:'no-store',signal:controller.signal});if(!r.ok)throw new Error('unavailable');renderExperiments(await r.json());}
+  catch(_){clearResearch();$('researchStatus').textContent='Données indisponibles — aucun chiffre ancien affiché. Nouvel essai au prochain rafraîchissement.';}
+  finally{clearTimeout(timer);researchBusy=false;}
+}
+
 // ── refresh ──
 let gatesTimer=0,lastOk=0;
 function refresh(){
+  refreshExperiments();
   fetch('api/master/health',{credentials:'same-origin'}).then(r=>{
     if(r.status===401){location.reload();return null;}  // session perdue → login
     return r.json();
@@ -776,7 +847,7 @@ setInterval(()=>{
   if(lastOk)$('lastUpd').textContent='MAJ il y a '+Math.round((Date.now()-lastOk)/1000)+'s';
 },1000);
 $('evtKinds').onchange=refresh;
-window.addEventListener('resize',()=>{if(fleetData)drawCurves(fleetData.curves||{})});
+window.addEventListener('resize',()=>{if(fleetData)drawCurves(fleetData.curves||{});drawResearchCurves();});
 refresh();cfgReload();
 setInterval(refresh,10000);
 </script>

@@ -1592,6 +1592,12 @@ def run_window(features, data, sector_features, dxy_data,
             idx_f = f.get("_idx") if f else None
             if idx_f is None or idx_f + 1 >= len(data[coin]):
                 continue
+            # Signals are executed at the NEXT candle's open. A signal
+            # inside the window must not create a position beyond its end:
+            # the final mark would otherwise precede the entry timestamp.
+            # end_ts_ms is inclusive; half-open callers pass end - 1.
+            if data[coin][idx_f + 1]["t"] > end_ts_ms:
+                continue
             entry = data[coin][idx_f + 1]["o"]
             if entry <= 0:
                 continue

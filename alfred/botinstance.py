@@ -645,8 +645,7 @@ class BotInstance:
                     manual_stop_usdt=pos.manual_stop_usdt,
                     opp_floor_bps=pos.opp_floor_bps)
 
-            dec = rules.evaluate_exit(pv, unrealized, m, self.p,
-                                      trail_gate=trail_due)
+            dec = self._evaluate_exit(pv, unrealized, m, trail_gate=trail_due)
             if dec is None:
                 continue
             if dec.action == "extend":
@@ -1332,6 +1331,15 @@ class BotInstance:
                 self.db.log_event("S9F_OBS", sym, s9f)
         return all_signals
 
+    def _evaluate_exit(self, pos, unrealized, market, *, trail_gate=True):
+        return rules.evaluate_exit(pos, unrealized, market, self.p,
+                                   trail_gate=trail_gate)
+
+    def _available_entry_margin(self):
+        if self.broker.is_live and self._exchange_account:
+            return self._exchange_account.get("available")
+        return None
+
     def _entry_skip_reason(self, sig, counters, market, capital):
         """Shared eligibility check for execution and shadow AI preflight.
 
@@ -1516,9 +1524,7 @@ class BotInstance:
         # ("Insufficient margin", junior 2026-06-11 — compte plus petit que
         # le sizing modulé). Décrémentée au fil des fills du scan (le cache
         # equity n'est rafraîchi qu'au tick de 20s).
-        avail_margin = None
-        if self.broker.is_live and self._exchange_account:
-            avail_margin = self._exchange_account.get("available")
+        avail_margin = self._available_entry_margin()
         for sig in sigs:
             sym = sig["symbol"]
             side = "LONG" if sig["direction"] == 1 else "SHORT"
