@@ -1,0 +1,1767 @@
+{
+  "description": "Research checks; risk is candle-close proxy, not guaranteed max loss. No EUR subscription deducted from USD capital.",
+  "runs": [
+    {
+      "family": "exits",
+      "variant": "baseline",
+      "slip": 4,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.48493998766118,
+        "dd_mtm4h_gross_proxy": -36.35350256189619,
+        "dd_mtm4h_cost_funding_proxy": -36.38192886280148,
+        "minimum_equity_proxy": 324.85497211926486,
+        "end_capital": 811.3296886635744,
+        "max_open_positions": 6,
+        "mean_open_notional": 474.28437891513715,
+        "max_open_notional": 1109.3901055012143,
+        "notional_hours": 1848570.9550523493,
+        "n_trades": 293
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "macro",
+      "slip": 4,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.48493998766118,
+        "dd_mtm4h_gross_proxy": -36.35350256189619,
+        "dd_mtm4h_cost_funding_proxy": -36.38192886280148,
+        "minimum_equity_proxy": 324.85497211926486,
+        "end_capital": 855.7719901591396,
+        "max_open_positions": 6,
+        "mean_open_notional": 482.56684332851916,
+        "max_open_notional": 1170.1592974016053,
+        "notional_hours": 1884601.4145618721,
+        "n_trades": 286
+      },
+      "decomposition": {
+        "matched": 226,
+        "baseline_only": 67,
+        "variant_only": 60,
+        "size_component": 3.1332378679931163,
+        "paired_net_return_component": 18.944049590997817,
+        "unmatched_component": 22.36501403657377,
+        "delta": 44.442301495565175,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "null",
+      "slip": 4,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.48493998766118,
+        "dd_mtm4h_gross_proxy": -36.35350256189619,
+        "dd_mtm4h_cost_funding_proxy": -36.38192886280148,
+        "minimum_equity_proxy": 324.85497211926486,
+        "end_capital": 855.7719901591396,
+        "max_open_positions": 6,
+        "mean_open_notional": 482.56684332851916,
+        "max_open_notional": 1170.1592974016053,
+        "notional_hours": 1884601.4145618721,
+        "n_trades": 286
+      },
+      "decomposition": {
+        "matched": 226,
+        "baseline_only": 67,
+        "variant_only": 60,
+        "size_component": 3.1332378679931163,
+        "paired_net_return_component": 18.944049590997817,
+        "unmatched_component": 22.36501403657377,
+        "delta": 44.442301495565175,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "baseline",
+      "slip": 4,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.48493998766118,
+        "dd_mtm4h_gross_proxy": -36.35350256189619,
+        "dd_mtm4h_cost_funding_proxy": -36.38192886280148,
+        "minimum_equity_proxy": 324.85497211926486,
+        "end_capital": 811.3296886635744,
+        "max_open_positions": 6,
+        "mean_open_notional": 474.28437891513715,
+        "max_open_notional": 1109.3901055012143,
+        "notional_hours": 1848570.9550523493,
+        "n_trades": 293
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "funding_rank",
+      "slip": 4,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.48493998766118,
+        "dd_mtm4h_gross_proxy": -38.09186025891116,
+        "dd_mtm4h_cost_funding_proxy": -38.02611672574061,
+        "minimum_equity_proxy": 326.7833297116473,
+        "end_capital": 607.4250788659657,
+        "max_open_positions": 6,
+        "mean_open_notional": 440.39193476903114,
+        "max_open_notional": 1082.4343930641207,
+        "notional_hours": 1717414.957544015,
+        "n_trades": 297
+      },
+      "decomposition": {
+        "matched": 202,
+        "baseline_only": 91,
+        "variant_only": 95,
+        "size_component": -2.273453317816656,
+        "paired_net_return_component": -1.6529713177297042e-14,
+        "unmatched_component": -201.6311564797923,
+        "delta": -203.9046097976087,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap0",
+      "slip": 4,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.48493998766118,
+        "dd_mtm4h_gross_proxy": -36.35350256189619,
+        "dd_mtm4h_cost_funding_proxy": -36.38192886280148,
+        "minimum_equity_proxy": 324.85497211926486,
+        "end_capital": 811.3296886635744,
+        "max_open_positions": 6,
+        "mean_open_notional": 474.28437891513715,
+        "max_open_notional": 1109.3901055012143,
+        "notional_hours": 1848570.9550523493,
+        "n_trades": 293
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap2",
+      "slip": 4,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -26.550124626901482,
+        "dd_mtm4h_gross_proxy": -27.322750786083795,
+        "dd_mtm4h_cost_funding_proxy": -27.327308685234254,
+        "minimum_equity_proxy": 379.673542154718,
+        "end_capital": 681.3978417744654,
+        "max_open_positions": 6,
+        "mean_open_notional": 361.7647751892795,
+        "max_open_notional": 882.6700791401868,
+        "notional_hours": 1398375.847711628,
+        "n_trades": 261
+      },
+      "decomposition": {
+        "matched": 185,
+        "baseline_only": 108,
+        "variant_only": 76,
+        "size_component": 1.7019789680545216,
+        "paired_net_return_component": -3.336467620005396e-14,
+        "unmatched_component": -131.63382585716377,
+        "delta": -129.931846889109,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap3",
+      "slip": 4,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.48493998766118,
+        "dd_mtm4h_gross_proxy": -36.35350256189619,
+        "dd_mtm4h_cost_funding_proxy": -36.38192886280148,
+        "minimum_equity_proxy": 324.85497211926486,
+        "end_capital": 897.5460160876524,
+        "max_open_positions": 6,
+        "mean_open_notional": 471.7986429052411,
+        "max_open_notional": 1168.094809227528,
+        "notional_hours": 1834002.3796611757,
+        "n_trades": 281
+      },
+      "decomposition": {
+        "matched": 226,
+        "baseline_only": 67,
+        "variant_only": 55,
+        "size_component": 9.654433308685618,
+        "paired_net_return_component": -2.3577342185702743e-14,
+        "unmatched_component": 76.5618941153918,
+        "delta": 86.21632742407803,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "baseline",
+      "slip": 4,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.49242088634579,
+        "dd_mtm4h_gross_proxy": -32.11944883082049,
+        "dd_mtm4h_cost_funding_proxy": -32.08958539348279,
+        "minimum_equity_proxy": 472.5063312891352,
+        "end_capital": 707.251156386431,
+        "max_open_positions": 6,
+        "mean_open_notional": 519.7140331620037,
+        "max_open_notional": 1487.5194287468682,
+        "notional_hours": 2074498.6037185383,
+        "n_trades": 266
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "macro",
+      "slip": 4,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.492420886345812,
+        "dd_mtm4h_gross_proxy": -30.899977746929608,
+        "dd_mtm4h_cost_funding_proxy": -30.89069380344579,
+        "minimum_equity_proxy": 472.5063312891352,
+        "end_capital": 734.8390591311094,
+        "max_open_positions": 6,
+        "mean_open_notional": 530.698296030322,
+        "max_open_notional": 1609.465986164043,
+        "notional_hours": 2120510.228254189,
+        "n_trades": 262
+      },
+      "decomposition": {
+        "matched": 245,
+        "baseline_only": 21,
+        "variant_only": 17,
+        "size_component": -7.163329864165964,
+        "paired_net_return_component": 114.99871469418268,
+        "unmatched_component": -80.2474820853378,
+        "delta": 27.58790274467833,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "null",
+      "slip": 4,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.492420886345812,
+        "dd_mtm4h_gross_proxy": -30.899977746929608,
+        "dd_mtm4h_cost_funding_proxy": -30.89069380344579,
+        "minimum_equity_proxy": 472.5063312891352,
+        "end_capital": 734.8390591311094,
+        "max_open_positions": 6,
+        "mean_open_notional": 530.698296030322,
+        "max_open_notional": 1609.465986164043,
+        "notional_hours": 2120510.228254189,
+        "n_trades": 262
+      },
+      "decomposition": {
+        "matched": 245,
+        "baseline_only": 21,
+        "variant_only": 17,
+        "size_component": -7.163329864165964,
+        "paired_net_return_component": 114.99871469418268,
+        "unmatched_component": -80.2474820853378,
+        "delta": 27.58790274467833,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "baseline",
+      "slip": 4,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.49242088634579,
+        "dd_mtm4h_gross_proxy": -32.11944883082049,
+        "dd_mtm4h_cost_funding_proxy": -32.08958539348279,
+        "minimum_equity_proxy": 472.5063312891352,
+        "end_capital": 707.251156386431,
+        "max_open_positions": 6,
+        "mean_open_notional": 519.7140331620037,
+        "max_open_notional": 1487.5194287468682,
+        "notional_hours": 2074498.6037185383,
+        "n_trades": 266
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "funding_rank",
+      "slip": 4,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -39.99948269799993,
+        "dd_mtm4h_gross_proxy": -40.332758557434786,
+        "dd_mtm4h_cost_funding_proxy": -40.329924624313854,
+        "minimum_equity_proxy": 474.6355215367148,
+        "end_capital": 725.9447282587971,
+        "max_open_positions": 6,
+        "mean_open_notional": 564.0880054974704,
+        "max_open_notional": 1734.4413536529453,
+        "notional_hours": 2250779.0797641873,
+        "n_trades": 266
+      },
+      "decomposition": {
+        "matched": 212,
+        "baseline_only": 54,
+        "variant_only": 54,
+        "size_component": 8.780884670134743,
+        "paired_net_return_component": -4.158479180975861e-14,
+        "unmatched_component": 9.912687202230877,
+        "delta": 18.69357187236608,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap0",
+      "slip": 4,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.49242088634579,
+        "dd_mtm4h_gross_proxy": -32.11944883082049,
+        "dd_mtm4h_cost_funding_proxy": -32.08958539348279,
+        "minimum_equity_proxy": 472.5063312891352,
+        "end_capital": 707.251156386431,
+        "max_open_positions": 6,
+        "mean_open_notional": 519.7140331620037,
+        "max_open_notional": 1487.5194287468682,
+        "notional_hours": 2074498.6037185383,
+        "n_trades": 266
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap2",
+      "slip": 4,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -41.114598764210406,
+        "dd_mtm4h_gross_proxy": -41.594965029116274,
+        "dd_mtm4h_cost_funding_proxy": -41.584906839400524,
+        "minimum_equity_proxy": 467.06110412466427,
+        "end_capital": 629.7260069924707,
+        "max_open_positions": 6,
+        "mean_open_notional": 453.08073927270544,
+        "max_open_notional": 1566.687949938961,
+        "notional_hours": 1804241.516433958,
+        "n_trades": 241
+      },
+      "decomposition": {
+        "matched": 197,
+        "baseline_only": 69,
+        "variant_only": 44,
+        "size_component": -10.509459841504396,
+        "paired_net_return_component": -1.1754502236041303e-14,
+        "unmatched_component": -67.01568955245534,
+        "delta": -77.5251493939603,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap3",
+      "slip": 4,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -32.311974979904825,
+        "dd_mtm4h_gross_proxy": -32.563009656368656,
+        "dd_mtm4h_cost_funding_proxy": -32.57086794477194,
+        "minimum_equity_proxy": 472.5063312891352,
+        "end_capital": 720.4154748728239,
+        "max_open_positions": 6,
+        "mean_open_notional": 514.6769948048084,
+        "max_open_notional": 1314.9746882263612,
+        "notional_hours": 2050038.4878664135,
+        "n_trades": 262
+      },
+      "decomposition": {
+        "matched": 239,
+        "baseline_only": 27,
+        "variant_only": 23,
+        "size_component": -3.2668043458437745,
+        "paired_net_return_component": 1.0504735106035334e-14,
+        "unmatched_component": 16.4311228322365,
+        "delta": 13.164318486392858,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "baseline",
+      "slip": 4,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.263701752453336,
+        "dd_mtm4h_gross_proxy": -22.734697113859824,
+        "dd_mtm4h_cost_funding_proxy": -22.818009862145693,
+        "minimum_equity_proxy": 476.5056807414864,
+        "end_capital": 1743.5753944474318,
+        "max_open_positions": 4,
+        "mean_open_notional": 683.2731883920716,
+        "max_open_notional": 2166.0445319532873,
+        "notional_hours": 2663205.8913584244,
+        "n_trades": 264
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "macro",
+      "slip": 4,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.263701752453336,
+        "dd_mtm4h_gross_proxy": -22.734697113859824,
+        "dd_mtm4h_cost_funding_proxy": -22.818009862145693,
+        "minimum_equity_proxy": 476.5056807414864,
+        "end_capital": 1743.5753944474318,
+        "max_open_positions": 4,
+        "mean_open_notional": 683.2731883920716,
+        "max_open_notional": 2166.0445319532873,
+        "notional_hours": 2663205.8913584244,
+        "n_trades": 264
+      },
+      "decomposition": {
+        "matched": 264,
+        "baseline_only": 0,
+        "variant_only": 0,
+        "size_component": 0.0,
+        "paired_net_return_component": 0.0,
+        "unmatched_component": 0,
+        "delta": 0.0,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "null",
+      "slip": 4,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.263701752453336,
+        "dd_mtm4h_gross_proxy": -22.734697113859824,
+        "dd_mtm4h_cost_funding_proxy": -22.818009862145693,
+        "minimum_equity_proxy": 476.5056807414864,
+        "end_capital": 1743.5753944474318,
+        "max_open_positions": 4,
+        "mean_open_notional": 683.2731883920716,
+        "max_open_notional": 2166.0445319532873,
+        "notional_hours": 2663205.8913584244,
+        "n_trades": 264
+      },
+      "decomposition": {
+        "matched": 264,
+        "baseline_only": 0,
+        "variant_only": 0,
+        "size_component": 0.0,
+        "paired_net_return_component": 0.0,
+        "unmatched_component": 0,
+        "delta": 0.0,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "baseline",
+      "slip": 4,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.263701752453336,
+        "dd_mtm4h_gross_proxy": -22.734697113859824,
+        "dd_mtm4h_cost_funding_proxy": -22.818009862145693,
+        "minimum_equity_proxy": 476.5056807414864,
+        "end_capital": 1743.5753944474318,
+        "max_open_positions": 4,
+        "mean_open_notional": 683.2731883920716,
+        "max_open_notional": 2166.0445319532873,
+        "notional_hours": 2663205.8913584244,
+        "n_trades": 264
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "funding_rank",
+      "slip": 4,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.67738415164337,
+        "dd_mtm4h_gross_proxy": -26.374742330544443,
+        "dd_mtm4h_cost_funding_proxy": -26.456819673393273,
+        "minimum_equity_proxy": 496.01731619662013,
+        "end_capital": 1744.042779581524,
+        "max_open_positions": 4,
+        "mean_open_notional": 694.6063058630544,
+        "max_open_notional": 2166.625164725028,
+        "notional_hours": 2713711.1821597842,
+        "n_trades": 262
+      },
+      "decomposition": {
+        "matched": 220,
+        "baseline_only": 44,
+        "variant_only": 42,
+        "size_component": -25.514904144077242,
+        "paired_net_return_component": -5.631318030852531e-14,
+        "unmatched_component": 25.982289278166576,
+        "delta": 0.46738513409218285,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap0",
+      "slip": 4,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.263701752453336,
+        "dd_mtm4h_gross_proxy": -22.734697113859824,
+        "dd_mtm4h_cost_funding_proxy": -22.818009862145693,
+        "minimum_equity_proxy": 476.5056807414864,
+        "end_capital": 1743.5753944474318,
+        "max_open_positions": 4,
+        "mean_open_notional": 683.2731883920716,
+        "max_open_notional": 2166.0445319532873,
+        "notional_hours": 2663205.8913584244,
+        "n_trades": 264
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap2",
+      "slip": 4,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -22.19522123915902,
+        "dd_mtm4h_gross_proxy": -21.878154407215643,
+        "dd_mtm4h_cost_funding_proxy": -21.965203492949527,
+        "minimum_equity_proxy": 490.67960618786697,
+        "end_capital": 1324.753856551875,
+        "max_open_positions": 4,
+        "mean_open_notional": 601.0577392850346,
+        "max_open_notional": 1566.7290416696092,
+        "notional_hours": 2342856.974358531,
+        "n_trades": 244
+      },
+      "decomposition": {
+        "matched": 198,
+        "baseline_only": 66,
+        "variant_only": 46,
+        "size_component": -39.13465760793655,
+        "paired_net_return_component": -3.240247161540283e-14,
+        "unmatched_component": -379.6868802876206,
+        "delta": -418.82153789555673,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap3",
+      "slip": 4,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -22.94801111411872,
+        "dd_mtm4h_gross_proxy": -23.528353612468255,
+        "dd_mtm4h_cost_funding_proxy": -23.615905788168547,
+        "minimum_equity_proxy": 454.5351006028489,
+        "end_capital": 1630.4314491130485,
+        "max_open_positions": 4,
+        "mean_open_notional": 711.3011429121433,
+        "max_open_notional": 2025.4857554899208,
+        "notional_hours": 2775278.611823861,
+        "n_trades": 261
+      },
+      "decomposition": {
+        "matched": 244,
+        "baseline_only": 20,
+        "variant_only": 17,
+        "size_component": 29.36662645981408,
+        "paired_net_return_component": -2.535471450545455e-14,
+        "unmatched_component": -142.5105717941978,
+        "delta": -113.14394533438326,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "baseline",
+      "slip": 4,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -32.620738110144124,
+        "dd_mtm4h_gross_proxy": -32.72829869274899,
+        "dd_mtm4h_cost_funding_proxy": -32.752142146086214,
+        "minimum_equity_proxy": 357.0571602757876,
+        "end_capital": 524.0638249427157,
+        "max_open_positions": 6,
+        "mean_open_notional": 413.5359921647827,
+        "max_open_notional": 780.9861644603448,
+        "notional_hours": 1659621.963763637,
+        "n_trades": 315
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "macro",
+      "slip": 4,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -35.89031020051188,
+        "dd_mtm4h_gross_proxy": -35.99360481519797,
+        "dd_mtm4h_cost_funding_proxy": -36.01629251179133,
+        "minimum_equity_proxy": 339.7259277653976,
+        "end_capital": 536.229470637207,
+        "max_open_positions": 6,
+        "mean_open_notional": 401.67575937935686,
+        "max_open_notional": 820.4798019514772,
+        "notional_hours": 1613900.0367518743,
+        "n_trades": 312
+      },
+      "decomposition": {
+        "matched": 284,
+        "baseline_only": 31,
+        "variant_only": 28,
+        "size_component": 5.195382586219066,
+        "paired_net_return_component": -28.603226799049022,
+        "unmatched_component": 35.573489907321466,
+        "delta": 12.165645694491332,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "null",
+      "slip": 4,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -35.89031020051188,
+        "dd_mtm4h_gross_proxy": -35.99360481519797,
+        "dd_mtm4h_cost_funding_proxy": -36.01629251179133,
+        "minimum_equity_proxy": 339.7259277653976,
+        "end_capital": 536.229470637207,
+        "max_open_positions": 6,
+        "mean_open_notional": 401.67575937935686,
+        "max_open_notional": 820.4798019514772,
+        "notional_hours": 1613900.0367518743,
+        "n_trades": 312
+      },
+      "decomposition": {
+        "matched": 284,
+        "baseline_only": 31,
+        "variant_only": 28,
+        "size_component": 5.195382586219066,
+        "paired_net_return_component": -28.603226799049022,
+        "unmatched_component": 35.573489907321466,
+        "delta": 12.165645694491332,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "baseline",
+      "slip": 4,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -32.620738110144124,
+        "dd_mtm4h_gross_proxy": -32.72829869274899,
+        "dd_mtm4h_cost_funding_proxy": -32.752142146086214,
+        "minimum_equity_proxy": 357.0571602757876,
+        "end_capital": 524.0638249427157,
+        "max_open_positions": 6,
+        "mean_open_notional": 413.5359921647827,
+        "max_open_notional": 780.9861644603448,
+        "notional_hours": 1659621.963763637,
+        "n_trades": 315
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "funding_rank",
+      "slip": 4,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -38.76195658437728,
+        "dd_mtm4h_gross_proxy": -37.9196840026333,
+        "dd_mtm4h_cost_funding_proxy": -37.93337375642011,
+        "minimum_equity_proxy": 329.54705207968993,
+        "end_capital": 403.90516750389565,
+        "max_open_positions": 6,
+        "mean_open_notional": 367.23049358628805,
+        "max_open_notional": 739.4142676364278,
+        "notional_hours": 1472756.4058447392,
+        "n_trades": 316
+      },
+      "decomposition": {
+        "matched": 223,
+        "baseline_only": 92,
+        "variant_only": 93,
+        "size_component": -7.745556669412879,
+        "paired_net_return_component": 2.896452726904871e-14,
+        "unmatched_component": -112.41310076940682,
+        "delta": -120.15865743882,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap0",
+      "slip": 4,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -32.620738110144124,
+        "dd_mtm4h_gross_proxy": -32.72829869274899,
+        "dd_mtm4h_cost_funding_proxy": -32.752142146086214,
+        "minimum_equity_proxy": 357.0571602757876,
+        "end_capital": 524.0638249427157,
+        "max_open_positions": 6,
+        "mean_open_notional": 413.5359921647827,
+        "max_open_notional": 780.9861644603448,
+        "notional_hours": 1659621.963763637,
+        "n_trades": 315
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap2",
+      "slip": 4,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -25.144666876968024,
+        "dd_mtm4h_gross_proxy": -25.819008381872443,
+        "dd_mtm4h_cost_funding_proxy": -25.865824359783783,
+        "minimum_equity_proxy": 434.7633179864613,
+        "end_capital": 641.4168042613484,
+        "max_open_positions": 5,
+        "mean_open_notional": 451.2152814821429,
+        "max_open_notional": 820.3922893272236,
+        "notional_hours": 1800144.2525028787,
+        "n_trades": 285
+      },
+      "decomposition": {
+        "matched": 198,
+        "baseline_only": 117,
+        "variant_only": 87,
+        "size_component": -8.823069498820937,
+        "paired_net_return_component": -1.3668488536585816e-14,
+        "unmatched_component": 126.1760488174535,
+        "delta": 117.35297931863272,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap3",
+      "slip": 4,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -26.748319747845876,
+        "dd_mtm4h_gross_proxy": -26.796075903047623,
+        "dd_mtm4h_cost_funding_proxy": -26.834541720527184,
+        "minimum_equity_proxy": 397.04473399239197,
+        "end_capital": 565.9637552930352,
+        "max_open_positions": 6,
+        "mean_open_notional": 438.2727321464875,
+        "max_open_notional": 874.4666567838558,
+        "notional_hours": 1755908.0125328104,
+        "n_trades": 304
+      },
+      "decomposition": {
+        "matched": 267,
+        "baseline_only": 48,
+        "variant_only": 37,
+        "size_component": 4.331598782097354,
+        "paired_net_return_component": -3.7288806110150565e-14,
+        "unmatched_component": 37.5683315682225,
+        "delta": 41.89993035031955,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "baseline",
+      "slip": 6,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.723164298621825,
+        "dd_mtm4h_gross_proxy": -36.61360347322721,
+        "dd_mtm4h_cost_funding_proxy": -36.64555225767003,
+        "minimum_equity_proxy": 323.43279828895675,
+        "end_capital": 797.6212165473498,
+        "max_open_positions": 6,
+        "mean_open_notional": 469.983156440162,
+        "max_open_notional": 1097.3127971230765,
+        "notional_hours": 1831894.9282541766,
+        "n_trades": 293
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "macro",
+      "slip": 6,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.723164298621825,
+        "dd_mtm4h_gross_proxy": -36.61360347322721,
+        "dd_mtm4h_cost_funding_proxy": -36.64555225767003,
+        "minimum_equity_proxy": 323.43279828895675,
+        "end_capital": 841.7631953034146,
+        "max_open_positions": 6,
+        "mean_open_notional": 478.3082152197228,
+        "max_open_notional": 1158.040316871154,
+        "notional_hours": 1868069.767342746,
+        "n_trades": 286
+      },
+      "decomposition": {
+        "matched": 226,
+        "baseline_only": 67,
+        "variant_only": 60,
+        "size_component": 2.8230253055236507,
+        "paired_net_return_component": 18.86801825392635,
+        "unmatched_component": 22.450935196614694,
+        "delta": 44.14197875606476,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "null",
+      "slip": 6,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.723164298621825,
+        "dd_mtm4h_gross_proxy": -36.61360347322721,
+        "dd_mtm4h_cost_funding_proxy": -36.64555225767003,
+        "minimum_equity_proxy": 323.43279828895675,
+        "end_capital": 841.7631953034146,
+        "max_open_positions": 6,
+        "mean_open_notional": 478.3082152197228,
+        "max_open_notional": 1158.040316871154,
+        "notional_hours": 1868069.767342746,
+        "n_trades": 286
+      },
+      "decomposition": {
+        "matched": 226,
+        "baseline_only": 67,
+        "variant_only": 60,
+        "size_component": 2.8230253055236507,
+        "paired_net_return_component": 18.86801825392635,
+        "unmatched_component": 22.450935196614694,
+        "delta": 44.14197875606476,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "baseline",
+      "slip": 6,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.723164298621825,
+        "dd_mtm4h_gross_proxy": -36.61360347322721,
+        "dd_mtm4h_cost_funding_proxy": -36.64555225767003,
+        "minimum_equity_proxy": 323.43279828895675,
+        "end_capital": 797.6212165473498,
+        "max_open_positions": 6,
+        "mean_open_notional": 469.983156440162,
+        "max_open_notional": 1097.3127971230765,
+        "notional_hours": 1831894.9282541766,
+        "n_trades": 293
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "funding_rank",
+      "slip": 6,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.723164298621825,
+        "dd_mtm4h_gross_proxy": -38.36432892673089,
+        "dd_mtm4h_cost_funding_proxy": -38.298456588558494,
+        "minimum_equity_proxy": 325.36104194093394,
+        "end_capital": 596.9676179815508,
+        "max_open_positions": 6,
+        "mean_open_notional": 436.4378828503752,
+        "max_open_notional": 1074.0088973863087,
+        "notional_hours": 1702085.578356098,
+        "n_trades": 297
+      },
+      "decomposition": {
+        "matched": 202,
+        "baseline_only": 91,
+        "variant_only": 95,
+        "size_component": -1.668368430027344,
+        "paired_net_return_component": 1.2361639497911193e-14,
+        "unmatched_component": -198.98523013577147,
+        "delta": -200.65359856579903,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap0",
+      "slip": 6,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.723164298621825,
+        "dd_mtm4h_gross_proxy": -36.61360347322721,
+        "dd_mtm4h_cost_funding_proxy": -36.64555225767003,
+        "minimum_equity_proxy": 323.43279828895675,
+        "end_capital": 797.6212165473498,
+        "max_open_positions": 6,
+        "mean_open_notional": 469.983156440162,
+        "max_open_notional": 1097.3127971230765,
+        "notional_hours": 1831894.9282541766,
+        "n_trades": 293
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap2",
+      "slip": 6,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -26.809395734621067,
+        "dd_mtm4h_gross_proxy": -27.575788611224905,
+        "dd_mtm4h_cost_funding_proxy": -27.585528303175554,
+        "minimum_equity_proxy": 378.947170878178,
+        "end_capital": 671.0907826443799,
+        "max_open_positions": 6,
+        "mean_open_notional": 358.9311735072262,
+        "max_open_notional": 874.0955388344569,
+        "notional_hours": 1387478.9108929422,
+        "n_trades": 261
+      },
+      "decomposition": {
+        "matched": 185,
+        "baseline_only": 108,
+        "variant_only": 76,
+        "size_component": 2.325315494788064,
+        "paired_net_return_component": -5.011421491463608e-15,
+        "unmatched_component": -128.8557493977572,
+        "delta": -126.53043390296989,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap3",
+      "slip": 6,
+      "window": 0,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -37.723164298621825,
+        "dd_mtm4h_gross_proxy": -36.61360347322721,
+        "dd_mtm4h_cost_funding_proxy": -36.64555225767003,
+        "minimum_equity_proxy": 323.43279828895675,
+        "end_capital": 883.0183834919667,
+        "max_open_positions": 6,
+        "mean_open_notional": 467.5660729830365,
+        "max_open_notional": 1156.1223074309587,
+        "notional_hours": 1817622.0031237414,
+        "n_trades": 281
+      },
+      "decomposition": {
+        "matched": 226,
+        "baseline_only": 67,
+        "variant_only": 55,
+        "size_component": 9.041580429649528,
+        "paired_net_return_component": 4.279253656071304e-14,
+        "unmatched_component": 76.35558651496683,
+        "delta": 85.39716694461686,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "baseline",
+      "slip": 6,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.80062792382546,
+        "dd_mtm4h_gross_proxy": -32.73571366443421,
+        "dd_mtm4h_cost_funding_proxy": -32.704642028874595,
+        "minimum_equity_proxy": 471.96662115629715,
+        "end_capital": 696.194666648098,
+        "max_open_positions": 6,
+        "mean_open_notional": 515.6620261640461,
+        "max_open_notional": 1479.9584148008855,
+        "notional_hours": 2058371.3146367853,
+        "n_trades": 266
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "macro",
+      "slip": 6,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.80062792382538,
+        "dd_mtm4h_gross_proxy": -31.189400911795552,
+        "dd_mtm4h_cost_funding_proxy": -31.182200616231583,
+        "minimum_equity_proxy": 471.96662115629715,
+        "end_capital": 723.5608112582491,
+        "max_open_positions": 6,
+        "mean_open_notional": 526.6290993867719,
+        "max_open_notional": 1601.6602663865763,
+        "notional_hours": 2104304.912052653,
+        "n_trades": 262
+      },
+      "decomposition": {
+        "matched": 245,
+        "baseline_only": 21,
+        "variant_only": 17,
+        "size_component": -7.382314469941453,
+        "paired_net_return_component": 114.47410861908801,
+        "unmatched_component": -79.72564953899642,
+        "delta": 27.366144610151196,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "null",
+      "slip": 6,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.80062792382538,
+        "dd_mtm4h_gross_proxy": -31.189400911795552,
+        "dd_mtm4h_cost_funding_proxy": -31.182200616231583,
+        "minimum_equity_proxy": 471.96662115629715,
+        "end_capital": 723.5608112582491,
+        "max_open_positions": 6,
+        "mean_open_notional": 526.6290993867719,
+        "max_open_notional": 1601.6602663865763,
+        "notional_hours": 2104304.912052653,
+        "n_trades": 262
+      },
+      "decomposition": {
+        "matched": 245,
+        "baseline_only": 21,
+        "variant_only": 17,
+        "size_component": -7.382314469941453,
+        "paired_net_return_component": 114.47410861908801,
+        "unmatched_component": -79.72564953899642,
+        "delta": 27.366144610151196,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "baseline",
+      "slip": 6,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.80062792382546,
+        "dd_mtm4h_gross_proxy": -32.73571366443421,
+        "dd_mtm4h_cost_funding_proxy": -32.704642028874595,
+        "minimum_equity_proxy": 471.96662115629715,
+        "end_capital": 696.194666648098,
+        "max_open_positions": 6,
+        "mean_open_notional": 515.6620261640461,
+        "max_open_notional": 1479.9584148008855,
+        "notional_hours": 2058371.3146367853,
+        "n_trades": 266
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "funding_rank",
+      "slip": 6,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -40.272614572677284,
+        "dd_mtm4h_gross_proxy": -40.58628964264868,
+        "dd_mtm4h_cost_funding_proxy": -40.58857719073588,
+        "minimum_equity_proxy": 474.08568256672226,
+        "end_capital": 714.5988948532679,
+        "max_open_positions": 6,
+        "mean_open_notional": 559.6538921554819,
+        "max_open_notional": 1716.0328419764842,
+        "notional_hours": 2233144.4419453605,
+        "n_trades": 266
+      },
+      "decomposition": {
+        "matched": 212,
+        "baseline_only": 54,
+        "variant_only": 54,
+        "size_component": 8.003390270682806,
+        "paired_net_return_component": -1.4111472999307796e-14,
+        "unmatched_component": 10.400837934486876,
+        "delta": 18.404228205169943,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap0",
+      "slip": 6,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -31.80062792382546,
+        "dd_mtm4h_gross_proxy": -32.73571366443421,
+        "dd_mtm4h_cost_funding_proxy": -32.704642028874595,
+        "minimum_equity_proxy": 471.96662115629715,
+        "end_capital": 696.194666648098,
+        "max_open_positions": 6,
+        "mean_open_notional": 515.6620261640461,
+        "max_open_notional": 1479.9584148008855,
+        "notional_hours": 2058371.3146367853,
+        "n_trades": 266
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap2",
+      "slip": 6,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -41.42515063444653,
+        "dd_mtm4h_gross_proxy": -41.892717883865515,
+        "dd_mtm4h_cost_funding_proxy": -41.87971550846933,
+        "minimum_equity_proxy": 466.52208531534365,
+        "end_capital": 620.7697230993934,
+        "max_open_positions": 6,
+        "mean_open_notional": 449.8288080505958,
+        "max_open_notional": 1551.6222620722092,
+        "notional_hours": 1791302.923491634,
+        "n_trades": 241
+      },
+      "decomposition": {
+        "matched": 197,
+        "baseline_only": 69,
+        "variant_only": 44,
+        "size_component": -10.43948513355254,
+        "paired_net_return_component": -1.009975962796448e-13,
+        "unmatched_component": -64.98545841515292,
+        "delta": -75.4249435487045,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap3",
+      "slip": 6,
+      "window": 1,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -32.60900573953237,
+        "dd_mtm4h_gross_proxy": -32.84554582354197,
+        "dd_mtm4h_cost_funding_proxy": -32.85889671510268,
+        "minimum_equity_proxy": 471.96662115629715,
+        "end_capital": 709.3471407969706,
+        "max_open_positions": 6,
+        "mean_open_notional": 510.6805540671858,
+        "max_open_notional": 1301.311601992109,
+        "notional_hours": 2034154.6587437352,
+        "n_trades": 262
+      },
+      "decomposition": {
+        "matched": 239,
+        "baseline_only": 27,
+        "variant_only": 23,
+        "size_component": -3.5363889956808623,
+        "paired_net_return_component": -4.4212900552932775e-14,
+        "unmatched_component": 16.688863144553068,
+        "delta": 13.15247414887267,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "baseline",
+      "slip": 6,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.362614852882587,
+        "dd_mtm4h_gross_proxy": -22.78404900105826,
+        "dd_mtm4h_cost_funding_proxy": -22.87579677906605,
+        "minimum_equity_proxy": 475.44592028211883,
+        "end_capital": 1716.8472196101977,
+        "max_open_positions": 4,
+        "mean_open_notional": 677.0893776582947,
+        "max_open_notional": 2133.981091919234,
+        "notional_hours": 2639122.083018789,
+        "n_trades": 264
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "macro",
+      "slip": 6,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.362614852882587,
+        "dd_mtm4h_gross_proxy": -22.78404900105826,
+        "dd_mtm4h_cost_funding_proxy": -22.87579677906605,
+        "minimum_equity_proxy": 475.44592028211883,
+        "end_capital": 1716.8472196101977,
+        "max_open_positions": 4,
+        "mean_open_notional": 677.0893776582947,
+        "max_open_notional": 2133.981091919234,
+        "notional_hours": 2639122.083018789,
+        "n_trades": 264
+      },
+      "decomposition": {
+        "matched": 264,
+        "baseline_only": 0,
+        "variant_only": 0,
+        "size_component": 0.0,
+        "paired_net_return_component": 0.0,
+        "unmatched_component": 0,
+        "delta": 0.0,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "null",
+      "slip": 6,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.362614852882587,
+        "dd_mtm4h_gross_proxy": -22.78404900105826,
+        "dd_mtm4h_cost_funding_proxy": -22.87579677906605,
+        "minimum_equity_proxy": 475.44592028211883,
+        "end_capital": 1716.8472196101977,
+        "max_open_positions": 4,
+        "mean_open_notional": 677.0893776582947,
+        "max_open_notional": 2133.981091919234,
+        "notional_hours": 2639122.083018789,
+        "n_trades": 264
+      },
+      "decomposition": {
+        "matched": 264,
+        "baseline_only": 0,
+        "variant_only": 0,
+        "size_component": 0.0,
+        "paired_net_return_component": 0.0,
+        "unmatched_component": 0,
+        "delta": 0.0,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "baseline",
+      "slip": 6,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.362614852882587,
+        "dd_mtm4h_gross_proxy": -22.78404900105826,
+        "dd_mtm4h_cost_funding_proxy": -22.87579677906605,
+        "minimum_equity_proxy": 475.44592028211883,
+        "end_capital": 1716.8472196101977,
+        "max_open_positions": 4,
+        "mean_open_notional": 677.0893776582947,
+        "max_open_notional": 2133.981091919234,
+        "notional_hours": 2639122.083018789,
+        "n_trades": 264
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "funding_rank",
+      "slip": 6,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.830689673660014,
+        "dd_mtm4h_gross_proxy": -26.41875220303137,
+        "dd_mtm4h_cost_funding_proxy": -26.50895274416619,
+        "minimum_equity_proxy": 494.9463180513089,
+        "end_capital": 1717.5077459148204,
+        "max_open_positions": 4,
+        "mean_open_notional": 688.3904439020729,
+        "max_open_notional": 2134.80210303116,
+        "notional_hours": 2689435.828015267,
+        "n_trades": 262
+      },
+      "decomposition": {
+        "matched": 220,
+        "baseline_only": 44,
+        "variant_only": 42,
+        "size_component": -25.17454548997765,
+        "paired_net_return_component": 1.5568487359694223e-13,
+        "unmatched_component": 25.835071794599884,
+        "delta": 0.6605263046226355,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap0",
+      "slip": 6,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.362614852882587,
+        "dd_mtm4h_gross_proxy": -22.78404900105826,
+        "dd_mtm4h_cost_funding_proxy": -22.87579677906605,
+        "minimum_equity_proxy": 475.44592028211883,
+        "end_capital": 1716.8472196101977,
+        "max_open_positions": 4,
+        "mean_open_notional": 677.0893776582947,
+        "max_open_notional": 2133.981091919234,
+        "notional_hours": 2639122.083018789,
+        "n_trades": 264
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap2",
+      "slip": 6,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -22.335757716473964,
+        "dd_mtm4h_gross_proxy": -21.93462955652059,
+        "dd_mtm4h_cost_funding_proxy": -22.014880773531807,
+        "minimum_equity_proxy": 489.6189414927956,
+        "end_capital": 1305.8970409676222,
+        "max_open_positions": 4,
+        "mean_open_notional": 596.2508609145459,
+        "max_open_notional": 1546.6085429155603,
+        "notional_hours": 2324138.686993421,
+        "n_trades": 244
+      },
+      "decomposition": {
+        "matched": 198,
+        "baseline_only": 66,
+        "variant_only": 46,
+        "size_component": -37.379006640993,
+        "paired_net_return_component": 4.7421786223281874e-14,
+        "unmatched_component": -373.57117200158285,
+        "delta": -410.95017864257557,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap3",
+      "slip": 6,
+      "window": 2,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -23.102787215900893,
+        "dd_mtm4h_gross_proxy": -23.57412512638477,
+        "dd_mtm4h_cost_funding_proxy": -23.670179843008132,
+        "minimum_equity_proxy": 453.51671503440497,
+        "end_capital": 1605.6849190135558,
+        "max_open_positions": 4,
+        "mean_open_notional": 705.0421403973735,
+        "max_open_notional": 1995.8102372864405,
+        "notional_hours": 2750884.3999552242,
+        "n_trades": 261
+      },
+      "decomposition": {
+        "matched": 244,
+        "baseline_only": 20,
+        "variant_only": 17,
+        "size_component": 28.979078806656766,
+        "paired_net_return_component": 1.228583394205513e-13,
+        "unmatched_component": -140.1413794032992,
+        "delta": -111.1623005966419,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "baseline",
+      "slip": 6,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -33.142452023813256,
+        "dd_mtm4h_gross_proxy": -33.23862567267528,
+        "dd_mtm4h_cost_funding_proxy": -33.26930629689049,
+        "minimum_equity_proxy": 354.1234255542607,
+        "end_capital": 514.3862279834905,
+        "max_open_positions": 6,
+        "mean_open_notional": 409.5516211383177,
+        "max_open_notional": 767.041157956141,
+        "notional_hours": 1643558.1656578996,
+        "n_trades": 315
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "macro",
+      "slip": 6,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -36.384324290761334,
+        "dd_mtm4h_gross_proxy": -36.47499341436797,
+        "dd_mtm4h_cost_funding_proxy": -36.50418511467005,
+        "minimum_equity_proxy": 336.9567170332666,
+        "end_capital": 526.4289552296051,
+        "max_open_positions": 6,
+        "mean_open_notional": 397.85352817349616,
+        "max_open_notional": 806.069464073233,
+        "notional_hours": 1598473.1487221518,
+        "n_trades": 312
+      },
+      "decomposition": {
+        "matched": 284,
+        "baseline_only": 31,
+        "variant_only": 28,
+        "size_component": 5.385737009546306,
+        "paired_net_return_component": -28.41547684585952,
+        "unmatched_component": 35.07246708242695,
+        "delta": 12.042727246114623,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "exits",
+      "variant": "null",
+      "slip": 6,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -36.384324290761334,
+        "dd_mtm4h_gross_proxy": -36.47499341436797,
+        "dd_mtm4h_cost_funding_proxy": -36.50418511467005,
+        "minimum_equity_proxy": 336.9567170332666,
+        "end_capital": 526.4289552296051,
+        "max_open_positions": 6,
+        "mean_open_notional": 397.85352817349616,
+        "max_open_notional": 806.069464073233,
+        "notional_hours": 1598473.1487221518,
+        "n_trades": 312
+      },
+      "decomposition": {
+        "matched": 284,
+        "baseline_only": 31,
+        "variant_only": 28,
+        "size_component": 5.385737009546306,
+        "paired_net_return_component": -28.41547684585952,
+        "unmatched_component": 35.07246708242695,
+        "delta": 12.042727246114623,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "baseline",
+      "slip": 6,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -33.142452023813256,
+        "dd_mtm4h_gross_proxy": -33.23862567267528,
+        "dd_mtm4h_cost_funding_proxy": -33.26930629689049,
+        "minimum_equity_proxy": 354.1234255542607,
+        "end_capital": 514.3862279834905,
+        "max_open_positions": 6,
+        "mean_open_notional": 409.5516211383177,
+        "max_open_notional": 767.041157956141,
+        "notional_hours": 1643558.1656578996,
+        "n_trades": 315
+      }
+    },
+    {
+      "family": "entries",
+      "variant": "funding_rank",
+      "slip": 6,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -39.252076734591796,
+        "dd_mtm4h_gross_proxy": -38.779964625747944,
+        "dd_mtm4h_cost_funding_proxy": -38.7835827832472,
+        "minimum_equity_proxy": 324.860512636109,
+        "end_capital": 396.38200854786083,
+        "max_open_positions": 6,
+        "mean_open_notional": 363.83052417473243,
+        "max_open_notional": 736.2643120653506,
+        "notional_hours": 1459059.0545554026,
+        "n_trades": 316
+      },
+      "decomposition": {
+        "matched": 223,
+        "baseline_only": 92,
+        "variant_only": 93,
+        "size_component": -7.014797601998935,
+        "paired_net_return_component": 6.652370049968053e-15,
+        "unmatched_component": -110.989421833631,
+        "delta": -118.00421943562964,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap0",
+      "slip": 6,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -33.142452023813256,
+        "dd_mtm4h_gross_proxy": -33.23862567267528,
+        "dd_mtm4h_cost_funding_proxy": -33.26930629689049,
+        "minimum_equity_proxy": 354.1234255542607,
+        "end_capital": 514.3862279834905,
+        "max_open_positions": 6,
+        "mean_open_notional": 409.5516211383177,
+        "max_open_notional": 767.041157956141,
+        "notional_hours": 1643558.1656578996,
+        "n_trades": 315
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap2",
+      "slip": 6,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -25.289914908379433,
+        "dd_mtm4h_gross_proxy": -25.91146392047485,
+        "dd_mtm4h_cost_funding_proxy": -25.968298990187456,
+        "minimum_equity_proxy": 433.8859798303093,
+        "end_capital": 630.7286430928633,
+        "max_open_positions": 5,
+        "mean_open_notional": 447.26987630529953,
+        "max_open_notional": 807.9108657771185,
+        "notional_hours": 1784360.1318052004,
+        "n_trades": 285
+      },
+      "decomposition": {
+        "matched": 198,
+        "baseline_only": 117,
+        "variant_only": 87,
+        "size_component": -10.23885601967512,
+        "paired_net_return_component": -2.7376063970709488e-14,
+        "unmatched_component": 126.58127112904722,
+        "delta": 116.34241510937284,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    },
+    {
+      "family": "portfolio",
+      "variant": "cap3",
+      "slip": 6,
+      "window": 3,
+      "metrics": {
+        "open_position_bars_without_price": 0,
+        "dd_realized_native": -26.999782217815344,
+        "dd_mtm4h_gross_proxy": -26.968221155530635,
+        "dd_mtm4h_cost_funding_proxy": -27.014266714645164,
+        "minimum_equity_proxy": 395.48897402485966,
+        "end_capital": 555.9021952188095,
+        "max_open_positions": 6,
+        "mean_open_notional": 434.1769853437114,
+        "max_open_notional": 860.578697061047,
+        "notional_hours": 1739437.2416689333,
+        "n_trades": 304
+      },
+      "decomposition": {
+        "matched": 267,
+        "baseline_only": 48,
+        "variant_only": 37,
+        "size_component": 3.4265646721712706,
+        "paired_net_return_component": -1.3193227429913881e-14,
+        "unmatched_component": 38.089402563147715,
+        "delta": 41.51596723531907,
+        "interpretation": "Accounting decomposition, not causal attribution; paired selection is endogenous."
+      }
+    }
+  ],
+  "baseline_checks": [
+    {
+      "family": "exits",
+      "slip": 4,
+      "window": 0,
+      "ledger_identical": true
+    },
+    {
+      "family": "entries",
+      "slip": 4,
+      "window": 0,
+      "ledger_identical": true
+    },
+    {
+      "family": "portfolio",
+      "slip": 4,
+      "window": 0,
+      "ledger_identical": true
+    },
+    {
+      "family": "exits",
+      "slip": 4,
+      "window": 1,
+      "ledger_identical": true
+    },
+    {
+      "family": "entries",
+      "slip": 4,
+      "window": 1,
+      "ledger_identical": true
+    },
+    {
+      "family": "portfolio",
+      "slip": 4,
+      "window": 1,
+      "ledger_identical": true
+    },
+    {
+      "family": "exits",
+      "slip": 4,
+      "window": 2,
+      "ledger_identical": true
+    },
+    {
+      "family": "entries",
+      "slip": 4,
+      "window": 2,
+      "ledger_identical": true
+    },
+    {
+      "family": "portfolio",
+      "slip": 4,
+      "window": 2,
+      "ledger_identical": true
+    },
+    {
+      "family": "exits",
+      "slip": 4,
+      "window": 3,
+      "ledger_identical": true
+    },
+    {
+      "family": "entries",
+      "slip": 4,
+      "window": 3,
+      "ledger_identical": true
+    },
+    {
+      "family": "portfolio",
+      "slip": 4,
+      "window": 3,
+      "ledger_identical": true
+    },
+    {
+      "family": "exits",
+      "slip": 6,
+      "window": 0,
+      "ledger_identical": true
+    },
+    {
+      "family": "entries",
+      "slip": 6,
+      "window": 0,
+      "ledger_identical": true
+    },
+    {
+      "family": "portfolio",
+      "slip": 6,
+      "window": 0,
+      "ledger_identical": true
+    },
+    {
+      "family": "exits",
+      "slip": 6,
+      "window": 1,
+      "ledger_identical": true
+    },
+    {
+      "family": "entries",
+      "slip": 6,
+      "window": 1,
+      "ledger_identical": true
+    },
+    {
+      "family": "portfolio",
+      "slip": 6,
+      "window": 1,
+      "ledger_identical": true
+    },
+    {
+      "family": "exits",
+      "slip": 6,
+      "window": 2,
+      "ledger_identical": true
+    },
+    {
+      "family": "entries",
+      "slip": 6,
+      "window": 2,
+      "ledger_identical": true
+    },
+    {
+      "family": "portfolio",
+      "slip": 6,
+      "window": 2,
+      "ledger_identical": true
+    },
+    {
+      "family": "exits",
+      "slip": 6,
+      "window": 3,
+      "ledger_identical": true
+    },
+    {
+      "family": "entries",
+      "slip": 6,
+      "window": 3,
+      "ledger_identical": true
+    },
+    {
+      "family": "portfolio",
+      "slip": 6,
+      "window": 3,
+      "ledger_identical": true
+    }
+  ]
+}
