@@ -7,10 +7,10 @@ le lot des positions en « zone candidate ». L'IA renvoie, par symbole, un verd
   - LOCK : verrouiller un GAGNANT en posant/relevant un stop protecteur (cliquet).
   - HOLD : ne rien faire (défaut — les règles gèrent la majorité des sorties).
 
-Déploiement asymétrique (choix utilisateur) :
-  - LOCK est non-destructif → AGIT dès que l'arbitre est enabled.
-  - CUT est destructif → SHADOW d'abord (`AI_EXIT_CUT_MODE=shadow`), bascule `act`
-    seulement sur preuve du scorecard.
+Déploiement :
+  - LOCK et CUT ont chacun un mode shadow/act ; shadow par défaut.
+  - LOCK peut avancer une sortie et modifier les opportunités suivantes.
+  - Le mode effectif est contrôlé par config() et le disjoncteur.
   - L'IA ne ferme JAMAIS un gagnant (LOCK = stop protecteur uniquement).
 
 Discipline : gate LLM inbacktestable → overlay live-only (jamais dans rules.py /
@@ -135,10 +135,16 @@ ouvertes en ZONE CANDIDATE. Pour CHACUNE, tu décides UNE action :
   déjà, ne propose un LOCK que pour le RELEVER (plancher plus haut).
 
 RÈGLES FERMES :
-- Le moteur a un EDGE PROUVÉ ; ton défaut est HOLD. N'agis (CUT/LOCK) que sur une
+- Les backtests ne prouvent pas un avantage futur ; ton défaut est HOLD.
+  N'agis (CUT/LOCK) que sur une
   raison ancrée dans le contexte fourni.
 - Jamais de CUT sur un gagnant. Jamais de LOCK qui se déclencherait immédiatement.
 - Pas d'hallucination de chiffres : uniquement les valeurs du contexte fourni.
+- Sans série temporelle suffisante, n'affirme pas observer une pente persistante
+  à partir des seuls MAE/MFE et du prix courant. confidence n'est pas une
+  probabilité de gain calibrée.
+- S1 et S5 suivent un mouvement ; le raisonnement de retour à la moyenne
+  ci-dessous concerne les stratégies de rebond/fade, pas tous les signaux.
 - Mean-reversion : un perdant modéré qui respire n'est PAS un CUT. Le CUT vise la
   trajectoire désespérée sans rebond, pas le rouge ordinaire.
 - **S9 est CONÇU pour être sous l'eau tôt** (fade d'un move extrême : les règles

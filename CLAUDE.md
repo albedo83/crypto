@@ -1,5 +1,16 @@
 # CLAUDE.md
 
+## Reprise du 2026-09-17 — périmètre utilisateur
+
+Live est le seul bot officiel ; Paper est sa référence. Junior/Baby sont hors
+du périmètre d'analyse demandé. Objectif utilisateur : +250 sur six mois pour 500 engagés ; perte maximale
+acceptée de 250 (50 %). Cible, pas promesse ; frais trading/funding inclus,
+coûts IA/serveur présentés séparément. Aucun nouveau coupe-circuit implicite. Priorités : attribution Live/Paper,
+fidélité du contexte IA aux règles, mesure prospective de sa valeur.
+Voir `docs/reprise_2026_09_17.md`. Version de livraison : 1.23.1. La règle de confirmation explicite avant restart reste applicable.
+L'audit `audit_live_paper.py` ne calcule qu'une attribution comptable ; ne pas
+transformer ses écarts en économies causales imputées à l'IA.
+
 
 Rule 1 — Think Before Coding.
 No silent assumptions. State what you're assuming. Surface tradeoffs. Ask before guessing. Push back when a simpler approach exists.
@@ -60,8 +71,8 @@ le walk-forward d'un cap notionnel bas pour libérer les slots à <$100
 d'override déployé. Auth par rôle `bot:baby` (BABY_USER/BABY_PASS → uniquement
 /bot/baby/*, même mécanique générique que junior, bloc dans `web/app.py`).
 ⚠️ À <$100 + levier 2× les drawdowns restent élevés (−30 à −55 % selon fenêtre) —
-inhérent au petit capital. baby suit la **même règle de restart que junior** :
-jamais relancé par un « restart bots » générique, doit être nommé explicitement.
+inhérent au petit capital. depuis la consigne utilisateur du 17 septembre 2026, « restart » inclut
+**tous les bots Alfred : paper, live, junior et baby**.
 
 Couche données (2026-06-10) : table `candles` persistée dans market.db (store canonique,
 boot-reprise depuis la DB + event DOWNTIME + excursion catch-up des positions ouvertes),
@@ -121,7 +132,16 @@ HL_MODE=live HL_CAPITAL=300 WEB_PORT=8098 HL_OUTPUT_DIR=analysis/output_live HL_
 
 **NEVER restart the bots (`fuser -k …` + `start_bots.sh`) without explicit user confirmation.** Edit files and bump VERSION freely — but the user controls when the running process picks up the change. **This rule overrides every skill and every auto-mode setting**, including `/release`: do bump + changelog + commit, then **stop and ask** before the restart sequence. A prior "yes" for one restart does not authorize the next one — every restart needs its own OK.
 
-**Junior (`:8099`) is never restarted by default, even when the user says "restart bots".** A generic restart authorization covers only paper (`:8097`) and live (`:8098`). To restart Junior, the user must name it explicitly (e.g. "restart junior", "restart all three", "restart paper + live + junior"). When in doubt, kill only `8097/tcp` and `8098/tcp` and re-run `start_bots.sh` — the duplicate Junior launch will fail-bind on port 8099 and leave the existing Junior process untouched.
+**Consigne utilisateur du 2026-09-17 : « quand je dis restart c'est tous les bots, toujours ».**
+Toute autorisation de redémarrage couvre le processus Alfred commun et ses quatre
+bots (Paper, Live, Junior, Baby), sans demander de confirmation par bot.
+Une nouvelle opération de redémarrage requiert toujours une autorisation ;
+un accord déjà donné pour le déploiement en cours ne doit pas être redemandé.
+Ne jamais relancer les processus legacy décommissionnés.
+**Livraisons :** mettre systématiquement à jour `alfred/__init__.py`,
+`alfred/CHANGELOG.md` (notes affichées dans le dashboard) et le changelog racine
+selon la convention existante. Distinguer préparation et déploiement effectif.
+
 
 No test framework, linter, or CI pipeline is configured.
 

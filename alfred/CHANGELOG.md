@@ -3,6 +3,14 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.23.1 — 2026-09-17
+
+- **IA** : doctrine corrigée et dérivée des paramètres du moteur ; description fidèle de S5, des coefficients macro et des sorties. Les résultats historiques ne sont plus présentés comme une preuve de gain futur.
+- **Mesure** : audit Live/Paper en lecture seule, attribution comptable des écarts et audit de couverture IA par version/prompt. Le défaut du scorecard LOCK est documenté ; son remplacement prospectif reste à implémenter.
+- **Recherche** : contre-vérification du passage macro 3→4 sur quatre semestres disjoints et deux niveaux de coûts. Bénéfice non confirmé sur ces fenêtres ; paramètres de trading inchangés.
+- **Exploitation** : selon la consigne utilisateur, « restart » couvre désormais Paper, Live, Junior et Baby. Version et notes de livraison mises à jour systématiquement.
+- **Validation** : 16 tests ciblés réussis. Aucun gain de rentabilité démontré par cette livraison.
+
 ## v1.18.0 — 2026-07-31
 
 - **Dashboard**: les courbes d'equity de la flotte reçoivent la courbe du **backtest canonique** — même reset, même capital, mêmes règles — en trait pointillé pour qu'on ne la confonde jamais avec de l'argent réellement engagé. C'est la référence visuelle « ce que le moteur aurait fait sans nous » : sans arbitre IA, sans stops posés, sans exécution réelle. Demande utilisateur : voir l'écart plutôt que le lire en chiffres.

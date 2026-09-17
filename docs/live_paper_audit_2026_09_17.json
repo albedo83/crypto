@@ -1,0 +1,4081 @@
+{
+  "closed_pnl_usd": {
+    "paper": 61.17000000000001,
+    "live": -20.56
+  },
+  "live_minus_paper_usd": -81.73,
+  "attribution": {
+    "size_effect_usd": -25.35394933265685,
+    "return_effect_usd": -9.876050667343163,
+    "unmatched_closed_delta_usd": -46.5,
+    "pending_pair_realized_delta_usd": 0.0
+  },
+  "identity_residual_usd": 1.4210854715202004e-14,
+  "matched_closed": 79,
+  "pending_pairs": [
+    {
+      "key": [
+        "APT",
+        "S5",
+        "SHORT",
+        124277
+      ],
+      "paper_closed": false,
+      "live_closed": false,
+      "realized_delta_usd": 0.0
+    }
+  ],
+  "unmatched": [
+    {
+      "bot": "paper",
+      "key": [
+        "PYTH",
+        "S10",
+        "SHORT",
+        123941
+      ],
+      "symbol": "PYTH",
+      "entry_time": "2026-07-22T20:03:07.847752+00:00",
+      "closed": true,
+      "pnl_usd": 5.83
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "DYDX",
+        "S5",
+        "SHORT",
+        124116
+      ],
+      "symbol": "DYDX",
+      "entry_time": "2026-08-21T00:03:13.466597+00:00",
+      "closed": true,
+      "pnl_usd": -17.06
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "GALA",
+        "S9",
+        "SHORT",
+        124120
+      ],
+      "symbol": "GALA",
+      "entry_time": "2026-08-21T16:03:04.635684+00:00",
+      "closed": true,
+      "pnl_usd": -9.61
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "MINA",
+        "S5",
+        "LONG",
+        124122
+      ],
+      "symbol": "MINA",
+      "entry_time": "2026-08-22T00:03:08.614042+00:00",
+      "closed": true,
+      "pnl_usd": -0.25
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "OP",
+        "S9",
+        "SHORT",
+        124123
+      ],
+      "symbol": "OP",
+      "entry_time": "2026-08-22T04:03:16.170982+00:00",
+      "closed": true,
+      "pnl_usd": 5.17
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "SUI",
+        "S9",
+        "SHORT",
+        124123
+      ],
+      "symbol": "SUI",
+      "entry_time": "2026-08-22T04:03:16.170982+00:00",
+      "closed": true,
+      "pnl_usd": 8.56
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "INJ",
+        "S5",
+        "SHORT",
+        124125
+      ],
+      "symbol": "INJ",
+      "entry_time": "2026-08-22T12:03:08.935185+00:00",
+      "closed": true,
+      "pnl_usd": -17.75
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "CRV",
+        "S5",
+        "LONG",
+        124126
+      ],
+      "symbol": "CRV",
+      "entry_time": "2026-08-22T16:03:01.636853+00:00",
+      "closed": true,
+      "pnl_usd": -4.6
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "ENA",
+        "S1",
+        "LONG",
+        124131
+      ],
+      "symbol": "ENA",
+      "entry_time": "2026-08-23T12:03:09.654990+00:00",
+      "closed": true,
+      "pnl_usd": -17.77
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "STX",
+        "S1",
+        "LONG",
+        124132
+      ],
+      "symbol": "STX",
+      "entry_time": "2026-08-23T16:03:06.145886+00:00",
+      "closed": true,
+      "pnl_usd": 24.79
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "AAVE",
+        "S1",
+        "LONG",
+        124139
+      ],
+      "symbol": "AAVE",
+      "entry_time": "2026-08-24T20:03:07.935242+00:00",
+      "closed": true,
+      "pnl_usd": -7.35
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "BCH",
+        "S1",
+        "LONG",
+        124150
+      ],
+      "symbol": "BCH",
+      "entry_time": "2026-08-26T16:03:13.631568+00:00",
+      "closed": true,
+      "pnl_usd": -9.51
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "ENA",
+        "S1",
+        "LONG",
+        124150
+      ],
+      "symbol": "ENA",
+      "entry_time": "2026-08-26T16:03:13.631568+00:00",
+      "closed": true,
+      "pnl_usd": 21.66
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "STX",
+        "S1",
+        "LONG",
+        124158
+      ],
+      "symbol": "STX",
+      "entry_time": "2026-08-28T00:03:18.206377+00:00",
+      "closed": true,
+      "pnl_usd": -10.22
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "XMR",
+        "S1",
+        "LONG",
+        124163
+      ],
+      "symbol": "XMR",
+      "entry_time": "2026-08-28T20:03:01.633954+00:00",
+      "closed": true,
+      "pnl_usd": 18.03
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "UNI",
+        "S1",
+        "LONG",
+        124177
+      ],
+      "symbol": "UNI",
+      "entry_time": "2026-08-31T04:03:17.753442+00:00",
+      "closed": true,
+      "pnl_usd": 19.78
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "SOL",
+        "S1",
+        "LONG",
+        124181
+      ],
+      "symbol": "SOL",
+      "entry_time": "2026-08-31T20:03:16.716317+00:00",
+      "closed": true,
+      "pnl_usd": 1.74
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "ARB",
+        "S1",
+        "LONG",
+        124196
+      ],
+      "symbol": "ARB",
+      "entry_time": "2026-09-03T08:03:02.665304+00:00",
+      "closed": true,
+      "pnl_usd": 73.46
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "XMR",
+        "S1",
+        "LONG",
+        124200
+      ],
+      "symbol": "XMR",
+      "entry_time": "2026-09-04T00:03:04.495002+00:00",
+      "closed": true,
+      "pnl_usd": 5.41
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "PENDLE",
+        "S1",
+        "LONG",
+        124214
+      ],
+      "symbol": "PENDLE",
+      "entry_time": "2026-09-06T08:03:17.979997+00:00",
+      "closed": true,
+      "pnl_usd": -0.61
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "NEAR",
+        "S1",
+        "LONG",
+        124218
+      ],
+      "symbol": "NEAR",
+      "entry_time": "2026-09-07T00:03:09.637211+00:00",
+      "closed": true,
+      "pnl_usd": 3.76
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "ARB",
+        "S1",
+        "LONG",
+        124225
+      ],
+      "symbol": "ARB",
+      "entry_time": "2026-09-08T04:03:01.525813+00:00",
+      "closed": true,
+      "pnl_usd": -23.02
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "DOT",
+        "S1",
+        "LONG",
+        124233
+      ],
+      "symbol": "DOT",
+      "entry_time": "2026-09-09T12:03:09.812562+00:00",
+      "closed": true,
+      "pnl_usd": -20.34
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "WLD",
+        "S1",
+        "LONG",
+        124237
+      ],
+      "symbol": "WLD",
+      "entry_time": "2026-09-10T04:03:06.283171+00:00",
+      "closed": true,
+      "pnl_usd": -8.78
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "INJ",
+        "S1",
+        "LONG",
+        124252
+      ],
+      "symbol": "INJ",
+      "entry_time": "2026-09-12T16:03:06.049137+00:00",
+      "closed": true,
+      "pnl_usd": -7.68
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "PENDLE",
+        "S1",
+        "LONG",
+        124255
+      ],
+      "symbol": "PENDLE",
+      "entry_time": "2026-09-13T04:03:05.371581+00:00",
+      "closed": true,
+      "pnl_usd": 7.91
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "BLUR",
+        "S1",
+        "LONG",
+        124256
+      ],
+      "symbol": "BLUR",
+      "entry_time": "2026-09-13T08:03:08.247383+00:00",
+      "closed": true,
+      "pnl_usd": -13.7
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "XMR",
+        "S1",
+        "LONG",
+        124270
+      ],
+      "symbol": "XMR",
+      "entry_time": "2026-09-15T16:03:15.686823+00:00",
+      "closed": false,
+      "pnl_usd": 0.0
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "ARB",
+        "S5",
+        "LONG",
+        124276
+      ],
+      "symbol": "ARB",
+      "entry_time": "2026-09-16T16:03:03.395721+00:00",
+      "closed": false,
+      "pnl_usd": 0.0
+    },
+    {
+      "bot": "live",
+      "key": [
+        "PYTH",
+        "S10",
+        "SHORT",
+        123940
+      ],
+      "symbol": "PYTH",
+      "entry_time": "2026-07-22T16:03:07.464307+00:00",
+      "closed": true,
+      "pnl_usd": 2.03
+    },
+    {
+      "bot": "live",
+      "key": [
+        "STX",
+        "S5",
+        "SHORT",
+        123962
+      ],
+      "symbol": "STX",
+      "entry_time": "2026-07-26T08:03:06.510888+00:00",
+      "closed": true,
+      "pnl_usd": 5.87
+    },
+    {
+      "bot": "live",
+      "key": [
+        "AAVE",
+        "S10",
+        "SHORT",
+        124014
+      ],
+      "symbol": "AAVE",
+      "entry_time": "2026-08-04T00:03:14.717150+00:00",
+      "closed": true,
+      "pnl_usd": 2.93
+    },
+    {
+      "bot": "live",
+      "key": [
+        "CRV",
+        "S5",
+        "SHORT",
+        124108
+      ],
+      "symbol": "CRV",
+      "entry_time": "2026-08-19T16:03:04.898596+00:00",
+      "closed": true,
+      "pnl_usd": -8.93
+    },
+    {
+      "bot": "live",
+      "key": [
+        "GALA",
+        "S5",
+        "SHORT",
+        124113
+      ],
+      "symbol": "GALA",
+      "entry_time": "2026-08-20T12:03:09.539315+00:00",
+      "closed": true,
+      "pnl_usd": -18.12
+    },
+    {
+      "bot": "live",
+      "key": [
+        "INJ",
+        "S5",
+        "SHORT",
+        124118
+      ],
+      "symbol": "INJ",
+      "entry_time": "2026-08-21T08:03:16.617601+00:00",
+      "closed": true,
+      "pnl_usd": 2.28
+    },
+    {
+      "bot": "live",
+      "key": [
+        "DYDX",
+        "S5",
+        "SHORT",
+        124119
+      ],
+      "symbol": "DYDX",
+      "entry_time": "2026-08-21T12:03:04.145789+00:00",
+      "closed": true,
+      "pnl_usd": -9.21
+    },
+    {
+      "bot": "live",
+      "key": [
+        "MINA",
+        "S5",
+        "LONG",
+        124120
+      ],
+      "symbol": "MINA",
+      "entry_time": "2026-08-21T16:03:04.651278+00:00",
+      "closed": true,
+      "pnl_usd": 4.31
+    },
+    {
+      "bot": "live",
+      "key": [
+        "GMX",
+        "S5",
+        "SHORT",
+        124124
+      ],
+      "symbol": "GMX",
+      "entry_time": "2026-08-22T08:03:20.099485+00:00",
+      "closed": true,
+      "pnl_usd": -4.5
+    },
+    {
+      "bot": "live",
+      "key": [
+        "WLD",
+        "S5",
+        "SHORT",
+        124124
+      ],
+      "symbol": "WLD",
+      "entry_time": "2026-08-22T08:03:20.099485+00:00",
+      "closed": true,
+      "pnl_usd": 3.9
+    },
+    {
+      "bot": "live",
+      "key": [
+        "ENA",
+        "S5",
+        "LONG",
+        124126
+      ],
+      "symbol": "ENA",
+      "entry_time": "2026-08-22T16:03:01.646199+00:00",
+      "closed": true,
+      "pnl_usd": 5.31
+    },
+    {
+      "bot": "live",
+      "key": [
+        "STX",
+        "S5",
+        "LONG",
+        124128
+      ],
+      "symbol": "STX",
+      "entry_time": "2026-08-23T00:03:02.900045+00:00",
+      "closed": true,
+      "pnl_usd": 7.23
+    },
+    {
+      "bot": "live",
+      "key": [
+        "SOL",
+        "S5",
+        "LONG",
+        124129
+      ],
+      "symbol": "SOL",
+      "entry_time": "2026-08-23T04:03:03.275556+00:00",
+      "closed": true,
+      "pnl_usd": 1.52
+    },
+    {
+      "bot": "live",
+      "key": [
+        "PENDLE",
+        "S1",
+        "LONG",
+        124131
+      ],
+      "symbol": "PENDLE",
+      "entry_time": "2026-08-23T12:03:09.670339+00:00",
+      "closed": true,
+      "pnl_usd": 10.71
+    },
+    {
+      "bot": "live",
+      "key": [
+        "PYTH",
+        "S1",
+        "LONG",
+        124132
+      ],
+      "symbol": "PYTH",
+      "entry_time": "2026-08-23T16:03:06.160204+00:00",
+      "closed": true,
+      "pnl_usd": 2.21
+    },
+    {
+      "bot": "live",
+      "key": [
+        "AAVE",
+        "S1",
+        "LONG",
+        124133
+      ],
+      "symbol": "AAVE",
+      "entry_time": "2026-08-23T20:03:01.987182+00:00",
+      "closed": true,
+      "pnl_usd": -16.04
+    },
+    {
+      "bot": "live",
+      "key": [
+        "ARB",
+        "S1",
+        "LONG",
+        124135
+      ],
+      "symbol": "ARB",
+      "entry_time": "2026-08-24T04:03:17.065147+00:00",
+      "closed": true,
+      "pnl_usd": -12.99
+    },
+    {
+      "bot": "live",
+      "key": [
+        "STX",
+        "S1",
+        "LONG",
+        124149
+      ],
+      "symbol": "STX",
+      "entry_time": "2026-08-26T12:03:03.485233+00:00",
+      "closed": true,
+      "pnl_usd": -14.4
+    },
+    {
+      "bot": "live",
+      "key": [
+        "ENA",
+        "S1",
+        "LONG",
+        124151
+      ],
+      "symbol": "ENA",
+      "entry_time": "2026-08-26T20:03:06.656097+00:00",
+      "closed": true,
+      "pnl_usd": 13.14
+    },
+    {
+      "bot": "live",
+      "key": [
+        "MINA",
+        "S1",
+        "LONG",
+        124154
+      ],
+      "symbol": "MINA",
+      "entry_time": "2026-08-27T08:03:14.472582+00:00",
+      "closed": true,
+      "pnl_usd": 3.95
+    },
+    {
+      "bot": "live",
+      "key": [
+        "BCH",
+        "S1",
+        "LONG",
+        124155
+      ],
+      "symbol": "BCH",
+      "entry_time": "2026-08-27T12:03:05.359085+00:00",
+      "closed": true,
+      "pnl_usd": -11.62
+    },
+    {
+      "bot": "live",
+      "key": [
+        "AAVE",
+        "S1",
+        "LONG",
+        124157
+      ],
+      "symbol": "AAVE",
+      "entry_time": "2026-08-27T20:03:09.066382+00:00",
+      "closed": true,
+      "pnl_usd": 0.32
+    },
+    {
+      "bot": "live",
+      "key": [
+        "UNI",
+        "S1",
+        "LONG",
+        124173
+      ],
+      "symbol": "UNI",
+      "entry_time": "2026-08-30T12:03:17.481275+00:00",
+      "closed": true,
+      "pnl_usd": 15.35
+    },
+    {
+      "bot": "live",
+      "key": [
+        "XMR",
+        "S1",
+        "LONG",
+        124176
+      ],
+      "symbol": "XMR",
+      "entry_time": "2026-08-31T00:03:02.402888+00:00",
+      "closed": true,
+      "pnl_usd": 0.58
+    },
+    {
+      "bot": "live",
+      "key": [
+        "ARB",
+        "S1",
+        "LONG",
+        124192
+      ],
+      "symbol": "ARB",
+      "entry_time": "2026-09-02T16:03:18.193579+00:00",
+      "closed": true,
+      "pnl_usd": 13.0
+    },
+    {
+      "bot": "live",
+      "key": [
+        "MINA",
+        "S1",
+        "LONG",
+        124194
+      ],
+      "symbol": "MINA",
+      "entry_time": "2026-09-03T00:03:12.608082+00:00",
+      "closed": true,
+      "pnl_usd": 11.47
+    },
+    {
+      "bot": "live",
+      "key": [
+        "XMR",
+        "S1",
+        "LONG",
+        124204
+      ],
+      "symbol": "XMR",
+      "entry_time": "2026-09-04T16:03:05.953347+00:00",
+      "closed": true,
+      "pnl_usd": 1.33
+    },
+    {
+      "bot": "live",
+      "key": [
+        "ARB",
+        "S9",
+        "SHORT",
+        124212
+      ],
+      "symbol": "ARB",
+      "entry_time": "2026-09-06T00:03:18.110740+00:00",
+      "closed": true,
+      "pnl_usd": -11.62
+    },
+    {
+      "bot": "live",
+      "key": [
+        "CRV",
+        "S1",
+        "LONG",
+        124212
+      ],
+      "symbol": "CRV",
+      "entry_time": "2026-09-06T00:03:18.110740+00:00",
+      "closed": true,
+      "pnl_usd": -5.69
+    },
+    {
+      "bot": "live",
+      "key": [
+        "ARB",
+        "S1",
+        "LONG",
+        124222
+      ],
+      "symbol": "ARB",
+      "entry_time": "2026-09-07T16:03:14.659686+00:00",
+      "closed": true,
+      "pnl_usd": -11.82
+    },
+    {
+      "bot": "live",
+      "key": [
+        "WLD",
+        "S1",
+        "LONG",
+        124225
+      ],
+      "symbol": "WLD",
+      "entry_time": "2026-09-08T04:03:01.562657+00:00",
+      "closed": true,
+      "pnl_usd": -19.74
+    },
+    {
+      "bot": "live",
+      "key": [
+        "DOT",
+        "S1",
+        "LONG",
+        124231
+      ],
+      "symbol": "DOT",
+      "entry_time": "2026-09-09T04:03:09.717302+00:00",
+      "closed": true,
+      "pnl_usd": -19.21
+    },
+    {
+      "bot": "live",
+      "key": [
+        "NEAR",
+        "S1",
+        "LONG",
+        124241
+      ],
+      "symbol": "NEAR",
+      "entry_time": "2026-09-10T20:03:15.600173+00:00",
+      "closed": true,
+      "pnl_usd": -8.29
+    },
+    {
+      "bot": "live",
+      "key": [
+        "BLUR",
+        "S9",
+        "SHORT",
+        124246
+      ],
+      "symbol": "BLUR",
+      "entry_time": "2026-09-11T16:03:05.988243+00:00",
+      "closed": true,
+      "pnl_usd": 12.03
+    },
+    {
+      "bot": "live",
+      "key": [
+        "INJ",
+        "S1",
+        "LONG",
+        124246
+      ],
+      "symbol": "INJ",
+      "entry_time": "2026-09-11T16:03:05.988243+00:00",
+      "closed": true,
+      "pnl_usd": 6.17
+    },
+    {
+      "bot": "live",
+      "key": [
+        "DOT",
+        "S1",
+        "LONG",
+        124255
+      ],
+      "symbol": "DOT",
+      "entry_time": "2026-09-13T04:03:05.388854+00:00",
+      "closed": true,
+      "pnl_usd": -7.86
+    },
+    {
+      "bot": "live",
+      "key": [
+        "ARB",
+        "S1",
+        "LONG",
+        124260
+      ],
+      "symbol": "ARB",
+      "entry_time": "2026-09-14T00:03:06.096538+00:00",
+      "closed": true,
+      "pnl_usd": 35.75
+    },
+    {
+      "bot": "live",
+      "key": [
+        "PENDLE",
+        "S1",
+        "LONG",
+        124265
+      ],
+      "symbol": "PENDLE",
+      "entry_time": "2026-09-14T20:03:02.128024+00:00",
+      "closed": false,
+      "pnl_usd": 0.0
+    }
+  ],
+  "pairs": [
+    {
+      "key": [
+        "LDO",
+        "S5",
+        "LONG",
+        123862
+      ],
+      "symbol": "LDO",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-09T16:03:16.256788+00:00",
+      "live_entry": "2026-07-09T16:03:16.264910+00:00",
+      "paper_exit": "2026-07-11T16:03:21.231761+00:00",
+      "live_exit": "2026-07-11T16:03:21.234901+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 0.03,
+      "live_pnl_usd": 0.03,
+      "paper_size_usd": 155.50199999999998,
+      "live_size_usd": 93.31822500000001,
+      "entry_lag_seconds": 0.008121967315673828,
+      "exit_lag_seconds": 0.003139972686767578,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.011996715476328274,
+      "return_effect_usd": 0.011996715476328274,
+      "net_return_delta_bps": 1.285570474184252,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-09T16:03:26+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "d3842c010b"
+        }
+      ]
+    },
+    {
+      "key": [
+        "ARB",
+        "S5",
+        "LONG",
+        123863
+      ],
+      "symbol": "ARB",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-09T20:03:16.819337+00:00",
+      "live_entry": "2026-07-09T20:03:16.827929+00:00",
+      "paper_exit": "2026-07-10T16:00:06.070205+00:00",
+      "live_exit": "2026-07-10T09:54:45.213375+00:00",
+      "paper_reason": "prop_trail",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 5.77,
+      "live_pnl_usd": 3.85,
+      "paper_size_usd": 155.50199999999998,
+      "live_size_usd": 100.99139,
+      "entry_lag_seconds": 0.00859212875366211,
+      "exit_lag_seconds": -21920.856829881668,
+      "same_exit_reason": false,
+      "size_effect_usd": -2.022650639220074,
+      "return_effect_usd": 0.1026506392200746,
+      "net_return_delta_bps": 10.16429610683392,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-09T20:03:27+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.65,
+          "stop_usdt": null,
+          "prompt_hash": "d3842c010b"
+        },
+        {
+          "at": "2026-07-10T05:36:09+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 1.5,
+          "prompt_hash": "d722eaffb5"
+        },
+        {
+          "at": "2026-07-10T07:36:10+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 2.0,
+          "prompt_hash": "d722eaffb5"
+        },
+        {
+          "at": "2026-07-10T08:36:10+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.0,
+          "prompt_hash": "d722eaffb5"
+        },
+        {
+          "at": "2026-07-10T09:36:10+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 4.0,
+          "prompt_hash": "d722eaffb5"
+        }
+      ]
+    },
+    {
+      "key": [
+        "WLD",
+        "S10",
+        "SHORT",
+        123868
+      ],
+      "symbol": "WLD",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-10T16:03:07.567216+00:00",
+      "live_entry": "2026-07-10T16:03:07.577985+00:00",
+      "paper_exit": "2026-07-11T16:03:21.231761+00:00",
+      "live_exit": "2026-07-11T16:03:21.234901+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -9.98,
+      "live_pnl_usd": -10.03,
+      "paper_size_usd": 157.23387178020218,
+      "live_size_usd": 156.46305999999998,
+      "entry_lag_seconds": 0.010769128799438477,
+      "exit_lag_seconds": 0.003139972686767578,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.04892521871605094,
+      "return_effect_usd": -0.09892521871605141,
+      "net_return_delta_bps": -6.322592611703453,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-10T16:03:13+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "d3842c010b"
+        }
+      ]
+    },
+    {
+      "key": [
+        "IMX",
+        "S5",
+        "LONG",
+        123870
+      ],
+      "symbol": "IMX",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-11T00:03:08.785996+00:00",
+      "live_entry": "2026-07-11T00:03:08.798165+00:00",
+      "paper_exit": "2026-07-13T00:03:25.809330+00:00",
+      "live_exit": "2026-07-13T00:03:25.811147+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -5.46,
+      "live_pnl_usd": -3.34,
+      "paper_size_usd": 157.23387178020218,
+      "live_size_usd": 94.0506,
+      "entry_lag_seconds": 0.012169122695922852,
+      "exit_lag_seconds": 0.0018169879913330078,
+      "same_exit_reason": true,
+      "size_effect_usd": 2.1940607326782215,
+      "return_effect_usd": -0.07406073267822057,
+      "net_return_delta_bps": -7.874562488513689,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-11T00:03:11+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "d3842c010b"
+        }
+      ]
+    },
+    {
+      "key": [
+        "ARB",
+        "S5",
+        "LONG",
+        123874
+      ],
+      "symbol": "ARB",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-11T16:03:02.625389+00:00",
+      "live_entry": "2026-07-11T16:03:02.635161+00:00",
+      "paper_exit": "2026-07-13T16:03:12.509179+00:00",
+      "live_exit": "2026-07-13T16:03:12.513127+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -8.72,
+      "live_pnl_usd": -4.81,
+      "paper_size_usd": 157.23387178020218,
+      "live_size_usd": 86.15018,
+      "entry_lag_seconds": 0.00977182388305664,
+      "exit_lag_seconds": 0.0039479732513427734,
+      "same_exit_reason": true,
+      "size_effect_usd": 3.942215410111209,
+      "return_effect_usd": -0.03221541011120812,
+      "net_return_delta_bps": -3.739447800481452,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-11T16:03:11+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.55,
+          "stop_usdt": null,
+          "prompt_hash": "d3842c010b"
+        }
+      ]
+    },
+    {
+      "key": [
+        "COMP",
+        "S10",
+        "SHORT",
+        123876
+      ],
+      "symbol": "COMP",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-12T00:03:03.828678+00:00",
+      "live_entry": "2026-07-12T00:03:03.836757+00:00",
+      "paper_exit": "2026-07-13T00:03:05.808760+00:00",
+      "live_exit": "2026-07-13T00:03:05.812301+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 1.33,
+      "live_pnl_usd": 1.03,
+      "paper_size_usd": 154.2497398772491,
+      "live_size_usd": 122.92024,
+      "entry_lag_seconds": 0.008079051971435547,
+      "exit_lag_seconds": 0.0035409927368164062,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.2701348791245976,
+      "return_effect_usd": -0.029865120875402433,
+      "net_return_delta_bps": -2.4296341168388893,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-12T00:03:07+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.8,
+          "stop_usdt": null,
+          "prompt_hash": "d3842c010b"
+        }
+      ]
+    },
+    {
+      "key": [
+        "ADA",
+        "S5",
+        "SHORT",
+        123883
+      ],
+      "symbol": "ADA",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-13T04:03:07.801773+00:00",
+      "live_entry": "2026-07-13T04:03:07.809702+00:00",
+      "paper_exit": "2026-07-15T04:03:21.411571+00:00",
+      "live_exit": "2026-07-15T04:03:21.417902+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -5.28,
+      "live_pnl_usd": -5.09,
+      "paper_size_usd": 153.0123259738715,
+      "live_size_usd": 152.96751999999998,
+      "entry_lag_seconds": 0.007928848266601562,
+      "exit_lag_seconds": 0.006330966949462891,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.0015461208143585559,
+      "return_effect_usd": 0.18845387918564224,
+      "net_return_delta_bps": 12.319862359384675,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-13T04:03:11+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "d3842c010b"
+        }
+      ]
+    },
+    {
+      "key": [
+        "OP",
+        "S5",
+        "SHORT",
+        123884
+      ],
+      "symbol": "OP",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-13T08:03:08.323431+00:00",
+      "live_entry": "2026-07-13T08:03:08.334568+00:00",
+      "paper_exit": "2026-07-15T08:03:21.983249+00:00",
+      "live_exit": "2026-07-15T08:03:21.987251+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -1.76,
+      "live_pnl_usd": -2.12,
+      "paper_size_usd": 153.0123259738715,
+      "live_size_usd": 152.65290000000002,
+      "entry_lag_seconds": 0.011137008666992188,
+      "exit_lag_seconds": 0.004002094268798828,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.004134240231874054,
+      "return_effect_usd": -0.36413424023187413,
+      "net_return_delta_bps": -23.85373879119716,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-13T08:03:12+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "d3842c010b"
+        }
+      ]
+    },
+    {
+      "key": [
+        "DOGE",
+        "S5",
+        "LONG",
+        123892
+      ],
+      "symbol": "DOGE",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-14T16:03:17.324369+00:00",
+      "live_entry": "2026-07-14T16:03:17.336156+00:00",
+      "paper_exit": "2026-07-16T16:03:30.392819+00:00",
+      "live_exit": "2026-07-16T16:03:30.398986+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -2.99,
+      "live_pnl_usd": -1.85,
+      "paper_size_usd": 150.39563088397566,
+      "live_size_usd": 90.875534,
+      "entry_lag_seconds": 0.011786937713623047,
+      "exit_lag_seconds": 0.006167173385620117,
+      "same_exit_reason": true,
+      "size_effect_usd": 1.1833128970374167,
+      "return_effect_usd": -0.043312897037416705,
+      "net_return_delta_bps": -4.766177994334174,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-14T16:03:26+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "UNI",
+        "S5",
+        "LONG",
+        123892
+      ],
+      "symbol": "UNI",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-14T16:03:17.324369+00:00",
+      "live_entry": "2026-07-14T16:03:17.336156+00:00",
+      "paper_exit": "2026-07-16T16:03:30.392819+00:00",
+      "live_exit": "2026-07-16T16:03:30.398986+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -2.96,
+      "live_pnl_usd": -2.38,
+      "paper_size_usd": 150.39563088397566,
+      "live_size_usd": 106.21583,
+      "entry_lag_seconds": 0.011786937713623047,
+      "exit_lag_seconds": 0.006167173385620117,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.8695213407991459,
+      "return_effect_usd": -0.2895213407991457,
+      "net_return_delta_bps": -27.257833488581287,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-14T16:03:24+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.7,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "MINA",
+        "S10",
+        "SHORT",
+        123897
+      ],
+      "symbol": "MINA",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-15T12:03:03.964437+00:00",
+      "live_entry": "2026-07-15T12:03:03.974288+00:00",
+      "paper_exit": "2026-07-16T12:03:09.822525+00:00",
+      "live_exit": "2026-07-16T12:03:09.827756+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -1.46,
+      "live_pnl_usd": -1.78,
+      "paper_size_usd": 148.28370148399475,
+      "live_size_usd": 149.302976,
+      "entry_lag_seconds": 0.00985097885131836,
+      "exit_lag_seconds": 0.005230903625488281,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.010035767778081097,
+      "return_effect_usd": -0.309964232221919,
+      "net_return_delta_bps": -20.760753772377516,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-15T12:03:15+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "SEI",
+        "S10",
+        "SHORT",
+        123899
+      ],
+      "symbol": "SEI",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-15T20:03:09.057870+00:00",
+      "live_entry": "2026-07-15T20:03:09.069506+00:00",
+      "paper_exit": "2026-07-16T20:03:10.976981+00:00",
+      "live_exit": "2026-07-16T20:03:10.980419+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 2.51,
+      "live_pnl_usd": 2.55,
+      "paper_size_usd": 148.28370148399475,
+      "live_size_usd": 149.3706,
+      "entry_lag_seconds": 0.011636018753051758,
+      "exit_lag_seconds": 0.0034379959106445312,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.018397944264074352,
+      "return_effect_usd": 0.021602055735925843,
+      "net_return_delta_bps": 1.4462053266121877,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-15T20:03:13+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "OP",
+        "S5",
+        "SHORT",
+        123903
+      ],
+      "symbol": "OP",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-16T12:03:13.733982+00:00",
+      "live_entry": "2026-07-16T12:03:13.745479+00:00",
+      "paper_exit": "2026-07-17T12:00:13.328338+00:00",
+      "live_exit": "2026-07-17T10:08:33.060509+00:00",
+      "paper_reason": "prop_trail",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 4.42,
+      "live_pnl_usd": 2.88,
+      "paper_size_usd": 147.84440466247807,
+      "live_size_usd": 118.900501,
+      "entry_lag_seconds": 0.011497020721435547,
+      "exit_lag_seconds": -6700.267828941345,
+      "same_exit_reason": false,
+      "size_effect_usd": -0.8653154948962458,
+      "return_effect_usd": -0.6746845051037546,
+      "net_return_delta_bps": -56.74362171979027,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-16T12:03:20+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.8,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        },
+        {
+          "at": "2026-07-17T07:35:00+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 1.8,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-17T08:34:58+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.0,
+          "prompt_hash": "c98371ef99"
+        }
+      ]
+    },
+    {
+      "key": [
+        "BLUR",
+        "S10",
+        "SHORT",
+        123913
+      ],
+      "symbol": "BLUR",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-18T04:03:17.068586+00:00",
+      "live_entry": "2026-07-18T04:03:17.080190+00:00",
+      "paper_exit": "2026-07-19T04:03:20.696706+00:00",
+      "live_exit": "2026-07-18T20:14:39.575444+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 0.45,
+      "live_pnl_usd": 2.98,
+      "paper_size_usd": 148.13771572394285,
+      "live_size_usd": 149.14914,
+      "entry_lag_seconds": 0.011603832244873047,
+      "exit_lag_seconds": -28121.121262073517,
+      "same_exit_reason": false,
+      "size_effect_usd": 0.003072417594678431,
+      "return_effect_usd": 2.5269275824053214,
+      "net_return_delta_bps": 169.42287313257867,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-18T04:03:20+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        },
+        {
+          "at": "2026-07-18T17:35:04+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 2.0,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-18T18:35:04+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.0,
+          "prompt_hash": "c98371ef99"
+        }
+      ]
+    },
+    {
+      "key": [
+        "GMX",
+        "S5",
+        "LONG",
+        123917
+      ],
+      "symbol": "GMX",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-18T20:03:01.044186+00:00",
+      "live_entry": "2026-07-18T20:03:01.055649+00:00",
+      "paper_exit": "2026-07-20T20:03:12.813711+00:00",
+      "live_exit": "2026-07-20T20:03:12.819296+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 1.44,
+      "live_pnl_usd": 0.82,
+      "paper_size_usd": 148.13771572394285,
+      "live_size_usd": 89.48148300000001,
+      "entry_lag_seconds": 0.011462926864624023,
+      "exit_lag_seconds": 0.0055849552154541016,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.5701787334150581,
+      "return_effect_usd": -0.049821266584941785,
+      "net_return_delta_bps": -5.5677739030031255,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-18T20:03:07+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "ARB",
+        "S10",
+        "SHORT",
+        123923
+      ],
+      "symbol": "ARB",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-19T20:03:10.834662+00:00",
+      "live_entry": "2026-07-19T20:03:10.849752+00:00",
+      "paper_exit": "2026-07-20T20:03:12.813711+00:00",
+      "live_exit": "2026-07-20T09:24:11.299862+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": -1.25,
+      "live_pnl_usd": 2.98,
+      "paper_size_usd": 148.27394163541507,
+      "live_size_usd": 150.131583,
+      "entry_lag_seconds": 0.015089988708496094,
+      "exit_lag_seconds": -38341.513849020004,
+      "same_exit_reason": false,
+      "size_effect_usd": -0.01566055154479383,
+      "return_effect_usd": 4.245660551544794,
+      "net_return_delta_bps": 282.79596249543266,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-19T20:03:15+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        },
+        {
+          "at": "2026-07-20T05:35:15+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 2.0,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-20T06:35:16+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.0,
+          "prompt_hash": "c98371ef99"
+        }
+      ]
+    },
+    {
+      "key": [
+        "PYTH",
+        "S10",
+        "SHORT",
+        123928
+      ],
+      "symbol": "PYTH",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-20T16:03:13.795928+00:00",
+      "live_entry": "2026-07-20T16:03:13.807605+00:00",
+      "paper_exit": "2026-07-21T16:03:22.183815+00:00",
+      "live_exit": "2026-07-21T03:00:57.149475+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 6.18,
+      "live_pnl_usd": 3.17,
+      "paper_size_usd": 148.27394163541507,
+      "live_size_usd": 120.68965800000001,
+      "entry_lag_seconds": 0.011677026748657227,
+      "exit_lag_seconds": -46945.034339904785,
+      "same_exit_reason": false,
+      "size_effect_usd": -1.1497021727933094,
+      "return_effect_usd": -1.86029782720669,
+      "net_return_delta_bps": -154.13895921444154,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-20T16:03:17+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.8,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        },
+        {
+          "at": "2026-07-20T20:35:21+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 1.5,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-20T21:35:21+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 2.2,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-21T01:35:21+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.2,
+          "prompt_hash": "c98371ef99"
+        }
+      ]
+    },
+    {
+      "key": [
+        "INJ",
+        "S5",
+        "LONG",
+        123929
+      ],
+      "symbol": "INJ",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-20T20:03:20.507041+00:00",
+      "live_entry": "2026-07-20T20:03:20.522109+00:00",
+      "paper_exit": "2026-07-22T20:03:28.549712+00:00",
+      "live_exit": "2026-07-22T20:03:28.556641+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -6.82,
+      "live_pnl_usd": -4.03,
+      "paper_size_usd": 148.33178346385608,
+      "live_size_usd": 90.50328,
+      "entry_lag_seconds": 0.01506805419921875,
+      "exit_lag_seconds": 0.006929159164428711,
+      "same_exit_reason": true,
+      "size_effect_usd": 2.6588394234442636,
+      "return_effect_usd": 0.13116057655573607,
+      "net_return_delta_bps": 14.492356139549425,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-20T20:03:28+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "BCH",
+        "S5",
+        "SHORT",
+        123932
+      ],
+      "symbol": "BCH",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-21T08:03:19.345028+00:00",
+      "live_entry": "2026-07-21T08:03:19.358114+00:00",
+      "paper_exit": "2026-07-23T00:00:09.106587+00:00",
+      "live_exit": "2026-07-23T00:00:09.112563+00:00",
+      "paper_reason": "prop_trail",
+      "live_reason": "prop_trail",
+      "paper_pnl_usd": 2.95,
+      "live_pnl_usd": 2.57,
+      "paper_size_usd": 148.33178346385608,
+      "live_size_usd": 152.04168,
+      "entry_lag_seconds": 0.013086080551147461,
+      "exit_lag_seconds": 0.005975961685180664,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.07378185932950343,
+      "return_effect_usd": -0.4537818593295034,
+      "net_return_delta_bps": -29.84588563672168,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "LDO",
+        "S5",
+        "LONG",
+        123941
+      ],
+      "symbol": "LDO",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-22T20:03:07.847752+00:00",
+      "live_entry": "2026-07-22T20:03:07.864148+00:00",
+      "paper_exit": "2026-07-23T12:00:11.117948+00:00",
+      "live_exit": "2026-07-23T12:00:11.123989+00:00",
+      "paper_reason": "prop_trail",
+      "live_reason": "prop_trail",
+      "paper_pnl_usd": 3.33,
+      "live_pnl_usd": -2.4,
+      "paper_size_usd": 150.18671829667377,
+      "live_size_usd": 91.4394,
+      "entry_lag_seconds": 0.01639580726623535,
+      "exit_lag_seconds": 0.006041049957275391,
+      "same_exit_reason": true,
+      "size_effect_usd": -1.3025690430327241,
+      "return_effect_usd": -4.427430956967276,
+      "net_return_delta_bps": -484.192914320006,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-22T20:03:15+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "SNX",
+        "S10",
+        "SHORT",
+        123942
+      ],
+      "symbol": "SNX",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-23T00:03:10.676456+00:00",
+      "live_entry": "2026-07-23T00:03:10.690612+00:00",
+      "paper_exit": "2026-07-24T00:03:12.821701+00:00",
+      "live_exit": "2026-07-24T00:03:12.831745+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 3.29,
+      "live_pnl_usd": 3.26,
+      "paper_size_usd": 149.02619233542876,
+      "live_size_usd": 151.75089,
+      "entry_lag_seconds": 0.014156103134155273,
+      "exit_lag_seconds": 0.010043859481811523,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.06015221335228502,
+      "return_effect_usd": -0.09015221335228508,
+      "net_return_delta_bps": -5.940802940416698,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-23T00:03:19+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "WLD",
+        "S10",
+        "SHORT",
+        123942
+      ],
+      "symbol": "WLD",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-23T00:03:10.676456+00:00",
+      "live_entry": "2026-07-23T00:03:10.690612+00:00",
+      "paper_exit": "2026-07-24T00:03:12.821701+00:00",
+      "live_exit": "2026-07-24T00:03:12.831745+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 0.82,
+      "live_pnl_usd": 0.85,
+      "paper_size_usd": 149.02619233542876,
+      "live_size_usd": 121.41821999999999,
+      "entry_lag_seconds": 0.014156103134155273,
+      "exit_lag_seconds": 0.010043859481811523,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.15190978820754325,
+      "return_effect_usd": 0.1819097882075433,
+      "net_return_delta_bps": 14.982083266213532,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-23T00:03:17+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.8,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "GMX",
+        "S5",
+        "LONG",
+        123946
+      ],
+      "symbol": "GMX",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-23T16:03:16.105902+00:00",
+      "live_entry": "2026-07-23T16:03:16.123310+00:00",
+      "paper_exit": "2026-07-24T16:00:15.104328+00:00",
+      "live_exit": "2026-07-24T12:57:14.670454+00:00",
+      "paper_reason": "prop_trail",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 9.08,
+      "live_pnl_usd": 4.45,
+      "paper_size_usd": 150.02579939188863,
+      "live_size_usd": 75.89904,
+      "entry_lag_seconds": 0.017408132553100586,
+      "exit_lag_seconds": -10980.43387389183,
+      "same_exit_reason": false,
+      "size_effect_usd": -4.486368198047004,
+      "return_effect_usd": -0.1436318019529954,
+      "net_return_delta_bps": -18.924060429880985,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-23T16:03:20+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "VETO",
+          "factor": 0.5,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        },
+        {
+          "at": "2026-07-24T06:35:39+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 1.2,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-24T07:35:39+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 2.0,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-24T08:35:40+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 2.6,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-24T09:35:39+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.6,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-24T10:35:38+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 5.0,
+          "prompt_hash": "c98371ef99"
+        }
+      ]
+    },
+    {
+      "key": [
+        "STX",
+        "S5",
+        "SHORT",
+        123950
+      ],
+      "symbol": "STX",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-24T08:03:15.620489+00:00",
+      "live_entry": "2026-07-24T08:03:15.631013+00:00",
+      "paper_exit": "2026-07-26T08:03:25.027448+00:00",
+      "live_exit": "2026-07-25T07:10:17.276042+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 5.63,
+      "live_pnl_usd": 7.34,
+      "paper_size_usd": 153.00750193537618,
+      "live_size_usd": 152.475856,
+      "entry_lag_seconds": 0.01052403450012207,
+      "exit_lag_seconds": -89587.75140595436,
+      "same_exit_reason": false,
+      "size_effect_usd": -0.019562221317959524,
+      "return_effect_usd": 1.7295622213179598,
+      "net_return_delta_bps": 113.43187483518439,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-24T08:03:19+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        },
+        {
+          "at": "2026-07-25T01:35:42+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 5.0,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-25T02:35:42+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 6.0,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-25T03:35:41+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 6.5,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-25T05:35:42+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 7.0,
+          "prompt_hash": "c98371ef99"
+        },
+        {
+          "at": "2026-07-25T06:35:41+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 8.5,
+          "prompt_hash": "c98371ef99"
+        }
+      ]
+    },
+    {
+      "key": [
+        "MINA",
+        "S10",
+        "SHORT",
+        123952
+      ],
+      "symbol": "MINA",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-24T16:03:16.600847+00:00",
+      "live_entry": "2026-07-24T16:03:16.613983+00:00",
+      "paper_exit": "2026-07-25T16:03:35.769965+00:00",
+      "live_exit": "2026-07-25T16:03:35.774308+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -1.05,
+      "live_pnl_usd": -0.87,
+      "paper_size_usd": 155.73265509097402,
+      "live_size_usd": 154.325448,
+      "entry_lag_seconds": 0.013135910034179688,
+      "exit_lag_seconds": 0.0043430328369140625,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.009487845979763076,
+      "return_effect_usd": 0.170512154020237,
+      "net_return_delta_bps": 11.048868234630818,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-24T16:03:20+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "b72b85e0fd"
+        }
+      ]
+    },
+    {
+      "key": [
+        "COMP",
+        "S10",
+        "SHORT",
+        123962
+      ],
+      "symbol": "COMP",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-26T08:03:06.499575+00:00",
+      "live_entry": "2026-07-26T08:03:06.510888+00:00",
+      "paper_exit": "2026-07-27T08:03:08.428791+00:00",
+      "live_exit": "2026-07-27T08:03:08.433462+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 0.35,
+      "live_pnl_usd": 0.31,
+      "paper_size_usd": 155.41636751269633,
+      "live_size_usd": 156.12528,
+      "entry_lag_seconds": 0.011313199996948242,
+      "exit_lag_seconds": 0.004670858383178711,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.0015964815966762178,
+      "return_effect_usd": -0.041596481596676185,
+      "net_return_delta_bps": -2.6643014889501675,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-26T08:03:11+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "PYTH",
+        "S10",
+        "SHORT",
+        123963
+      ],
+      "symbol": "PYTH",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-26T12:03:07.136128+00:00",
+      "live_entry": "2026-07-26T12:03:07.146544+00:00",
+      "paper_exit": "2026-07-27T12:03:09.022309+00:00",
+      "live_exit": "2026-07-27T12:03:09.026198+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -6.76,
+      "live_pnl_usd": -6.81,
+      "paper_size_usd": 157.1042286340596,
+      "live_size_usd": 156.171366,
+      "entry_lag_seconds": 0.010416030883789062,
+      "exit_lag_seconds": 0.003888845443725586,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.04013992150988969,
+      "return_effect_usd": -0.09013992150988873,
+      "net_return_delta_bps": -5.771859708897514,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-26T12:03:10+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "MINA",
+        "S10",
+        "SHORT",
+        123965
+      ],
+      "symbol": "MINA",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-26T20:03:08.205553+00:00",
+      "live_entry": "2026-07-26T20:03:08.217561+00:00",
+      "paper_exit": "2026-07-27T20:03:22.348847+00:00",
+      "live_exit": "2026-07-27T20:03:22.353770+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 3.51,
+      "live_pnl_usd": 2.67,
+      "paper_size_usd": 157.1042286340596,
+      "live_size_usd": 124.89178799999999,
+      "entry_lag_seconds": 0.012007951736450195,
+      "exit_lag_seconds": 0.004923105239868164,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.7196856991603411,
+      "return_effect_usd": -0.1203143008396592,
+      "net_return_delta_bps": -9.633483735508632,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-26T20:03:12+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.8,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "SNX",
+        "S10",
+        "SHORT",
+        123977
+      ],
+      "symbol": "SNX",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-28T20:03:07.429584+00:00",
+      "live_entry": "2026-07-28T20:03:07.438577+00:00",
+      "paper_exit": "2026-07-29T20:03:11.211162+00:00",
+      "live_exit": "2026-07-29T20:03:11.215150+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 5.5,
+      "live_pnl_usd": 5.12,
+      "paper_size_usd": 156.23374014372897,
+      "live_size_usd": 156.674715,
+      "entry_lag_seconds": 0.008992910385131836,
+      "exit_lag_seconds": 0.003988027572631836,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.015523930408754254,
+      "return_effect_usd": -0.3955239304087539,
+      "net_return_delta_bps": -25.244911433778828,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-28T20:03:10+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "UNI",
+        "S5",
+        "LONG",
+        123981
+      ],
+      "symbol": "UNI",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-29T12:03:09.622204+00:00",
+      "live_entry": "2026-07-29T12:03:09.632434+00:00",
+      "paper_exit": "2026-07-31T12:03:13.495879+00:00",
+      "live_exit": "2026-07-31T03:06:07.063282+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 11.71,
+      "live_pnl_usd": 8.3,
+      "paper_size_usd": 156.23374014372897,
+      "live_size_usd": 93.87104000000001,
+      "entry_lag_seconds": 0.010229825973510742,
+      "exit_lag_seconds": -32226.43259692192,
+      "same_exit_reason": false,
+      "size_effect_usd": -4.674196610868106,
+      "return_effect_usd": 1.2641966108681042,
+      "net_return_delta_bps": 134.6737620961805,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-29T12:03:18+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        },
+        {
+          "at": "2026-07-30T13:13:13+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 2.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-07-30T14:13:12+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 4.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-07-30T15:13:11+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 4.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-07-30T16:13:11+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 5.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-07-30T19:13:13+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 6.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-07-30T23:13:12+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 7.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-07-31T01:13:14+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 8.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-07-31T02:13:14+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 8.5,
+          "prompt_hash": "7193856e7d"
+        }
+      ]
+    },
+    {
+      "key": [
+        "ENA",
+        "S5",
+        "SHORT",
+        123983
+      ],
+      "symbol": "ENA",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-29T20:03:18.883762+00:00",
+      "live_entry": "2026-07-29T20:03:18.895367+00:00",
+      "paper_exit": "2026-07-31T20:03:30.967426+00:00",
+      "live_exit": "2026-07-31T20:03:30.975098+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -5.81,
+      "live_pnl_usd": -4.23,
+      "paper_size_usd": 157.8839405736264,
+      "live_size_usd": 110.78138399999999,
+      "entry_lag_seconds": 0.011605024337768555,
+      "exit_lag_seconds": 0.007671833038330078,
+      "same_exit_reason": true,
+      "size_effect_usd": 1.733335592578209,
+      "return_effect_usd": -0.15333559257820986,
+      "net_return_delta_bps": -13.841277933322251,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-29T20:03:28+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.7,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "WLD",
+        "S5",
+        "SHORT",
+        123983
+      ],
+      "symbol": "WLD",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-29T20:03:18.883762+00:00",
+      "live_entry": "2026-07-29T20:03:18.895367+00:00",
+      "paper_exit": "2026-07-31T20:03:30.967426+00:00",
+      "live_exit": "2026-07-31T20:03:30.975098+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -0.6,
+      "live_pnl_usd": -0.76,
+      "paper_size_usd": 157.8839405736264,
+      "live_size_usd": 158.35192199999997,
+      "entry_lag_seconds": 0.011605024337768555,
+      "exit_lag_seconds": 0.007671833038330078,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.0017784510242395467,
+      "return_effect_usd": -0.1582215489757605,
+      "net_return_delta_bps": -9.99176688084408,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-29T20:03:25+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "BLUR",
+        "S10",
+        "SHORT",
+        123988
+      ],
+      "symbol": "BLUR",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-30T16:03:07.418457+00:00",
+      "live_entry": "2026-07-30T16:03:07.431484+00:00",
+      "paper_exit": "2026-07-31T16:03:09.425401+00:00",
+      "live_exit": "2026-07-31T16:03:09.430020+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -1.76,
+      "live_pnl_usd": -1.7,
+      "paper_size_usd": 157.8839405736264,
+      "live_size_usd": 158.353572,
+      "entry_lag_seconds": 0.013026952743530273,
+      "exit_lag_seconds": 0.004619121551513672,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.005235182928767259,
+      "return_effect_usd": 0.06523518292876732,
+      "net_return_delta_bps": 4.119590237520333,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-30T16:03:11+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "GMX",
+        "S5",
+        "SHORT",
+        123994
+      ],
+      "symbol": "GMX",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-07-31T16:03:13.529823+00:00",
+      "live_entry": "2026-07-31T16:03:13.540548+00:00",
+      "paper_exit": "2026-08-02T16:03:28.530120+00:00",
+      "live_exit": "2026-08-02T16:03:28.534188+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -6.53,
+      "live_pnl_usd": -5.46,
+      "paper_size_usd": 160.86787923804656,
+      "live_size_usd": 136.230912,
+      "entry_lag_seconds": 0.010725021362304688,
+      "exit_lag_seconds": 0.004068136215209961,
+      "same_exit_reason": true,
+      "size_effect_usd": 1.0000715918333236,
+      "return_effect_usd": 0.06992840816667634,
+      "net_return_delta_bps": 5.133079353287773,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-31T16:03:18+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.85,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "DOGE",
+        "S5",
+        "LONG",
+        123995
+      ],
+      "symbol": "DOGE",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-07-31T20:03:12.004834+00:00",
+      "live_entry": "2026-07-31T20:03:12.021400+00:00",
+      "paper_exit": "2026-08-02T20:03:29.083853+00:00",
+      "live_exit": "2026-08-02T20:03:29.087525+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 1.97,
+      "live_pnl_usd": 1.11,
+      "paper_size_usd": 160.86787923804656,
+      "live_size_usd": 96.233515,
+      "entry_lag_seconds": 0.016566038131713867,
+      "exit_lag_seconds": 0.003671884536743164,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.7915172261364481,
+      "return_effect_usd": -0.06848277386355181,
+      "net_return_delta_bps": -7.116312218622776,
+      "live_ai_interventions": [
+        {
+          "at": "2026-07-31T20:03:19+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "LDO",
+        "S5",
+        "SHORT",
+        124001
+      ],
+      "symbol": "LDO",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-01T20:03:07.175261+00:00",
+      "live_entry": "2026-08-01T20:03:07.185289+00:00",
+      "paper_exit": "2026-08-03T20:03:12.534478+00:00",
+      "live_exit": "2026-08-03T20:03:12.538883+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -3.08,
+      "live_pnl_usd": -2.51,
+      "paper_size_usd": 158.94322684779993,
+      "live_size_usd": 134.990244,
+      "entry_lag_seconds": 0.010027885437011719,
+      "exit_lag_seconds": 0.004405021667480469,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.46416062284849113,
+      "return_effect_usd": 0.1058393771515095,
+      "net_return_delta_bps": 7.840520471354175,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-01T20:03:11+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.85,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "ADA",
+        "S5",
+        "LONG",
+        124004
+      ],
+      "symbol": "ADA",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-02T08:03:08.816449+00:00",
+      "live_entry": "2026-08-02T08:03:08.828579+00:00",
+      "paper_exit": "2026-08-04T08:03:16.394963+00:00",
+      "live_exit": "2026-08-03T14:45:51.759763+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 7.07,
+      "live_pnl_usd": 1.46,
+      "paper_size_usd": 158.94322684779993,
+      "live_size_usd": 95.28617,
+      "entry_lag_seconds": 0.012130022048950195,
+      "exit_lag_seconds": -62244.63520002365,
+      "same_exit_reason": false,
+      "size_effect_usd": -2.8315480995293205,
+      "return_effect_usd": -2.77845190047068,
+      "net_return_delta_bps": -291.59025916045107,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-02T08:03:12+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        },
+        {
+          "at": "2026-08-03T14:14:40+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 1.5,
+          "prompt_hash": "7193856e7d"
+        }
+      ]
+    },
+    {
+      "key": [
+        "INJ",
+        "S5",
+        "LONG",
+        124007
+      ],
+      "symbol": "INJ",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-02T20:03:10.472449+00:00",
+      "live_entry": "2026-08-02T20:03:10.482139+00:00",
+      "paper_exit": "2026-08-04T20:03:18.144472+00:00",
+      "live_exit": "2026-08-04T20:03:18.148585+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -6.97,
+      "live_pnl_usd": -4.07,
+      "paper_size_usd": 156.9827680108169,
+      "live_size_usd": 94.63119999999999,
+      "entry_lag_seconds": 0.009690046310424805,
+      "exit_lag_seconds": 0.004113197326660156,
+      "same_exit_reason": true,
+      "size_effect_usd": 2.768395757969106,
+      "return_effect_usd": 0.13160424203089305,
+      "net_return_delta_bps": 13.907066805756777,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-02T20:03:14+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "SNX",
+        "S10",
+        "SHORT",
+        124011
+      ],
+      "symbol": "SNX",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-03T12:03:12.832963+00:00",
+      "live_entry": "2026-08-03T12:03:12.843391+00:00",
+      "paper_exit": "2026-08-04T12:03:16.977010+00:00",
+      "live_exit": "2026-08-04T12:03:16.981783+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -2.35,
+      "live_pnl_usd": -2.47,
+      "paper_size_usd": 157.5731358299991,
+      "live_size_usd": 157.46097600000002,
+      "entry_lag_seconds": 0.01042795181274414,
+      "exit_lag_seconds": 0.00477290153503418,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.0016727191415560642,
+      "return_effect_usd": -0.1216727191415561,
+      "net_return_delta_bps": -7.727166580090046,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-03T12:03:16+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 1.0,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "SEI",
+        "S10",
+        "SHORT",
+        124014
+      ],
+      "symbol": "SEI",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-04T00:03:14.704044+00:00",
+      "live_entry": "2026-08-04T00:03:14.717150+00:00",
+      "paper_exit": "2026-08-05T00:03:18.710968+00:00",
+      "live_exit": "2026-08-05T00:03:18.714680+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 0.02,
+      "live_pnl_usd": -0.04,
+      "paper_size_usd": 156.6484671121277,
+      "live_size_usd": 125.704656,
+      "entry_lag_seconds": 0.01310586929321289,
+      "exit_lag_seconds": 0.0037119388580322266,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.003950732705220583,
+      "return_effect_usd": -0.056049267294779416,
+      "net_return_delta_bps": -4.458805988441623,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-04T00:03:21+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.8,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        }
+      ]
+    },
+    {
+      "key": [
+        "ENA",
+        "S5",
+        "LONG",
+        124021
+      ],
+      "symbol": "ENA",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-05T04:03:00.804020+00:00",
+      "live_entry": "2026-08-05T04:03:00.816659+00:00",
+      "paper_exit": "2026-08-07T04:03:06.087287+00:00",
+      "live_exit": "2026-08-07T04:03:06.095622+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 3.32,
+      "live_pnl_usd": 3.48,
+      "paper_size_usd": 155.9775795173164,
+      "live_size_usd": 155.990796,
+      "entry_lag_seconds": 0.012639045715332031,
+      "exit_lag_seconds": 0.008335113525390625,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.0002813142930240439,
+      "return_effect_usd": 0.1597186857069759,
+      "net_return_delta_bps": 10.238981388810652,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "WLD",
+        "S5",
+        "LONG",
+        124021
+      ],
+      "symbol": "WLD",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-05T04:03:00.804020+00:00",
+      "live_entry": "2026-08-05T04:03:00.816659+00:00",
+      "paper_exit": "2026-08-07T04:03:06.087287+00:00",
+      "live_exit": "2026-08-07T04:03:06.095622+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -10.96,
+      "live_pnl_usd": -10.85,
+      "paper_size_usd": 155.9775795173164,
+      "live_size_usd": 156.16917,
+      "entry_lag_seconds": 0.012639045715332031,
+      "exit_lag_seconds": 0.008335113525390625,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.013462394382003006,
+      "return_effect_usd": 0.12346239438200374,
+      "net_return_delta_bps": 7.905682945103937,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "LDO",
+        "S5",
+        "SHORT",
+        124022
+      ],
+      "symbol": "LDO",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-05T08:03:01.267347+00:00",
+      "live_entry": "2026-08-05T08:03:01.276948+00:00",
+      "paper_exit": "2026-08-07T08:03:06.668253+00:00",
+      "live_exit": "2026-08-07T08:03:06.673499+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 3.8,
+      "live_pnl_usd": 3.81,
+      "paper_size_usd": 155.9775795173164,
+      "live_size_usd": 156.06108,
+      "entry_lag_seconds": 0.00960087776184082,
+      "exit_lag_seconds": 0.005246162414550781,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.002034278485277233,
+      "return_effect_usd": 0.007965721514723415,
+      "net_return_delta_bps": 0.5104233236578535,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "APT",
+        "S10",
+        "SHORT",
+        124029
+      ],
+      "symbol": "APT",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-06T12:03:05.278120+00:00",
+      "live_entry": "2026-08-06T12:03:05.292247+00:00",
+      "paper_exit": "2026-08-07T12:03:07.237908+00:00",
+      "live_exit": "2026-08-07T12:03:07.244175+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -0.82,
+      "live_pnl_usd": -0.94,
+      "paper_size_usd": 155.9775795173164,
+      "live_size_usd": 156.02244,
+      "entry_lag_seconds": 0.014127016067504883,
+      "exit_lag_seconds": 0.006267070770263672,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.00023583899631202506,
+      "return_effect_usd": -0.1197641610036879,
+      "net_return_delta_bps": -7.676085632533878,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "AAVE",
+        "S10",
+        "SHORT",
+        124035
+      ],
+      "symbol": "AAVE",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-07T12:03:15.608184+00:00",
+      "live_entry": "2026-08-07T12:03:15.622812+00:00",
+      "paper_exit": "2026-08-08T12:03:21.042673+00:00",
+      "live_exit": "2026-08-08T12:03:21.047578+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -1.02,
+      "live_pnl_usd": -0.95,
+      "paper_size_usd": 154.5799082595159,
+      "live_size_usd": 154.60392,
+      "entry_lag_seconds": 0.014627933502197266,
+      "exit_lag_seconds": 0.004904985427856445,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.0001584421647647922,
+      "return_effect_usd": 0.07015844216476473,
+      "net_return_delta_bps": 4.537947172669667,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "SNX",
+        "S10",
+        "SHORT",
+        124035
+      ],
+      "symbol": "SNX",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-07T12:03:15.608184+00:00",
+      "live_entry": "2026-08-07T12:03:15.622812+00:00",
+      "paper_exit": "2026-08-08T12:03:21.042673+00:00",
+      "live_exit": "2026-08-08T12:03:21.047578+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 1.51,
+      "live_pnl_usd": 1.46,
+      "paper_size_usd": 154.5799082595159,
+      "live_size_usd": 154.72231100000002,
+      "entry_lag_seconds": 0.014627933502197266,
+      "exit_lag_seconds": 0.004904985427856445,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.0013910484263584674,
+      "return_effect_usd": -0.051391048426358395,
+      "net_return_delta_bps": -3.321502121717817,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "INJ",
+        "S5",
+        "SHORT",
+        124042
+      ],
+      "symbol": "INJ",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-08T16:03:03.072400+00:00",
+      "live_entry": "2026-08-08T16:03:03.081232+00:00",
+      "paper_exit": "2026-08-10T16:03:08.572331+00:00",
+      "live_exit": "2026-08-10T16:03:08.576265+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -1.22,
+      "live_pnl_usd": -1.52,
+      "paper_size_usd": 154.72660085595325,
+      "live_size_usd": 154.61747,
+      "entry_lag_seconds": 0.008831977844238281,
+      "exit_lag_seconds": 0.003934144973754883,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.0008604832234821674,
+      "return_effect_usd": -0.3008604832234822,
+      "net_return_delta_bps": -19.458375772380844,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "MINA",
+        "S10",
+        "SHORT",
+        124043
+      ],
+      "symbol": "MINA",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-08T20:03:03.679568+00:00",
+      "live_entry": "2026-08-08T20:03:03.691183+00:00",
+      "paper_exit": "2026-08-09T20:03:05.682529+00:00",
+      "live_exit": "2026-08-09T20:03:05.687710+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -1.64,
+      "live_pnl_usd": -1.58,
+      "paper_size_usd": 154.72660085595325,
+      "live_size_usd": 154.8729,
+      "entry_lag_seconds": 0.01161503791809082,
+      "exit_lag_seconds": 0.005181074142456055,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.0015506745117474473,
+      "return_effect_usd": 0.061550674511747165,
+      "net_return_delta_bps": 3.9742701603538886,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "BLUR",
+        "S10",
+        "SHORT",
+        124044
+      ],
+      "symbol": "BLUR",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-09T00:03:04.256169+00:00",
+      "live_entry": "2026-08-09T00:03:04.265571+00:00",
+      "paper_exit": "2026-08-10T00:03:06.288708+00:00",
+      "live_exit": "2026-08-10T00:03:06.293040+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 0.65,
+      "live_pnl_usd": 0.49,
+      "paper_size_usd": 154.72660085595325,
+      "live_size_usd": 154.738736,
+      "entry_lag_seconds": 0.009402036666870117,
+      "exit_lag_seconds": 0.004332065582275391,
+      "same_exit_reason": true,
+      "size_effect_usd": 5.0979234254121656e-05,
+      "return_effect_usd": -0.16005097923425415,
+      "net_return_delta_bps": -10.343304034372762,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "CRV",
+        "S5",
+        "LONG",
+        124047
+      ],
+      "symbol": "CRV",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-09T12:03:06.298596+00:00",
+      "live_entry": "2026-08-09T12:03:06.308432+00:00",
+      "paper_exit": "2026-08-11T12:03:11.413105+00:00",
+      "live_exit": "2026-08-11T12:03:11.416923+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 18.6,
+      "live_pnl_usd": 18.4,
+      "paper_size_usd": 154.72660085595325,
+      "live_size_usd": 154.904868,
+      "entry_lag_seconds": 0.009836196899414062,
+      "exit_lag_seconds": 0.003818035125732422,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.02142985666928928,
+      "return_effect_usd": -0.22142985666929144,
+      "net_return_delta_bps": -14.294570566322772,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "OP",
+        "S10",
+        "SHORT",
+        124051
+      ],
+      "symbol": "OP",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-10T04:03:08.353879+00:00",
+      "live_entry": "2026-08-10T04:03:08.364569+00:00",
+      "paper_exit": "2026-08-11T04:03:10.264196+00:00",
+      "live_exit": "2026-08-11T04:03:10.267992+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -3.36,
+      "live_pnl_usd": -3.43,
+      "paper_size_usd": 154.43097342816452,
+      "live_size_usd": 154.419697,
+      "entry_lag_seconds": 0.010689973831176758,
+      "exit_lag_seconds": 0.003796100616455078,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.0002453445561577584,
+      "return_effect_usd": -0.07024534455615773,
+      "net_return_delta_bps": -4.548988627801655,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "WLD",
+        "S5",
+        "LONG",
+        124052
+      ],
+      "symbol": "WLD",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-10T08:03:08.908482+00:00",
+      "live_entry": "2026-08-10T08:03:08.921563+00:00",
+      "paper_exit": "2026-08-12T08:03:14.276328+00:00",
+      "live_exit": "2026-08-12T08:03:14.280083+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -6.62,
+      "live_pnl_usd": -6.65,
+      "paper_size_usd": 154.43097342816452,
+      "live_size_usd": 154.54536000000002,
+      "entry_lag_seconds": 0.013080835342407227,
+      "exit_lag_seconds": 0.003754854202270508,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.004903414701994495,
+      "return_effect_usd": -0.025096585298006124,
+      "net_return_delta_bps": -1.6238976891966295,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "PYTH",
+        "S5",
+        "LONG",
+        124054
+      ],
+      "symbol": "PYTH",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-10T16:03:16.442207+00:00",
+      "live_entry": "2026-08-10T16:03:16.453890+00:00",
+      "paper_exit": "2026-08-12T16:03:35.418715+00:00",
+      "live_exit": "2026-08-12T16:03:35.422708+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -7.52,
+      "live_pnl_usd": -7.72,
+      "paper_size_usd": 154.06427986201908,
+      "live_size_usd": 154.23936,
+      "entry_lag_seconds": 0.011682987213134766,
+      "exit_lag_seconds": 0.003993034362792969,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.008545800744960039,
+      "return_effect_usd": -0.19145419925504042,
+      "net_return_delta_bps": -12.41279782638105,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "UNI",
+        "S5",
+        "SHORT",
+        124064
+      ],
+      "symbol": "UNI",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-12T08:03:21.880760+00:00",
+      "live_entry": "2026-08-12T08:03:21.892310+00:00",
+      "paper_exit": "2026-08-14T08:03:41.133648+00:00",
+      "live_exit": "2026-08-14T08:03:41.141798+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -0.05,
+      "live_pnl_usd": 1.04,
+      "paper_size_usd": 156.64838228380438,
+      "live_size_usd": 157.672968,
+      "entry_lag_seconds": 0.011549949645996094,
+      "exit_lag_seconds": 0.008150100708007812,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.00032703360904785643,
+      "return_effect_usd": 1.090327033609048,
+      "net_return_delta_bps": 69.15117077069597,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "CRV",
+        "S5",
+        "LONG",
+        124065
+      ],
+      "symbol": "CRV",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-12T12:03:16.325752+00:00",
+      "live_entry": "2026-08-12T12:03:16.339215+00:00",
+      "paper_exit": "2026-08-14T12:03:21.707658+00:00",
+      "live_exit": "2026-08-14T12:03:21.715359+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -17.03,
+      "live_pnl_usd": -16.75,
+      "paper_size_usd": 156.64838228380438,
+      "live_size_usd": 156.20397300000002,
+      "entry_lag_seconds": 0.013463020324707031,
+      "exit_lag_seconds": 0.007700920104980469,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.04831387335667846,
+      "return_effect_usd": 0.23168612664332144,
+      "net_return_delta_bps": 14.832281291803085,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "LINK",
+        "S5",
+        "LONG",
+        124065
+      ],
+      "symbol": "LINK",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-12T12:03:16.325752+00:00",
+      "live_entry": "2026-08-12T12:03:16.339215+00:00",
+      "paper_exit": "2026-08-14T12:03:21.707658+00:00",
+      "live_exit": "2026-08-14T12:03:21.715359+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -0.88,
+      "live_pnl_usd": -0.99,
+      "paper_size_usd": 156.64838228380438,
+      "live_size_usd": 156.99899999999997,
+      "entry_lag_seconds": 0.013463020324707031,
+      "exit_lag_seconds": 0.007700920104980469,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.0019696570481852692,
+      "return_effect_usd": -0.10803034295181478,
+      "net_return_delta_bps": -6.880957391563946,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "SEI",
+        "S10",
+        "SHORT",
+        124067
+      ],
+      "symbol": "SEI",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-12T20:03:17.554748+00:00",
+      "live_entry": "2026-08-12T20:03:17.566514+00:00",
+      "paper_exit": "2026-08-13T20:03:19.427208+00:00",
+      "live_exit": "2026-08-13T20:03:19.431364+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -3.29,
+      "live_pnl_usd": -3.13,
+      "paper_size_usd": 154.39132835536023,
+      "live_size_usd": 154.403424,
+      "entry_lag_seconds": 0.01176595687866211,
+      "exit_lag_seconds": 0.0041561126708984375,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.00025775198185517775,
+      "return_effect_usd": 0.16025775198185516,
+      "net_return_delta_bps": 10.379157911799622,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "BLUR",
+        "S10",
+        "SHORT",
+        124081
+      ],
+      "symbol": "BLUR",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-15T04:03:05.423801+00:00",
+      "live_entry": "2026-08-15T04:03:05.434998+00:00",
+      "paper_exit": "2026-08-16T04:03:24.343153+00:00",
+      "live_exit": "2026-08-16T04:03:24.346555+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -0.14,
+      "live_pnl_usd": -0.24,
+      "paper_size_usd": 148.0180379234192,
+      "live_size_usd": 148.263362,
+      "entry_lag_seconds": 0.011197090148925781,
+      "exit_lag_seconds": 0.0034019947052001953,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.00023203503575072046,
+      "return_effect_usd": -0.09976796496424926,
+      "net_return_delta_bps": -6.729104454291901,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "LINK",
+        "S5",
+        "LONG",
+        124084
+      ],
+      "symbol": "LINK",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-15T16:03:04.022282+00:00",
+      "live_entry": "2026-08-15T16:03:04.032603+00:00",
+      "paper_exit": "2026-08-17T16:03:09.467566+00:00",
+      "live_exit": "2026-08-17T16:03:09.471111+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -0.16,
+      "live_pnl_usd": -0.52,
+      "paper_size_usd": 148.0180379234192,
+      "live_size_usd": 148.6524,
+      "entry_lag_seconds": 0.01032114028930664,
+      "exit_lag_seconds": 0.003545045852661133,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.0006857132662806978,
+      "return_effect_usd": -0.3593142867337193,
+      "net_return_delta_bps": -24.17144201733166,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "WLD",
+        "S5",
+        "LONG",
+        124091
+      ],
+      "symbol": "WLD",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-16T20:03:08.026255+00:00",
+      "live_entry": "2026-08-16T20:03:08.038948+00:00",
+      "paper_exit": "2026-08-18T20:03:18.319036+00:00",
+      "live_exit": "2026-08-18T20:03:18.342509+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -15.6,
+      "live_pnl_usd": -15.69,
+      "paper_size_usd": 147.97702301455246,
+      "live_size_usd": 148.277712,
+      "entry_lag_seconds": 0.012693166732788086,
+      "exit_lag_seconds": 0.023473024368286133,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.0316991657043978,
+      "return_effect_usd": -0.058300834295601976,
+      "net_return_delta_bps": -3.9318676764854565,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "AAVE",
+        "S10",
+        "SHORT",
+        124092
+      ],
+      "symbol": "AAVE",
+      "strategy": "S10",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-17T00:03:08.971159+00:00",
+      "live_entry": "2026-08-17T00:03:08.985433+00:00",
+      "paper_exit": "2026-08-18T00:03:11.124202+00:00",
+      "live_exit": "2026-08-18T00:03:11.130200+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -5.88,
+      "live_pnl_usd": -5.82,
+      "paper_size_usd": 147.97702301455246,
+      "live_size_usd": 147.92172,
+      "entry_lag_seconds": 0.014274120330810547,
+      "exit_lag_seconds": 0.005997896194458008,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.002197514985394129,
+      "return_effect_usd": 0.05780248501460528,
+      "net_return_delta_bps": 3.907640136594226,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "APT",
+        "S5",
+        "SHORT",
+        124092
+      ],
+      "symbol": "APT",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-17T00:03:08.971159+00:00",
+      "live_entry": "2026-08-17T00:03:08.985433+00:00",
+      "paper_exit": "2026-08-19T00:03:21.182790+00:00",
+      "live_exit": "2026-08-19T00:03:21.189354+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -3.09,
+      "live_pnl_usd": -3.07,
+      "paper_size_usd": 147.97702301455246,
+      "live_size_usd": 148.227864,
+      "entry_lag_seconds": 0.014274120330810547,
+      "exit_lag_seconds": 0.006563901901245117,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.005237966200716942,
+      "return_effect_usd": 0.025237966200716895,
+      "net_return_delta_bps": 1.7026465550847372,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "DYDX",
+        "S5",
+        "SHORT",
+        124096
+      ],
+      "symbol": "DYDX",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-17T16:03:17.566178+00:00",
+      "live_entry": "2026-08-17T16:03:17.580476+00:00",
+      "paper_exit": "2026-08-19T16:03:25.285467+00:00",
+      "live_exit": "2026-08-19T16:03:25.289513+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -6.12,
+      "live_pnl_usd": -6.74,
+      "paper_size_usd": 147.92888311391377,
+      "live_size_usd": 147.785445,
+      "entry_lag_seconds": 0.014297962188720703,
+      "exit_lag_seconds": 0.004046201705932617,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.005934211349897251,
+      "return_effect_usd": -0.6259342113498976,
+      "net_return_delta_bps": -42.35425290696912,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "COMP",
+        "S5",
+        "LONG",
+        124098
+      ],
+      "symbol": "COMP",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-18T00:03:17.179297+00:00",
+      "live_entry": "2026-08-18T00:03:17.194146+00:00",
+      "paper_exit": "2026-08-20T00:03:26.431285+00:00",
+      "live_exit": "2026-08-19T05:47:02.013716+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 2.18,
+      "live_pnl_usd": 1.14,
+      "paper_size_usd": 146.1646114424943,
+      "live_size_usd": 87.73147200000001,
+      "entry_lag_seconds": 0.014848947525024414,
+      "exit_lag_seconds": -65784.41756892204,
+      "same_exit_reason": false,
+      "size_effect_usd": -0.8715122130280796,
+      "return_effect_usd": -0.1684877869719208,
+      "net_return_delta_bps": -19.204942437523535,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-18T00:03:20+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        },
+        {
+          "at": "2026-08-19T04:50:32+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 1.2,
+          "prompt_hash": "7193856e7d"
+        }
+      ]
+    },
+    {
+      "key": [
+        "GALA",
+        "S5",
+        "SHORT",
+        124103
+      ],
+      "symbol": "GALA",
+      "strategy": "S5",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-18T20:03:26.353337+00:00",
+      "live_entry": "2026-08-18T20:03:26.369882+00:00",
+      "paper_exit": "2026-08-20T15:32:10.790172+00:00",
+      "live_exit": "2026-08-19T11:33:42.819460+00:00",
+      "paper_reason": "catastrophe_stop",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": -18.33,
+      "live_pnl_usd": 2.7,
+      "paper_size_usd": 141.48312021473419,
+      "live_size_usd": 99.1298,
+      "entry_lag_seconds": 0.01654505729675293,
+      "exit_lag_seconds": -100707.9707121849,
+      "same_exit_reason": false,
+      "size_effect_usd": 5.487130608639412,
+      "return_effect_usd": 15.542869391360586,
+      "net_return_delta_bps": 1567.9310753537873,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-18T20:03:29+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.7,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        },
+        {
+          "at": "2026-08-19T08:50:28+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 1.2,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-19T09:50:35+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.0,
+          "prompt_hash": "7193856e7d"
+        }
+      ]
+    },
+    {
+      "key": [
+        "LINK",
+        "S5",
+        "LONG",
+        124105
+      ],
+      "symbol": "LINK",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-19T04:03:03.276319+00:00",
+      "live_entry": "2026-08-19T04:03:03.291004+00:00",
+      "paper_exit": "2026-08-21T04:03:14.535774+00:00",
+      "live_exit": "2026-08-20T01:09:06.587045+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 18.35,
+      "live_pnl_usd": 7.29,
+      "paper_size_usd": 140.55549550436265,
+      "live_size_usd": 84.15249,
+      "entry_lag_seconds": 0.014684915542602539,
+      "exit_lag_seconds": -96847.94872903824,
+      "same_exit_reason": false,
+      "size_effect_usd": -7.363605010897137,
+      "return_effect_usd": -3.6963949891028656,
+      "net_return_delta_bps": -439.24962756335145,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-19T04:03:07+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.6,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        },
+        {
+          "at": "2026-08-19T20:50:31+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-19T21:50:31+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 6.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-19T22:50:31+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 7.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-20T00:50:31+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 7.3,
+          "prompt_hash": "7193856e7d"
+        }
+      ]
+    },
+    {
+      "key": [
+        "ARB",
+        "S5",
+        "LONG",
+        124110
+      ],
+      "symbol": "ARB",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-20T00:03:08.189050+00:00",
+      "live_entry": "2026-08-20T00:03:08.200977+00:00",
+      "paper_exit": "2026-08-22T00:03:34.100957+00:00",
+      "live_exit": "2026-08-21T10:27:22.385425+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 13.72,
+      "live_pnl_usd": 5.83,
+      "paper_size_usd": 138.71902036406794,
+      "live_size_usd": 97.771773,
+      "entry_lag_seconds": 0.011927127838134766,
+      "exit_lag_seconds": -48971.71553182602,
+      "same_exit_reason": false,
+      "size_effect_usd": -4.049886110502933,
+      "return_effect_usd": -3.840113889497068,
+      "net_return_delta_bps": -392.76304107700577,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-20T00:03:13+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.7,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        },
+        {
+          "at": "2026-08-21T07:50:45+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T08:50:48+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 4.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T09:50:48+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 6.0,
+          "prompt_hash": "7193856e7d"
+        }
+      ]
+    },
+    {
+      "key": [
+        "ENA",
+        "S5",
+        "LONG",
+        124115
+      ],
+      "symbol": "ENA",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-08-20T20:03:12.820236+00:00",
+      "live_entry": "2026-08-20T20:03:12.838374+00:00",
+      "paper_exit": "2026-08-21T20:00:03.756801+00:00",
+      "live_exit": "2026-08-21T09:07:42.185354+00:00",
+      "paper_reason": "opp_floor",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 36.5,
+      "live_pnl_usd": 24.02,
+      "paper_size_usd": 133.87396220544372,
+      "live_size_usd": 99.54252000000001,
+      "entry_lag_seconds": 0.01813793182373047,
+      "exit_lag_seconds": -39141.5714468956,
+      "same_exit_reason": false,
+      "size_effect_usd": -9.360279025548559,
+      "return_effect_usd": -3.119720974451444,
+      "net_return_delta_bps": -313.4058666036829,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-20T20:03:20+00:00",
+          "event": "ARBITER_DECISION",
+          "action": "GO",
+          "factor": 0.7,
+          "stop_usdt": null,
+          "prompt_hash": "d5eb2725d0"
+        },
+        {
+          "at": "2026-08-20T22:50:40+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-20T23:50:39+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 3.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T00:50:39+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 4.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T01:50:41+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 8.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T02:50:40+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 10.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T03:50:40+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 12.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T04:50:40+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 13.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T05:50:40+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 15.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T06:50:40+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 16.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T07:50:47+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 20.0,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-21T08:50:50+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 24.0,
+          "prompt_hash": "7193856e7d"
+        }
+      ]
+    },
+    {
+      "key": [
+        "BCH",
+        "S9",
+        "SHORT",
+        124118
+      ],
+      "symbol": "BCH",
+      "strategy": "S9",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-21T08:03:16.599573+00:00",
+      "live_entry": "2026-08-21T08:03:16.617601+00:00",
+      "paper_exit": "2026-08-21T15:19:43.067734+00:00",
+      "live_exit": "2026-08-21T15:19:43.073107+00:00",
+      "paper_reason": "catastrophe_stop",
+      "live_reason": "catastrophe_stop",
+      "paper_pnl_usd": -9.58,
+      "live_pnl_usd": -9.34,
+      "paper_size_usd": 117.08,
+      "live_size_usd": 112.56624000000001,
+      "entry_lag_seconds": 0.01802802085876465,
+      "exit_lag_seconds": 0.0053730010986328125,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.36933567475230533,
+      "return_effect_usd": -0.12933567475230473,
+      "net_return_delta_bps": -11.489739263948472,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "STX",
+        "S9",
+        "SHORT",
+        124121
+      ],
+      "symbol": "STX",
+      "strategy": "S9",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-21T20:03:05.527416+00:00",
+      "live_entry": "2026-08-21T20:03:05.546771+00:00",
+      "paper_exit": "2026-08-21T22:41:06.947214+00:00",
+      "live_exit": "2026-08-21T22:43:06.952352+00:00",
+      "paper_reason": "catastrophe_stop",
+      "live_reason": "catastrophe_stop",
+      "paper_pnl_usd": -10.57,
+      "live_pnl_usd": -10.12,
+      "paper_size_usd": 123.86,
+      "live_size_usd": 118.1612,
+      "entry_lag_seconds": 0.019355058670043945,
+      "exit_lag_seconds": 120.00513815879822,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.48632581947359976,
+      "return_effect_usd": -0.03632581947359763,
+      "net_return_delta_bps": -3.0742595262740755,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "AAVE",
+        "S9",
+        "SHORT",
+        124122
+      ],
+      "symbol": "AAVE",
+      "strategy": "S9",
+      "direction": "SHORT",
+      "paper_entry": "2026-08-22T00:03:08.614042+00:00",
+      "live_entry": "2026-08-22T00:03:08.634299+00:00",
+      "paper_exit": "2026-08-22T16:00:00.009324+00:00",
+      "live_exit": "2026-08-22T16:00:00.015656+00:00",
+      "paper_reason": "s9_early_dead",
+      "live_reason": "s9_early_dead",
+      "paper_pnl_usd": 1.32,
+      "live_pnl_usd": 1.5,
+      "paper_size_usd": 118.77,
+      "live_size_usd": 114.93870000000001,
+      "entry_lag_seconds": 0.020256996154785156,
+      "exit_lag_seconds": 0.006331920623779297,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.04258075271533199,
+      "return_effect_usd": 0.22258075271533206,
+      "net_return_delta_bps": 19.36517054006458,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "MINA",
+        "S1",
+        "LONG",
+        124131
+      ],
+      "symbol": "MINA",
+      "strategy": "S1",
+      "direction": "LONG",
+      "paper_entry": "2026-08-23T12:03:09.654990+00:00",
+      "live_entry": "2026-08-23T12:03:09.670339+00:00",
+      "paper_exit": "2026-08-26T12:03:31.610015+00:00",
+      "live_exit": "2026-08-24T00:45:35.104804+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "manual_stop_set",
+      "paper_pnl_usd": 16.5,
+      "live_pnl_usd": 3.47,
+      "paper_size_usd": 140.71684098972239,
+      "live_size_usd": 139.535856,
+      "entry_lag_seconds": 0.015349149703979492,
+      "exit_lag_seconds": -213476.50521087646,
+      "same_exit_reason": false,
+      "size_effect_usd": -0.13847846635387914,
+      "return_effect_usd": -12.89152153364612,
+      "net_return_delta_bps": -923.8859389407494,
+      "live_ai_interventions": [
+        {
+          "at": "2026-08-23T19:33:27+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 2.5,
+          "prompt_hash": "7193856e7d"
+        },
+        {
+          "at": "2026-08-23T20:33:46+00:00",
+          "event": "ARBITER_EXIT_DECISION",
+          "action": "LOCK",
+          "factor": null,
+          "stop_usdt": 4.0,
+          "prompt_hash": "7193856e7d"
+        }
+      ]
+    },
+    {
+      "key": [
+        "MINA",
+        "S1",
+        "LONG",
+        124168
+      ],
+      "symbol": "MINA",
+      "strategy": "S1",
+      "direction": "LONG",
+      "paper_entry": "2026-08-29T16:03:19.930813+00:00",
+      "live_entry": "2026-08-29T16:03:19.942895+00:00",
+      "paper_exit": "2026-09-01T16:03:35.803038+00:00",
+      "live_exit": "2026-09-01T16:03:35.809399+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 14.06,
+      "live_pnl_usd": 13.42,
+      "paper_size_usd": 146.63211135125732,
+      "live_size_usd": 137.899907,
+      "entry_lag_seconds": 0.01208186149597168,
+      "exit_lag_seconds": 0.0063610076904296875,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.8372981337257749,
+      "return_effect_usd": 0.19729813372577373,
+      "net_return_delta_bps": 14.307343494131125,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "ARB",
+        "S9",
+        "SHORT",
+        124182
+      ],
+      "symbol": "ARB",
+      "strategy": "S9",
+      "direction": "SHORT",
+      "paper_entry": "2026-09-01T00:03:15.284118+00:00",
+      "live_entry": "2026-09-01T00:03:15.300407+00:00",
+      "paper_exit": "2026-09-01T01:10:53.913225+00:00",
+      "live_exit": "2026-09-01T01:10:53.918324+00:00",
+      "paper_reason": "catastrophe_stop",
+      "live_reason": "catastrophe_stop",
+      "paper_pnl_usd": -11.53,
+      "live_pnl_usd": -10.68,
+      "paper_size_usd": 125.14,
+      "live_size_usd": 112.9268,
+      "entry_lag_seconds": 0.01628899574279785,
+      "exit_lag_seconds": 0.005099058151245117,
+      "same_exit_reason": true,
+      "size_effect_usd": 1.1252852485216556,
+      "return_effect_usd": -0.275285248521657,
+      "net_return_delta_bps": -24.37731774225932,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "CRV",
+        "S1",
+        "LONG",
+        124187
+      ],
+      "symbol": "CRV",
+      "strategy": "S1",
+      "direction": "LONG",
+      "paper_entry": "2026-09-01T20:03:17.773051+00:00",
+      "live_entry": "2026-09-01T20:03:17.801296+00:00",
+      "paper_exit": "2026-09-04T20:03:36.538578+00:00",
+      "live_exit": "2026-09-04T20:03:36.543187+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": -7.82,
+      "live_pnl_usd": -6.13,
+      "paper_size_usd": 149.73443263159479,
+      "live_size_usd": 134.336048,
+      "entry_lag_seconds": 0.028244972229003906,
+      "exit_lag_seconds": 0.004608869552612305,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.8041929014105931,
+      "return_effect_usd": 0.8858070985894076,
+      "net_return_delta_bps": 65.93964254400335,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "UNI",
+        "S1",
+        "LONG",
+        124206
+      ],
+      "symbol": "UNI",
+      "strategy": "S1",
+      "direction": "LONG",
+      "paper_entry": "2026-09-05T00:03:18.636882+00:00",
+      "live_entry": "2026-09-05T00:03:18.654330+00:00",
+      "paper_exit": "2026-09-08T00:03:39.138755+00:00",
+      "live_exit": "2026-09-08T00:03:39.148283+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 16.6,
+      "live_pnl_usd": 15.04,
+      "paper_size_usd": 153.8446332362,
+      "live_size_usd": 142.18162999999998,
+      "entry_lag_seconds": 0.017447948455810547,
+      "exit_lag_seconds": 0.009527921676635742,
+      "same_exit_reason": true,
+      "size_effect_usd": -1.2584504876661782,
+      "return_effect_usd": -0.3015495123338238,
+      "net_return_delta_bps": -21.20875336242972,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "INJ",
+        "S9",
+        "SHORT",
+        124223
+      ],
+      "symbol": "INJ",
+      "strategy": "S9",
+      "direction": "SHORT",
+      "paper_entry": "2026-09-07T20:03:19.112183+00:00",
+      "live_entry": "2026-09-07T20:03:19.130327+00:00",
+      "paper_exit": "2026-09-09T20:03:42.364818+00:00",
+      "live_exit": "2026-09-09T20:03:42.369318+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 3.87,
+      "live_pnl_usd": 3.08,
+      "paper_size_usd": 149.1,
+      "live_size_usd": 119.4435,
+      "entry_lag_seconds": 0.018143892288208008,
+      "exit_lag_seconds": 0.004499912261962891,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.7697562374245472,
+      "return_effect_usd": -0.020243762575452826,
+      "net_return_delta_bps": -1.6948400352847017,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "MINA",
+        "S1",
+        "LONG",
+        124236
+      ],
+      "symbol": "MINA",
+      "strategy": "S1",
+      "direction": "LONG",
+      "paper_entry": "2026-09-10T00:03:04.335093+00:00",
+      "live_entry": "2026-09-10T00:03:04.347802+00:00",
+      "paper_exit": "2026-09-13T00:03:43.245258+00:00",
+      "live_exit": "2026-09-13T00:03:43.250543+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 25.48,
+      "live_pnl_usd": 19.74,
+      "paper_size_usd": 176.55689692424838,
+      "live_size_usd": 140.59838,
+      "entry_lag_seconds": 0.012708902359008789,
+      "exit_lag_seconds": 0.005285024642944336,
+      "same_exit_reason": true,
+      "size_effect_usd": -5.189392355615277,
+      "return_effect_usd": -0.5506076443847229,
+      "net_return_delta_bps": -39.16173460780436,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "MINA",
+        "S9",
+        "LONG",
+        124263
+      ],
+      "symbol": "MINA",
+      "strategy": "S9",
+      "direction": "LONG",
+      "paper_entry": "2026-09-14T12:03:07.935624+00:00",
+      "live_entry": "2026-09-14T12:03:07.956248+00:00",
+      "paper_exit": "2026-09-16T12:03:20.893195+00:00",
+      "live_exit": "2026-09-16T12:03:20.897573+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 4.32,
+      "live_pnl_usd": 4.06,
+      "paper_size_usd": 148.34,
+      "live_size_usd": 115.828752,
+      "entry_lag_seconds": 0.020624160766601562,
+      "exit_lag_seconds": 0.004378080368041992,
+      "same_exit_reason": true,
+      "size_effect_usd": -0.946801883241203,
+      "return_effect_usd": 0.686801883241202,
+      "net_return_delta_bps": 59.29459407809229,
+      "live_ai_interventions": []
+    }
+  ],
+  "strategies": {
+    "paper": {
+      "S5 LONG": {
+        "n": 29,
+        "pnl_usd": 35.529999999999994
+      },
+      "S10 SHORT": {
+        "n": 27,
+        "pnl_usd": -8.809999999999999
+      },
+      "S5 SHORT": {
+        "n": 17,
+        "pnl_usd": -69.88
+      },
+      "S9 SHORT": {
+        "n": 8,
+        "pnl_usd": -22.369999999999994
+      },
+      "S1 LONG": {
+        "n": 24,
+        "pnl_usd": 122.37999999999992
+      },
+      "S9 LONG": {
+        "n": 1,
+        "pnl_usd": 4.32
+      }
+    },
+    "live": {
+      "S5 LONG": {
+        "n": 31,
+        "pnl_usd": 16.5
+      },
+      "S10 SHORT": {
+        "n": 28,
+        "pnl_usd": -7.960000000000002
+      },
+      "S5 SHORT": {
+        "n": 22,
+        "pnl_usd": -39.870000000000005
+      },
+      "S9 SHORT": {
+        "n": 7,
+        "pnl_usd": -25.15
+      },
+      "S1 LONG": {
+        "n": 27,
+        "pnl_usd": 31.859999999999996
+      },
+      "S9 LONG": {
+        "n": 1,
+        "pnl_usd": 4.06
+      }
+    }
+  },
+  "generated_utc": "2026-09-17T09:17:37+00:00",
+  "since_utc": "2026-07-09T14:02:44+00:00",
+  "until_utc": "2026-09-17T08:10:01+00:00",
+  "match_rule": "symbol,strategy,direction,UTC 4h entry period",
+  "source_snapshots": {
+    "paper": {
+      "version": "1.23.0",
+      "state_sha256": "41b912247f6f8327f5b3e79c09d3916f2c9447dfd1f214c7b0b9b61641d70231",
+      "db_path": "/home/crypto/alfred/data/bots/paper/bot.db",
+      "last_event_utc": "2026-09-17T08:10:01+00:00",
+      "first_ledger_entry": "2026-07-09T16:03:16.256788+00:00"
+    },
+    "live": {
+      "version": "1.23.0",
+      "state_sha256": "40a6e2e83c4d3df697cd9334519ba118e798fa39354c88c8ec94aca86b1d66b8",
+      "db_path": "/home/crypto/alfred/data/bots/live/bot.db",
+      "last_event_utc": "2026-09-17T09:09:23+00:00",
+      "first_ledger_entry": "2026-07-09T16:03:16.264910+00:00"
+    }
+  },
+  "limits": [
+    "Read-only local snapshots per bot, not an atomic fleet snapshot or exchange reconciliation.",
+    "Cohort by entry date; closed P&L excludes unrealized positions and pre-cohort entries.",
+    "Available trades ledger only; no claim of complete pre-reset coverage.",
+    "Pairing is approximate within a 4h period; entry/exit lags are supplied.",
+    "Return component includes exits, fills, funding and accounting; it is NOT pure slippage.",
+    "Size decomposition uses paper return as reference; attribution order is explicit.",
+    "Unmatched P&L is descriptive, NOT recoverable profit or proof of a selection defect.",
+    "AI events are evidence of an intervention, not its causal portfolio P&L.",
+    "No significance test: correlated trades and repeated regimes are not independent draws."
+  ],
+  "milestones": {
+    "2026-08-29": {
+      "closed_pnl_usd": {
+        "paper": 82.91,
+        "live": 49.98
+      },
+      "live_minus_paper_usd": -32.93,
+      "attribution": {
+        "size_effect_usd": -7.072220947740731,
+        "return_effect_usd": 0.6222209477407268,
+        "unmatched_closed_delta_usd": -26.479999999999997,
+        "pending_pair_realized_delta_usd": 0.0
+      },
+      "matched_closed": 7
+    },
+    "2026-09-06": {
+      "closed_pnl_usd": {
+        "paper": -28.789999999999996,
+        "live": -3.4000000000000012
+      },
+      "live_minus_paper_usd": 25.389999999999993,
+      "attribution": {
+        "size_effect_usd": -6.905950476281027,
+        "return_effect_usd": 0.11595047628102625,
+        "unmatched_closed_delta_usd": 32.18,
+        "pending_pair_realized_delta_usd": 0.0
+      },
+      "matched_closed": 3
+    },
+    "2026-09-16T17:47:40Z": {
+      "closed_pnl_usd": {
+        "paper": 0.0,
+        "live": 0.0
+      },
+      "live_minus_paper_usd": 0.0,
+      "attribution": {
+        "size_effect_usd": 0,
+        "return_effect_usd": 0,
+        "unmatched_closed_delta_usd": 0,
+        "pending_pair_realized_delta_usd": 0.0
+      },
+      "matched_closed": 0
+    }
+  }
+}

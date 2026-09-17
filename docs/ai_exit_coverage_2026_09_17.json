@@ -1,0 +1,56 @@
+{
+  "events": 336,
+  "distinct_positions": 13,
+  "missing_position_identity": 0,
+  "shadow_lock_positions_excluded_by_note": 13,
+  "notes": [
+    {
+      "action": "LOCK",
+      "acted": false,
+      "note": "lock_shadow",
+      "events": 336
+    }
+  ],
+  "cohorts": [
+    {
+      "alfred_version": "1.21.0",
+      "prompt_hash": "7193856e7d",
+      "lock_mode": "shadow",
+      "cut_mode": "shadow",
+      "events": 199,
+      "distinct_positions": 7,
+      "shadow_lock_events_excluded": 199
+    },
+    {
+      "alfred_version": "1.22.0",
+      "prompt_hash": "7193856e7d",
+      "lock_mode": "shadow",
+      "cut_mode": "shadow",
+      "events": 131,
+      "distinct_positions": 7,
+      "shadow_lock_events_excluded": 131
+    },
+    {
+      "alfred_version": "1.23.0",
+      "prompt_hash": "7193856e7d",
+      "lock_mode": "shadow",
+      "cut_mode": "shadow",
+      "events": 6,
+      "distinct_positions": 1,
+      "shadow_lock_events_excluded": 6
+    }
+  ],
+  "causal_pnl_estimated": false,
+  "limitations": [
+    "Counts refer to logged decisions, not independent trades or measured edge.",
+    "Positions may appear in several prompt cohorts; cohort counts are not additive.",
+    "Current scorecard excludes note=lock_shadow and pools prompt versions.",
+    "Current LOCK replay applies its stop from entry, before the decision timestamp.",
+    "4h OHLC cannot establish tick-level stop ordering or execution prices."
+  ],
+  "source": "/home/crypto/alfred/data/bots/live/bot.db",
+  "since": 1787961600.0,
+  "until": 1789648103.203648,
+  "first_event_ts": 1788171370,
+  "last_event_ts": 1789600161
+}

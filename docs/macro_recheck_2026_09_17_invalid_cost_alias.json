@@ -1,0 +1,5282 @@
+{
+  "protocol": "docs/reprise_2026_09_17.md",
+  "source_base_commit": "c69131b",
+  "source_file_hashes": {
+    "ARB_4h_3y.json": "7b7dbfe02c3c08f3c986bb37310ac32022ae25b9715955bbb8eb521a165e765b",
+    "ARB_4h.json": "22e4ae7342878a2580c15129f743a6fa264a722729eb0030ab9a9e12ef27d77c",
+    "ARB_oi_4h.json": "26656624f522992691a61f2013e723d17f9147cca294a4a9a4cf2dc6b9850e1d",
+    "OP_4h_3y.json": "d4f75eb85fa3cc881757442aeb40580f216b2dfad27895448662eddf0b8c73cb",
+    "OP_4h.json": "a3053efb141ae93d701f68e7c6095ed2a9cf049975c4a76cab20234a85524e22",
+    "OP_oi_4h.json": "d0f1ae1ffaef5bd72e511942baf0021ebadb02fd7255cda2627dc0a9001ff779",
+    "AVAX_4h_3y.json": "fdfce821508d4f9b185682dc444105eb52b97717f36747e840b5566022564401",
+    "AVAX_4h.json": "1fdcc2124f84b149dbedc92e9e9264899a1851ba3dfd63297eef0b28230516e4",
+    "AVAX_oi_4h.json": "ce025c541d58db0caa37ec468fe7eca4b44a9bbf3eaee605a4efc7c357f34d8a",
+    "SUI_4h_3y.json": "f1182a691e778590a0984f72f73d00aadd1f0e568205cd2e1d1c13b8c1957903",
+    "SUI_4h.json": "706efe5a703ba9295a2f0ce4a3ff8aaad3161eeb2fbdf4772a9c62757388d969",
+    "SUI_oi_4h.json": "0309ce8a58ab1e9e3500239deea5e1970a8f39d3982283356b2640398b84f317",
+    "APT_4h_3y.json": "f099ab50d1e8b19d80e608d4f9011c9b69f2473adce5c8160ad52c1ee91bf687",
+    "APT_4h.json": "20e9d1957964104fe5716d71cdec647006ab48c498e6656029dbb7d6419691a9",
+    "APT_oi_4h.json": "d446a237dd47a46e8d87988741982ff82ca40912e2d8de9fdbfb4f4f038a93a0",
+    "SEI_4h_3y.json": "01810af05c9aab649694a492153ba86e2deda32238557006b0dab7c109d9cac0",
+    "SEI_4h.json": "8080cbc68a94bfe4134afc7741a93227d0397dd68e43a6cdb6c83ef5e3ab36c0",
+    "SEI_oi_4h.json": "8145fc37cd31d0a7d1e44961a6fe2f257cba46d167d6bd53eec6fab31f177ab5",
+    "NEAR_4h_3y.json": "b7a9fc73c43040f5c40ec42a0518131a3f30616b7beb9b00812ccff57704ea17",
+    "NEAR_4h.json": "a54d1bef3ecc06bb85e6149bda78af66144bbca08a188b75bb4d7b05d9c402e5",
+    "NEAR_oi_4h.json": "93f2f4a263364c8467c8ea07a021cd6f26cb2bd7227e29bbac2515ff76b21e80",
+    "AAVE_4h_3y.json": "c71957c9e284d20587bb3383fb6a0a1661e8fe2e9d68de62cdff5da1976839ce",
+    "AAVE_4h.json": "2d4300166fe7eac9981a352460360ccde136549277e449c3d14b8ee70621cce2",
+    "AAVE_oi_4h.json": "f015034a9afe7f53bc2658d61c20164786d61ff2a232fd9932000149cf834fef",
+    "COMP_4h_3y.json": "fb1d1c458d592a0405a70cda0884bf187b19554eea9664654754e09c3aadf589",
+    "COMP_4h.json": "b2a404427673a7cc16c83244b3daaebab66cb8f39096e5b15bfcbb5b2309d8d0",
+    "COMP_oi_4h.json": "87be35b6e677d2d1175deb2b21eef456d479215b71ba2c2a22342878d8836f7b",
+    "SNX_4h_3y.json": "fba125b8b7d0a4f165dc321bc0c354afd13c2d430180d2f8a93660dc27c514b4",
+    "SNX_4h.json": "eae1f810b808613712ea21cccf632a9650cf47e80acc8e9a1e603c4fc432a2aa",
+    "SNX_oi_4h.json": "5144498247b24e20214dfd2f2ea0731089575a4f708c96b4da607b41e761cc98",
+    "PENDLE_4h_3y.json": "8de0b6c85d40cdaabf826807e5382604e4b8effd27b07eed9b1b0a874c545c8a",
+    "PENDLE_4h.json": "9acdd21f1d10c2eb601ad656d49bd01520ff1f9674f14beb4a7376d3b9a7b822",
+    "PENDLE_oi_4h.json": "1a99ad44b17085b3466ae06ed6295cc6e3d92392c4c4be76711858a5ccd2969c",
+    "DYDX_4h_3y.json": "1c36ec6da7fc25248ab3a08c2e8ad0b644b5e95bd5104af82333842b70f83b70",
+    "DYDX_4h.json": "ef454d2b3f9eb5131765c0805178c423f03848e860585e04c0d0a7ebb05c70a5",
+    "DYDX_oi_4h.json": "ab8218eec47ec5d4b0d5199faa09cd18f41b3eef5369b037276e2e13e2f2aaa0",
+    "DOGE_4h_3y.json": "388e0a006fa357ffa7dbb2b62c2ab522ff1d31785c395652818bf7af88bc01db",
+    "DOGE_4h.json": "2ebcce1cd2dce096e2d97defab313571d426b01c56a13eb88b77130ff0a105a5",
+    "DOGE_oi_4h.json": "708ad96088a2b9bec9f2ecdff74071ad38dc148c4b52808365c1a4137aaa1b4a",
+    "WLD_4h_3y.json": "4c607a923faeaab48509f658024f870e9a1aad91dbe7de0181a163c5b83a9937",
+    "WLD_4h.json": "44dc71a90f5baeefdba845af2268b4ebad4043220722f7c8e2502f6cd8d51c2f",
+    "WLD_oi_4h.json": "644a8b11bff372693011fcadea7d145dc5893164a3efdf266fcc3395a2938880",
+    "BLUR_4h_3y.json": "d7609dcceb2ed0e0d0e051160914358afb1ccd16709a55e76ddcfa2d63077768",
+    "BLUR_4h.json": "4fe8ece78179fa96a561b9d9b8d32176acdc18dd767290a3a5de5d0825c794b7",
+    "BLUR_oi_4h.json": "08deed4a97f660bd00f4f165a00c8985922a42be13114a87416e70ce0fd0e9c1",
+    "LINK_4h_3y.json": "5254a0861709fb6a4f0e6bac20da1f060b5138c535207c9217e376ae616c563c",
+    "LINK_4h.json": "ca7bdac31dc422f5eff9947a70c907e43c9b46f5de34699c23e49a83d5e96c0a",
+    "LINK_oi_4h.json": "1ae00a8fc84174043f22bacffc4e252684aaf4cd7599c85ffb70eb531da2cf26",
+    "PYTH_4h_3y.json": "48bb514d42394da5624cb7501557ab27f307bccd3a3038d30d9a481daf7d814b",
+    "PYTH_4h.json": "705b73c9c33d3f7f7e971636a9c3cd73be5b2ed916b4dd4803d330be90e942ca",
+    "PYTH_oi_4h.json": "293f227ea8b167e1da673cdce22db8690b26ca2ffab3900c8a6af20b82b6f72d",
+    "SOL_4h_3y.json": "b6e4a3dcf81b178710fc69d2f30d1e6413e30b247ec074aabee492044ad48ca0",
+    "SOL_4h.json": "394060ac56ccbf77089e81622345bc9e1b9ec39ecf276fd8d151da17da807274",
+    "SOL_oi_4h.json": "2bb310ef71f82ed3d239a5bafc61b00054fdc494006f97324b64f027ac41e2b7",
+    "INJ_4h_3y.json": "235f1d751f9e424fc23e6c6d3ac45a124a63c4d5ba6eaa61fd98806c8b50c9f6",
+    "INJ_4h.json": "b2b36a19f8e90cebfa0c5d2f81d2029901a87101727746bac40e9d331c1192f1",
+    "INJ_oi_4h.json": "a00703a8eee8e1b4b1110516dd9b0d5f50cea32fa2cd0fc10099fd9e0a795fdf",
+    "CRV_4h_3y.json": "78d5496367cb8a98f0aa45365861c0c127ee6569f8ce2166fa162a2b884b9201",
+    "CRV_4h.json": "86c3dc8ba828ea558833c395ee3c774c48981a3bfa78508193bd7520c484d91c",
+    "CRV_oi_4h.json": "3a85c818ec071f7a4e0eb9c1f2fdb69f48e05562e4d3884fc68f58a66d08260c",
+    "LDO_4h_3y.json": "d8e1e433aec500737c40b32eeb9a31165a2f68412dcf971bf5a94e91c92c4fc1",
+    "LDO_4h.json": "87ac667e47b0b993e17384a2128cb4d031958cb65f57ae48cbf118916d6242c1",
+    "LDO_oi_4h.json": "4d2a9ac4d037dc5b3d20b4602930b7bdbe4ae52d9738202120283ed96965c06f",
+    "STX_4h_3y.json": "107be4f7e899562a3ca87b9c39df8ef083ec087c18b4c528244e07360119b164",
+    "STX_4h.json": "25cd152caefd9b3ef01ec07f787e9e65ea7df6f32d6efa605da31d269079f66e",
+    "STX_oi_4h.json": "9339ba11021f306e4465c2963c78a08fb20b4e78fad05855e57ae487b783cb86",
+    "GMX_4h_3y.json": "2689c95e1b0cccfa8fdae79752f6c62c652e26baeab1f3f39b49540b88e8a260",
+    "GMX_4h.json": "e215c93da7f6325c399a09304eb81445267f6c45f6c04f04797f9e5437790112",
+    "GMX_oi_4h.json": "5e2aa48c17fc0d2ad74ff786e44baafee0c81051ad81334c6d9a6c97c3a4b1a2",
+    "IMX_4h_3y.json": "9219777e1678169e8bf0df51a29ab57202b2528bfe003380d1d0c5ba47998330",
+    "IMX_4h.json": "f6245c299dc899f661ed9dafd222e2fe21088a46d14ccdf4abd401c116eae7ee",
+    "IMX_oi_4h.json": "35f2cf924d1741675e0e9d6874d568fbeae61000a72f082d76df2baa74298d2a",
+    "SAND_4h_3y.json": "2da6e269c87f6e36f862d417845ee2726e5d003d29217b233c7abd6b2526d1ed",
+    "SAND_4h.json": "cbb09c2cebe35781c6475678d779ff1eefb7a1e7ceee91f5732becc5c5ac3452",
+    "SAND_oi_4h.json": "f4c72bacd70c6e1f38ebd89d82a5f135402636553df324ac3fba42b393425f4d",
+    "GALA_4h_3y.json": "d6a8d54422ba9bfaf042de27b4a88aa4248f1456e46e11dd137956a5eaab9409",
+    "GALA_4h.json": "3966f4241e36b1444e4e200d4d5865f180f0f16255a0a1c14291f8322ef1f032",
+    "GALA_oi_4h.json": "c286ba331b316ab711921adab41914a4ec11b0b36f2c0e445463d637476de57b",
+    "MINA_4h_3y.json": "8955eed1d67c72a95fc7b3171206a9c03e8b7d6106291cfcddde2423abda88f7",
+    "MINA_4h.json": "1ff1e85a6fa65a8329e2f865fc95e0bf92a3d27ed6a0c6daac4553a8fa61fb89",
+    "MINA_oi_4h.json": "c4c523da9106035c259b171a29a8c53893a44605e213e17cbf0f718ebd0a37e5",
+    "TON_4h_3y.json": "cebc9901bb3dcddf29d322c2b914bd0f4087baad93764994f82360ec8dde54be",
+    "TON_oi_4h.json": "e36a9d70f6558f7662024211c4925bc75e34ee02c154d904b796ce8136eb5a76",
+    "BCH_4h_3y.json": "6d8fd6c380cac32eedbd4611c2db7fd1a3771b01b2298db5b42ce91e9f04e8a5",
+    "BCH_oi_4h.json": "783522598fbf718e986bb03079d3dba5f26069b042180162b75684df71c3aa70",
+    "DOT_4h_3y.json": "dc871175d9ff2ac359af5c5cdbdd9a035b72942d31a976d6f46aded8cc7b6b75",
+    "DOT_oi_4h.json": "712981a1b8dc7ca5128f91db3f1214eac4932b0455f3cb1243fcaf84c710706f",
+    "ADA_4h_3y.json": "3c37de4ea6030867ad8d136df2b64edd500e498c7ae2205e0062c219ca21b2bd",
+    "ADA_oi_4h.json": "04428183a5e5faa590b71810434644cedafbd632602a9700941a3bc49f114e3e",
+    "XMR_4h_3y.json": "33f305f8a3c7144078da37a4543b5bfd2df9e98f2315bf8a23c21327b9ff80de",
+    "XMR_oi_4h.json": "54765a956272ff729f38095010291aa1ff3ab99e840c3e4fa97a185c454cd1a0",
+    "ENA_4h_3y.json": "d314ea6206b398311b4bd0e7ba84a588f5d46615626dd5820ecadae42bed3d9f",
+    "ENA_4h.json": "20c19e73ae2a6ef8c58f800566e316cf03effc78c00c66d27a5699adcf58ee42",
+    "ENA_oi_4h.json": "161c596bc848c5ba1102fe1c0f1fa1fe32aa18008da40a1cb2af24d67742eedd",
+    "UNI_4h_3y.json": "fabf5c922ca3f8c2a88a5919ebd1909864f2cda7ccae69c2938dc1d2a539a594",
+    "UNI_oi_4h.json": "9cac311692857a269af6f314a2309d7e0e7a1d62bacef00df98b2ee47fe6e0bf",
+    "BTC_4h_3y.json": "60ac03c035ae5159474ab28779c313061335d902d758e4db167da6ecf53077b1",
+    "BTC_4h.json": "7f677bc9fae9b1c2302ea7f3921f16074ce26d007e891affcd83908138077666",
+    "BTC_oi_4h.json": "e8a65e0f2464798119ac03dbfede2e1db0909a70384fb194653035681feccc7b",
+    "ETH_4h_3y.json": "f687c273ed529c175552113494f21be145163fd6b04f0e3016012544d2ea5c6a",
+    "ETH_4h.json": "4ac08b9dbda964ac1bd13831d4e414a879137b93bc8fe1cce108cb765020cc21",
+    "ETH_oi_4h.json": "36becc6dce81c83a3b5b44cffdd594401577effeff7e190689d1069991a2d958",
+    "macro_DXY.json": "6eb57dcd78d623dc6338f713dcc85b502829be1ae2fc6a548ad709243c22cc59"
+  },
+  "candle_ranges": {
+    "ARB": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "OP": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "AVAX": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "SUI": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "APT": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "SEI": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "NEAR": [
+      1702324800000,
+      1789632000000,
+      6064
+    ],
+    "AAVE": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "COMP": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "SNX": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "PENDLE": [
+      1702324800000,
+      1789632000000,
+      6064
+    ],
+    "DYDX": [
+      1766505600000,
+      1789632000000,
+      1607
+    ],
+    "DOGE": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "WLD": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "BLUR": [
+      1702324800000,
+      1789632000000,
+      6064
+    ],
+    "LINK": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "PYTH": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "SOL": [
+      1739721600000,
+      1789632000000,
+      3467
+    ],
+    "INJ": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "CRV": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "LDO": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "STX": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "GMX": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "IMX": [
+      1739721600000,
+      1789632000000,
+      3467
+    ],
+    "SAND": [
+      1739721600000,
+      1789632000000,
+      3467
+    ],
+    "GALA": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "MINA": [
+      1702324800000,
+      1789632000000,
+      6064
+    ],
+    "TON": [
+      1706169600000,
+      1781510400000,
+      5233
+    ],
+    "BCH": [
+      1761638400000,
+      1789632000000,
+      1945
+    ],
+    "DOT": [
+      1761638400000,
+      1789632000000,
+      1945
+    ],
+    "ADA": [
+      1706169600000,
+      1789632000000,
+      5797
+    ],
+    "XMR": [
+      1754078400000,
+      1789632000000,
+      2470
+    ],
+    "ENA": [
+      1712059200000,
+      1789632000000,
+      5388
+    ],
+    "UNI": [
+      1761638400000,
+      1789632000000,
+      1945
+    ],
+    "BTC": [
+      1702339200000,
+      1789632000000,
+      6063
+    ],
+    "ETH": [
+      1739721600000,
+      1789632000000,
+      3467
+    ]
+  },
+  "oi_ranges": {
+    "ARB": [
+      1684540800000,
+      1789632000000,
+      7257
+    ],
+    "OP": [
+      1684540800000,
+      1789632000000,
+      7257
+    ],
+    "AVAX": [
+      1684540800000,
+      1789632000000,
+      7257
+    ],
+    "SUI": [
+      1684540800000,
+      1789632000000,
+      7257
+    ],
+    "APT": [
+      1688083200000,
+      1789632000000,
+      7011
+    ],
+    "SEI": [
+      1692100800000,
+      1789632000000,
+      6732
+    ],
+    "NEAR": [
+      1698854400000,
+      1789632000000,
+      6263
+    ],
+    "AAVE": [
+      1689667200000,
+      1789632000000,
+      6901
+    ],
+    "COMP": [
+      1689638400000,
+      1789632000000,
+      6903
+    ],
+    "SNX": [
+      1684944000000,
+      1789632000000,
+      7228
+    ],
+    "PENDLE": [
+      1698336000000,
+      1789632000000,
+      6299
+    ],
+    "DYDX": [
+      1684540800000,
+      1789632000000,
+      7256
+    ],
+    "DOGE": [
+      1684540800000,
+      1789632000000,
+      7190
+    ],
+    "WLD": [
+      1690200000000,
+      1789632000000,
+      6864
+    ],
+    "BLUR": [
+      1697644800000,
+      1789632000000,
+      6347
+    ],
+    "LINK": [
+      1684540800000,
+      1789632000000,
+      7215
+    ],
+    "PYTH": [
+      1699992000000,
+      1789632000000,
+      6184
+    ],
+    "SOL": [
+      1684540800000,
+      1789632000000,
+      7257
+    ],
+    "INJ": [
+      1684540800000,
+      1789632000000,
+      7257
+    ],
+    "CRV": [
+      1684540800000,
+      1789632000000,
+      7257
+    ],
+    "LDO": [
+      1684555200000,
+      1789632000000,
+      7237
+    ],
+    "STX": [
+      1684569600000,
+      1789632000000,
+      7250
+    ],
+    "GMX": [
+      1684944000000,
+      1789632000000,
+      7229
+    ],
+    "IMX": [
+      1700236800000,
+      1789632000000,
+      6167
+    ],
+    "SAND": [
+      1733313600000,
+      1789632000000,
+      3909
+    ],
+    "GALA": [
+      1701806400000,
+      1789632000000,
+      6058
+    ],
+    "MINA": [
+      1698148800000,
+      1789632000000,
+      6312
+    ],
+    "TON": [
+      1777593600000,
+      1781510400000,
+      273
+    ],
+    "BCH": [
+      1777593600000,
+      1789632000000,
+      837
+    ],
+    "DOT": [
+      1777593600000,
+      1789632000000,
+      837
+    ],
+    "ADA": [
+      1777593600000,
+      1789632000000,
+      837
+    ],
+    "XMR": [
+      1777593600000,
+      1789632000000,
+      837
+    ],
+    "ENA": [
+      1777593600000,
+      1789632000000,
+      837
+    ],
+    "UNI": [
+      1777593600000,
+      1789632000000,
+      837
+    ]
+  },
+  "funding_ranges": {
+    "ARB": [
+      1683849600048,
+      1789635600001,
+      28816
+    ],
+    "OP": [
+      1683849600048,
+      1789635600001,
+      28816
+    ],
+    "AVAX": [
+      1683849600048,
+      1789635600001,
+      28816
+    ],
+    "SUI": [
+      1683849600048,
+      1789635600001,
+      28816
+    ],
+    "APT": [
+      1688094000005,
+      1789635600001,
+      28204
+    ],
+    "SEI": [
+      1692104400148,
+      1789635600001,
+      27091
+    ],
+    "NEAR": [
+      1698858000031,
+      1789635600001,
+      25216
+    ],
+    "AAVE": [
+      1689638400105,
+      1789635600001,
+      27776
+    ],
+    "COMP": [
+      1689638400105,
+      1789635600001,
+      27776
+    ],
+    "SNX": [
+      1684972800233,
+      1789635600001,
+      28777
+    ],
+    "PENDLE": [
+      1698336000046,
+      1789635600001,
+      25361
+    ],
+    "DYDX": [
+      1683849600048,
+      1789635600001,
+      28816
+    ],
+    "DOGE": [
+      1683849600048,
+      1789635600001,
+      28816
+    ],
+    "WLD": [
+      1690207200105,
+      1789635600001,
+      27618
+    ],
+    "BLUR": [
+      1697652000137,
+      1789635600001,
+      25551
+    ],
+    "LINK": [
+      1684396800038,
+      1789635600001,
+      28797
+    ],
+    "PYTH": [
+      1700002800033,
+      1789635600001,
+      24898
+    ],
+    "SOL": [
+      1683849600048,
+      1789635600001,
+      28816
+    ],
+    "INJ": [
+      1683849600048,
+      1789635600001,
+      28816
+    ],
+    "CRV": [
+      1684166400409,
+      1789635600001,
+      28805
+    ],
+    "LDO": [
+      1684195200447,
+      1789635600001,
+      28804
+    ],
+    "STX": [
+      1684396800038,
+      1789635600001,
+      28797
+    ],
+    "GMX": [
+      1684972800233,
+      1789635600001,
+      28777
+    ],
+    "IMX": [
+      1700236800047,
+      1789635600001,
+      24833
+    ],
+    "SAND": [
+      1733317200060,
+      1789635600001,
+      15645
+    ],
+    "GALA": [
+      1701806400334,
+      1789635600001,
+      24397
+    ],
+    "MINA": [
+      1698159600153,
+      1789635600001,
+      25410
+    ],
+    "TON": [
+      1697954400056,
+      1789635600001,
+      25467
+    ],
+    "BCH": [
+      1688094000005,
+      1789635600001,
+      28204
+    ],
+    "DOT": [
+      1694520000186,
+      1789635600001,
+      26421
+    ],
+    "ADA": [
+      1697954400056,
+      1789635600001,
+      25467
+    ],
+    "XMR": [
+      1768467600023,
+      1789635600001,
+      5881
+    ],
+    "ENA": [
+      1712066400220,
+      1789635600001,
+      21547
+    ],
+    "UNI": [
+      1691794800106,
+      1789635600001,
+      27177
+    ]
+  },
+  "funding_sha256": {
+    "ARB": "e092ab709e77370e44254274671b875f6c627e7b971deb71d3f3d4a39a7c3c1e",
+    "OP": "ca3ec2f385bf0b52e3d1363ccfe7d4d5063ff81ddb89832222150eba18bbdae0",
+    "AVAX": "240b55b44f5c9e3160dcc0ae3897dfcadcfbb9cbd5a01be334d3b18604fdd5fe",
+    "SUI": "8d1aef1d75e267915ffb40004bbeb5078bfda46991d0387b791b43ebcbd85cd5",
+    "APT": "15574d6c56bedd9f320e710219d53f13ca9a87268310c0078dc4c874d89b2a0c",
+    "SEI": "9b5eea66ca07fd24607ac7ea689c9aa5e9dc617f76de5a6d1d61fef0cf93e34a",
+    "NEAR": "f9e3b3f875100e1d4307db251543e1cdd2fa3efc9291f0e651743d8e9920626d",
+    "AAVE": "48984e01b49d82cd11cc6546fba465f4809f2029c8767eba857413928adb919e",
+    "COMP": "97da7390bb520c783378329e81168ea96f9452ab3c87989811b6ee2a0c1ffbd2",
+    "SNX": "2d4b3adcadf148b65aee502ce14a77ade7b01a8691c2a0de02b0a8fe061d071b",
+    "PENDLE": "741ac0c42e037ec632e22e92f098704369d4c0f224f2371fecf895cd64ce512d",
+    "DYDX": "c19e59a589812b0c5ad23dd315677990e856b07cab892d325ec732a2c8a084c0",
+    "DOGE": "8b6b23133b000025492031b223fbe10c8b3ac053f2b3959663994b00d8c07424",
+    "WLD": "5b7341e15eb02ade3c24cdcdb9bf19bcc217c1fea6726d3933d4379e2d1361af",
+    "BLUR": "1d818d77cc990817a41d6bca2cdc8cd51649812287827e23715edea1101e2946",
+    "LINK": "6c9caee527e9d0cbe06951cbe1304c1568e8ea99cd76f620570bca47882cfb6f",
+    "PYTH": "32ec4cfbed49e33d7b6fd5b352a9b83d25603c6b16e0d4a116aec16fbc391b1b",
+    "SOL": "f5271765bc79bebc518769ef06c927908d5fdc634afb1bc42e2bd81ad213fded",
+    "INJ": "dbb1d9b064915b18db791a81a7b8776e1fc23a20fc2f837768a849278beef758",
+    "CRV": "302a7ddd0f77f7985f48a658a6b849cec5e361157fbb97b88aad625082839e21",
+    "LDO": "8e6982cfddb01e048ebfa5c802bc0634fcb06072fce0952514757b949a067909",
+    "STX": "a5fd27cb56629dfca41523c0c6d56b8353f08541744cdf850079c96dbdd4d054",
+    "GMX": "52b7ae7b5a37dd7ab68d734eef73f162be9a850ca67455d21e3d83da5791cb57",
+    "IMX": "0b92ae2b0d56e35b5f7349d3d7e398929f17149d45d980f0d1c7e59042fc2eaf",
+    "SAND": "1ce12e4d739713149e754270b46158045a303c791d38e73dfc932e9015ee2f49",
+    "GALA": "aff43ac84ad2d7c118725b8524e7668fb3c086a6e7704e6733fe8f29c0237191",
+    "MINA": "78467a12e1d03f0db3a1207eb11d0c427098f0071b2ae61cdfb086f4de03fcca",
+    "TON": "2ef6206299ca6b10d267270e66b6560dd5a0c10173f39d281c9f4ed5893934a8",
+    "BCH": "e16e1f5c012a37b7f993bf9a12b9532186c28be2d90135deb5d5b49d77e0b7ae",
+    "DOT": "44b66fbe7f32c0a7ef9e03a7ce9f565267b360560f1ff2a586524b12205cbdf9",
+    "ADA": "6ec60672813bfef5e0e2a91105f8f6a35b5a05d38e6160473a2be6bb9af24876",
+    "XMR": "0ca86ae8d5d0cd1586b1bb2629a8f7b0fbb717202ae8d093645080f96c64be7a",
+    "ENA": "2e85ffddde3cd74b012fb6c6b7a6ee58331881a64fc46919504e7d9de6d9cb5d",
+    "UNI": "f903046a7949c6548e8977d10b844f83e3f88662afe2380fc9695d5de49eb3b7"
+  },
+  "interpretation": "Historical sensitivity only; reused data, no future return claim.",
+  "runs": [
+    {
+      "start_inclusive": "2024-09-16T12:00",
+      "end_exclusive": "2025-03-16T12:00",
+      "slippage_bps": 4.0,
+      "max_macro_slots": 3,
+      "config_hash": "c590164baada",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 3,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1763.348208266608,
+      "max_dd_pct": -37.48493998766118,
+      "n_trades": 284,
+      "n_s1": 40,
+      "funding_uncovered_hours": 118,
+      "position_hours": 9692
+    },
+    {
+      "start_inclusive": "2024-09-16T12:00",
+      "end_exclusive": "2025-03-16T12:00",
+      "slippage_bps": 4.0,
+      "max_macro_slots": 4,
+      "config_hash": "ebff7b7f9d3e",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 4,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1622.033924664393,
+      "max_dd_pct": -37.48493998766118,
+      "n_trades": 294,
+      "n_s1": 58,
+      "funding_uncovered_hours": 131,
+      "position_hours": 10372
+    },
+    {
+      "start_inclusive": "2025-03-16T12:00",
+      "end_exclusive": "2025-09-16T12:00",
+      "slippage_bps": 4.0,
+      "max_macro_slots": 3,
+      "config_hash": "c590164baada",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 3,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1492.1789537623158,
+      "max_dd_pct": -31.49242088634579,
+      "n_trades": 263,
+      "n_s1": 20,
+      "funding_uncovered_hours": 131,
+      "position_hours": 9596
+    },
+    {
+      "start_inclusive": "2025-03-16T12:00",
+      "end_exclusive": "2025-09-16T12:00",
+      "slippage_bps": 4.0,
+      "max_macro_slots": 4,
+      "config_hash": "ebff7b7f9d3e",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 4,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1414.0915478658073,
+      "max_dd_pct": -31.49242088634574,
+      "n_trades": 267,
+      "n_s1": 26,
+      "funding_uncovered_hours": 132,
+      "position_hours": 9888
+    },
+    {
+      "start_inclusive": "2025-09-16T12:00",
+      "end_exclusive": "2026-03-16T12:00",
+      "slippage_bps": 4.0,
+      "max_macro_slots": 3,
+      "config_hash": "c590164baada",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 3,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 3487.1507888948636,
+      "max_dd_pct": -23.263701752453336,
+      "n_trades": 264,
+      "n_s1": 0,
+      "funding_uncovered_hours": 165,
+      "position_hours": 9268
+    },
+    {
+      "start_inclusive": "2025-09-16T12:00",
+      "end_exclusive": "2026-03-16T12:00",
+      "slippage_bps": 4.0,
+      "max_macro_slots": 4,
+      "config_hash": "ebff7b7f9d3e",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 4,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 3487.1507888948636,
+      "max_dd_pct": -23.263701752453336,
+      "n_trades": 264,
+      "n_s1": 0,
+      "funding_uncovered_hours": 165,
+      "position_hours": 9268
+    },
+    {
+      "start_inclusive": "2026-03-16T12:00",
+      "end_exclusive": "2026-09-16T12:00",
+      "slippage_bps": 4.0,
+      "max_macro_slots": 3,
+      "config_hash": "c590164baada",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 3,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1048.644806633532,
+      "max_dd_pct": -31.30507012428641,
+      "n_trades": 306,
+      "n_s1": 27,
+      "funding_uncovered_hours": 152,
+      "position_hours": 11852
+    },
+    {
+      "start_inclusive": "2026-03-16T12:00",
+      "end_exclusive": "2026-09-16T12:00",
+      "slippage_bps": 4.0,
+      "max_macro_slots": 4,
+      "config_hash": "ebff7b7f9d3e",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 4,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1048.1294461928755,
+      "max_dd_pct": -32.620641908823934,
+      "n_trades": 315,
+      "n_s1": 38,
+      "funding_uncovered_hours": 158,
+      "position_hours": 12448
+    },
+    {
+      "start_inclusive": "2024-09-16T12:00",
+      "end_exclusive": "2025-03-16T12:00",
+      "slippage_bps": 6.0,
+      "max_macro_slots": 3,
+      "config_hash": "c590164baada",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 3,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1763.348208266608,
+      "max_dd_pct": -37.48493998766118,
+      "n_trades": 284,
+      "n_s1": 40,
+      "funding_uncovered_hours": 118,
+      "position_hours": 9692
+    },
+    {
+      "start_inclusive": "2024-09-16T12:00",
+      "end_exclusive": "2025-03-16T12:00",
+      "slippage_bps": 6.0,
+      "max_macro_slots": 4,
+      "config_hash": "ebff7b7f9d3e",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 4,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1622.033924664393,
+      "max_dd_pct": -37.48493998766118,
+      "n_trades": 294,
+      "n_s1": 58,
+      "funding_uncovered_hours": 131,
+      "position_hours": 10372
+    },
+    {
+      "start_inclusive": "2025-03-16T12:00",
+      "end_exclusive": "2025-09-16T12:00",
+      "slippage_bps": 6.0,
+      "max_macro_slots": 3,
+      "config_hash": "c590164baada",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 3,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1492.1789537623158,
+      "max_dd_pct": -31.49242088634579,
+      "n_trades": 263,
+      "n_s1": 20,
+      "funding_uncovered_hours": 131,
+      "position_hours": 9596
+    },
+    {
+      "start_inclusive": "2025-03-16T12:00",
+      "end_exclusive": "2025-09-16T12:00",
+      "slippage_bps": 6.0,
+      "max_macro_slots": 4,
+      "config_hash": "ebff7b7f9d3e",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 4,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1414.0915478658073,
+      "max_dd_pct": -31.49242088634574,
+      "n_trades": 267,
+      "n_s1": 26,
+      "funding_uncovered_hours": 132,
+      "position_hours": 9888
+    },
+    {
+      "start_inclusive": "2025-09-16T12:00",
+      "end_exclusive": "2026-03-16T12:00",
+      "slippage_bps": 6.0,
+      "max_macro_slots": 3,
+      "config_hash": "c590164baada",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 3,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 3487.1507888948636,
+      "max_dd_pct": -23.263701752453336,
+      "n_trades": 264,
+      "n_s1": 0,
+      "funding_uncovered_hours": 165,
+      "position_hours": 9268
+    },
+    {
+      "start_inclusive": "2025-09-16T12:00",
+      "end_exclusive": "2026-03-16T12:00",
+      "slippage_bps": 6.0,
+      "max_macro_slots": 4,
+      "config_hash": "ebff7b7f9d3e",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 4,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 3487.1507888948636,
+      "max_dd_pct": -23.263701752453336,
+      "n_trades": 264,
+      "n_s1": 0,
+      "funding_uncovered_hours": 165,
+      "position_hours": 9268
+    },
+    {
+      "start_inclusive": "2026-03-16T12:00",
+      "end_exclusive": "2026-09-16T12:00",
+      "slippage_bps": 6.0,
+      "max_macro_slots": 3,
+      "config_hash": "c590164baada",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 3,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1048.644806633532,
+      "max_dd_pct": -31.30507012428641,
+      "n_trades": 306,
+      "n_s1": 27,
+      "funding_uncovered_hours": 152,
+      "position_hours": 11852
+    },
+    {
+      "start_inclusive": "2026-03-16T12:00",
+      "end_exclusive": "2026-09-16T12:00",
+      "slippage_bps": 6.0,
+      "max_macro_slots": 4,
+      "config_hash": "ebff7b7f9d3e",
+      "resolved_config": {
+        "trade_symbols": [
+          "ARB",
+          "OP",
+          "AVAX",
+          "SUI",
+          "APT",
+          "SEI",
+          "NEAR",
+          "AAVE",
+          "COMP",
+          "SNX",
+          "PENDLE",
+          "DYDX",
+          "DOGE",
+          "WLD",
+          "BLUR",
+          "LINK",
+          "PYTH",
+          "SOL",
+          "INJ",
+          "CRV",
+          "LDO",
+          "STX",
+          "GMX",
+          "IMX",
+          "SAND",
+          "GALA",
+          "MINA",
+          "TON",
+          "BCH",
+          "DOT",
+          "ADA",
+          "XMR",
+          "ENA",
+          "UNI"
+        ],
+        "reference_symbols": [
+          "BTC",
+          "ETH"
+        ],
+        "trade_blacklist": [],
+        "sectors": {
+          "DeFi": [
+            "AAVE",
+            "CRV",
+            "SNX",
+            "PENDLE",
+            "COMP",
+            "DYDX",
+            "LDO",
+            "GMX",
+            "UNI",
+            "ENA"
+          ],
+          "Gaming": [
+            "GALA",
+            "IMX",
+            "SAND"
+          ],
+          "Infra": [
+            "LINK",
+            "PYTH",
+            "STX",
+            "INJ",
+            "ARB",
+            "OP"
+          ],
+          "L1": [
+            "SOL",
+            "AVAX",
+            "SUI",
+            "APT",
+            "NEAR",
+            "SEI",
+            "TON"
+          ],
+          "L1-major": [
+            "BCH",
+            "DOT",
+            "ADA"
+          ],
+          "Meme": [
+            "DOGE",
+            "WLD",
+            "BLUR",
+            "MINA"
+          ],
+          "Privacy": [
+            "XMR"
+          ]
+        },
+        "hold_hours_default": 72.0,
+        "hold_hours": {
+          "S1": 72.0,
+          "S10": 24.0,
+          "S5": 48.0,
+          "S8": 60.0,
+          "S9": 48.0
+        },
+        "s1_btc_30d_min_bps": 2000.0,
+        "s5_div_threshold": 1000.0,
+        "s5_vol_z_min": 1.0,
+        "s8_drawdown_thresh": -4000.0,
+        "s8_vol_z_min": 1.0,
+        "s8_ret_24h_thresh": -50.0,
+        "s8_btc_7d_thresh": -300.0,
+        "s9_ret_thresh": 2000.0,
+        "s9_adaptive_stop": true,
+        "s10_squeeze_window": 3,
+        "s10_vol_ratio_max": 0.9,
+        "s10_breakout_pct": 0.5,
+        "s10_reint_candles": 2,
+        "s10_allow_longs": false,
+        "s10_allowed_tokens": [
+          "AAVE",
+          "APT",
+          "ARB",
+          "BLUR",
+          "COMP",
+          "CRV",
+          "INJ",
+          "MINA",
+          "OP",
+          "PYTH",
+          "SEI",
+          "SNX",
+          "WLD"
+        ],
+        "leverage": 2.0,
+        "size_pct": 0.18,
+        "size_bonus": 0.03,
+        "max_notional_per_trade": 500.0,
+        "max_notional_frac": 0.3,
+        "strat_z": {
+          "S1": 6.5,
+          "S10": 3.5,
+          "S5": 3.5,
+          "S8": 7.0,
+          "S9": 8.5
+        },
+        "liquidity_haircut": {
+          "S8": 0.8
+        },
+        "signal_mult": {
+          "S1": 1.0,
+          "S10": 2.0,
+          "S5": 3.0,
+          "S8": 1.25,
+          "S9": 2.0
+        },
+        "min_fill_abort_usdt": 10.0,
+        "adaptive_alpha": {
+          "S1": 0.5,
+          "S8": -0.5,
+          "S9": -0.5
+        },
+        "adaptive_alpha_dir": {},
+        "macro_lookback_days": 30,
+        "macro_z_window_days": 180,
+        "macro_z_clip": 2.5,
+        "macro_mult_min": 0.3,
+        "macro_mult_max": 2.5,
+        "max_positions": 6,
+        "max_same_direction": 4,
+        "max_per_sector": 2,
+        "max_macro_slots": 4,
+        "max_token_slots": 4,
+        "macro_strategies": [
+          "S1"
+        ],
+        "taker_fee_bps": 9.0,
+        "slippage_bps": 0.0,
+        "funding_drag_bps": 1.0,
+        "stop_loss_bps": -1250.0,
+        "stop_loss_s8": -750.0,
+        "trail_eval_4h_close": true,
+        "exit_stale_max_s": 180.0,
+        "equity_brake_dd_pct": 15.0,
+        "equity_brake_halt_h": 24.0,
+        "hard_stop_enabled": false,
+        "hard_stop_buffer_bps": 200.0,
+        "hard_stop_slippage": 0.2,
+        "s9_early_exit_bps": -500.0,
+        "s9_early_exit_hours": 8.0,
+        "s10_trailing_trigger": 600.0,
+        "s10_trailing_offset": 150.0,
+        "s8_inlife_params": {
+          "bear": [
+            1500,
+            100
+          ],
+          "bull": [
+            1500,
+            100
+          ],
+          "neutral": [
+            300,
+            300
+          ]
+        },
+        "s8_inlife_z_threshold": 0.5,
+        "prop_trail_params": {},
+        "prop_trail_z_threshold": 0.5,
+        "s8_dead_t_h": 8.0,
+        "s8_dead_mfe_max_bps": 50.0,
+        "s9_early_dead_t_h": 12.0,
+        "s9_early_dead_mfe_max_bps": 150.0,
+        "btc_drop_cut_ret_4h_bps": -1000000000.0,
+        "btc_drop_cut_ur_max_bps": 0.0,
+        "opp_floor_lock_ratio": 0.8,
+        "opp_floor_min_gain_bps": 300.0,
+        "dead_timeout_lead_hours": 12.0,
+        "dead_timeout_mfe_cap_bps": -99999.0,
+        "dead_timeout_mae_floor_bps": -500.0,
+        "dead_timeout_slack_bps": 300.0,
+        "traj_cut_strategies": [
+          "S5"
+        ],
+        "traj_cut_btc_z_threshold": -0.5,
+        "traj_cut_decline_rate_min_bps_per_h": 100.0,
+        "traj_cut_time_since_mfe_min_h": 4.0,
+        "traj_cut_at_mae_slack_bps": 100.0,
+        "traj_cut_min_loss_bps": -200.0,
+        "traj_cut_long_only": true,
+        "runner_ext_strategies": [
+          "S9"
+        ],
+        "runner_ext_hours": 12.0,
+        "runner_ext_min_mfe_bps": 1200.0,
+        "runner_ext_min_cur_to_mfe": 0.3,
+        "oi_long_gate_bps": 1000.0,
+        "oi_missing_policy": "block_stale",
+        "oi_gate_min_history_hours": 23.0,
+        "disp_gate_bps": 99999.0,
+        "disp_gate_strategies": [
+          "S5",
+          "S9"
+        ],
+        "giveback_alert_strategies": [
+          "S5"
+        ],
+        "giveback_alert_mfe_min_bps": 500.0,
+        "giveback_alert_cur_max_bps": -100.0,
+        "giveback_alert_time_since_mfe_min_h": 4.0,
+        "lock_floor_alert_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "lock_floor_alert_min_usd": 20.0,
+        "lock_floor_alert_min_bps": 600.0,
+        "lock_floor_alert_min_hold_h": 4.0,
+        "lock_floor_alert_buffer_usd": 5.0,
+        "regime_alert_disp_7d_bps": 99999.0,
+        "regime_alert_wr_pct": 35.0,
+        "regime_alert_lookback": 10,
+        "regime_alert_cooldown_h": 24.0,
+        "regime_alert_strategy": "S5",
+        "regime_alert_direction": 1,
+        "cooldown_hours": 24.0,
+        "scan_interval": 3600.0,
+        "enabled_strategies": [
+          "S1",
+          "S10",
+          "S5",
+          "S8",
+          "S9"
+        ],
+        "paper_slippage_bps": 0.0,
+        "paper_funding_model": "flat",
+        "paper_gap_fills": true
+      },
+      "end_capital": 1048.1294461928755,
+      "max_dd_pct": -32.620641908823934,
+      "n_trades": 315,
+      "n_s1": 38,
+      "funding_uncovered_hours": 158,
+      "position_hours": 12448
+    }
+  ]
+}

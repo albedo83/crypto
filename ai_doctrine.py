@@ -1,55 +1,92 @@
-"""Digest condensé des stratégies & sorties du bot, pour les outils IA.
+"""Factual IA reference generated from pure Alfred Params; no I/O.
 
-Remplace l'envoi de `docs/bot.md` complet (~22 000 tokens) à chaque appel par un
-résumé (~800 tokens) : même valeur de jugement (le modèle a juste besoin de
-connaître les stratégies, le régime et les sorties déjà en place), ~10× moins
-cher. Partagé par entry_judge.py et position_review.py (bloc caché ephemeral).
+Changing defaults also changes the consumers' existing prompt hashes.
+Runtime values and per-bot overrides explicitly supplied take precedence.
 """
 
-DOCTRINE_DIGEST = """\
-Bot de trading Hyperliquid (altcoins perp, levier 2×, holds ~24-48h, ~35 tokens).
-Frais ~9 bps aller-retour taker (floor structurel) → un edge brut < ~50 bps est fragile.
+import json
 
-STRATÉGIES (5) :
-- S1 : momentum BTC fort → LONG alts (suit la tendance). Amplifiée en bull.
-- S5 : divergence sectorielle → suit la divergence (LONG leader / SHORT laggard).
-  Mean-reversion sensible au régime : SHORT réduit en bull, amplifié en bear.
-- S8 : capitulation / flush → LONG (rebond post-liquidations). Favorisée en bear.
-- S9 : fade des moves extrêmes ±20%/24h → contre-tendance (mean-reversion). Réduite en bull.
-- S10 : squeeze + faux breakout → SHORT-only, whitelist, trailing.
+from alfred.settings import DEFAULT_PARAMS, Params
 
-RÉGIME : btc_z = z-score (6 mois) du rendement BTC 30j. >0 bull, <0 bear. Un
-modulateur adaptatif scale DÉJÀ le sizing par régime (S1 en bull ; S5-SHORT/S8/S9
-en bear). Une position déjà ouverte tient donc compte du régime.
 
-SORTIES AUTOMATIQUES déjà en place (NE PAS suggérer de doublon) :
-- stop catastrophe (stop_bps, ordre au repos, ~-1250 bps selon strat) ;
-- timeout (fin du hold) ;
-- traj_cut : cut S5 en bear si trajectoire cassée (pinned au MAE + chute depuis le MFE) ;
-- dead_timeout / s8_dead_in_water / s9 early-dead : cut des positions sans pouls ;
-- s8_inlife / s10 trailing / runner_ext : gestion MFE des gagnants (S8 et S10 seulement) ;
-- opp_floor : signal opposé sur un gagnant → plancher cliquet du gain ;
-- manual_stop (🎯) : stop $ manuel posé par l'admin.
+def build_doctrine(p: Params = DEFAULT_PARAMS) -> str:
+    settings = {
+        "scope": "core defaults; explicit per-bot runtime values take precedence",
+        "trade_symbol_count": len(p.trade_symbols),
+        "enabled_strategies": sorted(p.enabled_strategies),
+        "hold_hours": {s: p.hold_hours_for(s) for s in sorted(p.enabled_strategies)},
+        "leverage": p.leverage,
+        "notional_cap_fraction": p.max_notional_frac,
+        "taker_fee_round_trip_bps": p.taker_fee_bps,
+        "adaptive_alpha_by_direction": {
+            f"{s}_{side}": p.get_adaptive_alpha(s, direction)
+            for s in sorted(p.enabled_strategies)
+            for side, direction in (("LONG", 1), ("SHORT", -1))
+        },
+        "macro_multiplier_bounds": [p.macro_mult_min, p.macro_mult_max],
+        "macro_z_clip": p.macro_z_clip,
+        "stop_loss_bps": p.stop_loss_bps,
+        "stop_loss_s8_bps": p.stop_loss_s8,
+        "trail_eval_4h_close": p.trail_eval_4h_close,
+        "prop_trail_params": p.prop_trail_params,
+        "s8_inlife_params": p.s8_inlife_params,
+        "runner_ext_strategies": sorted(p.runner_ext_strategies),
+        "opp_floor_lock_ratio": p.opp_floor_lock_ratio,
+        "opp_floor_min_gain_bps": p.opp_floor_min_gain_bps,
+        "dead_timeout_mfe_cap_bps": p.dead_timeout_mfe_cap_bps,
+        "traj_cut_strategies": sorted(p.traj_cut_strategies),
+        "traj_cut_long_only": p.traj_cut_long_only,
+    }
+    return """\
+Moteur de règles Hyperliquid : signaux sur bougies 4h, sorties selon leurs cadences.
 
-⚠️ RETIRÉ le 2026-07-25 (v1.15.6) : `prop_trail`, le verrou proportionnel du gain sur
-les gagnants S5 et S9-bull. Il a été mesuré destructeur de valeur : ces règles ne sont
-évaluées qu'aux clôtures 4h, donc la sortie se fait au MARCHÉ (souvent loin sous le
-niveau visé). Un verrou MÉCANIQUE ne distingue pas un repli sain d'un vrai retournement :
-il coupait des gagnants qui se récupéraient. Conséquence directe pour toi :
-**S5 et S9 n'ont plus AUCUN verrou de gain automatique** — entre le stop catastrophe
-(très loin) et le timeout, rien ne protège le profit latent d'un gagnant S5/S9.
-C'est précisément là que ton jugement a de la valeur : tu vois ce que la formule ne
-voit pas (choc BTC sur la bougie, breadth de capitulation, OI qui s'effondre,
-concentration du book). Un LOCK sur un gagnant S5/S9 qui montre un vrai signe de
-retournement CONTEXTUEL est désormais utile — mais reste rare et justifié : couper un
-repli ordinaire reproduirait l'erreur qu'on vient de retirer.
+STRATÉGIES :
+- S1 : momentum BTC fort → LONG alts, suivi de tendance.
+- S5 : suit la divergence sectorielle : LONG du leader, SHORT du retardataire.
+  C'est un suivi de divergence, pas un fade ni un signal de retour à la moyenne.
+- S8 : capitulation / flush → LONG, recherche d'un rebond.
+- S9 : fade des mouvements extrêmes ±20%/24h, contre-tendance.
+- S10 : faux breakout après squeeze, puis réintégration ; SHORT selon les filtres.
 
-Le moteur a un EDGE PROUVÉ en agrégat (walk-forward). L'asymétrie du compounding fait
-que couper un gagnant coûte plus que laisser passer un perdant → biais HOLD/GO par défaut.
-Mesuré : le mode de sortie qui gagne le plus SOUVENT rapporte le MOINS (verrouiller tôt
-monte le taux de réussite et divise le P&L par deux). Le taux de réussite n'est PAS
-l'objectif ; la queue des gros gagnants porte le P&L.
+SIZING : les coefficients effectifs sont dans adaptive_alpha_by_direction ci-dessous.
+Coefficient nul = aucune modulation macro pour cette stratégie/direction.
+Sinon : multiplicateur = 1 + alpha × btc_z écrêté, borné, puis plafond notionnel.
+Le plafond peut absorber la modulation. Le btc_z courant ne dit pas quel était
+le régime à l'entrée d'une position, et ne redimensionne pas une position ouverte.
 
-LECTURE DU CONTEXTE : mae_bps / mfe_bps = pires / meilleures excursions (PAS des pertes
-réalisées) ; unrealized_bps = P&L latent actuel ; stop_bps = niveau du stop catastrophe.
-"""
+SORTIES :
+- stop catastrophe ; filet exchange distinct, dont la présence dépend du bot ;
+- stop manuel s'il existe, timeout et prolongation runner selon la stratégie ;
+- traj_cut : stratégies et restriction LONG déclarées ci-dessous ;
+- dead_timeout : désactivé si dead_timeout_mfe_cap_bps est négatif (MFE ≥ 0) ;
+- règles S8 et S9 : invalidations propres au setup ;
+- s10_trail / s8_inlife : gestion des gagnants selon les règles de la stratégie ;
+- opp_floor : plancher conditionnel en présence d'un signal opposé et d'un gain
+  suffisant ; armement désactivé si opp_floor_lock_ratio ≤ 0. Ne pas affirmer
+  qu'aucun plancher n'existe sur S5 ou S9 ;
+- prop_trail : actif uniquement si prop_trail_params contient une configuration.
+Un dictionnaire vide signifie désactivé, pas une invitation à le remplacer par l'IA.
+Les trails gatés sur 4h ne sont pas des ordres exchange continus garantissant
+leur prix théorique. Un LOCK peut avancer la sortie et modifier les futures entrées.
+
+ÉVIDENCE : les backtests décrivent une performance historique, pas un avantage
+futur prouvé. Les interventions IA doivent être comparées aux règles seules,
+sur la même opportunité et à risque comparable. GO/HOLD reste le défaut en
+l'absence d'information suffisante ; ne pas inventer une confirmation manquante.
+Une baisse de taille peut réduire pertes ET gains ; son effet net doit être mesuré.
+Le taux de réussite seul ne mesure pas la rentabilité. Les gros gagnants comptent.
+
+LIMITES DE L'INFORMATION :
+- Ne cite un incident, délisting, unlock ou nouvelle que si le contexte fournit
+  une source datée, disponible au moment de la décision. Sinon : information inconnue.
+- N'infère pas une pente persistante depuis les seuls MAE/MFE : sans série
+  temporelle suffisante, la trajectoire n'est pas observée.
+- confidence est un jugement non calibré, pas une probabilité de gain mesurée.
+- mae_bps / mfe_bps = excursions, pas pertes/gains réalisés ; le stop_usdt porte
+  sur le P&L net ; size_usdt est le notionnel, sans seconde multiplication du levier.
+
+PARAMÈTRES FACTUELS DU NOYAU :
+""" + json.dumps(settings, ensure_ascii=False, sort_keys=True, indent=2)
+
+
+DOCTRINE_DIGEST = build_doctrine()

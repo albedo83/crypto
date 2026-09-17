@@ -1,5 +1,12 @@
 # Multi-Signal Bot v11.3.7
 
+> **Référence historique legacy.** Le moteur en service est Alfred. Pour la
+> reprise Live/Paper du 17 septembre 2026, voir
+> [le protocole et le périmètre](reprise_2026_09_17.md). Les paramètres actuels
+> viennent de `alfred/settings.py`, pas des valeurs historiques ci-dessous.
+> La version préparée 1.23.1 corrige le contexte factuel IA et ajoute un audit
+> de divergence en lecture seule ; elle ne change pas les règles de trading.
+
 Bot de trading automatique sur 28 altcoins Hyperliquid. Paper ou live trading. 12 modules Python dans `analysis/bot/` + SQLite tick database. Un supervisor LLM (`supervisor.py`) tourne en plus via crontab et envoie un rapport quotidien en français sur Telegram.
 
 ---

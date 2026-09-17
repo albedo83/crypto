@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.23.1] — 2026-09-17
+- **Mesure** : audit Live/Paper en lecture seule, appariement des entrées 4h,
+  attribution comptable taille/rendement/sélection/positions encore ouvertes.
+  Les doublons ambigus et données invalides refusent d'émettre un résultat.
+- **Mesure IA** : audit séparé de couverture par version/prompt ; identification
+  des LOCK shadow ignorés et documentation du biais rétroactif du scorecard existant.
+- **IA** : S5 décrit comme suivi de divergence ; coefficients macro, holds et
+  mécanismes de sortie dérivés de Params dans la doctrine. Retrait des assertions
+  d'edge futur prouvé, de protection S5 SHORT inexistante et d'absence générale
+  de plancher S5/S9. Sources datées exigées pour les nouvelles externes ; limites
+  des résumés MAE/MFE et de la confiance non calibrée explicites.
+- **Validation** : tests de l'identité comptable, censure des positions ouvertes,
+  lecture seule et suivi des paramètres par les hashes des prompts.
+- Aucun seuil, sizing, mode d'action IA ou permission de trading modifié.
+  Aucun gain de rentabilité attribué à cette version sans observation prospective.
+
 ## [1.23.0] — 2026-09-16
 - **Trading engine**: une place supplémentaire pour les entrées macro. Le plafond avait été calibré sur une fenêtre où ce signal ne tirait quasiment pas ; il est devenu le signal dominant et bloquait la grande majorité des scans. Re-validé walk-forward strict sur les quatre fenêtres, drawdown inchangé.
 
