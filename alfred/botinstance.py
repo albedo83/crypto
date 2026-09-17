@@ -1332,6 +1332,26 @@ class BotInstance:
                 self.db.log_event("S9F_OBS", sym, s9f)
         return all_signals
 
+    def _entry_skip_reason(self, sig, counters, market, capital):
+        """Shared eligibility check for execution and shadow AI preflight.
+
+        Preflight does not reserve slots or predict fills. Execution must call
+        this again with updated counters immediately before each order.
+        """
+        sym = sig["symbol"]
+        side = "LONG" if sig["direction"] == 1 else "SHORT"
+        st = self.states.get(sym)
+        ts = time.time()
+        return rules.entry_skip_reason(
+            sig, counters, market, self.p, capital, self.token_sector,
+            in_position=sym in self.positions,
+            in_cooldown=sym in self._cooldowns and ts < self._cooldowns[sym],
+            paused=(sig["strategy"], side) in self._paused_strats,
+            oi_delta_24h=features.oi_delta_24h_bps(st.oi_history) if st else None,
+            oi_stale=(features.oi_absence_reason(st.oi_history, ts) == "stale"
+                      if st else None),
+            check_size_floor=True)
+
     def _rank_and_enter(self, sigs: list, now: datetime, m: rules.MarketCtx) -> int:
         """Sort by z, apply the shared gates, open positions via the broker.
         Mirrors trading.rank_and_enter (v12.17.3) wired on rules.py."""
@@ -1365,11 +1385,21 @@ class BotInstance:
                     arb_mode = "shadow" if _aia.is_tripped() else arb_cfg["mode"]
                     ttl_h = arb_cfg.get("prior_ttl_h", 12.0)
                     batch, seen_b = [], set()
+                    preflight_skips = {}
                     for s in sigs:
                         sy = s["symbol"]
                         if sy in seen_b or sy in self.positions:
                             continue
                         seen_b.add(sy)
+                        # Shadow only: no reason to pay for a candidate the
+                        # current book already forbids. Keep act-mode batch
+                        # semantics unchanged (batch context may affect verdicts).
+                        if arb_mode == "shadow":
+                            why = self._entry_skip_reason(
+                                s, c, m, self._capital + self._total_pnl)
+                            if why:
+                                preflight_skips[why] = preflight_skips.get(why, 0) + 1
+                                continue
                         cx = s.get("ctx", {})
                         _f = self._feature_cache.get(sy) or {}
                         entry = {
@@ -1401,6 +1431,14 @@ class BotInstance:
                                 "hours_ago": round(
                                     (now.timestamp() - prior["ts"]) / 3600, 1)}
                         batch.append(entry)
+                    if arb_mode == "shadow" and seen_b:
+                        self.db.log_event("ARBITER_ENTRY_PREFLIGHT", None, {
+                            "alfred_version": ALFRED_VERSION,
+                            "prompt_hash": _entry_prompt_hash,
+                            "policy": "shadow_existing_book_v1",
+                            "n_considered": len(seen_b), "n_submitted": len(batch),
+                            "skipped_by_reason": preflight_skips,
+                            "call_avoided": not bool(batch)})
                     if batch:
                         cc = getattr(self, "_cross_ctx_cache", None) or {}
                         _snap = self.master.snapshot
@@ -1488,16 +1526,7 @@ class BotInstance:
                 continue
             seen.add(sym)
             st = self.states.get(sym)
-            oi_d = features.oi_delta_24h_bps(st.oi_history) if st else None
-            reason = rules.entry_skip_reason(
-                sig, c, m, self.p, capital, self.token_sector,
-                in_position=sym in self.positions,
-                in_cooldown=sym in self._cooldowns and time.time() < self._cooldowns[sym],
-                paused=(sig["strategy"], side) in self._paused_strats,
-                oi_delta_24h=oi_d,
-            oi_stale=(features.oi_absence_reason(st.oi_history, time.time())
-                      == "stale" if st else None),
-            check_size_floor=True)
+            reason = self._entry_skip_reason(sig, c, m, capital)
             if reason == "max_positions":
                 self.db.log_event("SKIP", sym, {"strategy": sig["strategy"],
                                                 "dir": side, "reason": reason})

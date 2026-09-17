@@ -1,0 +1,27 @@
+{
+  "since": "2026-09-01T00:00:00+00:00",
+  "until": "2026-09-17T12:56:43.493605+00:00",
+  "scope": "Live AI_COST recorded events only; local historical tariff estimates, not invoices",
+  "by_source": {
+    "exit": {
+      "calls": 364,
+      "estimated_usd": 11.170792
+    },
+    "review": {
+      "calls": 15,
+      "estimated_usd": 0.38504
+    },
+    "supervisor": {
+      "calls": 16,
+      "estimated_usd": 4.953754
+    },
+    "audit": {
+      "calls": 15,
+      "estimated_usd": 0.916105
+    },
+    "entry": {
+      "calls": 58,
+      "estimated_usd": 8.700008
+    }
+  }
+}

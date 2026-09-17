@@ -3,6 +3,13 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.23.2 — 2026-09-17
+
+- **Coûts IA** : en observation, l'arbitre d'entrée ne reçoit plus les candidats déjà refusés par les contrôles du portefeuille courant (capacité, direction, secteur, cooldown, pause, OI et taille minimale). Un lot vide évite l'appel API.
+- **Exécution** : contrôles toujours répétés avant chaque ordre avec les compteurs actualisés ; aucune réservation anticipée des places. Le mode IA actif conserve son lot habituel.
+- **Mesure** : nouvel événement `ARBITER_ENTRY_PREFLIGHT` avec motifs, candidats soumis et appels évités. Aucun montant d'économie présumé.
+- **Validation** : 25 tests, dont 40 scénarios comparant les fills shadow/off, refus d'ordre, contrôles OI et capacité, et invariance de la taille malgré un veto shadow. Noyau de signaux et paramètres inchangés.
+
 ## v1.23.1 — 2026-09-17
 
 - **IA** : doctrine corrigée et dérivée des paramètres du moteur ; description fidèle de S5, des coefficients macro et des sorties. Les résultats historiques ne sont plus présentés comme une preuve de gain futur.

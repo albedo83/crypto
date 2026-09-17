@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.23.2] — 2026-09-17
+
+- **Coûts IA** : en observation, l'arbitre d'entrée ne reçoit plus les candidats déjà refusés par les contrôles du portefeuille courant (capacité, direction, secteur, cooldown, pause, OI et taille minimale). Un lot vide évite l'appel API.
+- **Exécution** : contrôles toujours répétés avant chaque ordre avec les compteurs actualisés ; aucune réservation anticipée des places. Le mode IA actif conserve son lot habituel.
+- **Mesure** : nouvel événement `ARBITER_ENTRY_PREFLIGHT` avec motifs, candidats soumis et appels évités. Aucun montant d'économie présumé.
+- **Validation** : 25 tests, dont 40 scénarios comparant les fills shadow/off, refus d'ordre, contrôles OI et capacité, et invariance de la taille malgré un veto shadow. Noyau de signaux et paramètres inchangés.
+
 ## [1.23.1] — 2026-09-17
 - **Mesure** : audit Live/Paper en lecture seule, appariement des entrées 4h,
   attribution comptable taille/rendement/sélection/positions encore ouvertes.
