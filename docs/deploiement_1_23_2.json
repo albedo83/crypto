@@ -1,0 +1,64 @@
+{
+  "version": "1.23.2",
+  "release_commit": "a7a4efe",
+  "verified_at_utc": "2026-09-17T13:39:04.875320+00:00",
+  "restart": {
+    "old_pid": 1610521,
+    "new_pid": 1613078,
+    "started_ts": 1789651723.1195629,
+    "launch_ts": 1789651724.1357944
+  },
+  "health": {
+    "master": {
+      "version": "1.23.2",
+      "ws_connected": true,
+      "ws_reconnects": 0,
+      "last_price_s": 20.0,
+      "snapshot_version": 2,
+      "snapshot_age_s": 15.0,
+      "btc_z": 1.244,
+      "n_bots": 4
+    },
+    "bots": {
+      "paper": {
+        "status": "ok",
+        "price_age_s": 20.0,
+        "scan_age_s": 15.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 4,
+        "paused": false
+      },
+      "live": {
+        "status": "ok",
+        "price_age_s": 20.0,
+        "scan_age_s": 15.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 3,
+        "paused": false
+      },
+      "junior": {
+        "status": "ok",
+        "price_age_s": 20.0,
+        "scan_age_s": 15.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 5,
+        "paused": false
+      },
+      "baby": {
+        "status": "ok",
+        "price_age_s": 20.0,
+        "scan_age_s": 15.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 3,
+        "paused": false
+      }
+    },
+    "dashboard_release_notes_verified": true
+  },
+  "tests_passed": 25,
+  "savings_observed": false
+}

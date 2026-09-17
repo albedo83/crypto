@@ -3,7 +3,8 @@
 Priorité utilisateur : couvrir progressivement 100 EUR/mois de dépenses IA ;
 50 % de couverture serait déjà utile. Capital engagé 500, perte maximale
 acceptée 250. Le gain personnel de 250 sur six mois devient secondaire.
-La nature exacte des 100 EUR (abonnement, API ou ensemble) reste à préciser.
+Les 100 EUR/mois sont l’abonnement assistant, confirmé par l’utilisateur.
+Les coûts API du bot s’ajoutent ; leur réduction ne diminue pas cet abonnement.
 Le relevé API ci-joint est en USD, estimé selon les tarifs locaux enregistrés,
 et ne constitue ni une facture exhaustive ni une vérification des prix actuels.
 

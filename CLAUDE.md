@@ -7,12 +7,13 @@ du périmètre d'analyse demandé. Capital engagé : 500 ; perte maximale accept
 250 (50 %). Priorité économique actualisée : couvrir progressivement les frais IA
 annoncés de 100 EUR/mois ; en couvrir 50 % serait déjà utile. Les +250 de gain
 personnel sur six mois deviennent un objectif ultérieur, pas une exigence.
-Distinguer abonnement assistant, coûts API du bot estimés en USD et serveur ;
+Les 100 EUR/mois correspondent à l’abonnement assistant (confirmé). Les frais
+API du bot et serveur s’ajoutent ; distinguer les coûts API estimés en USD ;
 ne pas additionner EUR et USD sans conversion explicitée, ni doubler les coûts.
 L'utilisateur autorise les recherches et changements de moteur/backtests et
 exige une contre-vérification systématique ; aucun rendement n'est promis.
 Livraison courante 1.23.2 : filtre des consultations IA d'entrée en observation,
-25 tests ; voir `docs/objectif_et_couts_2026_09_17.md`. Ne pas augmenter le risque
+25 tests, déployée avec les quatre bots vérifiés OK ; voir `docs/objectif_et_couts_2026_09_17.md`. Ne pas augmenter le risque
 pour rattraper un objectif mensuel. « Restart » couvre tous les bots.
 L'audit `audit_live_paper.py` ne calcule qu'une attribution comptable ; ne pas
 transformer ses écarts en économies causales imputées à l'IA.
