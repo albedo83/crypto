@@ -7,7 +7,8 @@ du périmètre d'analyse demandé. Objectif utilisateur : +250 sur six mois pour
 acceptée de 250 (50 %). Cible, pas promesse ; frais trading/funding inclus,
 coûts IA/serveur présentés séparément. Aucun nouveau coupe-circuit implicite. Priorités : attribution Live/Paper,
 fidélité du contexte IA aux règles, mesure prospective de sa valeur.
-Voir `docs/reprise_2026_09_17.md`. Version de livraison : 1.23.1. La règle de confirmation explicite avant restart reste applicable.
+Voir `docs/reprise_2026_09_17.md`. Version 1.23.1 déployée et quatre bots vérifiés OK ;
+voir `docs/deploiement_1_23_1.md`. La règle de confirmation explicite avant restart reste applicable.
 L'audit `audit_live_paper.py` ne calcule qu'une attribution comptable ; ne pas
 transformer ses écarts en économies causales imputées à l'IA.
 
