@@ -407,6 +407,12 @@ def create_app(bots: dict, master) -> FastAPI:
     async def master_page():
         return (_STATIC / "master.html").read_text()
 
+    @app.get("/api/master/external-context")
+    async def api_external_context():
+        from ai_external_context import read_cache
+        data = await asyncio.to_thread(read_cache)
+        return JSONResponse(data, headers={"Cache-Control": "no-store"})
+
     @app.get("/api/master/experiments")
     async def api_master_experiments():
         """Read-only shadow portfolios; existing master-route auth scopes apply."""

@@ -21,12 +21,19 @@ restent inchangées. Ne pas en déduire une modification des règles Live ou une
 activation immédiate de l'IA sans preuve de son apport au moteur.
 L'utilisateur autorise les recherches et changements de moteur/backtests et
 exige une contre-vérification systématique ; aucun rendement n'est promis.
-Livraison courante 1.24.0 : expériences prospectives indépendantes (témoin,
+Livraison 1.24.0 : expériences prospectives indépendantes (témoin,
 S1 +24 h gagnant, plafond 3 par stratégie/sens), dashboard et correctif de borne
 backtest. Voir `docs/experiments_shadow_v1.md`. Ne pas augmenter le risque
 pour rattraper un objectif mensuel. « Restart » couvre tous les bots.
 L'audit `audit_live_paper.py` ne calcule qu'une attribution comptable ; ne pas
 transformer ses écarts en économies causales imputées à l'IA.
+
+
+Livraison courante 1.25.0 : veille web asynchrone et mission IA externe sourcée,
+GO/HOLD sans preuve. Entrée/CUT/LOCK toujours shadow, cohortes de prompt nouvelles.
+Voir `docs/external_context_1_25_0.md`. Aucune réduction des frais API utilisée
+comme critère de gain. Le web n'était pas activé dans les anciens appels arbitres.
+Les lacunes de la campagne shadow-v1 restent visibles ; ne jamais les effacer.
 
 
 Rule 1 — Think Before Coding.

@@ -249,6 +249,11 @@ textarea:focus{outline:none;border-color:var(--blue)}
 
 <!-- Shadow portfolios remain separate from the four official fleet bots. -->
 <div class="panel" id="p-experiments">
+  <div class="card"><h3>Veille externe · IA en observation</h3>
+    <p>Sources datées recherchées hors Hyperliquid. Une absence de résultat ne signifie pas une absence de risque. Informations et dates extraites par IA, à vérifier.</p>
+    <div id="externalStatus" role="status">Chargement…</div>
+    <div id="externalCoverage" class="dim"></div><div id="externalFacts"></div>
+  </div>
   <div class="card"><h3>Comparaison prospective · portefeuilles virtuels</h3>
     <p>500 USDT simulés par portefeuille. Aucun ordre réel, aucun appel IA supplémentaire.</p>
     <p class="dim">Bilan après quatre semaines : aucune validation automatique. Frais et funding estimés ; les résultats simulés ne garantissent pas une exécution réelle.</p>
@@ -822,6 +827,26 @@ async function refreshExperiments(){
   finally{clearTimeout(timer);researchBusy=false;}
 }
 
+// External evidence: separate from simulated portfolios and performance.
+let externalBusy=false;
+async function refreshExternal(){
+  if(externalBusy)return;externalBusy=true;
+  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),8000);
+  try{
+    const r=await fetch('api/master/external-context',{credentials:'same-origin',cache:'no-store',signal:controller.signal});
+    if(!r.ok)throw Error('unavailable');const d=await r.json();
+    $('externalFacts').replaceChildren();
+    $('externalStatus').textContent=`État : ${d.status} · contrôle : ${d.checked_at?new Date(d.checked_at*1000).toISOString():'—'} · ${(d.facts||[]).length} faits utilisables`;
+    $('externalCoverage').textContent='Dernier lot demandé : '+(d.requested_symbols||[]).join(', ')+' · couverture partielle, conservation maximale 6 h.';
+    (d.facts||[]).forEach(f=>{
+      const row=document.createElement('p');row.textContent=`${f.symbol} — ${f.claim} · publication ${f.published_at} · événement ${f.event_at} · ${f.uncertainty||''} `;
+      try{const u=new URL(f.url);if(u.protocol==='https:'){const a=document.createElement('a');a.href=u.href;a.textContent='Source';a.target='_blank';a.rel='noopener noreferrer';row.appendChild(a);}}catch(_){}
+      $('externalFacts').appendChild(row);
+    });
+  }catch(_){$('externalStatus').textContent='Veille indisponible';$('externalFacts').replaceChildren();$('externalCoverage').textContent='';}
+  finally{clearTimeout(timer);externalBusy=false;}
+}
+
 // ── refresh ──
 let gatesTimer=0,lastOk=0;
 function refresh(){
@@ -848,7 +873,8 @@ setInterval(()=>{
 },1000);
 $('evtKinds').onchange=refresh;
 window.addEventListener('resize',()=>{if(fleetData)drawCurves(fleetData.curves||{});drawResearchCurves();});
-refresh();cfgReload();
+refresh();cfgReload();refreshExternal();
+setInterval(refreshExternal,60000);
 setInterval(refresh,10000);
 </script>
 </body>

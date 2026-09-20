@@ -3,6 +3,14 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.25.0 — 2026-09-20
+
+- **Mission IA** : arbitres recentrés sur les informations externes sourcées (incidents, annonces, unlocks et macro), au lieu de réinterpréter les signaux techniques. Sans preuve fraîche applicable : GO/HOLD.
+- **Accès web réel** : veille asynchrone indépendante des ordres, sources et dates extraites, liens issus des citations API, expiration des faits et état de couverture. Recherches prioritaires sur les sources officielles.
+- **Traçabilité** : archives de collecte et journal des contextes/verdicts ; identifiants de preuves contrôlés. Affichage dans Expériences. Modes IA maintenus en observation ; coûts API exclus du critère d'évaluation.
+- **Validation** : 88 tests Python, test DOM et essai web réel isolé. Sources secondaires ou non datées refusées. Aucune rentabilité supplémentaire démontrée.
+- Les règles de trading et portefeuilles expérimentaux restent inchangés. L'interruption du redémarrage commun reste visible dans la campagne existante.
+
 ## v1.24.0 — 2026-09-17
 
 - **Expériences prospectives** : trois portefeuilles indépendants de 500 USDT : témoin, prolongation unique de 24 h des S1 gagnants à expiration, et plafond de trois positions par stratégie et sens. Aucun ordre réel ni appel IA dans ces portefeuilles.

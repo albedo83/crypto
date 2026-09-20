@@ -39,6 +39,18 @@ class ExperimentWebTests(unittest.TestCase):
             self.client.cookies.set('alfred_session', self.cookie(role))
         return self.client.request(method, '/api/master/experiments')
 
+    def test_external_context_admin_only_and_no_cache(self):
+        with patch('ai_external_context.read_cache', return_value={'status':'ok','facts':[]}):
+            self.client.cookies.set('alfred_session', self.cookie('admin'))
+            r=self.client.get('/api/master/external-context')
+            self.assertEqual(r.status_code,200)
+            self.assertEqual(r.headers['cache-control'],'no-store')
+            self.assertEqual(r.json()['facts'],[])
+            self.client.cookies.set('alfred_session', self.cookie('bot:live'))
+            self.assertEqual(self.client.get('/api/master/external-context').status_code,403)
+            self.client.cookies.clear()
+            self.assertEqual(self.client.get('/api/master/external-context').status_code,401)
+
     def test_admin_snapshot_preserves_unknown_values(self):
         response = self.request('admin')
         self.assertEqual(response.status_code, 200)

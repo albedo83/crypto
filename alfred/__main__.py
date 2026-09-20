@@ -224,7 +224,9 @@ async def run():
     log.info("Web app on :%d (root_path=%r)", web_port,
              os.environ.get("ALFRED_ROOT_PATH", ""))
 
+    from ai_external_context import worker as external_context_worker
     tasks = [
+        asyncio.create_task(external_context_worker(bots, shutdown), name="external-context"),
         asyncio.create_task(master.ws_loop(), name="ws"),
         asyncio.create_task(master.poll_loop(), name="poll"),
         asyncio.create_task(master.hourly_loop(), name="hourly"),
