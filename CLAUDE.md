@@ -10,6 +10,15 @@ personnel sur six mois deviennent un objectif ultérieur, pas une exigence.
 Les 100 EUR/mois correspondent à l’abonnement assistant (confirmé). Les frais
 API du bot et serveur s’ajoutent ; distinguer les coûts API estimés en USD ;
 ne pas additionner EUR et USD sans conversion explicitée, ni doubler les coûts.
+Précision utilisateur du 20 septembre 2026 : exclure les coûts API de
+l'évaluation du moteur et de la décision d'activer une fonction IA. Comparer
+le PNL de trading, le drawdown et la robustesse, IA ou non. Conserver les frais
+de trading, le slippage et le funding dans les résultats. Les coûts API peuvent
+rester journalisés, mais ne constituent ni une pénalité de performance ni un
+motif de rejet. Cette précision remplace le critère de couverture des coûts API
+dans les commentaires du rapport AI-SHADOW-20260920-v1 ; ses mesures historiques
+restent inchangées. Ne pas en déduire une modification des règles Live ou une
+activation immédiate de l'IA sans preuve de son apport au moteur.
 L'utilisateur autorise les recherches et changements de moteur/backtests et
 exige une contre-vérification systématique ; aucun rendement n'est promis.
 Livraison courante 1.24.0 : expériences prospectives indépendantes (témoin,
