@@ -2,7 +2,9 @@
 
 ## Reprise du 2026-09-17 — périmètre utilisateur
 
-Live est le seul bot officiel ; Paper est sa référence. Junior/Baby sont hors
+Live est le seul bot officiel ; Paper est sa référence.
+Consigne du 20 septembre : IA et veille web réservées à Live pour limiter les
+coûts. Aucun appel IA pour Paper, Junior, Baby ou les portefeuilles expérimentaux. Junior/Baby sont hors
 du périmètre d'analyse demandé. Capital engagé : 500 ; perte maximale acceptée :
 250 (50 %). Priorité économique actualisée : couvrir progressivement les frais IA
 annoncés de 100 EUR/mois ; en couvrir 50 % serait déjà utile. Les +250 de gain
