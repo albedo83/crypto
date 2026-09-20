@@ -1,0 +1,7 @@
+{
+  "trades_checked": 86,
+  "price_deltas_verified": true,
+  "chronology_verified": true,
+  "input_sha256": "5fa8a6d5552f7ac4ed6ae2cf674fbfe51cf25f14833f5b36221bd85a97fac6db",
+  "unit_tests_passed": 7
+}

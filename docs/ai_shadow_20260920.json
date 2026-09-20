@@ -1,0 +1,150 @@
+{
+  "version": "AI-SHADOW-20260920-v1",
+  "checked_at": "2026-09-20T15:15:14.779981+00:00",
+  "since": 1789603200.0,
+  "entries": [
+    {
+      "symbol": "NEAR",
+      "entry_ts_ms": 1789646581562,
+      "decision": "GO",
+      "factor": 1.0,
+      "prompt_hash": "602c3b757c",
+      "model": "claude-opus-4-8",
+      "status": "resolved",
+      "actual_pnl_usdt": 41.89,
+      "delta_size_usdt": 0.0
+    },
+    {
+      "symbol": "UNI",
+      "entry_ts_ms": 1789660988684,
+      "decision": "GO",
+      "factor": 1.0,
+      "prompt_hash": "f6d5eafeef",
+      "model": "claude-opus-4-8",
+      "status": "resolved",
+      "actual_pnl_usdt": 34.5,
+      "delta_size_usdt": 0.0
+    },
+    {
+      "symbol": "ARB",
+      "entry_ts_ms": 1789704190596,
+      "decision": "VETO",
+      "factor": 0.5,
+      "prompt_hash": "f6d5eafeef",
+      "model": "claude-opus-4-8",
+      "status": "resolved",
+      "actual_pnl_usdt": 4.34,
+      "delta_size_usdt": -2.17
+    },
+    {
+      "symbol": "OP",
+      "entry_ts_ms": 1789704190596,
+      "decision": "GO",
+      "factor": 1.0,
+      "prompt_hash": "f6d5eafeef",
+      "model": "claude-opus-4-8",
+      "status": "pending_or_unmatched"
+    },
+    {
+      "symbol": "ENA",
+      "entry_ts_ms": 1789704190596,
+      "decision": "GO",
+      "factor": 1.0,
+      "prompt_hash": "f6d5eafeef",
+      "model": "claude-opus-4-8",
+      "status": "resolved",
+      "actual_pnl_usdt": 28.25,
+      "delta_size_usdt": 0.0
+    },
+    {
+      "symbol": "INJ",
+      "entry_ts_ms": 1789804989349,
+      "decision": "VETO",
+      "factor": 0.5,
+      "prompt_hash": "f6d5eafeef",
+      "model": "claude-opus-4-8",
+      "status": "resolved",
+      "actual_pnl_usdt": -7.75,
+      "delta_size_usdt": 3.875
+    },
+    {
+      "symbol": "AVAX",
+      "entry_ts_ms": 1789848191301,
+      "decision": "GO",
+      "factor": 1.0,
+      "prompt_hash": "f6d5eafeef",
+      "model": "claude-opus-4-8",
+      "status": "resolved",
+      "actual_pnl_usdt": -0.64,
+      "delta_size_usdt": -0.0
+    },
+    {
+      "symbol": "SNX",
+      "entry_ts_ms": 1789876992233,
+      "decision": "GO",
+      "factor": 1.0,
+      "prompt_hash": "f6d5eafeef",
+      "model": "claude-opus-4-8",
+      "status": "pending_or_unmatched"
+    }
+  ],
+  "exits": [
+    {
+      "symbol": "APT",
+      "entry_ts_ms": 1789588998878,
+      "events": 1,
+      "model": "claude-opus-4-8",
+      "prompt_hash": "14ff2aa707",
+      "status": "missing_ticks",
+      "actual_pnl_usdt": -17.81
+    },
+    {
+      "symbol": "UNI",
+      "entry_ts_ms": 1789660988684,
+      "events": 41,
+      "model": "claude-opus-4-8",
+      "prompt_hash": "14ff2aa707",
+      "status": "missing_ticks",
+      "actual_pnl_usdt": 34.5
+    },
+    {
+      "symbol": "ENA",
+      "entry_ts_ms": 1789704190596,
+      "events": 12,
+      "model": "claude-opus-4-8",
+      "prompt_hash": "14ff2aa707",
+      "status": "resolved",
+      "action": "LOCK",
+      "exit_ts": 1789872305,
+      "fill": 0.19913016600000003,
+      "delta_price_usdt": 1.670544420000025,
+      "actual_pnl_usdt": 28.25
+    },
+    {
+      "symbol": "OP",
+      "entry_ts_ms": 1789704190596,
+      "events": 13,
+      "model": "claude-opus-4-8",
+      "prompt_hash": "14ff2aa707",
+      "status": "pending_or_unmatched"
+    }
+  ],
+  "api_costs_usd": {
+    "exit": 3.274526,
+    "supervisor": 1.2700690000000001,
+    "entry": 0.329561,
+    "review": 0.05672,
+    "audit": 0.20847000000000002
+  },
+  "input_sha256": "7ef2305eef5942fa96b305e02618f1f8a6f0e806d1e7fb4eea146c122da2d6d9",
+  "limitations": [
+    "Entry proportional accounting, no replacement trades/portfolio effects.",
+    "Exit price-only attribution; differential funding omitted; 10bps guard cost proxy, 2bps exit slippage.",
+    "Full post-decision tick coverage required, maximum gap 120s; no interpolation.",
+    "Repeated exit decisions form one chronological trajectory per position, stops only tighten.",
+    "Open/unmatched positions and left-censored histories not scored.",
+    "Later recorded AI advice was generated from the actual unmodified book, not a counterfactual book.",
+    "GO agreement is not incremental value; HOLD quality not measured here.",
+    "No automatic promotion, no circuit-breaker writes."
+  ]
+}

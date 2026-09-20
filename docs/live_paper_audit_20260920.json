@@ -1,0 +1,334 @@
+{
+  "closed_pnl_usd": {
+    "paper": 84.25,
+    "live": 100.59
+  },
+  "live_minus_paper_usd": 16.340000000000003,
+  "attribution": {
+    "size_effect_usd": -12.356211288627177,
+    "return_effect_usd": -0.6637887113728186,
+    "unmatched_closed_delta_usd": 29.36,
+    "pending_pair_realized_delta_usd": 0.0
+  },
+  "identity_residual_usd": 0.0,
+  "matched_closed": 3,
+  "pending_pairs": [
+    {
+      "key": [
+        "SEI",
+        "S5",
+        "SHORT",
+        124291
+      ],
+      "paper_closed": false,
+      "live_closed": false,
+      "realized_delta_usd": 0.0
+    }
+  ],
+  "unmatched": [
+    {
+      "bot": "paper",
+      "key": [
+        "PENDLE",
+        "S1",
+        "LONG",
+        124286
+      ],
+      "symbol": "PENDLE",
+      "entry_time": "2026-09-18T08:03:00.469109+00:00",
+      "closed": false,
+      "pnl_usd": 0.0
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "INJ",
+        "S9",
+        "SHORT",
+        124287
+      ],
+      "symbol": "INJ",
+      "entry_time": "2026-09-18T12:03:01.073657+00:00",
+      "closed": true,
+      "pnl_usd": -4.52
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "OP",
+        "S5",
+        "LONG",
+        124291
+      ],
+      "symbol": "OP",
+      "entry_time": "2026-09-19T04:03:03.233821+00:00",
+      "closed": false,
+      "pnl_usd": 0.0
+    },
+    {
+      "bot": "paper",
+      "key": [
+        "ENA",
+        "S9",
+        "SHORT",
+        124295
+      ],
+      "symbol": "ENA",
+      "entry_time": "2026-09-19T20:03:11.285943+00:00",
+      "closed": false,
+      "pnl_usd": 0.0
+    },
+    {
+      "bot": "live",
+      "key": [
+        "ARB",
+        "S9",
+        "SHORT",
+        124285
+      ],
+      "symbol": "ARB",
+      "entry_time": "2026-09-18T04:03:10.596659+00:00",
+      "closed": true,
+      "pnl_usd": 4.34
+    },
+    {
+      "bot": "live",
+      "key": [
+        "ENA",
+        "S1",
+        "LONG",
+        124285
+      ],
+      "symbol": "ENA",
+      "entry_time": "2026-09-18T04:03:10.596659+00:00",
+      "closed": true,
+      "pnl_usd": 28.25
+    },
+    {
+      "bot": "live",
+      "key": [
+        "OP",
+        "S1",
+        "LONG",
+        124285
+      ],
+      "symbol": "OP",
+      "entry_time": "2026-09-18T04:03:10.596659+00:00",
+      "closed": false,
+      "pnl_usd": 0.0
+    },
+    {
+      "bot": "live",
+      "key": [
+        "INJ",
+        "S9",
+        "SHORT",
+        124292
+      ],
+      "symbol": "INJ",
+      "entry_time": "2026-09-19T08:03:09.349619+00:00",
+      "closed": true,
+      "pnl_usd": -7.75
+    },
+    {
+      "bot": "live",
+      "key": [
+        "SNX",
+        "S5",
+        "SHORT",
+        124297
+      ],
+      "symbol": "SNX",
+      "entry_time": "2026-09-20T04:03:12.233744+00:00",
+      "closed": false,
+      "pnl_usd": 0.0
+    }
+  ],
+  "pairs": [
+    {
+      "key": [
+        "NEAR",
+        "S5",
+        "LONG",
+        124281
+      ],
+      "symbol": "NEAR",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-09-17T12:03:01.548584+00:00",
+      "live_entry": "2026-09-17T12:03:01.562206+00:00",
+      "paper_exit": "2026-09-19T12:03:08.266545+00:00",
+      "live_exit": "2026-09-19T12:03:08.271507+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 48.92,
+      "live_pnl_usd": 41.89,
+      "paper_size_usd": 173.85279472382445,
+      "live_size_usd": 149.16579,
+      "entry_lag_seconds": 0.013622045516967773,
+      "exit_lag_seconds": 0.004961967468261719,
+      "same_exit_reason": true,
+      "size_effect_usd": -6.946614076627169,
+      "return_effect_usd": -0.08338592337282863,
+      "net_return_delta_bps": -5.590150621856971,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "UNI",
+        "S5",
+        "LONG",
+        124282
+      ],
+      "symbol": "UNI",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-09-17T16:03:08.672153+00:00",
+      "live_entry": "2026-09-17T16:03:08.684012+00:00",
+      "paper_exit": "2026-09-19T16:03:08.827982+00:00",
+      "live_exit": "2026-09-19T16:03:08.832516+00:00",
+      "paper_reason": "timeout",
+      "live_reason": "timeout",
+      "paper_pnl_usd": 40.78,
+      "live_pnl_usd": 34.5,
+      "paper_size_usd": 173.85279472382445,
+      "live_size_usd": 149.84255,
+      "entry_lag_seconds": 0.011858940124511719,
+      "exit_lag_seconds": 0.004534006118774414,
+      "same_exit_reason": true,
+      "size_effect_usd": -5.631993327418062,
+      "return_effect_usd": -0.6480066725819372,
+      "net_return_delta_bps": -43.245838553998,
+      "live_ai_interventions": []
+    },
+    {
+      "key": [
+        "AVAX",
+        "S5",
+        "LONG",
+        124295
+      ],
+      "symbol": "AVAX",
+      "strategy": "S5",
+      "direction": "LONG",
+      "paper_entry": "2026-09-19T20:03:11.285943+00:00",
+      "live_entry": "2026-09-19T20:03:11.301039+00:00",
+      "paper_exit": "2026-09-20T04:00:10.526825+00:00",
+      "live_exit": "2026-09-20T04:00:10.530875+00:00",
+      "paper_reason": "opp_floor",
+      "live_reason": "opp_floor",
+      "paper_pnl_usd": -0.93,
+      "live_pnl_usd": -0.64,
+      "paper_size_usd": 216.75044032667105,
+      "live_size_usd": 164.917692,
+      "entry_lag_seconds": 0.015095949172973633,
+      "exit_lag_seconds": 0.004050016403198242,
+      "same_exit_reason": true,
+      "size_effect_usd": 0.22239611541805276,
+      "return_effect_usd": 0.06760388458194724,
+      "net_return_delta_bps": 4.099249981132846,
+      "live_ai_interventions": []
+    }
+  ],
+  "strategies": {
+    "paper": {
+      "S5 LONG": {
+        "n": 3,
+        "pnl_usd": 88.77
+      },
+      "S9 SHORT": {
+        "n": 1,
+        "pnl_usd": -4.52
+      }
+    },
+    "live": {
+      "S5 LONG": {
+        "n": 3,
+        "pnl_usd": 75.75
+      },
+      "S9 SHORT": {
+        "n": 2,
+        "pnl_usd": -3.41
+      },
+      "S1 LONG": {
+        "n": 1,
+        "pnl_usd": 28.25
+      }
+    }
+  },
+  "generated_utc": "2026-09-20T15:10:32+00:00",
+  "since_utc": "2026-09-17T00:00:00+00:00",
+  "until_utc": "2026-09-20T12:00:00+00:00",
+  "match_rule": "symbol,strategy,direction,UTC 4h entry period",
+  "source_snapshots": {
+    "paper": {
+      "version": "1.24.0",
+      "state_sha256": "d474a86d6b01f81372395d3bf180d5d64f2f0c073871e4547ab861718f49cf0f",
+      "db_path": "/home/crypto/alfred/data/bots/paper/bot.db",
+      "last_event_utc": "2026-09-20T12:10:02+00:00",
+      "first_ledger_entry": "2026-07-09T16:03:16.256788+00:00"
+    },
+    "live": {
+      "version": "1.24.0",
+      "state_sha256": "e009ea27daa69760d074640010b523cf0ee5c3ffbb2ebfd26f366e68491110e7",
+      "db_path": "/home/crypto/alfred/data/bots/live/bot.db",
+      "last_event_utc": "2026-09-20T15:09:35+00:00",
+      "first_ledger_entry": "2026-07-09T16:03:16.264910+00:00"
+    }
+  },
+  "limits": [
+    "Read-only local snapshots per bot, not an atomic fleet snapshot or exchange reconciliation.",
+    "Cohort by entry date; closed P&L excludes unrealized positions and pre-cohort entries.",
+    "Available trades ledger only; no claim of complete pre-reset coverage.",
+    "Pairing is approximate within a 4h period; entry/exit lags are supplied.",
+    "Return component includes exits, fills, funding and accounting; it is NOT pure slippage.",
+    "Size decomposition uses paper return as reference; attribution order is explicit.",
+    "Unmatched P&L is descriptive, NOT recoverable profit or proof of a selection defect.",
+    "AI events are evidence of an intervention, not its causal portfolio P&L.",
+    "No significance test: correlated trades and repeated regimes are not independent draws."
+  ],
+  "milestones": {
+    "2026-08-29": {
+      "closed_pnl_usd": {
+        "paper": 84.25,
+        "live": 100.59
+      },
+      "live_minus_paper_usd": 16.340000000000003,
+      "attribution": {
+        "size_effect_usd": -12.356211288627177,
+        "return_effect_usd": -0.6637887113728186,
+        "unmatched_closed_delta_usd": 29.36,
+        "pending_pair_realized_delta_usd": 0.0
+      },
+      "matched_closed": 3
+    },
+    "2026-09-06": {
+      "closed_pnl_usd": {
+        "paper": 84.25,
+        "live": 100.59
+      },
+      "live_minus_paper_usd": 16.340000000000003,
+      "attribution": {
+        "size_effect_usd": -12.356211288627177,
+        "return_effect_usd": -0.6637887113728186,
+        "unmatched_closed_delta_usd": 29.36,
+        "pending_pair_realized_delta_usd": 0.0
+      },
+      "matched_closed": 3
+    },
+    "2026-09-16T17:47:40Z": {
+      "closed_pnl_usd": {
+        "paper": 84.25,
+        "live": 100.59
+      },
+      "live_minus_paper_usd": 16.340000000000003,
+      "attribution": {
+        "size_effect_usd": -12.356211288627177,
+        "return_effect_usd": -0.6637887113728186,
+        "unmatched_closed_delta_usd": 29.36,
+        "pending_pair_realized_delta_usd": 0.0
+      },
+      "matched_closed": 3
+    }
+  }
+}
