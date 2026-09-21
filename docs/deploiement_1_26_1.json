@@ -1,0 +1,328 @@
+{
+  "version": "1.26.1",
+  "release_commits": [
+    "56acc75",
+    "75237ba"
+  ],
+  "verified_at_utc": "2026-09-21T07:08:45.231229+00:00",
+  "restart": {
+    "old_pid": 1731266,
+    "new_pid": 1732077,
+    "started_ts": 1789974166.7023377,
+    "launch_ts": 1789974167.7149322
+  },
+  "bots": {
+    "paper": {
+      "status": "ok",
+      "price_age_s": 28.0,
+      "scan_age_s": 83.0,
+      "exchange_ok": true,
+      "degraded": [],
+      "positions_count": 5,
+      "paused": false
+    },
+    "live": {
+      "status": "ok",
+      "price_age_s": 28.0,
+      "scan_age_s": 83.0,
+      "exchange_ok": true,
+      "degraded": [],
+      "positions_count": 4,
+      "paused": false
+    },
+    "junior": {
+      "status": "ok",
+      "price_age_s": 28.0,
+      "scan_age_s": 83.0,
+      "exchange_ok": true,
+      "degraded": [],
+      "positions_count": 5,
+      "paused": false
+    },
+    "baby": {
+      "status": "ok",
+      "price_age_s": 28.0,
+      "scan_age_s": 83.0,
+      "exchange_ok": true,
+      "degraded": [],
+      "positions_count": 3,
+      "paused": false
+    }
+  },
+  "tests_passed": 106,
+  "dashboard_dom_test_passed": true,
+  "external_ai_scope": "live_only",
+  "ai_modes": "shadow",
+  "ai_decisions_since_first_restart": {
+    "live": {
+      "ARBITER_EXIT_HOLD": 2
+    },
+    "paper": {},
+    "junior": {},
+    "baby": {}
+  },
+  "experiment_history_preserved": true,
+  "experiment_checkpoints_verified": {
+    "exp_control": true,
+    "exp_s1": true,
+    "exp_cap3": true
+  },
+  "experiment_gaps_before": 2,
+  "experiment_gaps_after": 6,
+  "profitability_validated": false,
+  "external_context": {
+    "version": "external-v2",
+    "status": "partial",
+    "checked_at": 1789974410.935046,
+    "requested_symbols": [
+      "SNX",
+      "NEAR",
+      "MINA",
+      "AVAX",
+      "SEI",
+      "AAVE",
+      "COMP",
+      "PENDLE"
+    ],
+    "searches": 22,
+    "facts": [
+      {
+        "id": "56e8e4ae6104b8ce",
+        "symbol": "AVAX",
+        "claim": "L'upgrade Helicon est prévu sur le mainnet Avalanche, activant le staking auto-renouvelé",
+        "url": "https://build.avax.network/blog/helicon-upgrade",
+        "published_at": null,
+        "event_at": "2026-09-22T15:00:00Z",
+        "event_kind": "scheduled",
+        "event_start": 1790089200.0,
+        "event_end": 1790089200.0,
+        "time_precision": "time",
+        "category": "governance",
+        "source_type": "primary_domain_checked",
+        "support_quote": "Mainnet activation: September 22, 2026 at 11:00 AM ET (15:00 UTC). Mainnet validators must be running AvalancheGo v1.15.0 before then.",
+        "uncertainty": "Aucune",
+        "source": {
+          "url": "https://build.avax.network/blog/helicon-upgrade",
+          "title": "Helicon: Improved Staking Economics and Continuous Execution | Avalanche Builder Hub",
+          "cited_text": "Mainnet activation: September 22, 2026 at 11:00 AM ET (15:00 UTC). Mainnet validators must be running AvalancheGo v1.15.0 before then.",
+          "retrieval": "web_citation"
+        },
+        "observed_at": 1789974375.6915197,
+        "expires_at": 1789995975.6915197
+      },
+      {
+        "id": "de11d30c139bc5e8",
+        "symbol": "MACRO",
+        "claim": "Publication de la balance des transactions internationales et de la position d'investissement des États-Unis, 2e trimestre 2026",
+        "url": "https://www.bea.gov/news/schedule",
+        "published_at": null,
+        "event_at": "2026-09-24",
+        "event_kind": "scheduled",
+        "event_start": 1790208000.0,
+        "event_end": 1790294400.0,
+        "time_precision": "day",
+        "category": "macro",
+        "source_type": "primary_domain_checked",
+        "support_quote": "September 24 8:30 AM N ews U.S. International Transactions and Investment Position, 2nd Quarter 2026",
+        "uncertainty": "Heure non vérifiable dans l’extrait ; journée seule. Heure convertie de 8:30 AM ET",
+        "source": {
+          "url": "https://www.bea.gov/news/schedule",
+          "title": "Official calendar",
+          "cited_text": "September 24 8:30 AM N ews U.S. International Transactions and Investment Position, 2nd Quarter 2026",
+          "retrieval": "direct_https"
+        },
+        "observed_at": 1789974401.5289977,
+        "expires_at": 1789996001.5289977
+      }
+    ],
+    "coverage": {
+      "SNX": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789974410.935046,
+        "checked_at": 1789974410.935046,
+        "searches": 3,
+        "source_count": 5,
+        "accepted": 0,
+        "rejected": [
+          "outside_time_window"
+        ],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789974323430736134-SNX"
+      },
+      "NEAR": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789974410.935046,
+        "checked_at": 1789974410.935046,
+        "searches": 2,
+        "source_count": 6,
+        "accepted": 0,
+        "rejected": [
+          "outside_time_window",
+          "outside_time_window"
+        ],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789974323437661688-NEAR"
+      },
+      "MINA": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789974410.935046,
+        "checked_at": 1789974410.935046,
+        "searches": 3,
+        "source_count": 3,
+        "accepted": 0,
+        "rejected": [],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789974323439108659-MINA"
+      },
+      "AVAX": {
+        "status": "sourced_fact",
+        "attempted_at": 1789974410.935046,
+        "checked_at": 1789974410.935046,
+        "searches": 2,
+        "source_count": 1,
+        "accepted": 1,
+        "rejected": [],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789974351947343453-AVAX"
+      },
+      "ARB": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789973587.436022,
+        "checked_at": 1789973587.436022,
+        "searches": 3,
+        "source_count": 2,
+        "accepted": 0,
+        "rejected": [],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789973527700189377-ARB"
+      },
+      "OP": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789973587.436022,
+        "checked_at": 1789973587.436022,
+        "searches": 4,
+        "source_count": 5,
+        "accepted": 0,
+        "rejected": [
+          "unsupported_quote",
+          "event_date_not_in_quote"
+        ],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789973535126316320-OP"
+      },
+      "SUI": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789973587.436022,
+        "checked_at": 1789973587.436022,
+        "searches": 3,
+        "source_count": 5,
+        "accepted": 0,
+        "rejected": [],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789973553949830388-SUI"
+      },
+      "APT": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789973587.436022,
+        "checked_at": 1789973587.436022,
+        "searches": 3,
+        "source_count": 2,
+        "accepted": 0,
+        "rejected": [
+          "secondary_source",
+          "event_date_not_in_quote"
+        ],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789973556021310390-APT"
+      },
+      "MACRO": {
+        "status": "partial",
+        "attempted_at": 1789974410.935046,
+        "checked_at": 1789974410.935046,
+        "searches": 0,
+        "source_count": 3,
+        "accepted": 1,
+        "rejected": [
+          "outside_time_window",
+          "outside_time_window"
+        ],
+        "error": "calendar_fetch_failed",
+        "fetch_errors": [
+          {
+            "url": "https://www.bls.gov/schedule/2026/home.htm",
+            "error": "HTTPStatusError"
+          }
+        ],
+        "batch_id": "1789974393056357459-MACRO"
+      },
+      "SEI": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789974410.935046,
+        "checked_at": 1789974410.935046,
+        "searches": 3,
+        "source_count": 2,
+        "accepted": 0,
+        "rejected": [
+          "event_date_not_in_quote",
+          "outside_time_window"
+        ],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789974352170939800-SEI"
+      },
+      "AAVE": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789974410.935046,
+        "checked_at": 1789974410.935046,
+        "searches": 3,
+        "source_count": 4,
+        "accepted": 0,
+        "rejected": [
+          "outside_time_window"
+        ],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789974354132146791-AAVE"
+      },
+      "COMP": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789974410.935046,
+        "checked_at": 1789974410.935046,
+        "searches": 3,
+        "source_count": 3,
+        "accepted": 0,
+        "rejected": [],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789974375694300035-COMP"
+      },
+      "PENDLE": {
+        "status": "no_usable_evidence",
+        "attempted_at": 1789974410.935046,
+        "checked_at": 1789974410.935046,
+        "searches": 3,
+        "source_count": 4,
+        "accepted": 0,
+        "rejected": [],
+        "error": null,
+        "fetch_errors": [],
+        "batch_id": "1789974383768260098-PENDLE"
+      }
+    },
+    "batch_id": "1789974410935109205"
+  },
+  "experiments": {
+    "status": "running",
+    "gap_count": 6,
+    "comparison_valid": false,
+    "review_at": "2026-10-15T15:09:05.290178+00:00"
+  }
+}
