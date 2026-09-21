@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.27.0] — 2026-09-21
+
+- **Entrées** : lorsqu’un cooldown expire avant clôture 4h + 5 minutes, le scan attend son expiration réelle. Délai borné à deux minutes après l’horaire habituel, scan unique et contrôles de fraîcheur conservés ; aucun raccourcissement des 24 h.
+- **Reprise** : gate non consommé sauvegardé pendant l’attente ; aucun rejeu d’une période déjà traitée. Les bots en pause ou freinés ne déclenchent pas de boucle d’attente.
+- **Observation** : nouvelle campagne shadow-v2 pour le moteur modifié ; shadow-v1 conservée sur disque, résultats non fusionnés. IA exclusivement Live, modes d’observation inchangés.
+- **Portefeuille** : plafonds de positions et tailles inchangés. Aucun gain financier présumé pour cette correction de cadence.
+
 ## [1.26.1] — 2026-09-21
 
 - **Correction révélée en production** : l’extracteur reçoit uniquement les sources originales, sans le résumé généré par la recherche. Cela empêche qu’une phrase reformulée dans le résumé soit confondue avec une citation exacte et rejetée ensuite.

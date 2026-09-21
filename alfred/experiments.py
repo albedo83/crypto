@@ -60,7 +60,7 @@ def _iso(ts):
 
 
 class ExperimentManager:
-    VERSION = 'shadow-v1'
+    VERSION = 'shadow-v2'
     LABELS = {'control': 'Témoin', 's1': 'S1 gagnant : +24 h', 'cap3': 'Maximum 3 par stratégie et sens'}
 
     def __init__(self, master, bots, data_dir):

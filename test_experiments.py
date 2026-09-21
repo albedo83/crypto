@@ -36,6 +36,17 @@ class ManagerTests(unittest.TestCase):
         self.managers.append(m)
         return m
 
+    def test_new_cohort_preserves_previous_campaign(self):
+        old = Path(self.tmp.name)/'experiments'/'shadow-v1'
+        old.mkdir(parents=True)
+        marker = old/'experiment.json'
+        marker.write_text('{"old_campaign": true}')
+        m = self.manager()
+        self.assertEqual(m.VERSION, 'shadow-v2')
+        self.assertEqual(m.status, 'running')
+        self.assertEqual(marker.read_text(), '{"old_campaign": true}')
+        self.assertNotEqual(m.root, old)
+
     def test_fresh_books_independent_and_official_registry_untouched(self):
         original = copy.deepcopy(self.bots)
         m = self.manager()
@@ -79,7 +90,7 @@ class ManagerTests(unittest.TestCase):
         self.assertEqual(resumed.books, [])
 
     def test_missing_manifest_with_existing_db_rejected(self):
-        root = Path(self.tmp.name)/'experiments'/'shadow-v1'/'bots'/'exp_control'
+        root = Path(self.tmp.name)/'experiments'/ExperimentManager.VERSION/'bots'/'exp_control'
         root.mkdir(parents=True); (root/'bot.db').touch()
         with self.assertLogs('alfred', level='ERROR'): m = self.manager()
         self.assertEqual(m.status, 'error')

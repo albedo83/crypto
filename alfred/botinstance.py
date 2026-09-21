@@ -1792,6 +1792,23 @@ class BotInstance:
             self._save_state()
             return 0
 
+        # v1.27.0: keep ONE entry scan, but let near-boundary cooldowns
+        # expire first. Scheduler retries an unconsumed gate each tick.
+        # Fixed deadline = usual 3-minute grace + 2 minutes, never sliding.
+        # No early entry and no replay of an already consumed scan.
+        if not self._paused and now_ts >= self._entries_halted_until:
+            deadline = last_4h_close + 300
+            pending = {sym: expiry for sym, expiry in self._cooldowns.items()
+                       if sym in self.p.trade_symbols and sym not in self.positions
+                       and time.time() < expiry <= deadline}
+            if pending:
+                self.db.log_event("ENTRY_SCAN_DEFERRED", None, {
+                    "reason": "cooldown_near_boundary", "boundary": last_4h_close,
+                    "retry_after": max(pending.values()), "deadline": deadline,
+                    "symbols": sorted(pending)})
+                self._save_state()
+                return 0
+
         self._last_entry_scan_4h_close = last_4h_close
 
         # Pause APRÈS consommation du gate (v1.15.0) : un bot en pause qui ne
