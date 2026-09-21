@@ -36,7 +36,7 @@ def cost_from_usage(model: str, usage: dict) -> float:
         + usage.get("output_tokens", 0) * r_out
         + usage.get("cache_read_input_tokens", 0) * r_read
         + usage.get("cache_creation_input_tokens", 0) * r_write
-    ) / 1e6, 6)
+    ) / 1e6 + 0.01 * (usage.get("server_tool_use") or {}).get("web_search_requests", 0), 6)
 
 
 def cost_event(source: str, model: str, usage: dict) -> dict:

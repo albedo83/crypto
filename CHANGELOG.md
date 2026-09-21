@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.28.0] — 2026-09-21
+
+- **Veille économique** : Haiku 4.5 dédié, une recherche par actif, sorties et extraits bornés ; aucune escalade automatique vers Opus. Vérifications des sources et dates conservées.
+- **Cadence persistée** : passage toutes les deux heures au plus, quatre actifs maximum ; actifs détenus et macro réexaminés après six heures, autres après 24 heures. Redémarrage et crash ne relancent plus un lot récent.
+- **Plafond fournisseur** : arrêt du lot dès le refus ; reprise à la date annoncée, sans modifier le plafond du compte.
+- **Comptabilité** : tokens et recherches web ajoutés à AI_COST, déduplication par identifiant de réponse et récupération des archives historiques. IA réservée à Live ; règles de trading et campagne inchangées.
+
 ## [1.27.1] — 2026-09-21
 
 - **Audit système** : la revue IA est surveillée par l’activité du détecteur (10 minutes) et les demandes réellement lancées (5 minutes), plus par l’âge du dernier appel facturé. Un marché calme ne produit plus de fausse péremption.

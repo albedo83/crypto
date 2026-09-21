@@ -837,6 +837,13 @@ async function refreshExternal(){
     if(!r.ok)throw Error('unavailable');const d=await r.json();
     $('externalFacts').replaceChildren();
     $('externalStatus').textContent=`État : ${d.status} · contrôle : ${d.checked_at?new Date(d.checked_at*1000).toISOString():'—'} · ${(d.facts||[]).length} faits utilisables`;
+    if(d.economy){
+      const e=d.economy;
+      $('externalStatus').textContent+=' · modèle prévu : '+e.model+
+        (e.blocked_until?' · plafond fournisseur : reprise '+new Date(e.blocked_until*1000).toISOString():
+        e.next_run?' · prochain passage au plus tôt '+new Date(e.next_run*1000).toISOString():'')+
+        (e.error?' · échéancier indisponible, collecte suspendue':'');
+    }
     $('externalCoverage').textContent='Dernier lot demandé : '+(d.requested_symbols||[]).join(', ')+' · '+(d.searches||0)+' recherches · couverture partielle, conservation maximale 6 h.';
     const coverage=document.createElement('p');coverage.textContent=Object.entries(d.coverage||{}).map(([symbol,c])=>symbol+': '+c.status+' ('+(c.source_count||0)+' sources, '+(c.accepted||0)+' faits)'+(c.error?' — couverture incomplète':'')+((c.fetch_errors||[]).length?' : '+c.fetch_errors.map(e=>e.url).join(', '):'')).join(' · ');$('externalFacts').appendChild(coverage);
     (d.facts||[]).forEach(f=>{

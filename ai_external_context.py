@@ -365,21 +365,27 @@ async def collect_scope(client, symbol, model):
             atomic_write(root()/'batches'/(batch_id+'-search.json'),archive)
             if not evidence['sources']:raise ValueError('all_calendars_unavailable')
         else:
-            response = await client.messages.create(model=model,max_tokens=5000,system=SEARCH_SYSTEM,
-                tools=[{'type':'web_search_20250305','name':'web_search','max_uses':4,'allowed_domains':allowed}],
+            response = await client.messages.create(model=model,max_tokens=1800,system=SEARCH_SYSTEM + '\nUne seule recherche ciblée. Réponse courte, aucune recherche supplémentaire.',
+                tools=[{'type':'web_search_20250305','name':'web_search','max_uses':1,'allowed_domains':allowed}],
                 messages=[{'role':'user','content':json.dumps(request)}])
             archive['search_response'] = response.model_dump(mode='json')
             atomic_write(root()/'batches'/(batch_id+'-search.json'),archive)
+            from external_usage import record
+            record(archive['search_response'], archive['started_at'], root().parent)
             evidence = evidence_from_response(archive['search_response'])
             archive['evidence'] = evidence
             if evidence['errors'] or not evidence['searches']:
                 raise ValueError('incomplete_search:' + ','.join(evidence['errors']))
         facts, rejected = [], []
         if evidence['sources']:
-            extracted = await client.messages.create(model=model,max_tokens=3500,system=EXTRACT_SYSTEM,
+            evidence = compact_evidence(evidence)
+            extracted = await client.messages.create(model=model,max_tokens=1800,system=EXTRACT_SYSTEM,
                 messages=[{'role':'user','content':json.dumps({'symbol':symbol,'now_utc':request['now_utc'],'past_hours':72,'future_days':7,
                     'evidence':{'sources':evidence['sources']}},ensure_ascii=False)}])
             raw = extracted.model_dump(mode='json');archive['extraction_response'] = raw
+            atomic_write(root()/'batches'/(batch_id+'.json'),archive)
+            from external_usage import record
+            record(raw, archive['started_at'], root().parent)
             if raw.get('stop_reason') != 'end_turn':
                 raise ValueError('incomplete_extraction')
             parsed = parse_json(''.join(b.get('text','') for b in raw['content'] if b.get('type')=='text'))
@@ -389,7 +395,9 @@ async def collect_scope(client, symbol, model):
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        archive.update(status='error',error=type(exc).__name__ + ':' + str(exc)[:120],facts=[],rejected=[])
+        archive.update(status='error',error=type(exc).__name__ + ':' + str(exc)[:500],facts=[],rejected=[])
+        if 'usage limits' in str(exc) or 'spend_limit' in str(exc):
+            block_provider(str(exc))
     atomic_write(root()/'batches'/(batch_id+'.json'),archive)
     return dict(symbol=symbol, status=archive['status'], error=archive.get('error'),
                 facts=archive['facts'],rejected=archive['rejected'],batch_id=batch_id,
@@ -417,21 +425,71 @@ def merge_results(old, results, symbols, model, now):
         batch_id=str(time.time_ns()), scope_batches={r['symbol']:r['batch_id'] for r in results},
         caution='Couverture partielle. Domaine et extrait vérifiés ; interprétation et dates extraites par IA.')
 
+ECONOMY_MODEL = 'claude-haiku-4-5-20251001'
+COLLECT_INTERVAL_S = 7200
+
+
+def compact_evidence(evidence):
+    # Original source substrings only; never generated summaries.
+    sources, remaining = {}, 18000
+    for url, src in list(evidence['sources'].items())[:6]:
+        row = dict(src)
+        row['cited_text'] = str(row.get('cited_text', ''))[:min(4000, remaining)]
+        remaining -= len(row['cited_text'])
+        sources[url] = row
+        if remaining <= 0:
+            break
+    return dict(evidence, sources=sources)
+
+
+def read_schedule():
+    path = root()/'schedule.json'
+    if not path.exists():
+        return {}
+    return json.loads(path.read_text())  # corrupt schedule must not trigger spending
+
+
+def block_provider(message):
+    schedule = read_schedule()
+    match = re.search(r'(20\d{2}-\d{2}-\d{2}) at (\d{2}:\d{2}) UTC', message)
+    until = stamp(match[1]+'T'+match[2]+':00Z') if match else time.time()+86400
+    schedule.update(blocked_until=until, blocked_reason='provider_usage_limit')
+    atomic_write(root()/'schedule.json', schedule)
+
+
+def due_symbols(held, universe, coverage, now):
+    ordered = select_symbols(held, universe, coverage, limit=len(universe))
+    due = [s for s in ordered if now-coverage.get(s,{}).get('attempted_at',0)
+           >= (21600 if s in held else 86400)]
+    selected = due[:4]
+    if now-coverage.get('MACRO',{}).get('attempted_at',0) >= 21600:
+        selected.append('MACRO')
+    return selected
+
+
 async def collect(symbols):
     import anthropic
-    symbols = list(dict.fromkeys(s for s in symbols if s != 'MACRO'))[:8]
-    model = os.environ.get('AI_EXTERNAL_MODEL',os.environ.get('AI_ARBITER_MODEL','claude-opus-4-8'))
-    semaphore = asyncio.Semaphore(3)
-    async with anthropic.AsyncAnthropic(timeout=150.,max_retries=0) as client:
-        async def run(sym):
-            async with semaphore:
-                return await collect_scope(client,sym,model)
-        results = await asyncio.gather(*(run(s) for s in symbols+['MACRO']))
-    packet = merge_results(read_cache(),results,symbols,model,time.time())
+    symbols = list(dict.fromkeys(symbols))[:5]
+    # Deliberately independent of expensive arbiter-model settings.
+    model = ECONOMY_MODEL
+    old = read_cache()
+    results = []
+    async with anthropic.AsyncAnthropic(timeout=90.,max_retries=0) as client:
+        for symbol in symbols:
+            if read_schedule().get('blocked_until',0)>time.time():
+                break
+            result = await collect_scope(client,symbol,model)
+            results.append(result)
+    packet = merge_results(old,results,symbols,model,time.time())
+    packet['economy'] = {'model':model, 'max_searches_per_asset':1,
+                          'interval_s':COLLECT_INTERVAL_S, **read_schedule()}
+    if packet['economy'].get('blocked_until',0)>time.time():
+        packet['status']='error'
+        packet['error']='provider_usage_limit'
     atomic_write(root()/'batches'/(packet['batch_id']+'.json'),{'packet':packet})
     atomic_write(root()/'latest.json',packet)
-    log.info('External context: %s, %d searches, %d facts, %d rejected',packet['status'],packet['searches'],len(packet['facts']),len(packet['rejected']))
     return packet
+
 
 def select_symbols(held, universe, coverage, limit=8):
     # Persisted age avoids skipping rotating assets after slicing held+rotation.
@@ -445,18 +503,29 @@ def select_symbols(held, universe, coverage, limit=8):
 async def worker(bots,shutdown):
     if os.environ.get('AI_EXTERNAL_ENABLED','1')!='1' or 'live' not in bots:return
     live=bots['live'];universe=list(live.p.trade_symbols)
+    reconciled=False
     while not shutdown.is_set():
         try:
-            with live._pos_lock:held=list(live.positions)
-            symbols=select_symbols(held,universe,read_cache().get('coverage',{}))
-            packet=await collect(symbols)
-            delay=900 if packet['status']=='error' else 3600
+            if not reconciled:
+                from external_usage import backfill
+                backfill(root().parent)
+                reconciled=True
+            now=time.time()
+            schedule=read_schedule()
+            old=read_cache()
+            # Upgrade path: a recent old-version batch counts as a collection.
+            next_run=max(schedule.get('next_run',old.get('checked_at',0)+COLLECT_INTERVAL_S),
+                         schedule.get('blocked_until',0))
+            if now>=next_run:
+                # Durable reservation BEFORE any request: survives process death.
+                schedule['next_run']=now+COLLECT_INTERVAL_S
+                atomic_write(root()/'schedule.json',schedule)
+                with live._pos_lock:held=list(live.positions)
+                symbols=due_symbols(held,universe,old.get('coverage',{}),now)
+                if symbols:
+                    await collect(symbols)
         except asyncio.CancelledError:raise
-        except Exception as exc:
-            log.warning('External context collection failed: %s',type(exc).__name__)
-            old=read_cache();old.setdefault('checked_at',time.time());old.update(status='error',error=type(exc).__name__,failed_at=time.time())
-            try:atomic_write(root()/'latest.json',old)
-            except Exception:log.exception('External context status persistence failed')
-            delay=900
-        try:await asyncio.wait_for(shutdown.wait(),timeout=delay)
+        except Exception:
+            log.exception('External context paused: scheduling/accounting failure')
+        try:await asyncio.wait_for(shutdown.wait(),timeout=60)
         except asyncio.TimeoutError:pass

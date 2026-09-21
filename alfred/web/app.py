@@ -409,8 +409,12 @@ def create_app(bots: dict, master) -> FastAPI:
 
     @app.get("/api/master/external-context")
     async def api_external_context():
-        from ai_external_context import read_cache
+        from ai_external_context import read_cache, read_schedule, ECONOMY_MODEL
         data = await asyncio.to_thread(read_cache)
+        try:
+            data["economy"] = dict(await asyncio.to_thread(read_schedule), model=ECONOMY_MODEL)
+        except (OSError, ValueError):
+            data["economy"] = {"model": ECONOMY_MODEL, "error": "schedule_unavailable"}
         return JSONResponse(data, headers={"Cache-Control": "no-store"})
 
     @app.get("/api/master/experiments")
