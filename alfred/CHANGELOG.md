@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.26.1 — 2026-09-21
+
+- **Correction révélée en production** : l’extracteur reçoit uniquement les sources originales, sans le résumé généré par la recherche. Cela empêche qu’une phrase reformulée dans le résumé soit confondue avec une citation exacte et rejetée ensuite.
+- **Contrôles conservés** : domaine, passage exact, date et précision horaire ; événements programmés décrits comme futurs. 106 tests Python, test DOM et relecture du cas de production.
+
 ## v1.26.0 — 2026-09-21
 
 - **Veille IA corrigée** : dossiers séparés par actif, domaines officiels imposés par l’outil et contrôlés après extraction ; registre des 34 actifs, lecture directe des calendriers macro officiels. Fini le lot global dominé par les agrégateurs.

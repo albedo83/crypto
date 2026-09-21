@@ -31,7 +31,8 @@ L'audit `audit_live_paper.py` ne calcule qu'une attribution comptable ; ne pas
 transformer ses écarts en économies causales imputées à l'IA.
 
 
-Livraison courante 1.26.0 : veille external-v2 par actif, domaines imposés,
+Livraison courante 1.26.1 : veille external-v2 par actif, domaines imposés,
+extraction limitée aux textes sources sans résumé IA intermédiaire,
 calendriers et annonces anciennes d’événements futurs traités séparément des
 nouvelles récentes. Extrait exact exigé, précision journée conservée, erreurs
 isolées et couverture visible. IA exclusivement Live, entrée/CUT/LOCK shadow ;

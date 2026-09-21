@@ -1,4 +1,4 @@
-# Alfred 1.26.0 — veille externe exploitable
+# Alfred 1.26.1 (évolution de 1.26.0) — veille externe exploitable
 
 ## Défauts observés le 21 septembre
 
@@ -84,3 +84,12 @@ Redémarrage commun des quatre bots ; aucune lacune expérimentale effacée.
 - [Annonce officielle Avalanche Helicon](https://docs.avax.network/blog/helicon-upgrade) : publiée le 8 septembre, activation programmée le 22 septembre 2026 à 15:00 UTC ; cas réel exclu par l'ancien filtre de publication.
 - [Calendrier BEA](https://www.bea.gov/news/schedule), [BLS](https://www.bls.gov/schedule/2026/home.htm), [Fed](https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm)
 - [Releases NEAR](https://github.com/near/nearcore/releases), [Mina](https://minaprotocol.com/blog), [Synthetix](https://synthetix.io/)
+
+## Correctif 1.26.1 issu du contrôle en production
+
+Lors de la première collecte 1.26.0, le texte du résumé de recherche contenait
+une reformulation complète alors que certaines citations étaient tronquées.
+L’extracteur a copié le résumé, malgré l’instruction de citer la source, et le
+contrôle exact l’a rejeté. Correction : il ne reçoit plus le récit généré,
+seulement les sources originales. Le contrôle exact reste obligatoire. Test
+assertant l’absence du récit intermédiaire dans le dossier d’extraction.

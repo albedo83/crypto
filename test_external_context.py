@@ -155,6 +155,9 @@ class CollectionTests(unittest.IsolatedAsyncioTestCase):
         kwargs=client.messages.create.call_args_list[0].kwargs
         self.assertIn('avax.network',kwargs['tools'][0]['allowed_domains'])
         self.assertNotIn('federalreserve.gov',kwargs['tools'][0]['allowed_domains'])
+        extraction=json.loads(client.messages.create.call_args_list[1].kwargs['messages'][0]['content'])
+        self.assertEqual(set(extraction['evidence']),{'sources'})
+        self.assertNotIn('text',extraction['evidence'])
     async def test_unknown_asset_does_not_call_api(self):
         client=SimpleNamespace(messages=SimpleNamespace(create=AsyncMock()))
         with tempfile.TemporaryDirectory() as temp,patch.dict(os.environ,{'ALFRED_DATA_DIR':temp}):
