@@ -26,6 +26,7 @@ $2.5/mois, très sous AI_BUDGET_MONTHLY_USD).
 Cron : */2 * * * * cd /home/crypto && .venv/bin/python3 -m alfred.attention
 """
 from __future__ import annotations
+from contextlib import closing
 
 import json
 import os
@@ -96,6 +97,13 @@ def log_event(payload: dict):
         print(f"log_event failed: {e}", file=sys.stderr)
 
 
+def review_event(event, payload):
+    # Durable request/result lifecycle, independent of billing telemetry.
+    with closing(sqlite3.connect(LIVE_DB, timeout=5)) as db, db:
+        db.execute("INSERT INTO events (ts,event,symbol,data) VALUES (?,?,?,?)",
+                   (time.time(), event, None, json.dumps(payload)))
+
+
 def llm_review(st: dict, trigger: str, context: str, symbols: list[str] | None,
                priority: str = "comfort"):
     """Revue ciblée via position_review --focus.
@@ -132,14 +140,31 @@ def llm_review(st: dict, trigger: str, context: str, symbols: list[str] | None,
            "--trigger-context", f"[{trigger}] {context}"]
     if symbols:
         cmd += ["--focus-symbols", ",".join(symbols)]
+    import uuid
+    request_id = uuid.uuid4().hex
+    cmd += ["--request-id", request_id]
+    started = time.time()
+    review_event("REVIEW_REQUEST", {"request_id": request_id, "trigger": trigger})
     try:
         r = subprocess.run(cmd, capture_output=True, text=True, timeout=120,
                            cwd=ROOT)
         out = r.stdout.strip()
+        skipped = r.returncode == 0 and any(marker in out for marker in (
+            "aucune position (dans le focus)", "POSITION_REVIEW_ENABLED=0"))
+        # A zero return code alone is not proof that a review was persisted.
+        with closing(sqlite3.connect(LIVE_DB, timeout=5)) as db, db:
+            stored = db.execute("SELECT data FROM events WHERE event='POSITION_REVIEW' AND ts>=?",
+                                (int(started),)).fetchall()
+        matched = any(json.loads(x[0]).get('request_id') == request_id for x in stored)
+        status = 'skipped' if skipped else 'success' if r.returncode == 0 and matched else 'error'
+        review_event("REVIEW_RESULT", {"request_id": request_id, "status": status,
+                     "returncode": r.returncode})
         advices = [l.strip() for l in out.splitlines()
                    if l.strip().split(" ")[0].isupper() and ("conf=" in l)]
         return advices or [out[-300:]] if out else None
     except Exception as e:
+        review_event("REVIEW_RESULT", {"request_id": request_id, "status": "error",
+                     "error_type": type(e).__name__})
         print(f"llm_review failed: {e}", file=sys.stderr)
         return None
 

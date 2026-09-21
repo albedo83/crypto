@@ -2026,7 +2026,11 @@ function refreshSystemAudit(){
     const when=new Date(d.ts*1000).toLocaleString('fr-FR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
     const an=d.anomalies||[];
     const col={critique:'#f85149',moyenne:'#e3b341',faible:'#8b949e'};
-    let h=`<div style="font-size:12px;margin-bottom:6px" class="dim">${when} · ${an.length? an.length+' anomalie(s)':'aucune anomalie'}</div>`;
+    let h=`<div style="font-size:12px;margin-bottom:6px" class="dim">Rapport du ${when} · ${an.length? an.length+' anomalie(s) à cette date':'aucune anomalie à cette date'}</div>`;
+    if(d.current_review_health){
+      const health=d.current_review_health;
+      h+=`<div style="font-size:13px;margin-bottom:10px">Revue IA — contrôle actuel : <b>${esc(health.status)}</b> · ${esc(health.message)}. Le rapport ci-dessous conserve les constats à sa date.</div>`;
+    }
     if(!an.length){
       h+=`<div style="font-size:13px;padding:8px 10px;border-radius:6px;background:rgba(63,185,80,.08);border:1px solid rgba(63,185,80,.3)">✓ ${esc(d.ras||'Rien à signaler.')}</div>`;
     } else {

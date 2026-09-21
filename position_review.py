@@ -214,6 +214,7 @@ def main() -> int:
                         help="CSV de symboles — ne revoir que ceux-là")
     parser.add_argument("--trigger-context", default=None,
                         help="Contexte du déclencheur (préfixé au prompt + loggé)")
+    parser.add_argument("--request-id", default=None, help="Identifiant du déclenchement audité")
     args = parser.parse_args()
 
     load_env()
@@ -293,6 +294,7 @@ def main() -> int:
         "prompt_hash": PROMPT_HASH,
         "model": model,
         "trigger": args.trigger_context,
+        "request_id": args.request_id,
         "focus": args.focus_symbols,
         "generated": datetime.now(timezone.utc).isoformat(),
         "n_positions": len(positions),

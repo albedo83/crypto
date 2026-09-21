@@ -846,7 +846,10 @@ def create_app(bots: dict, master) -> FastAPI:
                 return JSONResponse({})
             d = json.loads(row[1]) if row[1] else {}
             d["ts"] = row[0]
-            return JSONResponse(d)
+            if bot_id == "live":
+                from review_health import check_review_health
+                d["current_review_health"] = check_review_health()
+            return JSONResponse(d, headers={"Cache-Control": "no-store"})
         except Exception as e:
             return JSONResponse({"error": str(e)}, status_code=500)
 

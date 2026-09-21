@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.27.1] — 2026-09-21
+
+- **Audit système** : la revue IA est surveillée par l’activité du détecteur (10 minutes) et les demandes réellement lancées (5 minutes), plus par l’âge du dernier appel facturé. Un marché calme ne produit plus de fausse péremption.
+- **Traçabilité** : identifiant par demande, résultat persisté, échecs/timeout et absences de résultat détectés ; revues sans position explicitement ignorées. Aucun appel IA ajouté.
+- **Journal** : distingue le rapport historique et le contrôle actuel de la revue ; anciens constats conservés. Règles de trading, IA en observation et campagne shadow-v2 inchangées.
+
 ## [1.27.0] — 2026-09-21
 
 - **Entrées** : lorsqu’un cooldown expire avant clôture 4h + 5 minutes, le scan attend son expiration réelle. Délai borné à deux minutes après l’horaire habituel, scan unique et contrôles de fraîcheur conservés ; aucun raccourcissement des 24 h.

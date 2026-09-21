@@ -189,7 +189,7 @@ DEPENDENCIES: list[Dependency] = [
                note="p90 36 h — ne tourne que s'il y a des candidats"),
     Dependency("arbitre de SORTIE (LOCK/CUT)", "exit", 12.0,
                note="p90 8 h — le seul dispositif rentable sur juillet-août"),
-    Dependency("revue de position", "review", 6.0, note="p90 2 h"),
+    Dependency("revue de position", "review", 0.0, note="sur événement"),
     Dependency("superviseur quotidien", "supervisor", 36.0,
                failure_event="SUPERVISOR_ERROR", failure_db=MARKET_DB,
                note="p90 24 h"),
@@ -237,6 +237,10 @@ def check_dependencies(now: float | None = None) -> list[dict]:
     now = now or time.time()
     out = []
     for d in DEPENDENCIES:
+        if d.source == "review":
+            from review_health import check_review_health
+            out.append(check_review_health(now=now, root=ROOT))
+            continue
         ok_ts = _last_ai_cost(d.source)
         ko_ts = (_last_event(d.failure_db or BOT_DB, d.failure_event)
                  if d.failure_event else None)
