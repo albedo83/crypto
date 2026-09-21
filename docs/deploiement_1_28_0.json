@@ -1,0 +1,1142 @@
+{
+  "haiku_smoke": {
+    "symbol": "OP",
+    "status": "ok",
+    "error": null,
+    "facts": [],
+    "rejected": [
+      "outside_time_window"
+    ],
+    "batch_id": "1789989106424406880-OP",
+    "searches": 1,
+    "sources": [
+      {
+        "url": "https://optimism.io/blog/governance-in-season-8-the-next-phase",
+        "title": "Governance in Season 8: The Next Phase - Optimism",
+        "cited_text": "Governance Minimized Decision Making: Optimistic approvals allow us to lower the barriers to participation for important stakeholders while maintainin..."
+      },
+      {
+        "url": "https://docs.optimism.io/notices/upgrade-14",
+        "title": "Upgrade 14 MT-Cannon and Isthmus L1 Contracts | Optimism Docs",
+        "cited_text": "OP Mainnet, Soneium Mainnet, Ink Mainnet are expected to execute Upgrade 14 on April 25th, 2025."
+      }
+    ],
+    "fetch_errors": []
+  },
+  "version": "1.28.0",
+  "tests_python": 140,
+  "tests_dom": 2,
+  "health": {
+    "master": {
+      "version": "1.28.0",
+      "ws_connected": true,
+      "ws_reconnects": 0,
+      "last_price_s": 7.0,
+      "snapshot_version": 2,
+      "snapshot_age_s": 1.0,
+      "btc_z": 0.213,
+      "n_bots": 4
+    },
+    "bots": {
+      "paper": {
+        "status": "ok",
+        "price_age_s": 7.0,
+        "scan_age_s": 1.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 3,
+        "paused": false
+      },
+      "live": {
+        "status": "ok",
+        "price_age_s": 7.0,
+        "scan_age_s": 1.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 3,
+        "paused": false
+      },
+      "junior": {
+        "status": "ok",
+        "price_age_s": 7.0,
+        "scan_age_s": 1.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 3,
+        "paused": false
+      },
+      "baby": {
+        "status": "ok",
+        "price_age_s": 7.0,
+        "scan_age_s": 1.0,
+        "exchange_ok": true,
+        "degraded": [],
+        "positions_count": 3,
+        "paused": false
+      }
+    },
+    "provider_limit_reached": false,
+    "external_accounted_usd": 32.4186,
+    "system_audit": {
+      "anomalies": [
+        {
+          "severite": "moyenne",
+          "titre": "Revue de position STALE 11.7h vs plafond 6h",
+          "constat": "dependances_de_service.review : dernier appel réussi il y a 11.7h, plafond 6h, p90 2h. Statut STALE.",
+          "hypothese": "La revue de position ne s'est pas rafraîchie depuis presque deux fois son plafond. Soit le déclencheur du cycle review est bloqué, soit aucun candidat éligible n'a été présenté depuis 11.7h alors que la cadence normale est bien plus rapide (p90 2h).",
+          "verification": "Vérifier les logs du rôle review : a-t-il été appelé et a-t-il échoué, ou n'a-t-il pas été appelé du tout ? Confirmer que les 3 positions live ouvertes sont bien passées en revue. Anomalie déjà remontée le 2026-09-19 (34h) — cas ici distinct et postérieur, mais surveiller si récurrence chronique."
+        }
+      ],
+      "ras": "Cohérence appariée NEAR S5 LONG : même raison de sortie (opp_floor), écart de prix de sortie de seulement 0.03% — pas de biais de mesure. L'écart de gross_bps (-137bps) s'explique par la différence de taille (175.7 vs 215.9) et l'exécution réelle vs simulée, structurellement attendu. Comptabilité live (écart 0.0034) et paper (écart -0.0155) réconcilient au centime près. Échantillon post-redéploiement minuscule (runtime depuis 07:05 aujourd'hui : 1 trade live, 2 paper) — aucune conclusion de distribution possible. La divergence live/backtest (-115.87) relève de la performance/du régime, pas d'une anomalie système. Fraîcheur des données live toutes OK ; oi_history FROZEN est un arrêt déclaré (hors périmètre bot live) et non une anomalie. Budget IA en dépassement (31.04$/30$) déjà remonté les 2026-09-19 et non re-signalé faute de cas nouveau distinct.",
+      "_model": "claude-opus-4-8",
+      "prompt_hash": "050925875e",
+      "ts": 1789983015,
+      "current_review_health": {
+        "dependance": "revue de position",
+        "source": "review",
+        "status": "OK",
+        "age_h": 12.65,
+        "max_age_h": null,
+        "checked_at": 1789986416.9231966,
+        "note": "Sur événement ; absence d’appel ≠ panne. Détecteur et demandes surveillés.",
+        "detector_age_s": 55.7,
+        "last_success_ts": 1789940886,
+        "message": "Détecteur actif ; aucune demande de revue en attente"
+      }
+    },
+    "external_context": {
+      "version": "external-v2",
+      "status": "partial",
+      "checked_at": 1789986204.673161,
+      "requested_symbols": [
+        "SNX",
+        "MINA",
+        "AVAX",
+        "APT",
+        "SEI",
+        "NEAR",
+        "AAVE",
+        "COMP"
+      ],
+      "facts": [
+        {
+          "id": "56e8e4ae6104b8ce",
+          "symbol": "AVAX",
+          "claim": "La mise à niveau Helicon est programmée sur le Mainnet, améliorant l'économie du staking",
+          "url": "https://build.avax.network/blog/helicon-upgrade",
+          "published_at": null,
+          "event_at": "2026-09-22T15:00:00Z",
+          "event_kind": "scheduled",
+          "event_start": 1790089200.0,
+          "event_end": 1790089200.0,
+          "time_precision": "time",
+          "category": "governance",
+          "source_type": "primary_domain_checked",
+          "support_quote": "Helicon is scheduled to activate on Mainnet on September 22, 2026 at 11:00 AM ET (15:00...",
+          "uncertainty": "Heure UTC déduite de la mention 15:00",
+          "source": {
+            "url": "https://build.avax.network/blog/helicon-upgrade",
+            "title": "Helicon: Improved Staking Economics and Continuous Execution | Avalanche Builder Hub",
+            "cited_text": "Helicon is scheduled to activate on Mainnet on September 22, 2026 at 11:00 AM ET (15:00...",
+            "retrieval": "web_citation"
+          },
+          "observed_at": 1789986138.8074057,
+          "expires_at": 1790007738.8074057
+        },
+        {
+          "id": "de11d30c139bc5e8",
+          "symbol": "MACRO",
+          "claim": "Publication des transactions internationales et position d'investissement des États-Unis (T2 2026) prévue par le BEA",
+          "url": "https://www.bea.gov/news/schedule",
+          "published_at": null,
+          "event_at": "2026-09-24",
+          "event_kind": "scheduled",
+          "event_start": 1790208000.0,
+          "event_end": 1790294400.0,
+          "time_precision": "day",
+          "category": "macro",
+          "source_type": "primary_domain_checked",
+          "support_quote": "September 24 8:30 AM N ews U.S. International Transactions and Investment Position, 2nd Quarter 2026",
+          "uncertainty": "Heure non vérifiable dans l’extrait ; journée seule. Heure locale ET convertie en UTC",
+          "source": {
+            "url": "https://www.bea.gov/news/schedule",
+            "title": "Official calendar",
+            "cited_text": "September 24 8:30 AM N ews U.S. International Transactions and Investment Position, 2nd Quarter 2026",
+            "retrieval": "direct_https"
+          },
+          "observed_at": 1789986184.179564,
+          "expires_at": 1790007784.179564
+        }
+      ],
+      "coverage": {
+        "SNX": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789986204.673161,
+          "checked_at": 1789986204.673161,
+          "searches": 4,
+          "source_count": 4,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789986106849129468-SNX"
+        },
+        "NEAR": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789986204.673161,
+          "checked_at": 1789986204.673161,
+          "searches": 3,
+          "source_count": 4,
+          "accepted": 0,
+          "rejected": [
+            "event_date_not_in_quote"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789986139178500163-NEAR"
+        },
+        "MINA": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789986204.673161,
+          "checked_at": 1789986204.673161,
+          "searches": 3,
+          "source_count": 3,
+          "accepted": 0,
+          "rejected": [
+            "unsupported_quote"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789986106850531889-MINA"
+        },
+        "AVAX": {
+          "status": "sourced_fact",
+          "attempted_at": 1789986204.673161,
+          "checked_at": 1789986204.673161,
+          "searches": 2,
+          "source_count": 5,
+          "accepted": 1,
+          "rejected": [],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789986106851575796-AVAX"
+        },
+        "ARB": {
+          "status": "error",
+          "attempted_at": 1789985206.8257766,
+          "checked_at": 1789973587.436022,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789985205387269937-ARB"
+        },
+        "OP": {
+          "status": "error",
+          "attempted_at": 1789985206.8257766,
+          "checked_at": 1789973587.436022,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789985205631304736-OP"
+        },
+        "SUI": {
+          "status": "error",
+          "attempted_at": 1789985206.8257766,
+          "checked_at": 1789973587.436022,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789985205634917328-SUI"
+        },
+        "APT": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789986204.673161,
+          "checked_at": 1789986204.673161,
+          "searches": 3,
+          "source_count": 3,
+          "accepted": 0,
+          "rejected": [
+            "Timezone required"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789986137615349994-APT"
+        },
+        "MACRO": {
+          "status": "partial",
+          "attempted_at": 1789986204.673161,
+          "checked_at": 1789986204.673161,
+          "searches": 0,
+          "source_count": 3,
+          "accepted": 1,
+          "rejected": [
+            "outside_time_window",
+            "outside_time_window",
+            "outside_time_window"
+          ],
+          "error": "calendar_fetch_failed",
+          "fetch_errors": [
+            {
+              "url": "https://www.bls.gov/schedule/2026/home.htm",
+              "error": "HTTPStatusError"
+            }
+          ],
+          "batch_id": "1789986171775566655-MACRO"
+        },
+        "SEI": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789986204.673161,
+          "checked_at": 1789986204.673161,
+          "searches": 3,
+          "source_count": 4,
+          "accepted": 0,
+          "rejected": [
+            "event_date_not_in_quote",
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789986138811628570-SEI"
+        },
+        "AAVE": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789986204.673161,
+          "checked_at": 1789986204.673161,
+          "searches": 3,
+          "source_count": 4,
+          "accepted": 0,
+          "rejected": [
+            "unsupported_quote"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789986166751626449-AAVE"
+        },
+        "COMP": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789986204.673161,
+          "checked_at": 1789986204.673161,
+          "searches": 3,
+          "source_count": 3,
+          "accepted": 0,
+          "rejected": [],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789986170945767313-COMP"
+        },
+        "PENDLE": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789974410.935046,
+          "checked_at": 1789974410.935046,
+          "searches": 3,
+          "source_count": 4,
+          "accepted": 0,
+          "rejected": [],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789974383768260098-PENDLE"
+        },
+        "DYDX": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789978100.044051,
+          "checked_at": 1789978100.044051,
+          "searches": 2,
+          "source_count": 2,
+          "accepted": 0,
+          "rejected": [
+            "event_date_not_in_quote"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789978042126332070-DYDX"
+        },
+        "DOGE": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789978100.044051,
+          "checked_at": 1789978100.044051,
+          "searches": 3,
+          "source_count": 3,
+          "accepted": 0,
+          "rejected": [],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789978043092376651-DOGE"
+        },
+        "WLD": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789978100.044051,
+          "checked_at": 1789978100.044051,
+          "searches": 2,
+          "source_count": 4,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789978044030010203-WLD"
+        },
+        "BLUR": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789978100.044051,
+          "checked_at": 1789978100.044051,
+          "searches": 3,
+          "source_count": 4,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window",
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789978067155746670-BLUR"
+        },
+        "LINK": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789978100.044051,
+          "checked_at": 1789978100.044051,
+          "searches": 2,
+          "source_count": 2,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789978071402644921-LINK"
+        },
+        "PYTH": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789981790.9395554,
+          "checked_at": 1789981790.9395554,
+          "searches": 3,
+          "source_count": 5,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window",
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789981724261332354-PYTH"
+        },
+        "SOL": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789981790.9395554,
+          "checked_at": 1789981790.9395554,
+          "searches": 2,
+          "source_count": 7,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window",
+            "outside_time_window",
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789981724690557154-SOL"
+        },
+        "INJ": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789981790.9395554,
+          "checked_at": 1789981790.9395554,
+          "searches": 3,
+          "source_count": 2,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window",
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789981728733221338-INJ"
+        },
+        "CRV": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789981790.9395554,
+          "checked_at": 1789981790.9395554,
+          "searches": 4,
+          "source_count": 3,
+          "accepted": 0,
+          "rejected": [],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789981757423373881-CRV"
+        },
+        "LDO": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789981790.9395554,
+          "checked_at": 1789981790.9395554,
+          "searches": 2,
+          "source_count": 3,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window",
+            "secondary_source"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789981759344762788-LDO"
+        },
+        "STX": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789983565.993869,
+          "checked_at": 1789983565.993869,
+          "searches": 3,
+          "source_count": 6,
+          "accepted": 0,
+          "rejected": [],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789983494396103282-STX"
+        },
+        "GMX": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789983565.993869,
+          "checked_at": 1789983565.993869,
+          "searches": 3,
+          "source_count": 4,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789983500400131121-GMX"
+        },
+        "IMX": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789983565.993869,
+          "checked_at": 1789983565.993869,
+          "searches": 3,
+          "source_count": 3,
+          "accepted": 0,
+          "rejected": [],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789983503507206258-IMX"
+        },
+        "SAND": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789983565.993869,
+          "checked_at": 1789983565.993869,
+          "searches": 4,
+          "source_count": 2,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789983526081991643-SAND"
+        },
+        "GALA": {
+          "status": "no_usable_evidence",
+          "attempted_at": 1789983565.993869,
+          "checked_at": 1789983565.993869,
+          "searches": 3,
+          "source_count": 3,
+          "accepted": 0,
+          "rejected": [
+            "outside_time_window"
+          ],
+          "error": null,
+          "fetch_errors": [],
+          "batch_id": "1789983528312260681-GALA"
+        },
+        "TON": {
+          "status": "error",
+          "attempted_at": 1789984304.8878508,
+          "checked_at": null,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789984303199179887-TON"
+        },
+        "BCH": {
+          "status": "error",
+          "attempted_at": 1789984304.8878508,
+          "checked_at": null,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789984303220004657-BCH"
+        },
+        "DOT": {
+          "status": "error",
+          "attempted_at": 1789984304.8878508,
+          "checked_at": null,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789984303225394667-DOT"
+        },
+        "ADA": {
+          "status": "error",
+          "attempted_at": 1789984304.8878508,
+          "checked_at": null,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789984303439793991-ADA"
+        },
+        "XMR": {
+          "status": "error",
+          "attempted_at": 1789984304.8878508,
+          "checked_at": null,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789984303450849374-XMR"
+        },
+        "ENA": {
+          "status": "error",
+          "attempted_at": 1789985206.8257766,
+          "checked_at": null,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789985205359588674-ENA"
+        },
+        "UNI": {
+          "status": "error",
+          "attempted_at": 1789985206.8257766,
+          "checked_at": null,
+          "searches": 0,
+          "source_count": 0,
+          "accepted": 0,
+          "rejected": [],
+          "error": "BadRequestError:Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'You have reached your specifi",
+          "fetch_errors": [],
+          "batch_id": "1789985205383379637-UNI"
+        }
+      },
+      "searches": 24,
+      "rejected": [
+        "outside_time_window",
+        "unsupported_quote",
+        "Timezone required",
+        "event_date_not_in_quote",
+        "outside_time_window",
+        "event_date_not_in_quote",
+        "unsupported_quote",
+        "outside_time_window",
+        "outside_time_window",
+        "outside_time_window"
+      ],
+      "sources": [
+        {
+          "url": "https://blog.synthetix.io/2026-roadmap-update-q2/",
+          "title": "Out from the Shadows - Synthetix Q2 Roadmap Update",
+          "cited_text": "Multi-collateral going live is the gateway to the rest of the 2026 roadmap: basis trade vaults, the SLP public launch, and eventually the ‘Digital Dol..."
+        },
+        {
+          "url": "https://sips.synthetix.io/sips/sip-423/",
+          "title": "SIP-423: sUSD Retirement & Staking Reform - SIPs",
+          "cited_text": "This SIP proposes retiring legacy sUSD, restructuring the Debt Jubilee, and reforming SNX staking to establish a sustainable long-term foundation for ..."
+        },
+        {
+          "url": "https://blog.synthetix.io/deprecation-of-synths-on-optimism/",
+          "title": "Deprecation of Synths on Optimism",
+          "cited_text": "After April 30, 2026 until December 31, 2026 A discount applies to redemptions after April 30th and increases linearly at 12.5% of the frozen oracle p..."
+        },
+        {
+          "url": "https://blog.synthetix.io/2026-roadmap/",
+          "title": "Synthetix 2026 Roadmap",
+          "cited_text": "There are no more VCs holding, no ecosystem funds dribbling into the market, and no more team unlocks - no more supply overhang left in the chart."
+        },
+        {
+          "url": "https://minaprotocol.com/",
+          "title": "Mina Protocol: Lightest Blockchain for Secure DApps",
+          "cited_text": "ANNOUNCEMENT / 2026-09-08 / A mesa is a raised plateau: flat, stable, and expansive. It&#x27;s a fitting name for what just landed on Mina mainnet."
+        },
+        {
+          "url": "https://minaprotocol.com/blog/q2-2026-mina-ecosystem-update",
+          "title": "Q2 2026 Mina Ecosystem Update | Mina Protocol",
+          "cited_text": "🌉 Nori: The Nori bridge is undergoing an audit with zellic. The final report is expected to be published in Q3 2026."
+        },
+        {
+          "url": "https://minaprotocol.com/blog/road-to-mesa-feb-2026",
+          "title": "Road to Mesa: Status Update (Feb 2026) | Mina Protocol",
+          "cited_text": "Exchange Outreach: We have officially commenced outreach to exchanges to begin the coordination required for a smooth hard fork transition."
+        },
+        {
+          "url": "https://build.avax.network/blog/helicon-upgrade",
+          "title": "Helicon: Improved Staking Economics and Continuous Execution | Avalanche Builder Hub",
+          "cited_text": "Helicon Upgrade hits Mainnet September ... reward curve.Back · Helicon is scheduled to activate on Mainnet on September 22, 2026 at 11:00 AM ET (15:00...\nThe new threshold applies to validations whose staking period starts on or after the activation of the Helicon network upgrade. Validators whose staki...\nThe minimum validation period drops from 336 hours (two weeks) to 48 hours."
+        },
+        {
+          "url": "https://build.avax.network/docs/nodes/maintain/upgrade",
+          "title": "Upgrade Your AvalancheGo Node | Avalanche Builder Hub",
+          "cited_text": "ACP-267: Primary Network validator uptime requirement increases from 80% to 90%.ACP-267 Update: Primary Network validators must maintain at least 90% ..."
+        },
+        {
+          "url": "https://build.avax.network/docs/avalanche-l1s/upgrade/considerations",
+          "title": "Considerations | Avalanche Builder Hub",
+          "cited_text": "Updates are usually optional, but from time to time (much less frequently than regular updates) there will be an update that includes a mandatory netw..."
+        },
+        {
+          "url": "https://status.avax.network/",
+          "title": "Avalanche Status - Avax.Network",
+          "cited_text": "No incidents reported today. No incidents reported."
+        },
+        {
+          "url": "https://www.avax.network/about/blog/avalanche-foundation-announces-the-infrabuidl-program?_hsenc=p2ANqtz--kBIykOdGzRk6dyXLmgq1g-vvx2vSJdhBULJ7C4zrmLRTKjkk5ZwItCxUR9hbKW-iAEp6O",
+          "title": "The Avalanche Foundation Announces the infraBUIDL() Program",
+          "cited_text": "Read More · Announcement · Aug 18, 2026 / By Ava Labs / 3 Minute Read · Ava Labs Announces Leadership Evolution to Support Its Next Phase of Growth Re..."
+        },
+        {
+          "url": "https://aptosnetwork.com/currents/aptos-tokenomics-update",
+          "title": "Aptos Tokenomics Update: Moving to Performance-Driven Supply Mechanisms",
+          "cited_text": "Supply dynamics are already improving without intervention: the four-year unlock cycle for initial investors and core contributors concludes in Octobe...\nAs Aptos Foundation continues to develop the details, additional information will be shared with the community, including as part of any formal govern..."
+        },
+        {
+          "url": "https://aptosnetwork.com/currents/aptos-tokenomics-overview",
+          "title": "Aptos Tokenomics Overview | Aptos Network",
+          "cited_text": "5,000,000 APT available initially ... the following schedule: ... 3/48ths of such tokens unlock on the 13th month after mainnet launch and each month ..."
+        },
+        {
+          "url": "https://forum.aptosfoundation.org/t/aip-141-update-gas-schedule-increase-gas-fee-10x/17358",
+          "title": "AIP 141: Update gas schedule, increase gas fee 10x - General - Aptos Forum",
+          "cited_text": "Voting period ends on Mar 19, 2026, 3:47:10 PM UTC."
+        },
+        {
+          "url": "https://blog.sei.io/the-eidos-upgrade-replacing-seis-storage-database-while-the-chain-is-running/",
+          "title": "The Eidos Upgrade: replacing Sei’s storage database while the chain is running",
+          "cited_text": "The first phase of Eidos reached Sei mainnet with the v6.6 release in August 2026. EVM state began moving into its own database, and a rebuilt pruning...\nThe larger parts of the Eidos upgrade, such as FlatKV with its lattice hash, the LittDB-backed receipt store, the off-node archive, will arrive in sub..."
+        },
+        {
+          "url": "https://blog.sei.io/announcements/usdc-cctp-v2-are-live-on-sei/",
+          "title": "USDC & CCTP V2 are Live on Sei",
+          "cited_text": "This integration must be completed by June 15, 2026, prior to Cosmos deprecation · Existing CosmWasm contracts and IBC message paging remain unaffecte..."
+        },
+        {
+          "url": "https://blog.sei.io/announcements/sei-v6-4-is-live-on-mainnet-what-it-means-for-ibc/",
+          "title": "Sei v6.4 Is Live on Mainnet: What It Means for IBC",
+          "cited_text": "v6.4 does not disable inbound IBC transfers on its own. The technical capability ships with v6.4, but the actual change will only take effect after a ..."
+        },
+        {
+          "url": "https://blog.sei.io/keeping-the-sei-network-safe-from-quantum-computers/",
+          "title": "Keeping the Sei Network safe from quantum computers",
+          "cited_text": "SIP-5 is a proposal and it is written that way on purpose. It defines the minimum needed to keep accounts working across a quantum transition and leav..."
+        },
+        {
+          "url": "https://github.com/near/nearcore/releases/tag/2.14.0-rc.1",
+          "title": "Release 2.14.0-rc.1 · near/nearcore",
+          "cited_text": "This release upgrades the protocol version from 85 to 87. Voting for protocol version 87 will start on Wednesday September 23rd 00:00 UTC. To continue...\nIf voting succeeds in one epoch, the protocol upgrade to version 87 is expected to happen 7-14 hours after the voting epoch ends.\nCODE_COLOR: CODE_YELLOW_TESTNET RELEASE_VERSION: 2.14.0-rc.1 PROTOCOL_UPGRADE: TRUE DATABASE_UPGRADE: TRUE SECURITY_UPGRADE: FALSE · Remove gas reward..."
+        },
+        {
+          "url": "https://github.com/near/nearcore/releases/tag/2.14.0-rc.2",
+          "title": "Release 2.14.0-rc.2 · near/nearcore",
+          "cited_text": "CODE_COLOR: CODE_GREEN_TESTNET RELEASE_VERSION: 2.14.0-rc.2 PROTOCOL_UPGRADE: FALSE DATABASE_UPGRADE: FALSE SECURITY_UPGRADE: FALSE This release inclu..."
+        },
+        {
+          "url": "https://github.com/near/nearcore/releases",
+          "title": "Releases · near/nearcore",
+          "cited_text": "CODE_COLOR: CODE_YELLOW_MAINNET RELEASE_VERSION: 2.12.0 PROTOCOL_UPGRADE: TRUE DATABASE_UPGRADE: TRUE SECURITY_UPGRADE: FALSE · The contract runtime h..."
+        },
+        {
+          "url": "https://www.near.org/blog/near-2025-milestones",
+          "title": "A Monumental Year for Sharded Scaling, Cross-Chain ...",
+          "cited_text": "NEAR launched on mainnet over five years ago, and $NEAR is now fully unlocked, making NEAR one of the most mature and transparent cryptoeconomic ecosy..."
+        },
+        {
+          "url": "https://governance.aave.com/t/risk-stewards-cap-and-irm-changes-on-aave-v3-2026-09-16/25653",
+          "title": "Risk Stewards: Cap and IRM Changes on Aave V3 / 2026.09.16 - Risk - Aave",
+          "cited_text": "Aave V3 Core: Decrease optimalUsageRatio for USDT from 94.00% to 93.00%. Aave V3 Horizon: Increase the supply cap for JAAA from 40,000,000 to 50,000,0..."
+        },
+        {
+          "url": "https://governance.aave.com/t/al-technical-assessment-aave-arc/25638",
+          "title": "AL Technical Assessment Aave <> Arc - Assessments - Aave",
+          "cited_text": "Arc was in a private mainnet phase when assessed, before its announced public mainnet availability on 16 September 2026, and public a......\nTitle: [Network Technical Assessment] Aave Arc Author: Aave Labs Date: 2026-09-14 Preliminary assessment status."
+        },
+        {
+          "url": "https://governance.aave.com/t/arfc-deploy-aave-v4-on-arc/25170",
+          "title": "[ARFC] Deploy Aave V4 on Arc - New Market - Aave",
+          "cited_text": "Summary This ARFC proposes deploying Aave Protocol V4 on Arc Network. Motivation Aave Labs proposes deploying Aave V4 on Arc, the institutional-grade ..."
+        },
+        {
+          "url": "https://aave.com/docs/resources/changelog",
+          "title": "Changelog | Aave Protocol Documentation",
+          "cited_text": "... Aave v3.7 completes its rollout with deployments to Ethereum (Core, ...\n\nAave V4 launches on Ethereum mainnet with a hub-and-spoke liquidity archi..."
+        },
+        {
+          "url": "https://docs.compound.finance/v2/governance/",
+          "title": "Compound v2 Docs | Governance",
+          "cited_text": "Voting lasts for 3 days; if a majority, and at least 400,000 votes are cast for the proposal, it is queued in the Timelock, and can be implemented 2 d..."
+        },
+        {
+          "url": "https://compound.finance/governance/proposals/289",
+          "title": "Compound | Proposal Detail #289",
+          "cited_text": "The proposal seeks a one year investment of 499,000 COMP of Treasury funds into the Trust Setup vault described above, to generate interest on 5% of t..."
+        },
+        {
+          "url": "https://docs.compound.finance/",
+          "title": "Compound III Documentation",
+          "cited_text": "Data collected on: 2026-02-28 12:34:36.611 UTC."
+        },
+        {
+          "url": "https://www.bea.gov/news/schedule",
+          "title": "Official calendar",
+          "cited_text": "Release Schedule | U.S. Bureau of Economic Analysis (BEA) Skip to main content An official website of the United States government Toggle navigation Main navigation Data by Topic by Place by Economic Account Tools Interactive Data Application Programming Interface (API) Global Value Chain Analyzer Income Distribution Analysis Tool (IDAT) Country Facts BEARFACTS Industry Facts GDP & Personal Income Mapping RIMS II eFile News Economy at a Glance News Releases Release Schedule The BEA Wire | BEA's Official Blog Survey of Current Business Archive For Journalists Research Offices of Research Meet the Researchers Papers Special Sworn Researcher Program Research Using Company-Level Data Fellowship Program Resources Learning Center Methodologies Multimedia Article Collections For Congressional Users For Developers For Students About Who We Are BEA Leadership Innovation at BEA Advisory Committees Budget and Performance Policies and Information Working at BEA Help Contact Us Ask an Expert For Survey Respondents Frequently Asked Questions (FAQ) Glossary Guidelines for Citing BEA Home News Release Schedule Release Schedule Primary tabs Upcoming Releases Full Schedule 2025 Schedule N ews Release D ata Release V isual Data A rticle Clear Year 2026 Release September 24 8:30 AM N ews U.S. International Transactions and Investment Position, 2nd Quarter 2026 September 30 8:30 AM N ews GDP (Third Estimate), Industries, Corporate Profits, State GDP, and State Personal Income, 2nd Quarter 2026; State PCE, 2025 September 30 8:30 AM N ews Personal Income and Outlays, August 2026 October 6 8:30 AM N ews U.S. International Trade in Goods and Services, August 2026 October 6 10:00 AM D ata Services Supplied Through Affiliates, 2024 October 29 8:30 AM N ews GDP (Advance Estimate), 3rd Quarter 2026 October 29 8:30 AM N ews Personal Income and Outlays, September 2026 November 4 8:30 AM N ews U.S. International Trade in Goods and Services, September 2026 November 20 8:30 AM N ews Activities of U.S. Multinational Enterprises, 2024 November 25 8:30 AM N ews GDP (Second Estimate) and Corporate Profits, 3rd Quarter 2026 November 25 8:30 AM N ews Personal Income and Outlays, October 2026 December 2 8:30 AM N ews GDP by County and Personal Income by County, 2025 December 8 8:30 AM N ews U.S. International Trade in Goods and Services, October 2026 December 10 8:30 AM N ews Real Personal Consumption Expenditures by State and Real Personal Income by State, 2025 December 18 8:30 AM N ews U.S. International Transactions and Investment Position, 3rd Quarter 2026 December 23 8:30 AM N ews GDP (Third Estimate), Industries, Corporate Profits, State GDP, and State Personal Income, 3rd Quarter 2026 December 23 8:30 AM N ews Personal Income and Outlays, November 2026 To Be Announced 2026 N ews Outdoor Recreation Economic Statistics, U.S. and States, 2025 Quick Links Economy at a Glance News Releases Release Schedule The BEA Wire | BEA's Official Blog Survey of Current Business Archive For Journalists Additional Formats Print Schedule Online Calendar Subscription ICS Machine-Readable Format JSON Media Contacts News Media Connie O'Connell (301) 278-9003 Connie.OConnell@bea.gov News Media Thomas Dail (301) 278-9003 Thomas.Dail@bea.gov Download Acrobat Reader Page last modified on 9/21/26 Bureau of Economic Analysis 4600 Silver Hill Road • Suitland, MD 20746 Contact Us Working at BEA Frequently Asked Questions Our Policies Privacy Commitment to Scientific Integrity Data Dissemination Practices Open Data USA.gov Business USA No FEAR Act FOIA U.S. Department of Commerce Emergency Status The BEA Wire | BEA's Official Blog News Release Feed (RSS) Sign up for Email Notifications",
+          "retrieved_at": 1789986172.3594885,
+          "retrieval": "direct_https"
+        },
+        {
+          "url": "https://www.federalreserve.gov/monetarypolicy/fomccalendars.htm",
+          "title": "Official calendar",
+          "cited_text": "﻿ The Fed - Meeting calendars and information Skip to main content An official website of the United States Government Here's how you know Official websites use .gov A .gov website belongs to an official government organization in the United States. Secure .gov websites use HTTPS A lock ( Lock Locked padlock icon ) or https:// means you've safely connected to the .gov website. Share sensitive information only on official, secure websites. Back to Home Board of Governors of the Federal Reserve System Stay Connected Federal Reserve Facebook Page Federal Reserve Instagram Page Federal Reserve YouTube Page Federal Reserve Flickr Page Federal Reserve LinkedIn Page Federal Reserve Threads Page Federal Reserve X Page Federal Reserve Bluesky Page Subscribe to RSS Subscribe to Email Recent Postings Calendar Publications Site Map A-Z index Careers FAQs Videos Contact Search Submit Search Button Advanced Toggle Dropdown Menu Board of Governors of the Federal Reserve System The Federal Reserve, the central bank of the United States, provides the nation with a safe, flexible, and stable monetary and financial system. Main Menu Toggle Button Sections Search Toggle Button Search Search Submit Button Submit About the Fed Structure of the Federal Reserve System The Fed Explained Board Members Advisory Councils Federal Reserve Banks Federal Reserve Bank and Branch Directors Federal Reserve Act Currency Board Meetings Board Votes Careers Do Business with the Board Holidays Observed - K.8 Ethics & Values Contact Requesting Information (FOIA) FAQs Economic Education Fed Financial Statements Financial Innovation News & Events Press Releases Speeches & Testimony Calendar Videos Photo Gallery Conferences Monetary Policy Federal Open Market Committee About the FOMC Meeting calendars and information Transcripts and other historical materials FAQs Monetary Policy Principles and Practice Notes Policy Implementation Policy Normalization Policy Tools Reports Monetary Policy Report Beige Book Federal Reserve Balance Sheet Developments Review of Monetary Policy Strategy, Tools, and Communications Overview Supervision & Regulation Supervision Community Banks Regional Banks and Foreign Banks with U.S. Assets < $100 Billion Large Banks and Large Foreign Banks Global Systemically Important Banks Financial Market Utilities Consumer Compliance Resources for Supervised Institutions Reports Federal Reserve Supervision and Regulation Report Reporting Forms Recent Reporting Form Updates Information Collections Under Review Financial Statements Securities Exchange Act of 1934 Applications/Structure Change FFIEC Municipal and Government Securities Activities Monitoring Micro Data Reference Manual Legal Developments Enforcement Actions and Legal Developments Mergers, Acquisitions, and Other Applications Process Filing Information Board and Reserve Bank Actions Supervision and Regulation Letters By Year By Topic Regulatory and Policy Resources Federal Reserve Act Bank Holding Company Act Regulations Supervision Manuals Federal Reserve Regulatory Service Disaster Preparedness and Recovery Resources Banking and Data Structure Beneficial Ownership Reports U.S. Domestically Chartered Commercial Banks Minority Depository Institutions U.S. Offices of Foreign Entities Financial Holding Companies Interstate Branching Securities Underwriting and Dealing Subsidiaries State Member Banks Supervised by the Federal Reserve Financial Stability Financial Stability Assessments About Financial Stability Types of Financial System Vulnerabilities & Risks Monitoring Risk Across the Financial System Proactive Monitoring of Markets & Institutions Financial Stability & Stress Testing Financial Stability Coordination & Actions Responding to Financial System Emergencies Cooperation on Financial Stability Reports Financial Stability Report Payment Systems Regulations & Statutes Regulation CC (Availability of Funds and Collection of Checks) Regulation II (Debit Card Interchange Fees and Routing) Regulation HH (Financial Market Utilities) Other Regulations and Statutes Payment Policies Federal Reserve's Key Policies for the Provision of Financial Services Guidelines for Evaluating Joint Account Requests Overnight Overdrafts Payment System Risk Sponsorship for Priority Telecommunication Services Reserve Bank Payment Services & Data Automated Clearinghouse Services Check Services Currency and Coin Services Daylight Overdrafts and Fees FedNow ® Service Fedwire Funds Services Fedwire Securities Services Fiscal Agency Services Master Account and Services Database National Settlement Service Financial Market Utilities & Infrastructures Supervision & Oversight of Financial Market Infrastructures Designated Financial Market Utilities International Standards for Financial Market Infrastructures Research, Reports, & Committees Federal Reserve Payments Study (FRPS) Payments Research Reports Payments System Policy Advisory Committee Economic Research Meet the Researchers Working Papers and Notes Finance and Economics Discussion Series (FEDS) FEDS Notes International Finance Discussion Papers (IFDP) Data, Models and Tools Economic Research Data FRB/US Model Estimated Dynamic Optimization (EDO) Model Survey of Consumer Finances (SCF) Data Data Download Program Bank Assets and Liabilities Aggregate Reserves of Depository Institutions and the Monetary Base - H.3 Assets and Liabilities of Commercial Banks in the U.S. - H.8 Assets and Liabilities of U.S. Branches and Agencies of Foreign Banks Charge-Off and Delinquency Rates on Loans and Leases at Commercial Banks Senior Financial Officer Survey Senior Loan Officer Opinion Survey on Bank Lending Practices Bank Structure Data U.S. Domestically Chartered Commercial Banks Minority Depository Institutions Structure and Share Data for the U.S. Offices of Foreign Banks Business Finance Commercial Paper Finance Companies - G.20 New Security Issues, State and Local Governments New Security Issues, U.S. Corporations Dealer Financing Terms Senior Credit Officer Opinion Survey on Dealer Financing Terms Exchange Rates and International Data Foreign Exchange Rates - H.10/G.5 International Summary Statistics Securities Holdings and Transactions Statistics Reported by Banks and Other Financial Firms in the United States Structure and Share Data for U.S. Offices of Foreign Banks Financial Accounts Financial Accounts of the United States - Z.1 Household Finance Consumer Credit - G.19 Household Debt Service Ratios Mortgage Debt Outstanding Survey of Consumer Finances (SCF) Survey of Household Economics and Decisionmaking Industrial Activity Industrial Production and Capacity Utilization - G.17 Interest Rates Selected Interest Rates - H.15 Micro Data Reference Manual (MDRM) Micro and Macro Data Collections Money Stock and Reserve Balances Factors Affecting Reserve Balances - H.4.1 Money Stock Measures - H.6 Other Yield Curve Models and Data Consumers & Communities Regulations Community Reinvestment Act (CRA) All Regulations Supervision & Enforcement CA Letters Enforcement Actions Independent Foreclosure Review Community Development Housing and Neighborhood Revitalization Small Business and Entrepreneurship Employment and Workforce Development Community Development Finance Rural Community and Economic Development Conferences Research & Analysis Survey of Household Economics and Decisionmaking Research Publications & Data Analysis Community Advisory Council Resources for Consumers Frauds and Scams Mortgage and Foreclosure Resources Federal Reserve Community Development Resources Home Monetary Policy Federal Open Market Committee Federal Open Market Committee Please enable JavaScript if it is disabled in your browser or access the information through the links provided below. About the FOMC Meeting calendars and information Transcripts and other historical materials FAQs Meeting calendars, statements, and minutes (2021-2027) FOMC Search Search all FOMC materials FOMC Document Filter Advanced Search The FOMC holds eight regularly scheduled meetings during the year and other meetings as needed. Links to policy statements and minutes are in the calendars below. The minutes of regularly scheduled meetings are released three weeks after the date of the policy decision. Committee membership changes at the first regularly scheduled meeting of the year. FOIA The FOMC makes an annual report pursuant to the Freedom of Information Act. The FOMC FOIA Service Center provides information about the status of FOIA requests and the FOIA process. 2026 | 2025 | 2024 | 2023 | 2022 | 2021 Future Year: 2027 2026 FOMC Meetings January 27-28 Statement: PDF | HTML Implementation Note Press Conference Statement on Longer-Run Goals and Monetary Policy Strategy Minutes: PDF | HTML (Released February 18, 2026) March 17-18* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released April 08, 2026) April 28-29 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released May 20, 2026) June 16-17* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released July 08, 2026) July 28-29 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released August 19, 2026) September 15-16* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML October 27-28 December 8-9* * Meeting associated with a Summary of Economic Projections. 2025 FOMC Meetings January 28-29 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released February 19, 2025) March 18-19* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released April 09, 2025) May 6-7 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released May 28, 2025) June 17-18* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released July 09, 2025) July 29-30 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released August 20, 2025) August 22 (notation vote) Statement on Longer-Run Goals and Monetary Policy Strategy September 16-17* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released October 08, 2025) October 28-29 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released November 19, 2025) December 9-10* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released December 30, 2025) * Meeting associated with a Summary of Economic Projections. 2024 FOMC Meetings January 30-31 Statement: PDF | HTML Implementation Note Press Conference Statement on Longer-Run Goals and Monetary Policy Strategy Minutes: PDF | HTML (Released February 21, 2024) March 19-20* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released April 10, 2024) Apr/May 30-1 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released May 22, 2024) June 11-12* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released July 03, 2024) July 30-31 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released August 21, 2024) September 17-18* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released October 09, 2024) November 6-7 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released November 26, 2024) December 17-18* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released January 08, 2025) * Meeting associated with a Summary of Economic Projections. 2023 FOMC Meetings Jan/Feb 31-1 Statement: PDF | HTML Implementation Note Press Conference Statement on Longer-Run Goals and Monetary Policy Strategy Minutes: PDF | HTML (Released February 22, 2023) March 21-22* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released April 12, 2023) May 2-3 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released May 24, 2023) June 13-14* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released July 05, 2023) July 25-26 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released August 16, 2023) September 19-20* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released October 11, 2023) Oct/Nov 31-1 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released November 21, 2023) December 12-13* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released January 03, 2024) * Meeting associated with a Summary of Economic Projections. 2022 FOMC Meetings January 25-26 Statement: PDF | HTML Implementation Note Press Conference Statement on Longer-Run Goals and Monetary Policy Strategy Principles for Reducing the Size of the Federal Reserve's Balance Sheet Minutes: PDF | HTML (Released February 16, 2022) March 15-16* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released April 06, 2022) May 3-4 Statement: PDF | HTML Implementation Note Press Conference Plans for Reducing the Size of the Federal Reserve's Balance Sheet Minutes: PDF | HTML (Released May 25, 2022) June 14-15* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released July 06, 2022) July 26-27 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released August 17, 2022) September 20-21* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released October 12, 2022) November 1-2 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released November 23, 2022) December 13-14* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released January 04, 2023) * Meeting associated with a Summary of Economic Projections. 2021 FOMC Meetings January 26-27 Statement: PDF | HTML Implementation Note Press Conference Statement on Longer-Run Goals and Monetary Policy Strategy Minutes: PDF | HTML (Released February 17, 2021) March 16-17* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released April 07, 2021) April 27-28 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released May 19, 2021) June 15-16* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released July 07, 2021) July 27-28 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released August 18, 2021) September 21-22* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released October 13, 2021) November 2-3 Statement: PDF | HTML Implementation Note Press Conference Minutes: PDF | HTML (Released November 24, 2021) December 14-15* Statement: PDF | HTML Implementation Note Press Conference Projection Materials PDF | HTML Minutes: PDF | HTML (Released January 05, 2022) * Meeting associated with a Summary of Economic Projections. 2027 FOMC Meetings January 26-27 March 16-17* April 27-28 June 8-9* July 27-28 September 14-15* October 26-27 December 7-8* * Meeting associated with a Summary of Economic Projections. Note: A two-day meeting is scheduled for January 25-26, 2028. Each meeting date is tentative until confirmed at the meeting immediately preceding it. Back to Top Last Update: September 16, 2026 Board of Governors of the Federal Reserve System About the Fed News & Events Monetary Policy Supervision & Regulation Financial Stability Payment Systems Economic Research Data Consumers & Communities Connect with the Board Tools and Information Contact Publications Freedom of Information (FOIA) Office of Inspector General Budget & Performance | Audit No FEAR Act Español Website Policies | Privacy Program Accessibility Stay Connected Federal Reserve Facebook Page Federal Reserve Instagram Page Federal Reserve YouTube Page Federal Reserve Flickr Page Federal Reserve LinkedIn Page Federal Reserve Threads Page Link to Federal Reserve X Page Link to Federal Reserve Bluesky Page Subscribe to RSS Subscribe to Email Board of Governors of the Federal Reserve System 20th Street and Constitution Avenue N.W., Washington, DC 20551",
+          "retrieved_at": 1789986172.672434,
+          "retrieval": "direct_https"
+        },
+        {
+          "url": "https://www.ecb.europa.eu/press/calendars/mgcgc/html/index.en.html",
+          "title": "Official calendar",
+          "cited_text": "Meetings of the Governing Council and the General Council Skip to: Skip to navigation Skip to content Skip to footer EN Български Čeština Dansk Deutsch Eλληνικά English Español Eesti keel Suomi Français Gaeilge Hrvatski Magyar Italiano Lietuvių Latviešu Malti Nederlands Polski Português Română Slovenčina Slovenščina Svenska Menu Monetary policy & markets Monetary policy & markets Our monetary policy strategy, the tools we use and the impact they have Overview of monetary policy and markets Quick links What is monetary policy? Strategy review Asset purchase programmes Latest monetary policy press conference 10 September 2026 Introduction Benefits of price stability Scope of monetary policy Transmission mechanism Decisions, statements & accounts Monetary policy strategy Strategy review Medium-term orientation Two per cent inflation target Economic, monetary and financial analysis Economic analysis Monetary and financial analysis Monetary policy operations Open market operations TLTROs Asset purchase programmes Securities lending Pandemic emergency purchase programme Standing facilities Minimum reserves Two-tier system Euro central bank liquidity lines Swap lines EUREP Chronology of Eurosystem liquidity lines Emergency liquidity assistance (ELA) Liquidity analysis Collateral Eligibility criteria and assessment Marketable assets Non-marketable assets List of eligible marketable assets User guide Collateral management Eligible SSSs Eligible links Eligible triparty agents Risk mitigation ECAF Risk control Haircut categories Valuation Loan-level requirements Contacts Structure of the euro area economy Economic policy Fiscal policies External trade Effective exchange rates Financial structure Financial markets Financial intermediaries Economic diversity Labour market Market contact groups Bond market (BMCG) Money market (MMCG) Debt Issuance Market Contact Group (DIMCG) ECB Operations managers group (ECB OMG) Foreign exchange (FXCG) Institutional Investor Dialogue (IID) Monetary Analysis Contact Group (MACG) Payments & financial stability Payments & financial stability Insights into our work on financial stability and payments and market infrastructures Overview of payments and financial stability Quick links Digital euro Payments news & events Market contact groups TARGET professional use documents and links Latest Financial Stability Review 5 June 2025 Payments TARGET Services Shared features T2 Facts and figures Governance T2S Governance Facts and figures Pricing TIPS Cross-border payments Governance Facts and figures Onboarding ECMS Governance Pontes Governance TARGET professional use documents & links Shared features documents & links T2 documents & links T2S documents & links TIPS documents & links ECMS documents & links Pontes documents & links Tokenisation and DLT Appia Exploratory work Retail payments Retail payments strategy ECB as a catalyst SEPA Instant payments Market contact groups Collateral management harmonisation SCoRE Implementation FAQ AMI-SeCo Cyber resilience Financial market infrastructures TIBER-EU Euro Cyber Resilience Board Oversight Payment systems TARGET2-Securities Electronic payments Securities settlement systems and central counterparties Critical service providers Correspondent and custodian banks SecuRe Pay forum Reserve management services Key aspects Range of services Cash professionals Cash handling Authentication devices Recirculation of banknotes Common detector interface specifications Banknote manufacturer accreditation Financial stability Introduction to financial stability Macroprudential Measures Financial stability contact groups Statistics Statistics Access to all ECB statistics and background information Overview of ECB statistics Quick links Key figures ECB Data Portal Statistical releases PRESS RELEASE - ECB launches pilot project for research access to confidential statistical data 13 March 2025 Frequently accessed Euro exchange rates Key ECB interest rates Euro short-term rate (€STR) Interest rate benchmarks Working group on euro risk-free rates Inflation Euro area yield curves All statistics & background All key statistics All data services Data reporting & standards Governance and quality framework Co-operation and standards Banks’ data reporting DPM Alliance IReF JBRC BIRD AnaCredit AnaCredit Q&A Public consultations Banking industry dialogue on ESCB statistics and integrated reporting SDMX – statistical data exchange model INEXDA - granular data network The euro The euro All you need to know about our common currency Overview of the euro Quick links Cash professionals Banknote and coins statistics Euro exchange rates Redesign process of our future banknotes Digital euro What it is Digital euro and privacy How it works Why we need it Innovation platform Pilot Timeline and progress In-depth information Governance and stakeholder engagement Technical documents and research Scheme rulebook Frequently asked questions Cash The Eurosystem cash strategy The role of cash Issuance and circulation Access to and acceptance of cash Frequently asked questions Banknotes Future banknotes Current banknotes Denominations Design elements Security features Anti-counterfeiting Banknote production and stocks Damaged and inked-stained banknotes Environment, health and safety Product environmental footprint Research and development Images and reproduction rules Information and training materials Coins €2 €1 50 cent 20 cent 10 cent 5 cent 2 cent 1 cent Common sides €2 commemorative coins Security features Collector coins Joining the euro area Bulgaria (2026) Croatia (2023) Lithuania (2015) Latvia (2014) Estonia (2011) Slovakia (2009) Cyprus (2008) Malta (2008) Slovenia (2007) Initial changeover (2002) Exchanging national cash Austria Belgium Bulgaria Croatia Cyprus Estonia Finland France Germany Greece Ireland Latvia Italy Lithuania Luxembourg Malta The Netherlands Portugal Slovakia Slovenia Spain Visually impaired people Research Research In-depth studies and expert analyses covering diverse topics and fields Overview of ECB research Quick links Conferences & seminars Opportunities for researchers Research Bulletin Economic research Research agenda Monetary policy, strategy and implementation Fiscal policy and governance within EMU International macro and finance Real sector and microeconomic analysis Forecasting and business cycle analysis Macro-finance, systemic risk and macroprudential policy Financial institutions, microprudential policy, financial markets and payments Opportunities for researchers Wim Duisenberg Fellowship Regular Research Visitors Lamfalussy Fellowship Summer Research Graduate Programme Student Research Traineeship Programme Legal Research Legal conferences and seminars Legal Research Programme Research papers Papers by authors ECB researchers Research networks News & publications News & Publications Browse all news & publications News Press releases Statistical releases Speeches Interviews The ECB Blog Podcasts & webcasts Payments news & events Press hub Publications Governing Council decisions Monetary policy decisions Other decisions Monetary policy accounts Economic Bulletin Articles Focus Monthly Bulletin Macroeconomic projections Annual reports & financial statements Annual Report Annual Accounts Eurosystem balance sheet Weekly financial statements Disaggregated data Financial stability publications Financial Stability Review Special features & boxes Macroprudential Bulletin Research publications Research Bulletin Working papers Discussion papers Occasional papers Legal working papers Statistics papers Other publications Letters to MEPs Convergence Report International Role of the Euro Events & calendars Monetary policy press conference Monetary policy statements Monetary policy statements at a glance Conferences & seminars Forum on Central Banking Young Economist Prize Past editions Civil society engagement Calendars Weekly schedule Meetings of the Governing Council and the General Council Statistical calendars Money, banking and financial markets Euro area economic and financial developments by institutional sector External transactions and positions Prices, output, demand and labour Government finance Supervisory and prudential statistics Eurosystem's tender operations Reserve maintenance period ECB banking supervision About us About us All about us Our leadership Executive Board Governing Council General Council Supervisory Board Our organisation ECB, ESCB and the Eurosystem ECB mission Eurosystem mission Strategic intents Organisational principles Our tasks and responsibilities Monetary policy Statistics Financial stability and macroprudential policy Our tasks Strategy Institutional framework Banknotes Payments & securities European relations European cooperation EMU economic governance International affairs International relations and analysis International central bank cooperation Foreign reserves and own funds Foreign exchange operations Organisation chart of the ECB Capital subscription Corporate governance Eurosystem financial literacy network Our values Independence Transparency Integrity Ethics Network of Multilateral Organizations (ENMO) Accountability Our history, arts and culture Our history 25 years of the ECB Economic and Monetary Union EU enlargement European Union Archives Committee of Governors European Monetary Cooperation Fund Delors Committee European Monetary Institute European Central Bank Arts and culture Our legal framework EUR-Lex - Frequently asked questions Institutional framework Climate change and the ECB Our climate and nature plan Climate-related financial disclosures Managing climate-related risks Supporting the green transition Fostering wider action Our approach Environmental protection Climate Insurance Protection Gap Sanctions imposed by the ECB Procurement Tenders Archive Electronic tendering system Access to documents Public Register of Documents Contacts Address ECB public holidays ECB & You ECB & You All about ECB & You Explainers Key things to know about the ECB ECB and beyond Our currency, the euro Making payments Monetary policy Unconventional monetary policy instruments Banking supervision Climate change and the ECB Test your knowledge Youth initiatives Girls' IT Bootcamp Financial literacy in Europe The gender gap in financial literacy Everyone needs stability ECB & You broadcasts ECB in Frankfurt Ask us Visit us Main building Careers Careers All about careers Vacancies Who we are About the ECB Meet our people Life in Frankfurt Why we value diversity Women@ECB Diversity networks What we offer Benefits & rewards Contract types Fixed-term Short-term ESCB/IO Other Traineeship Graduate programme ECB Scholarship for Women ECB Scholarship for Ukrainian graduates How you can join us How to apply How we hire You have been selected, what next? Fixed-term employee Short-term employee Trainee Cost-free secondee FAQs Search Menu ANYTIME PAST MONTH PAST YEAR Search Options Image Preview Sort by ANYTIME PAST MONTH PAST YEAR Suggestions Home Media Explainers Research & Publications Statistics Monetary Policy The €uro Payments & Markets Careers Suggestions Sort by Relevance Date Schedules for the meetings of the Governing Council and General Council of the ECB and related press conferences 30/09/2026 Governing Council of the ECB: non-monetary policy meeting (in Frankfurt) 28/10/2026 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 29/10/2026 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 25/11/2026 Governing Council of the ECB: non-monetary policy meeting (in Frankfurt) 26/11/2026 General Council meeting of the ECB in Frankfurt 16/12/2026 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 17/12/2026 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 03/02/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 04/02/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 24/02/2027 Governing Council of the ECB: non-monetary policy meeting (virtual) 17/03/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 18/03/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 07/04/2027 Governing Council of the ECB: non-monetary policy meeting (virtual) 28/04/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 29/04/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 19/05/2027 Governing Council of the ECB: non-monetary policy meeting (virtual) 09/06/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 10/06/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 23/06/2027 Governing Council of the ECB: non-monetary policy meeting (virtual) 24/06/2027 General Council meeting of the ECB (virtual) 21/07/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 22/07/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 08/09/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 09/09/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 29/09/2027 Governing Council of the ECB: non-monetary policy meeting (virtual) 27/10/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 28/10/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 24/11/2027 Governing Council of the ECB: non-monetary policy meeting in Frankfurt 25/11/2027 General Council meeting of the ECB in Frankfurt 15/12/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 16/12/2027 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 02/02/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 03/02/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 23/02/2028 Governing Council of the ECB: non-monetary policy meeting (virtual) 22/03/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 23/03/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 05/04/2028 Governing Council of the ECB: non-monetary policy meeting (virtual) 03/05/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 04/05/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 24/05/2028 Governing Council of the ECB: non-monetary policy meeting (virtual) 07/06/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 08/06/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 21/06/2028 Governing Council of the ECB: non-monetary policy meeting (virtual) 22/06/2028 General Council meeting of the ECB (virtual) 19/07/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 20/07/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 06/09/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 07/09/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 27/09/2028 Governing Council of the ECB: non-monetary policy meeting (virtual) 11/10/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt 12/10/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference 22/11/2028 Governing Council of the ECB: non-monetary policy meeting in Frankfurt 23/11/2028 General Council meeting of the ECB in Frankfurt 06/12/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 1) 07/12/2028 Governing Council of the ECB: monetary policy meeting in Frankfurt (Day 2), followed by press conference All pages in this section Are you happy with this page? Yes No What made you unhappy? Page not working Information not useful Design not attractive Something else Thank you for letting us know! Useful links About us Work with us Explainers Press photos Contacts Where to find us Using our site Disclaimer & Copyright Technical updates Responsible disclosure Corporate Policies Data Protection Privacy statement for the website Cookies policy Accessibility statement Language policy Site directory Copyright 2026, European Central Bank Follow us Our website uses cookies We use functional cookies to store user preferences; analytics cookies to improve website performance; third-party cookies set by third-party services integrated into the website. You have the choice to accept or reject them. For more information or to review your preference on the cookies and server logs we use, we invite you to: Read our privacy statement Learn more about how we use cookies I understand and I accept the use of cookies I do not accept the use of cookies Thank you! Thank you! We have updated our privacy policy We are always working to improve this website for our users. To do this, we use the anonymous data provided by cookies. See what has changed in our privacy policy I understand and I accept the use of cookies I do not accept the use of cookies Your cookie preference has expired We are always working to improve this website for our users. To do this, we use the anonymous data provided by cookies. Learn more about how we use cookies I understand and I accept the use of cookies I do not accept the use of cookies This feature requires cookies. Modify",
+          "retrieved_at": 1789986172.7917423,
+          "retrieval": "direct_https"
+        }
+      ],
+      "model": "claude-opus-4-8",
+      "batch_id": "1789986204673214188",
+      "scope_batches": {
+        "SNX": "1789986106849129468-SNX",
+        "MINA": "1789986106850531889-MINA",
+        "AVAX": "1789986106851575796-AVAX",
+        "APT": "1789986137615349994-APT",
+        "SEI": "1789986138811628570-SEI",
+        "NEAR": "1789986139178500163-NEAR",
+        "AAVE": "1789986166751626449-AAVE",
+        "COMP": "1789986170945767313-COMP",
+        "MACRO": "1789986171775566655-MACRO"
+      },
+      "caution": "Couverture partielle. Domaine et extrait vérifiés ; interprétation et dates extraites par IA.",
+      "age_s": 212.22701501846313,
+      "economy": {
+        "next_run": 1789993404.673161,
+        "model": "claude-haiku-4-5-20251001"
+      }
+    },
+    "experiments": {
+      "enabled": true,
+      "version": "shadow-v2",
+      "status": "running",
+      "started_at": "2026-09-21T09:37:48.894286+00:00",
+      "review_at": "2026-10-19T09:37:48.894286+00:00",
+      "observation_days": 0.03411065671454977,
+      "review_due": false,
+      "warnings": [
+        "Lacunes de collecte : comparaison non validée, aucune reconstitution rétrospective."
+      ],
+      "gap_count": 4,
+      "last_observation_at": "2026-09-21T10:26:56.055026+00:00",
+      "books": [
+        {
+          "equity": 500.0,
+          "realized_pnl": 0.0,
+          "unrealized_pnl": 0.0,
+          "positions_count": 0,
+          "closed_trades": 0,
+          "exposure_usdt": 0.0,
+          "s1_extensions": 0,
+          "cohort_skips": 0,
+          "status": "running",
+          "warnings": [],
+          "funding_gap_count": 0,
+          "funding_missing_seconds": 0.0,
+          "id": "exp_control",
+          "variant": "control",
+          "label": "Témoin",
+          "initial_capital": 500,
+          "pnl": 0.0,
+          "drawdown_pct": 0,
+          "series": [
+            [
+              1789983468,
+              500.0
+            ],
+            [
+              1789983772,
+              500.0
+            ],
+            [
+              1789984072,
+              500.0
+            ],
+            [
+              1789984385,
+              500.0
+            ],
+            [
+              1789984685,
+              500.0
+            ],
+            [
+              1789984985,
+              500.0
+            ],
+            [
+              1789985285,
+              500.0
+            ],
+            [
+              1789985585,
+              500.0
+            ],
+            [
+              1789985885,
+              500.0
+            ],
+            [
+              1789986185,
+              500.0
+            ]
+          ],
+          "delta_vs_control": 0.0
+        },
+        {
+          "equity": 500.0,
+          "realized_pnl": 0.0,
+          "unrealized_pnl": 0.0,
+          "positions_count": 0,
+          "closed_trades": 0,
+          "exposure_usdt": 0.0,
+          "s1_extensions": 0,
+          "cohort_skips": 0,
+          "status": "running",
+          "warnings": [],
+          "funding_gap_count": 0,
+          "funding_missing_seconds": 0.0,
+          "id": "exp_s1",
+          "variant": "s1",
+          "label": "S1 gagnant : +24 h",
+          "initial_capital": 500,
+          "pnl": 0.0,
+          "drawdown_pct": 0,
+          "series": [
+            [
+              1789983468,
+              500.0
+            ],
+            [
+              1789983772,
+              500.0
+            ],
+            [
+              1789984072,
+              500.0
+            ],
+            [
+              1789984385,
+              500.0
+            ],
+            [
+              1789984685,
+              500.0
+            ],
+            [
+              1789984985,
+              500.0
+            ],
+            [
+              1789985285,
+              500.0
+            ],
+            [
+              1789985585,
+              500.0
+            ],
+            [
+              1789985885,
+              500.0
+            ],
+            [
+              1789986185,
+              500.0
+            ]
+          ],
+          "delta_vs_control": 0.0
+        },
+        {
+          "equity": 500.0,
+          "realized_pnl": 0.0,
+          "unrealized_pnl": 0.0,
+          "positions_count": 0,
+          "closed_trades": 0,
+          "exposure_usdt": 0.0,
+          "s1_extensions": 0,
+          "cohort_skips": 0,
+          "status": "running",
+          "warnings": [],
+          "funding_gap_count": 0,
+          "funding_missing_seconds": 0.0,
+          "id": "exp_cap3",
+          "variant": "cap3",
+          "label": "Maximum 3 par stratégie et sens",
+          "initial_capital": 500,
+          "pnl": 0.0,
+          "drawdown_pct": 0,
+          "series": [
+            [
+              1789983468,
+              500.0
+            ],
+            [
+              1789983772,
+              500.0
+            ],
+            [
+              1789984072,
+              500.0
+            ],
+            [
+              1789984385,
+              500.0
+            ],
+            [
+              1789984685,
+              500.0
+            ],
+            [
+              1789984985,
+              500.0
+            ],
+            [
+              1789985285,
+              500.0
+            ],
+            [
+              1789985585,
+              500.0
+            ],
+            [
+              1789985885,
+              500.0
+            ],
+            [
+              1789986185,
+              500.0
+            ]
+          ],
+          "delta_vs_control": 0.0
+        }
+      ],
+      "references": [
+        {
+          "id": "live",
+          "label": "SENIOR",
+          "equity": 587.5966890474,
+          "start_equity": 579.3349320474,
+          "started_at": "2026-09-21T09:37:55.240729+00:00",
+          "pnl_since_start": 8.261756999999989,
+          "return_pct": 1.4260760991577888,
+          "note": "Comptabilité interne, latent brut ; positions et capital initiaux différents. Référence ancrée au premier prix frais : 2026-09-21T09:37:55.240729+00:00"
+        },
+        {
+          "id": "paper",
+          "label": "PAPER-ALFRED",
+          "equity": 725.8319337528512,
+          "start_equity": 713.9842199070381,
+          "started_at": "2026-09-21T09:37:55.240729+00:00",
+          "pnl_since_start": 11.847713845813132,
+          "return_pct": 1.6593803498004094,
+          "note": "Comptabilité interne, latent brut ; positions et capital initiaux différents. Référence ancrée au premier prix frais : 2026-09-21T09:37:55.240729+00:00"
+        }
+      ],
+      "comparison_valid": false,
+      "cost_model": {
+        "description": "Virtuel : frais 9 bps + glissement 4 bps aller-retour ; funding estimé au taux précédent. Liquidité illimitée, sans liquidation simulée. Hors abonnement assistant. Revue à 28 jours, aucune promotion automatique en Live."
+      }
+    },
+    "dashboard_release_notes_verified": true
+  },
+  "accounting": {
+    "backfilled": 132,
+    "repeat_insertions": 0,
+    "schedule": {
+      "next_run": 1789993404.673161
+    },
+    "model": "claude-haiku-4-5-20251001"
+  },
+  "external_unique_accounted": 134,
+  "repeat_backfill": 0,
+  "restart": {
+    "old_pid": 1742217,
+    "new_pid": 1744939,
+    "started_ts": 1789986253.172318,
+    "launch_ts": 1789986254.1844199
+  },
+  "campaign": {
+    "started": 1789983468.894286,
+    "gaps": 4,
+    "comparison_valid": false
+  },
+  "ai_modes": "entry/CUT/LOCK shadow",
+  "files": {
+    "ai_external_context.py": {
+      "before": "a1b5745f36579e4a81756c910d583fa5b942767443909422b8bbaa4a1cd4b753",
+      "after": "fd09cc0a7435969f398e22fae9844e96d732e8f62afcc642177557df0f3cb82e"
+    },
+    "ai_cost.py": {
+      "before": "8ff34749caf87624650e84f54041b4c5a0b97f33eb31034c165727d23d0b91fc",
+      "after": "42fc8a47df97cbcd767107db527b0a54a5925e0118b63a7386ef0830f0f90867"
+    },
+    "external_usage.py": {
+      "before": null,
+      "after": "75dcec3ded6af2d09562e5798e964877868511f498c0f1df04fb498dc433d45f"
+    },
+    "test_external_economy.py": {
+      "before": null,
+      "after": "f14ddc366ae5ae3678b12683f7e134a3b5b5b81b8c8bc721d37d603fc2869c4b"
+    },
+    "alfred/__init__.py": {
+      "before": "88942b391e181d2c7f0a6057802891f2db1d4ffbe7d8d82e570737b81ef3b159",
+      "after": "66ee0fb6d9635e71cbffeff190c34c4ec5dfd9f0cc3ba42e4da9a359aa272970"
+    },
+    "CHANGELOG.md": {
+      "before": "1685b5f762a3660c7ef9b9ffcc2c17c0fec6a721cc1b33ee7f87bfaf89cba5b8",
+      "after": "2a71d5efb9d05023f393ec932dd174670bcbf5aa1a66e232bf50294f05c4e2a2"
+    },
+    "alfred/CHANGELOG.md": {
+      "before": "e646091fcb3b7861ce7d7ab5675a2ce9c3ae5e55ddf0bac4334d1a0a1cc2aa99",
+      "after": "56a00200ec6a960cc6e3da44706baf295c86d8f5d3ff353b26a495382550ed4c"
+    },
+    "alfred/web/app.py": {
+      "before": "9d952ad03f59a70e92f39dfb5667077f17d75dad5f2693c510b196ce3e866600",
+      "after": "55ff68c146ff968c086634c0b11ad1bbdc14b6450589faec869888c301f1118e"
+    },
+    "alfred/web/static/master.html": {
+      "before": "9aac7abe970359168e5af8757bffa8454402117353975f07d8fe2bbc02c1df29",
+      "after": "f5e6eba660d3a6d9ce254a6ca1a4e317581979e5683fe527df608e4cbf2142fc"
+    }
+  }
+}
