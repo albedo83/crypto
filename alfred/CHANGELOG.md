@@ -3,6 +3,14 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.26.0 — 2026-09-21
+
+- **Veille IA corrigée** : dossiers séparés par actif, domaines officiels imposés par l’outil et contrôlés après extraction ; registre des 34 actifs, lecture directe des calendriers macro officiels. Fini le lot global dominé par les agrégateurs.
+- **Événements à venir** : annonces anciennes et calendriers sans date de publication acceptables si événement programmé daté ; précision journée conservée, expiration à l’événement, citation originale obligatoire.
+- **Robustesse et visibilité** : échec isolé par dossier, couverture et erreurs par actif, rotation sans symboles sautés, archives même si extraction échoue.
+- **Arbitres** : lien exigé entre événement, sens et durée du trade ; aucun biais directionnel automatique sur calendrier ou mise à niveau. Nouveaux prompts external-v2 ; IA exclusivement Live, toujours en observation.
+- **Validation** : 106 tests Python, test DOM et essai web réel isolé. Aucun gain de rentabilité encore démontré ; règles de trading et expériences conservées.
+
 ## v1.25.0 — 2026-09-20
 
 - **Mission IA** : arbitres recentrés sur les informations externes sourcées (incidents, annonces, unlocks et macro), au lieu de réinterpréter les signaux techniques. Sans preuve fraîche applicable : GO/HOLD.

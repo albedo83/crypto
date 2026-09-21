@@ -31,11 +31,13 @@ L'audit `audit_live_paper.py` ne calcule qu'une attribution comptable ; ne pas
 transformer ses écarts en économies causales imputées à l'IA.
 
 
-Livraison courante 1.25.0 : veille web asynchrone et mission IA externe sourcée,
-GO/HOLD sans preuve. Entrée/CUT/LOCK toujours shadow, cohortes de prompt nouvelles.
-Voir `docs/external_context_1_25_0.md`. Aucune réduction des frais API utilisée
-comme critère de gain. Le web n'était pas activé dans les anciens appels arbitres.
+Livraison courante 1.26.0 : veille external-v2 par actif, domaines imposés,
+calendriers et annonces anciennes d’événements futurs traités séparément des
+nouvelles récentes. Extrait exact exigé, précision journée conservée, erreurs
+isolées et couverture visible. IA exclusivement Live, entrée/CUT/LOCK shadow ;
+aucune rentabilité attribuable démontrée. Voir `docs/external_context_1_26_0.md`.
 Les lacunes de la campagne shadow-v1 restent visibles ; ne jamais les effacer.
+Consigne du 21 septembre : ne pas donner d’estimation du coût IA journalier.
 
 
 Rule 1 — Think Before Coding.

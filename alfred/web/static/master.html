@@ -837,9 +837,10 @@ async function refreshExternal(){
     if(!r.ok)throw Error('unavailable');const d=await r.json();
     $('externalFacts').replaceChildren();
     $('externalStatus').textContent=`État : ${d.status} · contrôle : ${d.checked_at?new Date(d.checked_at*1000).toISOString():'—'} · ${(d.facts||[]).length} faits utilisables`;
-    $('externalCoverage').textContent='Dernier lot demandé : '+(d.requested_symbols||[]).join(', ')+' · couverture partielle, conservation maximale 6 h.';
+    $('externalCoverage').textContent='Dernier lot demandé : '+(d.requested_symbols||[]).join(', ')+' · '+(d.searches||0)+' recherches · couverture partielle, conservation maximale 6 h.';
+    const coverage=document.createElement('p');coverage.textContent=Object.entries(d.coverage||{}).map(([symbol,c])=>symbol+': '+c.status+' ('+(c.source_count||0)+' sources, '+(c.accepted||0)+' faits)'+(c.error?' — couverture incomplète':'')+((c.fetch_errors||[]).length?' : '+c.fetch_errors.map(e=>e.url).join(', '):'')).join(' · ');$('externalFacts').appendChild(coverage);
     (d.facts||[]).forEach(f=>{
-      const row=document.createElement('p');row.textContent=`${f.symbol} — ${f.claim} · publication ${f.published_at} · événement ${f.event_at} · ${f.uncertainty||''} `;
+      const row=document.createElement('p');row.textContent=`${f.symbol} — ${f.claim} · publication ${f.published_at||'non indiquée'} · ${f.event_kind==='scheduled'?'programmé':'événement'} ${f.event_at}${f.time_precision==='day'?' (heure inconnue)':''} · ${f.uncertainty||''} `;
       try{const u=new URL(f.url);if(u.protocol==='https:'){const a=document.createElement('a');a.href=u.href;a.textContent='Source';a.target='_blank';a.rel='noopener noreferrer';row.appendChild(a);}}catch(_){}
       $('externalFacts').appendChild(row);
     });
