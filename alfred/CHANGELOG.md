@@ -3,6 +3,12 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.29.1 — 2026-09-22
+
+- **Univers** : TON retiré de la liste des tokens et du secteur L1 — délisté par Hyperliquid, données figées depuis le 15 juin. Ses indicateurs figés en faisaient un faux candidat d'entrée permanent et faussaient la moyenne de son secteur et la dispersion. Décision d'intégrité, pas un gain attendu. Détail : `docs/ton_delisting_2026_09.md`.
+- **Expériences** : la 1.29.0 avait gelé la campagne shadow-v2 (code modifié) ; ouverture de shadow-v3, shadow-v2 conservée et non fusionnée.
+- **Backtest** : référence régénérée sur l'univers corrigé ; parité bot/backtest re-vérifiée. Règles et paramètres de trading inchangés par ailleurs.
+
 ## v1.29.0 — 2026-09-22
 
 - **JEV (TypeSafe) en observation** : nouveau juge à réponses typées sur Live uniquement, appliqué aux mêmes candidats d'entrée et positions examinées que les arbitres existants. Probabilités journalisées ; aucun mode d'action, aucun effet sur les ordres ni les tailles.

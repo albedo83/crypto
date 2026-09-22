@@ -44,6 +44,10 @@ Livraison 1.29.0 (22 septembre) : JEV (TypeSafe, `ai_jev.py`, clé
 les mêmes candidats/positions que les arbitres. Aucun mode d'action n'existe ;
 scorecard contrefactuel dans /master (panneau ⚡ JEV) ou `python3 ai_jev.py`.
 Promotion éventuelle = décision humaine, n ≥ 50 résolus et apport démontré.
+Livraison 1.29.1 : TON retiré de l'univers (délisté HL, figé depuis le
+2026-06-15) ; campagne d'expériences shadow-v3 (toute modif de botinstance.py,
+settings.py, rules.py… gèle la campagne en cours). `docs/ton_delisting_2026_09.md`.
+Vérifier `isDelisted` dans `metaAndAssetCtxs` avant d'accuser un « trou » de données.
 
 
 Rule 1 — Think Before Coding.

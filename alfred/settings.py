@@ -27,19 +27,22 @@ class Params:
     # candle depuis le 2025-09-05 (rebranding MakerDAO→SKY) ; aucun signal
     # possible depuis 9 mois (fail-safe silencieux). Impact chiffré dans
     # docs/alfred_phase6_preview.md (-93pp sur 28m, no-op 6m/3m).
+    # v1.29.1 (2026-09-22) : TON retiré — délisté par Hyperliquid, aucune
+    # candle depuis le 2026-06-15 08:00. Ses features figées (+567 bps/24h)
+    # en faisaient un candidat S1 perpétuel (ordre live rejeté le 09-14) et
+    # biaisaient la moyenne du secteur L1 (S5) et la dispersion.
     trade_symbols: tuple[str, ...] = (
         "ARB", "OP", "AVAX", "SUI", "APT", "SEI", "NEAR",
         "AAVE", "COMP", "SNX", "PENDLE", "DYDX",
         "DOGE", "WLD", "BLUR", "LINK", "PYTH",
         "SOL", "INJ", "CRV", "LDO", "STX", "GMX",
         "IMX", "SAND", "GALA", "MINA",
-        "TON",
         "BCH", "DOT", "ADA", "XMR", "ENA", "UNI",
     )
     reference_symbols: tuple[str, ...] = ("BTC", "ETH")
     trade_blacklist: frozenset[str] = frozenset()  # vidée 2026-06-30 : overfit de sélection décru (walk-forward glissant : retrait gagne 6/7 OOS). Re-blacklister = ré-ajouter des tokens ici.
     sectors: dict = field(default_factory=lambda: {
-        "L1":       ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI", "TON"],
+        "L1":       ["SOL", "AVAX", "SUI", "APT", "NEAR", "SEI"],
         "L1-major": ["BCH", "DOT", "ADA"],
         "Privacy":  ["XMR"],
         "DeFi":     ["AAVE", "CRV", "SNX", "PENDLE", "COMP", "DYDX",

@@ -37,12 +37,12 @@ class ManagerTests(unittest.TestCase):
         return m
 
     def test_new_cohort_preserves_previous_campaign(self):
-        old = Path(self.tmp.name)/'experiments'/'shadow-v1'
+        old = Path(self.tmp.name)/'experiments'/'shadow-v2'
         old.mkdir(parents=True)
         marker = old/'experiment.json'
         marker.write_text('{"old_campaign": true}')
         m = self.manager()
-        self.assertEqual(m.VERSION, 'shadow-v2')
+        self.assertEqual(m.VERSION, 'shadow-v3')
         self.assertEqual(m.status, 'running')
         self.assertEqual(marker.read_text(), '{"old_campaign": true}')
         self.assertNotEqual(m.root, old)
