@@ -145,7 +145,7 @@ def _ts(iso: str | None) -> float | None:
         return None
 
 
-def scorecard(conn) -> dict:
+def scorecard(conn, open_positions: list[dict] | None = None) -> dict:
     """Confronte les verdicts JEV aux trades réels de Live.
 
     Entrée : candidat rapproché du trade ouvert au même scan (même symbole,
@@ -159,6 +159,12 @@ def scorecard(conn) -> dict:
         "FROM trades").fetchall()
     tr = [{"symbol": t[0], "strategy": t[1], "dir": t[2], "entry": _ts(t[3]),
            "closed": t[4] is not None, "pnl": t[5]} for t in trades]
+    # La table trades ne contient que les positions FERMÉES : une position
+    # encore ouverte est « en cours », pas « non entrée ».
+    for p in open_positions or []:
+        tr.append({"symbol": p["symbol"], "strategy": p["strategy"],
+                   "dir": "LONG" if p["direction"] == 1 else "SHORT",
+                   "entry": _ts(p["entry_time"]), "closed": False, "pnl": None})
     def rows(event):
         out = []
         for ts, sym, data in conn.execute(
@@ -246,4 +252,6 @@ if __name__ == "__main__":
     import sqlite3
     root = os.path.dirname(os.path.abspath(__file__))
     con = sqlite3.connect(f"file:{root}/alfred/data/bots/live/bot.db?mode=ro", uri=True)
-    print(json.dumps(scorecard(con), indent=2, ensure_ascii=False))
+    with open(f"{root}/alfred/data/bots/live/state.json") as fh:
+        pos = json.load(fh).get("positions") or []
+    print(json.dumps(scorecard(con, pos), indent=2, ensure_ascii=False))

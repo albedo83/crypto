@@ -548,8 +548,13 @@ def create_app(bots: dict, master) -> FastAPI:
             # v1.29.0 — JEV (TypeSafe) en shadow, Live uniquement.
             try:
                 import ai_jev as _jev
+                with senior._pos_lock:
+                    opened = [{"symbol": p.symbol, "strategy": p.strategy,
+                               "direction": p.direction,
+                               "entry_time": p.entry_time.isoformat()}
+                              for p in senior.positions.values()]
                 with senior.db.lock:
-                    card = _jev.scorecard(senior.db.conn)
+                    card = _jev.scorecard(senior.db.conn, opened)
                     jrows = senior.db.conn.execute(
                         "SELECT ts, event, symbol, data FROM events WHERE event IN "
                         "('JEV_ENTRY_SHADOW','JEV_EXIT_SHADOW','JEV_FAILOPEN') "

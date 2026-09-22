@@ -161,6 +161,10 @@ class ScorecardTests(unittest.TestCase):
         self.assertEqual(e["brier"], round((0.2 ** 2 + 0.2 ** 2) / 2, 4))
         # première CUT à −4, final −10 ⇒ couper aurait sauvé 6
         self.assertEqual((x["positions"], x["cut_positions"], x["delta_if_cut"]), (1, 1, 6.0))
+        # D encore ouverte (absente de trades) : en cours, pas « non entrée »
+        s = jev.scorecard(c, [{"symbol": "D", "strategy": "S9", "direction": -1,
+                               "entry_time": iso(t0 + 8)}])
+        self.assertEqual((s["entry"]["pending"], s["entry"]["not_entered"]), (2, 0))
 
 
 if __name__ == "__main__":

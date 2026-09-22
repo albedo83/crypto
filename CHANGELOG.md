@@ -5,6 +5,7 @@
 - **Univers** : TON retiré de la liste des tokens et du secteur L1 — délisté par Hyperliquid, données figées depuis le 15 juin. Ses indicateurs figés en faisaient un faux candidat d'entrée permanent et faussaient la moyenne de son secteur et la dispersion. Décision d'intégrité, pas un gain attendu. Détail : `docs/ton_delisting_2026_09.md`.
 - **Expériences** : la 1.29.0 avait gelé la campagne shadow-v2 (code modifié) ; ouverture de shadow-v3, shadow-v2 conservée et non fusionnée.
 - **Backtest** : référence régénérée sur l'univers corrigé ; parité bot/backtest re-vérifiée. Règles et paramètres de trading inchangés par ailleurs.
+- **JEV** : le scorecard compte les positions encore ouvertes comme « en cours » au lieu de « non entrées ».
 
 ## [1.29.0] — 2026-09-22
 
