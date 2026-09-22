@@ -14,6 +14,7 @@ PRICES = {
     "haiku-4-5": (1.00,  5.00, 0.10, 1.25),
     "haiku":     (1.00,  5.00, 0.10, 1.25),
     "sonnet":    (3.00, 15.00, 0.30, 3.75),
+    "jev":       (0.042, 0.00, 0.00, 0.00),   # TypeSafe, sortie gratuite (2026-09)
 }
 _DEFAULT = PRICES["opus-4-8"]        # inconnu → borne haute (opus)
 

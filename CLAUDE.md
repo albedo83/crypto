@@ -39,6 +39,11 @@ isolées et couverture visible. IA exclusivement Live, entrée/CUT/LOCK shadow ;
 aucune rentabilité attribuable démontrée. Voir `docs/external_context_1_26_0.md`.
 Les lacunes de la campagne shadow-v1 restent visibles ; ne jamais les effacer.
 Consigne du 21 septembre : ne pas donner d’estimation du coût IA journalier.
+Livraison 1.29.0 (22 septembre) : JEV (TypeSafe, `ai_jev.py`, clé
+`TYPESAFE_API_KEY`, `AI_JEV_MODE=shadow|off`) juge en shadow, Live seulement,
+les mêmes candidats/positions que les arbitres. Aucun mode d'action n'existe ;
+scorecard contrefactuel dans /master (panneau ⚡ JEV) ou `python3 ai_jev.py`.
+Promotion éventuelle = décision humaine, n ≥ 50 résolus et apport démontré.
 
 
 Rule 1 — Think Before Coding.

@@ -3,6 +3,12 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.29.0 — 2026-09-22
+
+- **JEV (TypeSafe) en observation** : nouveau juge à réponses typées sur Live uniquement, appliqué aux mêmes candidats d'entrée et positions examinées que les arbitres existants. Probabilités journalisées ; aucun mode d'action, aucun effet sur les ordres ni les tailles.
+- **Monitoring** : panneau JEV dans /master — verdicts récents, échecs, contrefactuels entrée/sortie et calibration contre l'issue réelle des trades. Coût API tracé dans AI_COST, hors critère d'évaluation du moteur.
+- **Robustesse** : appels parallèles bornés, échec isolé et journalisé sans bloquer le scan. Règles de trading inchangées ; aucun gain démontré.
+
 ## v1.28.0 — 2026-09-21
 
 - **Veille économique** : Haiku 4.5 dédié, une recherche par actif, sorties et extraits bornés ; aucune escalade automatique vers Opus. Vérifications des sources et dates conservées.

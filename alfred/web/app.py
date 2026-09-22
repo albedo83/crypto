@@ -545,6 +545,21 @@ def create_app(bots: dict, master) -> FastAPI:
                 out["arbiter"] = arb
             except Exception as e:
                 out["arbiter_error"] = str(e)
+            # v1.29.0 — JEV (TypeSafe) en shadow, Live uniquement.
+            try:
+                import ai_jev as _jev
+                with senior.db.lock:
+                    card = _jev.scorecard(senior.db.conn)
+                    jrows = senior.db.conn.execute(
+                        "SELECT ts, event, symbol, data FROM events WHERE event IN "
+                        "('JEV_ENTRY_SHADOW','JEV_EXIT_SHADOW','JEV_FAILOPEN') "
+                        "ORDER BY ts DESC LIMIT 12").fetchall()
+                out["jev"] = {"mode": _jev.config()["mode"], "scorecard": card,
+                              "recent": [{"ts": r[0], "event": r[1], "symbol": r[2],
+                                          "data": json.loads(r[3]) if r[3] else {}}
+                                         for r in jrows]}
+            except Exception as e:
+                out["jev_error"] = str(e)
         # Budget estimé mois-en-cours (couche IA), depuis les tokens loggés.
         # Estimation seulement — la vérité du compte est dans la console
         # Anthropic (y poser le vrai plafond + alerte email).

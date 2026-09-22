@@ -284,6 +284,7 @@ textarea:focus{outline:none;border-color:var(--blue)}
   <div class="card mt"><h3><span class="ico">🤖</span>Analyses IA <span class="dim" style="text-transform:none;letter-spacing:0;font-weight:400">— superviseur (SENIOR) + verdicts d'entrée (observation)</span></h3>
     <div id="aiBudget"></div>
     <div id="aiArbiter"></div>
+    <div id="aiJev"></div>
     <div id="aiSupervisor"></div>
     <div class="section-title" style="margin-top:12px">Revue des positions ouvertes SENIOR</div>
     <div id="aiPosReview"></div>
@@ -606,6 +607,29 @@ function renderAI(d){
     }).join('');
     $('aiArbiter').innerHTML=h+(ds||'<div class="empty">aucune décision d\'arbitrage</div>')+'<hr style="border:0;border-top:1px solid #21262d;margin:10px 0">';
   }else{$('aiArbiter').innerHTML='';}
+  // JEV (TypeSafe) — shadow, Live uniquement (v1.29.0)
+  const jv=d.jev;
+  if(jv){
+    const sc=jv.scorecard||{},en=sc.entry||{},ex=sc.exit||{};
+    const g=en.GO||{},hd=en.HOLD||{};
+    const wr=o=>o.n?Math.round(100*o.wins/o.n)+'%':'--';
+    const br=(b,b0)=>b!=null?`Brier ${Number(b).toFixed(3)} <span class="dim">(base ${Number(b0).toFixed(3)})</span>`:'Brier --';
+    const col=v=>v>0?'green':v<0?'red':'';
+    let h=`<div style="margin-bottom:6px">⚡ <b>JEV</b> <span class="dim">Live · ${esc(jv.mode||'off')} · aucun effet sur les ordres · questions ${esc(sc.questions_hash||'')}</span>`+
+      (sc.failopen?` <span class="yellow">${sc.failopen} échec(s)</span>`:'')+`</div>`;
+    h+=`<div class="dim" style="margin-bottom:4px">Entrées : ${en.n||0} verdicts · ${en.resolved||0} résolus (+${en.pending||0} en cours, ${en.not_entered||0} non entrés) · GO ${g.n||0} (WR ${wr(g)}, ${fmt(g.pnl||0)}$) · HOLD ${hd.n||0} (WR ${wr(hd)}, ${fmt(hd.pnl||0)}$) · Δ si HOLD=veto <b class="${col(en.delta_if_hold_vetoed||0)}">${fmt(en.delta_if_hold_vetoed||0)}$</b> · ${br(en.brier,en.brier_base)}</div>`;
+    h+=`<div class="dim" style="margin-bottom:4px">Sorties : ${ex.n||0} verdicts sur ${ex.positions||0} positions · ${ex.resolved||0} résolues · CUT sur ${ex.cut_positions||0} · Δ si CUT agi <b class="${col(ex.delta_if_cut||0)}">${fmt(ex.delta_if_cut||0)}$</b> <span class="dim">(approx. sans glissement)</span> · ${br(ex.brier,ex.brier_base)}</div>`;
+    const rs=(jv.recent||[]).map(x=>{
+      const v=x.data||{},when=fmtLoc(x.ts*1000);
+      if(x.event==='JEV_FAILOPEN')return `<div class="evt"><span class="ts">${when}</span><span class="type yellow">échec</span><span class="dim">${esc(v.phase||'')}</span><span class="data">${esc(JSON.stringify(v.errors||{}))}</span></div>`;
+      const ent=x.event==='JEV_ENTRY_SHADOW';
+      const dec=ent?v.decision:v.action;
+      const c=(dec==='GO'||dec==='HOLD'&&!ent)?'green':'red';
+      const p=ent?v.win:v.better_exit_now;
+      return `<div class="evt"><span class="ts">${when}</span><span class="type">${esc(x.symbol||'?')}</span><span class="dim">${ent?'entrée':'sortie'} ${esc(v.strategy||'')} ${esc(v.dir||'')}</span><span class="${c}">${esc(dec||'?')}</span><span class="data">${ent?'p(gagnant)':'p(mieux sortir)'} ${p!=null?Number(p).toFixed(2):'--'}${ent?'':' · net '+fmt(v.net_pnl||0)+'$'}</span></div>`;
+    }).join('');
+    $('aiJev').innerHTML=h+(rs||'<div class="empty">aucun verdict JEV pour l\'instant</div>')+'<hr style="border:0;border-top:1px solid #21262d;margin:10px 0">';
+  }else{$('aiJev').innerHTML='';}
   const sup=d.supervisor;
   if(!sup||!sup.report){
     $('aiSupervisor').innerHTML='<div class="empty">aucun rapport superviseur</div>';

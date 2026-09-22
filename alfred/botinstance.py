@@ -420,6 +420,12 @@ class BotInstance:
         res = _aix.arbitrate_safe(batch, market, model=cfg["model"],
                                   timeout=cfg["timeout"])
         self._exit_ai_last_ts = nowts
+        self._jev_shadow("exit", batch, market, {
+            sym: {"strategy": s["strategy"], "dir": s["dir"],
+                  "unrealized_bps": round(s["ur"], 1),
+                  "net_pnl": round(s["net_pnl"], 2),
+                  "hold_hours": round(s["hold_hours"], 1),
+                  "entry_ts_ms": s["entry_ts_ms"]} for sym, s in snap.items()})
         verdicts = res.get("verdicts", {}) or {}
         meta = res.get("meta", {}) or {}
         if meta.get("failopen"):
@@ -1335,6 +1341,41 @@ class BotInstance:
         return rules.evaluate_exit(pos, unrealized, market, self.p,
                                    trail_gate=trail_gate)
 
+    def _jev_shadow(self, phase: str, batch: list, market: dict,
+                    meta_by_sym: dict) -> None:
+        """v1.29.0 — JEV en SHADOW sur la MÊME population que l'arbitre Live.
+        Journalise seulement ; aucune valeur retournée, aucun effet sur
+        les ordres. Toute erreur est absorbée (JEV_FAILOPEN)."""
+        if self.id != "live" or not batch:
+            return
+        try:
+            import ai_jev as _jev
+            cfg = _jev.config()
+            if cfg["mode"] != "shadow":
+                return
+            res = _jev.judge(phase, batch, market, model=cfg["model"],
+                             timeout=cfg["timeout"], max_items=cfg["max_items"])
+            import ai_cost as _aic
+            for sym, v in res["verdicts"].items():
+                usage = v.pop("usage", {})
+                self.db.log_event("AI_COST", None, _aic.cost_event(
+                    "jev_" + phase, v.get("model") or cfg["model"], usage))
+                self.db.log_event(
+                    "JEV_ENTRY_SHADOW" if phase == "entry" else "JEV_EXIT_SHADOW",
+                    sym, {**meta_by_sym.get(sym, {}), **v,
+                          "questions_hash": _jev.QUESTIONS_HASH,
+                          "alfred_version": ALFRED_VERSION})
+            if res["errors"]:
+                self.db.log_event("JEV_FAILOPEN", None, {
+                    "phase": phase, "n": len(batch), "errors": res["errors"]})
+        except Exception as e:
+            log.warning("[%s] jev skip: %s", self.id, e)
+            try:
+                self.db.log_event("JEV_FAILOPEN", None, {
+                    "phase": phase, "errors": {"*": f"{type(e).__name__}:{str(e)[:200]}"}})
+            except Exception:
+                pass
+
     def _available_entry_margin(self):
         if self.broker.is_live and self._exchange_account:
             return self._exchange_account.get("available")
@@ -1512,6 +1553,9 @@ class BotInstance:
                         log.info("[%s] arbiter %s: %d candidats → %d verdicts%s",
                                  self.id, arb_mode, len(batch), len(arb),
                                  " FAIL-OPEN" if meta.get("failopen") else "")
+                        self._jev_shadow("entry", batch, market, {
+                            b["symbol"]: {"strategy": b["strategy"], "dir": b["dir"],
+                                          "z": b["z"]} for b in batch})
             except Exception as e:
                 log.warning("[%s] arbiter skip: %s", self.id, e)
                 arb, arb_mode = {}, "off"
