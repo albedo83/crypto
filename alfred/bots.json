@@ -70,8 +70,8 @@
    "mode": "paper",
    "capital_initial": 518.34,
    "overrides": {},
-   "enabled": false,
-   "_comment": "Expérience de demi-vie de divergence (docs/mirror_halflife_2026_09.md). DÉSACTIVÉ jusqu'au fork de l'état de live : un démarrage sans état forké donnerait un T0 faux. Séquence : arrêt → fork_bot_state → enabled=true → démarrage."
+   "enabled": true,
+   "_comment": "Expérience de demi-vie de divergence (docs/mirror_halflife_2026_09.md). État forké de live le 2026-09-27 11:04 UTC = T0. Re-synchroniser à chaque divergence via fork_bot_state --force."
   }
  ]
 }

@@ -74,4 +74,6 @@ la **série** de demi-vies et d'écarts a une valeur.
 
 | Date | Événement |
 |---|---|
-| 2026-09-27 | Grille figée et committée. Mirror configuré, non démarré. T0 en attente du redémarrage. |
+| 2026-09-27 | Grille figée et committée. Mirror configuré, non démarré. |
+| **2026-09-27 11:04 UTC** | **T0.** Fork de live : 4 positions, capital $518,34, P&L réalisé $17,67, 139 trades. Mirror chargé au démarrage de 11:06. |
+| 2026-09-27 11:10 UTC | Contrôle de T0 : `compare_bots --a live --b mirror --hours 168` → **0 divergence**, 15/15 sorties appariées, taille ×1,00 pour un ratio de soldes ×1,00. Clone exact confirmé. |
