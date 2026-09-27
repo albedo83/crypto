@@ -75,10 +75,19 @@ secrets = NOMS de variables .env) + web unifiée. Noyau de règles **partagé bo
 
 Phases : **1 ✓** noyau pur (iso-résultat BT 32/32 fenêtres, `backtests/compare_trade_dumps.py`) ·
 **2 ✓** MarketDataMaster (observation, auto-audits CANDLE_AUDIT/GAP_REPAIR/WS_RECONNECT) ·
-**3 🔄** paper $1000 en parallel-run vs legacy :8097 — gate = 0 divergence INJUSTIFIÉE sur
-plusieurs jours (`python3 -m alfred.tools.compare_paper`, classification STATE/DATA/PREBOOT/
-CASCADE/ISO/LOGIC). Doctrine : la référence est la cohérence d'ALFRED, pas la duplication du
-legacy — une divergence justifiée par de meilleures données est une amélioration, pas un bug ·
+**3 ✓ (sans objet depuis le 2026-06-12)** paper $1000 en parallel-run vs legacy :8097 — gate
+= 0 divergence INJUSTIFIÉE sur plusieurs jours. Doctrine : la référence est la cohérence
+d'ALFRED, pas la duplication du legacy — une divergence justifiée par de meilleures données
+est une amélioration, pas un bug. L'outil de cet audit a été **rebranché le 2026-09-27 sur
+deux bots Alfred** (`python3 -m alfred.tools.compare_bots [--a live] [--b paper]`,
+classification STATE/DATA/PREBOOT/CASCADE/MANUAL/HORS-FEN/ISO/LOGIC ; la saturation
+de slots est attribuée en STATE car elle interrompt la boucle de candidats) : entre live
+et paper la divergence est ATTENDUE (capitaux et slots différents), l'objet est de
+l'ATTRIBUER, jamais de diagnostiquer par différence de soldes (`docs/bilan_2026_09.md` § 9).
+La taille n'est pas un invariant — elle est comparée au ratio des soldes, ce qui a retrouvé
+seul la décote IA d'entrée (28 entrées, 07-09 → 08-20, −15 à −50 % de notionnel, éteinte
+depuis). **Verdict au 2026-09-27 sur les 35 j postérieurs : écart entièrement attribué,
+0 divergence de noyau** ·
 **4 ✓ LIVE MIGRÉ (2026-06-10)** : le live tourne dans Alfred (bot `live` de `bots.json`,
 clé `HL_PRIVATE_KEY`, capital = equity $680.58, reset décidé par l'utilisateur sans attendre
 la gate phase 3 — 0 position legacy à la bascule). **Legacy :8098 ARRÊTÉ**, bloc commenté
