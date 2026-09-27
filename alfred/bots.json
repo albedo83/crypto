@@ -1,56 +1,77 @@
 {
-  "_comment": "Configuration des bots Alfred. Secrets = NOMS de variables .env, jamais de valeurs. overrides = champs de settings.Params (clé inconnue = erreur fatale au boot). Max 8 bots enabled.",
-  "bots": [
-    {
-      "id": "paper",
-      "label": "PAPER-ALFRED",
-      "color": "#58a6ff",
-      "mode": "paper",
-      "capital_initial": 1000,
-      "overrides": {},
-      "enabled": true
-    },
-    {
-      "id": "live",
-      "label": "SENIOR",
-      "color": "#f0883e",
-      "mode": "live",
-      "private_key_env": "HL_PRIVATE_KEY",
-      "capital_initial": 680.58,
-      "telegram": {"token_env": "TG_BOT_TOKEN", "chat_id_env": "TG_CHAT_ID"},
-      "public_url": "https://echonym.fr/alfred/bot/live",
-      "overrides": {"hard_stop_enabled": true},
-      "enabled": true
-    },
-    {
-      "id": "junior",
-      "label": "JUNIOR",
-      "color": "#3fb950",
-      "mode": "live",
-      "private_key_env": "JUNIOR_HL_PRIVATE_KEY",
-      "account_address": "0xb65d5e52f229B1dAA6534034d7805A82dB7956Fe",
-      "agent_expiry": "2026-10-26",
-      "capital_initial": 332.76,
-      "capital_cap": 500,
-      "telegram": {"token_env": "JUNIOR_TG_BOT_TOKEN", "chat_id_env": "JUNIOR_TG_CHAT_ID"},
-      "public_url": "https://echonym.fr/alfred/bot/junior",
-      "overrides": {},
-      "enabled": true
-    },
-    {
-      "id": "baby",
-      "label": "BABY",
-      "color": "#a371f7",
-      "mode": "live",
-      "private_key_env": "BABY_HL_PRIVATE_KEY",
-      "account_address": "0xda4008f900d2E13DD8B3c3eb2FBFf765073b014c",
-      "agent_expiry": "2026-12-08",
-      "capital_initial": 57.84,
-      "capital_cap": 400,
-      "telegram": {"token_env": "BABY_TG_BOT_TOKEN", "chat_id_env": "BABY_TG_CHAT_ID"},
-      "public_url": "https://echonym.fr/alfred/bot/baby",
-      "overrides": {},
-      "enabled": true
-    }
-  ]
+ "_comment": "Configuration des bots Alfred. Secrets = NOMS de variables .env, jamais de valeurs. overrides = champs de settings.Params (clé inconnue = erreur fatale au boot). Max 8 bots enabled.",
+ "bots": [
+  {
+   "id": "paper",
+   "label": "PAPER-ALFRED",
+   "color": "#58a6ff",
+   "mode": "paper",
+   "capital_initial": 1000,
+   "overrides": {},
+   "enabled": true
+  },
+  {
+   "id": "live",
+   "label": "SENIOR",
+   "color": "#f0883e",
+   "mode": "live",
+   "private_key_env": "HL_PRIVATE_KEY",
+   "capital_initial": 680.58,
+   "telegram": {
+    "token_env": "TG_BOT_TOKEN",
+    "chat_id_env": "TG_CHAT_ID"
+   },
+   "public_url": "https://echonym.fr/alfred/bot/live",
+   "overrides": {
+    "hard_stop_enabled": true
+   },
+   "enabled": true
+  },
+  {
+   "id": "junior",
+   "label": "JUNIOR",
+   "color": "#3fb950",
+   "mode": "live",
+   "private_key_env": "JUNIOR_HL_PRIVATE_KEY",
+   "account_address": "0xb65d5e52f229B1dAA6534034d7805A82dB7956Fe",
+   "agent_expiry": "2026-10-26",
+   "capital_initial": 332.76,
+   "capital_cap": 500,
+   "telegram": {
+    "token_env": "JUNIOR_TG_BOT_TOKEN",
+    "chat_id_env": "JUNIOR_TG_CHAT_ID"
+   },
+   "public_url": "https://echonym.fr/alfred/bot/junior",
+   "overrides": {},
+   "enabled": true
+  },
+  {
+   "id": "baby",
+   "label": "BABY",
+   "color": "#a371f7",
+   "mode": "live",
+   "private_key_env": "BABY_HL_PRIVATE_KEY",
+   "account_address": "0xda4008f900d2E13DD8B3c3eb2FBFf765073b014c",
+   "agent_expiry": "2026-12-08",
+   "capital_initial": 57.84,
+   "capital_cap": 400,
+   "telegram": {
+    "token_env": "BABY_TG_BOT_TOKEN",
+    "chat_id_env": "BABY_TG_CHAT_ID"
+   },
+   "public_url": "https://echonym.fr/alfred/bot/baby",
+   "overrides": {},
+   "enabled": true
+  },
+  {
+   "id": "mirror",
+   "label": "MIRROR",
+   "color": "#8b949e",
+   "mode": "paper",
+   "capital_initial": 518.34,
+   "overrides": {},
+   "enabled": false,
+   "_comment": "Expérience de demi-vie de divergence (docs/mirror_halflife_2026_09.md). DÉSACTIVÉ jusqu'au fork de l'état de live : un démarrage sans état forké donnerait un T0 faux. Séquence : arrêt → fork_bot_state → enabled=true → démarrage."
+  }
+ ]
 }
