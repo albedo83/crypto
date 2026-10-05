@@ -31,3 +31,23 @@ l'argent : c'est le mécanisme même qui rend un backtest prometteur et un live
 décevant. À l'inverse, le portefeuille existant (backtest et paper) est
 positif sur chaque trimestre de 2026 : sa valeur tient à la combinaison
 signaux + sorties + rotation des slots, pas à un signal isolé.
+
+## Pistes externes testées (2026-10-05)
+
+**Hedge bêta BTC du book** (`backtests/beta_hedge_2026.py`). Critère fixé avant :
+Calmar amélioré sur les 3 trimestres 2026 sans perdre plus de 10 % du P&L.
+Résultat : 2026 sans hedge +1 365 $, DD −20,4 %, Calmar 6,7 ; avec hedge
++911 $, DD −27,7 %, Calmar 3,3. Amélioration au T1 seulement. Corrélation
+P&L book / BTC = +0,22 : le hedge ajoute du bruit BTC. **Clos.**
+
+**Fade de la prime mark/oracle HL** (`backtests/premium_fade_hl.py`, ticks 60 s
+depuis le 10 juin). Réversion réelle mais ~+5 bps brut à 15 min, stable sur les
+deux périodes ; sous les 13 bps d'aller-retour taker, net négatif partout en
+découverte (t jusqu'à −13). Les écarts aux horizons longs sont de la direction
+de marché, pas de la prime. Edge de teneur de marché HF, hors de notre portée.
+**Clos.**
+
+**Netting d'un compte unique** : sans objet aujourd'hui (un compte HL par bot,
+une position par coin, signal opposé refusé). À reprendre dès qu'une 2ᵉ couche
+(hedge, autre stratégie) partage un compte : vecteur cible par coin + allocateur
++ exécution unique.
