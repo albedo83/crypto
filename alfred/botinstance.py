@@ -34,6 +34,25 @@ from .telegram import Notifier
 log = logging.getLogger("alfred")
 
 
+def entry_scan_waits(now: float, last_4h_close: int, cooldowns: dict,
+                     held: dict, trade_symbols) -> dict:
+    """Symbols the 4h entry scan must wait for, {sym: expiry_ts}. Empty = scan now.
+
+    v1.27.0: cooldowns expiring before the fixed deadline (boundary + 300 s).
+    v1.30.0: held positions whose timeout falls before the deadline — 48 h holds
+    expire seconds after the next 4h scan, and their slot must be freed before
+    entries, as in the backtest (live/mirror divergence 2026-10-02 16:03).
+    `held` = {sym: target_exit_ts}. Never waits past the deadline.
+    Tested in both orderings by backtests/test_scan_timeout_race.py.
+    """
+    deadline = last_4h_close + 300
+    pending = {sym: exp for sym, exp in cooldowns.items()
+               if sym in trade_symbols and sym not in held and now < exp <= deadline}
+    if now < deadline:
+        pending.update({sym: t for sym, t in held.items() if t <= deadline})
+    return pending
+
+
 class BotInstance:
     def __init__(self, cfg: BotConfig, master, data_dir: str):
         import os
@@ -1842,19 +1861,10 @@ class BotInstance:
         # No early entry and no replay of an already consumed scan.
         if not self._paused and now_ts >= self._entries_halted_until:
             deadline = last_4h_close + 300
-            pending = {sym: expiry for sym, expiry in self._cooldowns.items()
-                       if sym in self.p.trade_symbols and sym not in self.positions
-                       and time.time() < expiry <= deadline}
-            # v1.30.0: same wait for held positions whose timeout falls in this
-            # window (48 h holds expire seconds after the next 4h scan). Their
-            # slot must be freed before entries, as in the backtest; otherwise
-            # the scan races the close by a few seconds (live/mirror divergence
-            # 2026-10-02 16:03, ~25 % of timeouts on every bot since July).
-            if now_ts < deadline:
-                with self._pos_lock:
-                    pending.update({sym: p.target_exit.timestamp()
-                                    for sym, p in self.positions.items()
-                                    if p.target_exit.timestamp() <= deadline})
+            with self._pos_lock:
+                held = {sym: p.target_exit.timestamp() for sym, p in self.positions.items()}
+            pending = entry_scan_waits(time.time(), last_4h_close, self._cooldowns,
+                                       held, self.p.trade_symbols)
             if pending:
                 self.db.log_event("ENTRY_SCAN_DEFERRED", None, {
                     "reason": "cooldown_near_boundary", "boundary": last_4h_close,

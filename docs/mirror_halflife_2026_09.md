@@ -63,6 +63,25 @@ libérer ou bloquer un slot, ou si les deux bots restent identiques au-delà de
 fork). Une exécution donne n=1 ; une demi-vie est une variable aléatoire. Seule
 la **série** de demi-vies et d'écarts a une valeur.
 
+## Seuils d'arrêt — pré-enregistrés le 2026-10-05, avant toute nouvelle divergence
+
+Calibrés sur le bruit d'exécution mesuré de l'époque 1 (15 trades appariés, même
+raison de sortie) : **−0,11 $/trade en moyenne (−7 bp), écart-type 0,51 $ (34 bp)**.
+Vérifiés par `python3 -m alfred.tools.mirror_guard` (lecture seule, code 2 si STOP).
+
+| seuil | règle | justification |
+|---|---|---|
+| **S1 noyau** | ≥ 1 divergence `LOGIC` de `compare_bots` dans l'époque | live n'exécute plus le système validé |
+| **S2 exécution** | moyenne ≤ −0,50 $/trade sur les 30 derniers appariés (n ≥ 20) | ≈ 4 erreurs-types sous le bruit mesuré |
+| **S3 chemin** | réalisé live − mirror ≤ −40 $ dans une époque | ≈ 8 % du capital ; l'incident du 02/10 valait −29 $ |
+| **S4 fréquence** | plus de 2 re-synchronisations en 14 jours | divergences trop fréquentes pour être accidentelles |
+
+**Action, sans débat le jour J** : pause des **entrées** live
+(`POST /bot/live/api/pause`) ; les positions ouvertes gardent leurs règles de
+sortie ; aucune liquidation. **Reprise** : uniquement après attribution écrite
+de la cause dans ce journal. Les seuils ne se modifient pas après coup ; un
+changement = nouvelle version datée de cette section, avant observation.
+
 ## Ce que cette expérience ne fera PAS
 
 - Elle ne récupère pas les 130 $.
@@ -78,3 +97,4 @@ la **série** de demi-vies et d'écarts a une valeur.
 | **2026-09-27 11:04 UTC** | **T0.** Fork de live : 4 positions, capital $518,34, P&L réalisé $17,67, 139 trades. Mirror chargé au démarrage de 11:06. |
 | 2026-09-27 11:10 UTC | Contrôle de T0 : `compare_bots --a live --b mirror --hours 168` → **0 divergence**, 15/15 sorties appariées, taille ×1,00 pour un ratio de soldes ×1,00. Clone exact confirmé. |
 | **2026-10-02 16:03 UTC** | **1ʳᵉ divergence, J+5,2.** Catégorie STATE. Déclencheur : UNI et NEAR (échéance timeout 16:03:43). Mirror les ferme à 16:03:49 puis scanne à 16:03:53 → entre IMX S5 SHORT et INJ S10 SHORT. Live, scan différé (cooldown), scanne à 16:03:51 **sans repasser par les sorties** → `max_token` ; UNI/NEAR fermés à 16:04:05. Cascade : live entre IMX à 20h → exchange_stop −23,57 $ (mirror IMX : −1,30 $). Écart réalisé au 10-05 : live −61,35 $, mirror −32,01 $. **Prédiction confirmée** (décision à cheval sur un seuil, en jours). Ce n'est pas du hasard mais un défaut de séquencement présent sur ~25 % des timeouts de chaque bot depuis juillet → corrigé en v1.30.0. Re-synchronisation du mirror au redémarrage qui charge la v1.30.0. |
+| **2026-10-05 11:24 UTC** | **T0 de l'époque 2.** Re-synchronisation au redémarrage qui charge la v1.30.0 : 3 positions, capital $518,34, P&L réalisé −$43,70. |

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.30.1] — 2026-10-05
+
+- **Test de la course timeout / scan** : la décision d'attente du scan d'entrée 4h est extraite en fonction pure (`entry_scan_waits`, comportement identique à la 1.30.0) et couverte par `backtests/test_scan_timeout_race.py`, qui force les deux ordres sorties/scan sur 3 000 cas. L'ancienne règle y est prise en défaut dans 57 % des cas : un retour en arrière lors d'un futur remaniement du scheduler serait détecté.
+- **Garde live/mirror** : seuils d'arrêt pré-enregistrés (noyau, exécution, chemin, fréquence des re-synchronisations), calibrés sur le bruit d'exécution mesuré, et vérificateur en lecture seule `python3 -m alfred.tools.mirror_guard`. Aucune action automatique.
+
 ## [1.30.0] — 2026-10-05
 
 - **Moteur — course timeout / scan d'entrée** : les positions tenues 48 h expirent quelques secondes après le scan 4h suivant. Le scan pouvait passer avant leur fermeture et refuser des entrées faute de slot (`max_token`), alors que le backtest libère toujours le slot d'abord. Cela touchait environ un quart des timeouts sur chaque bot depuis juillet et a causé la première divergence live/mirror (2026-10-02 16:03). Le scan attend désormais ces timeouts, comme il attendait déjà les cooldowns proches de la borne (borne fixe +5 min). Correctif de fidélité au backtest, pas un gain promis.

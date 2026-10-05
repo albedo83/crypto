@@ -55,9 +55,9 @@ une position par coin, signal opposé refusé). À reprendre dès qu'une 2ᵉ co
 **Réserve sur le hedge — corrélation dans les creux.** Jours à > 10 % sous le
 pic (77 j) : corrélation book/BTC +0,37, hedge +245 $. Toute l'année : −454 $.
 Pire creux (22/03 → 14/04, book −325 $) : corrélation −0,25, hedge +57 $ —
-creux de type D (faiblesse propre aux alts). Hypothèse issue de ces données,
-**non validée** : hedge armé seulement au-delà de X % de drawdown du book. À
-tester sur une période qui ne l'a pas inspirée avant toute décision.
+creux de type D (faiblesse propre aux alts). Un hedge armé seulement au-delà de X % de
+drawdown n'est **pas décidable statistiquement** (quatre creux de référence) :
+c'est une décision de politique de risque, pas un test. Aucune action.
 
 **Entrées maker (post-only au prix d'entrée)** — `backtests/maker_entry_estimate.py`,
 entrées réelles depuis le 2026-07-09, franchissement strict du mark minute.
