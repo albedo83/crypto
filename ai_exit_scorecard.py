@@ -343,7 +343,9 @@ def main() -> int:
     except Exception as e:
         print(f"[exit-scorecard] log failed: {e}", file=sys.stderr)
 
-    if (sc["n_resolved"] >= cfg["cb_min"] and sc["delta_sum"] < cfg["cb_loss"]
+    from data_freshness import env_flag
+    enabled = env_flag("AI_EXIT_ENABLED") == "1"
+    if (enabled and sc["n_resolved"] >= cfg["cb_min"] and sc["delta_sum"] < cfg["cb_loss"]
             and not aix.is_tripped()):
         aix.trip("scorecard_negative",
                  {"delta_sum": sc["delta_sum"], "n": sc["n_resolved"]})
@@ -361,7 +363,7 @@ def main() -> int:
     # leur valeur en marchant, pas en s'abritant derrière les LOCKs.
     cut_cb_min = int(os.environ.get("AI_EXIT_CUT_CB_MIN", "10"))
     cut_cb_loss = float(os.environ.get("AI_EXIT_CUT_CB_LOSS", "-15"))
-    if (sc["n_cut"] >= cut_cb_min and sc["cut_delta"] < cut_cb_loss
+    if (enabled and sc["n_cut"] >= cut_cb_min and sc["cut_delta"] < cut_cb_loss
             and not aix.is_tripped()):
         aix.trip("cut_scorecard_negative",
                  {"cut_delta": sc["cut_delta"], "n_cut": sc["n_cut"]})
@@ -372,7 +374,9 @@ def main() -> int:
         send_telegram(msg, source="exit_arbiter_cut_circuit_break")
         print("[exit-scorecard] DISJONCTEUR CUT déclenché + drapeau écrit")
 
-    if args.telegram:
+    if args.telegram and not enabled:
+        print("[exit-scorecard] arbitre désactivé (AI_EXIT_ENABLED=0) — récap non envoyé")
+    elif args.telegram:
         if send_telegram(format_tg(sc, aix.is_tripped()), source="exit_arbiter_scorecard"):
             print("[exit-scorecard] récap Telegram envoyé")
     return 0

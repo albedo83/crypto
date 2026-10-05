@@ -294,8 +294,10 @@ def main() -> int:
     except Exception as e:
         print(f"[scorecard] log failed: {e}", file=sys.stderr)
 
+    from data_freshness import env_flag
+    enabled = env_flag("AI_ARBITER_ENABLED") == "1"
     # Disjoncteur : assez de décisions + IA destructrice → trip + alerte
-    if (sc["n_resolved"] >= cfg["cb_min"] and sc["delta_sum"] < cfg["cb_loss"]
+    if (enabled and sc["n_resolved"] >= cfg["cb_min"] and sc["delta_sum"] < cfg["cb_loss"]
             and not aia.is_tripped()):
         aia.trip("scorecard_negative",
                  {"delta_sum": sc["delta_sum"], "n": sc["n_resolved"]})
@@ -306,7 +308,9 @@ def main() -> int:
         send_telegram(msg, source="arbiter_circuit_break")
         print("[scorecard] DISJONCTEUR déclenché + drapeau écrit")
 
-    if args.telegram:
+    if args.telegram and not enabled:
+        print("[scorecard] arbitre désactivé (AI_ARBITER_ENABLED=0) — récap non envoyé")
+    elif args.telegram:
         if send_telegram(format_scorecard_tg(sc, aia.is_tripped()),
                          source="arbiter_scorecard"):
             print("[scorecard] récap Telegram envoyé")

@@ -174,6 +174,7 @@ class Dependency:
     failure_event: str = ""          # événement d'échec du MÊME composant
     failure_db: str = ""             # défaut : la base des bots
     note: str = ""
+    enabled_env: str = ""            # drapeau .env ; « 0 » ⇒ arrêt déclaré (FROZEN)
 
 
 BOT_DB = "alfred/data/bots/live/bot.db"
@@ -186,15 +187,34 @@ MARKET_DB = "alfred/data/market.db"
 DEPENDENCIES: list[Dependency] = [
     Dependency("arbitre d'ENTRÉE (haircut)", "entry", 48.0,
                failure_event="ARBITER_FAILOPEN",
-               note="p90 36 h — ne tourne que s'il y a des candidats"),
+               note="p90 36 h — ne tourne que s'il y a des candidats",
+               enabled_env="AI_ARBITER_ENABLED"),
     Dependency("arbitre de SORTIE (LOCK/CUT)", "exit", 12.0,
-               note="p90 8 h — le seul dispositif rentable sur juillet-août"),
+               note="p90 8 h — Δ vs règles négatif depuis août (LOCK)",
+               enabled_env="AI_EXIT_ENABLED"),
     Dependency("revue de position", "review", 0.0, note="sur événement"),
     Dependency("superviseur quotidien", "supervisor", 36.0,
                failure_event="SUPERVISOR_ERROR", failure_db=MARKET_DB,
                note="p90 24 h"),
     Dependency("audit système IA", "audit", 36.0, note="p90 24 h"),
 ]
+
+
+def env_flag(name: str, default: str = "0") -> str:
+    """Valeur d'un drapeau : l'environnement, sinon `.env`. Cron ne charge pas
+    `.env` : sans ce repli, un composant ALLUMÉ passerait pour éteint."""
+    v = os.environ.get(name)
+    if v is not None:
+        return v
+    try:
+        with open(os.path.join(ROOT, ".env")) as fh:
+            for line in fh:
+                k, _, val = line.strip().partition("=")
+                if k == name:
+                    return val.strip().strip("'\"")
+    except OSError:
+        pass
+    return default
 
 
 def _last_ai_cost(source: str) -> float | None:
@@ -240,6 +260,14 @@ def check_dependencies(now: float | None = None) -> list[dict]:
         if d.source == "review":
             from review_health import check_review_health
             out.append(check_review_health(now=now, root=ROOT))
+            continue
+        if d.enabled_env and env_flag(d.enabled_env) != "1":
+            # Éteint volontairement : arrêt déclaré, pas une panne. Silencieux
+            # par construction (critical() ignore FROZEN).
+            out.append({"dependance": d.name, "source": d.source,
+                        "status": "FROZEN", "age_h": None, "max_age_h": d.max_age_h,
+                        "message": f"désactivé volontairement ({d.enabled_env}=0)",
+                        "note": d.note})
             continue
         ok_ts = _last_ai_cost(d.source)
         ko_ts = (_last_event(d.failure_db or BOT_DB, d.failure_event)
