@@ -125,6 +125,17 @@ def main():
         a = report("", book[lo:hi])
         b = report("", (book + hedge_pnl)[lo:hi])
         print(f"{lab:<22}{a[0]:>+9.0f}$ DD{a[1]:>6.1f}% C{a[2]:>5.2f}{b[0]:>+9.0f}$ DD{b[1]:>6.1f}% C{b[2]:>5.2f}")
+    eq = 1000 + np.cumsum(book)
+    ddv = (eq - np.maximum.accumulate(eq)) / np.maximum.accumulate(eq)
+    br = np.nan_to_num(np.r_[0, np.diff(btc_day) / btc_day[:-1]])
+    for thr in (0.05, 0.10):
+        msk = ddv < -thr
+        if msk.sum() > 5:
+            print(f"Creux > {thr:.0%} : {msk.sum()} jours — corr P&L book/BTC {np.corrcoef(book[msk], br[msk])[0, 1]:+.2f}"
+                  f" — hedge sur ces jours {hedge_pnl[msk].sum():+.0f} $")
+    k = int(np.argmin(ddv)); j = int(np.argmax(eq[:k + 1]))
+    print(f"Pire creux {days[j]//1000:.0f}→{days[k]//1000:.0f} (epoch s) : book {book[j+1:k+1].sum():+.0f} $, "
+          f"hedge {hedge_pnl[j+1:k+1].sum():+.0f} $, corr {np.corrcoef(book[j+1:k+1], br[j+1:k+1])[0, 1]:+.2f}")
     print(f"\nExposition bêta moyenne : {np.mean(expo):+.0f} $ (|moy| {np.mean(np.abs(expo)):.0f} $) — "
           f"corrélation P&L book / rendement BTC : "
           f"{np.corrcoef(book[1:], np.nan_to_num(np.diff(btc_day) / btc_day[:-1]))[0, 1]:+.2f}")
@@ -132,3 +143,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

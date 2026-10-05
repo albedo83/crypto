@@ -51,3 +51,17 @@ de marché, pas de la prime. Edge de teneur de marché HF, hors de notre portée
 une position par coin, signal opposé refusé). À reprendre dès qu'une 2ᵉ couche
 (hedge, autre stratégie) partage un compte : vecteur cible par coin + allocateur
 + exécution unique.
+
+**Réserve sur le hedge — corrélation dans les creux.** Jours à > 10 % sous le
+pic (77 j) : corrélation book/BTC +0,37, hedge +245 $. Toute l'année : −454 $.
+Pire creux (22/03 → 14/04, book −325 $) : corrélation −0,25, hedge +57 $ —
+creux de type D (faiblesse propre aux alts). Hypothèse issue de ces données,
+**non validée** : hedge armé seulement au-delà de X % de drawdown du book. À
+tester sur une période qui ne l'a pas inspirée avant toute décision.
+
+**Entrées maker (post-only au prix d'entrée)** — `backtests/maker_entry_estimate.py`,
+entrées réelles depuis le 2026-07-09, franchissement strict du mark minute.
+Remplissage 77-96 % selon le délai. Les trades **non remplis sont les gagnants**
+sur les 4 bots (paper : +33 à +61 $) : quand le fade a raison tout de suite, le
+prix ne revient pas. Repli taker : Δ −6 à −54 $, le glissement dépasse les
+3 bps économisés à tous les délais. **Rejeté avant le live.**
