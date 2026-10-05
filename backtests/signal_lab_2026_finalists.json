@@ -1,0 +1,12 @@
+{
+  "frozen_at": "2026-10-05",
+  "rule_tier1": "Fixée AVANT la découverte : t >= 3 (clusterisé jour) sur 2026-01-01→2026-07-01, moyenne > 0 sur T1 ET T2, médiane > 0, n >= 30, meilleur horizon par signal, max 8.",
+  "rule_tier2": "Exploratoire, fixée APRÈS la découverte mais AVANT toute lecture de la validation : t >= 1.75, mêmes conditions sinon.",
+  "validation_criterion": "Sur 2026-07-01→fin : moyenne nette > 0 ET t >= 1.5. Fixé avant la découverte.",
+  "variants_tested": 252,
+  "finalists": [
+    {"sig": "F1_tsrev_1d_20", "H": 6, "tier": 1, "disc_t": 3.21, "disc_mean_bp": 288},
+    {"sig": "F2_xsmom_3d_short", "H": 12, "tier": 2, "disc_t": 2.27, "disc_mean_bp": 72},
+    {"sig": "F2_xsmom_1d_short", "H": 12, "tier": 2, "disc_t": 1.80, "disc_mean_bp": 54}
+  ]
+}
