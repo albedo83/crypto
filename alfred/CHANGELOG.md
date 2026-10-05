@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.30.0 — 2026-10-05
+
+- **Moteur — course timeout / scan d'entrée** : les positions tenues 48 h expirent quelques secondes après le scan 4h suivant. Le scan pouvait passer avant leur fermeture et refuser des entrées faute de slot (`max_token`), alors que le backtest libère toujours le slot d'abord. Cela touchait environ un quart des timeouts sur chaque bot depuis juillet et a causé la première divergence live/mirror (2026-10-02 16:03). Le scan attend désormais ces timeouts, comme il attendait déjà les cooldowns proches de la borne (borne fixe +5 min). Correctif de fidélité au backtest, pas un gain promis.
+- **Expériences** : le code moteur change ; la campagne shadow-v3 (déjà invalidée par deux trous) sera gelée au prochain redémarrage et conservée.
+
 ## v1.29.1 — 2026-09-22
 
 - **Univers** : TON retiré de la liste des tokens et du secteur L1 — délisté par Hyperliquid, données figées depuis le 15 juin. Ses indicateurs figés en faisaient un faux candidat d'entrée permanent et faussaient la moyenne de son secteur et la dispersion. Décision d'intégrité, pas un gain attendu. Détail : `docs/ton_delisting_2026_09.md`.

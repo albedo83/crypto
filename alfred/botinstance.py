@@ -1845,6 +1845,16 @@ class BotInstance:
             pending = {sym: expiry for sym, expiry in self._cooldowns.items()
                        if sym in self.p.trade_symbols and sym not in self.positions
                        and time.time() < expiry <= deadline}
+            # v1.30.0: same wait for held positions whose timeout falls in this
+            # window (48 h holds expire seconds after the next 4h scan). Their
+            # slot must be freed before entries, as in the backtest; otherwise
+            # the scan races the close by a few seconds (live/mirror divergence
+            # 2026-10-02 16:03, ~25 % of timeouts on every bot since July).
+            if now_ts < deadline:
+                with self._pos_lock:
+                    pending.update({sym: p.target_exit.timestamp()
+                                    for sym, p in self.positions.items()
+                                    if p.target_exit.timestamp() <= deadline})
             if pending:
                 self.db.log_event("ENTRY_SCAN_DEFERRED", None, {
                     "reason": "cooldown_near_boundary", "boundary": last_4h_close,
