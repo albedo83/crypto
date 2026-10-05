@@ -77,7 +77,7 @@ def funding(sym):
     parts = []
     for p in sorted(glob.glob(f"{ROOT}/fundingRate/{sym}-fundingRate-*.zip")):
         d = _read(p)
-        d.index = pd.to_datetime(d.pop("calc_time"), unit="ms", utc=True).floor("1h")
+        d.index = pd.DatetimeIndex(pd.to_datetime(d.pop("calc_time"), unit="ms", utc=True)).floor("1h")
         parts.append(d[["last_funding_rate"]].rename(columns={"last_funding_rate": "fr"}))
     return pd.concat(parts) if parts else None
 

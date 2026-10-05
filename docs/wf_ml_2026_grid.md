@@ -66,3 +66,11 @@ notionnel égal 1/6 du capital ; coût 13 bps par aller-retour + funding HL rée
 
 Sinon : **rejet**, sans boucle de réglage. L'importance des features est
 rapportée à titre descriptif, jamais pour sélectionner.
+
+## Journal
+
+| Date | Événement |
+|---|---|
+| 2026-10-05 | Grille commitée (`7f77ef0`) pendant le téléchargement. |
+| 2026-10-05 | Couverture : prix, flux, OI, positionnement, funding 100 % ; carnet 99,9 %. Aucune famille retirée. Univers appliqué : les 33 tokens d'Alfred (« 34 » dans la grille = erreur de compte). |
+| 2026-10-05 | **Verdict : REJETÉ.** GBM −3,97 %/sem t −3,36 ; Ridge t −3,88 ; −27 bp/trade ; 14 % de mois positifs ; cibles mélangées t −0,57 (pas de fuite) ; Sharpe 50/50 −0,21 contre Alfred +0,16. Détail : `docs/rapport_2026_10_05.md`. |
