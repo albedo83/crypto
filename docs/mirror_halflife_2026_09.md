@@ -76,6 +76,12 @@ Vérifiés par `python3 -m alfred.tools.mirror_guard` (lecture seule, code 2 si 
 | **S3 chemin** | réalisé live − mirror ≤ −40 $ dans une époque | ≈ 8 % du capital ; l'incident du 02/10 valait −29 $ |
 | **S4 fréquence** | plus de 2 re-synchronisations en 14 jours | divergences trop fréquentes pour être accidentelles |
 
+**Contrôle planifié** (2026-10-08) : chaque jour à 08:50 UTC,
+`scripts/cronrun -m alfred.tools.mirror_guard --telegram` (journal
+`analysis/output/mirror_guard.log`). Muet si tout est OK ; alerte Telegram sur
+le canal de live si un seuil est franchi **ou** si le contrôle échoue (un
+`compare_bots` en panne n'est plus lu comme « 0 divergence »).
+
 **Action, sans débat le jour J** : pause des **entrées** live
 (`POST /bot/live/api/pause`) ; les positions ouvertes gardent leurs règles de
 sortie ; aucune liquidation. **Reprise** : uniquement après attribution écrite

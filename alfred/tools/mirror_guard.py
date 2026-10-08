@@ -3,17 +3,28 @@
 Lecture seule : calcule les quatre seuils et dit STOP ou OK. Ne met rien en
 pause lui-même ; la consigne pré-enregistrée est d'appliquer le STOP sans débat.
 
-    python3 -m alfred.tools.mirror_guard          # code de sortie 2 si STOP
+    python3 -m alfred.tools.mirror_guard              # code de sortie 2 si STOP
+    python3 -m alfred.tools.mirror_guard --telegram   # cron : alerte si STOP ou contrôle impossible
+    python3 -m alfred.tools.mirror_guard --test-alert # envoie un message de test
+
+Muet quand tout est OK. Alerte Telegram (canal de live) si un seuil est franchi
+OU si le contrôle n'a pas pu se faire : une garde qui plante ne doit pas se taire.
 """
 from __future__ import annotations
 
+import argparse
 import glob
+import io
+import json
 import os
 import re
 import sqlite3
 import subprocess
 import sys
 import time
+import urllib.parse
+import urllib.request
+from contextlib import redirect_stdout
 from datetime import datetime, timezone
 
 _REPO = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -56,8 +67,13 @@ def main():
 
     # S1 — divergence de noyau (LOGIC) dans l'époque
     hours = max(1, int((time.time() - fork_ts) / 3600) + 1)
-    out = subprocess.run([sys.executable, "-m", "alfred.tools.compare_bots", "--a", "live", "--b", "mirror",
-                          "--hours", str(hours)], cwd=_REPO, capture_output=True, text=True).stdout
+    proc = subprocess.run([sys.executable, "-m", "alfred.tools.compare_bots", "--a", "live", "--b", "mirror",
+                           "--hours", str(hours)], cwd=_REPO, capture_output=True, text=True)
+    out = proc.stdout
+    if proc.returncode != 0 or "Verdict" not in out:
+        # sans ce garde-fou, un compare_bots en échec lirait « 0 LOGIC » et dirait OK
+        raise RuntimeError(f"compare_bots en échec (code {proc.returncode}) : "
+                           f"{(proc.stderr or out).strip()[-300:]}")
     logic = sum(int(x) for x in re.findall(r"LOGIC=(\d+)", out)) + \
         sum(int(x) for x in re.findall(r"non appariées \(logic\)=(\d+)", out))
     print(f"S1 noyau      : {logic} divergence(s) LOGIC depuis {epoch:%m-%d %H:%M} → {'STOP' if logic else 'OK'}")
@@ -105,5 +121,51 @@ def main():
     return 2 if stops else 0
 
 
+def _send(text: str) -> bool:
+    """Envoi synchrone sur le canal Telegram de live (cron : le script se
+    termine aussitôt, un envoi en thread de fond serait perdu)."""
+    from data_freshness import env_flag          # cron ne charge pas .env
+    token, chat = env_flag("TG_BOT_TOKEN", ""), env_flag("TG_CHAT_ID", "")
+    if not token or not chat:
+        print("TG_BOT_TOKEN/TG_CHAT_ID absents — pas d'envoi", file=sys.stderr)
+        return False
+    data = urllib.parse.urlencode({"chat_id": chat, "text": text}).encode()
+    try:
+        with urllib.request.urlopen(f"https://api.telegram.org/bot{token}/sendMessage",
+                                    data=data, timeout=10) as r:
+            return bool(json.loads(r.read()).get("ok"))
+    except Exception as e:
+        print(f"envoi Telegram échoué : {e}", file=sys.stderr)
+        return False
+
+
+def run() -> int:
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--telegram", action="store_true")
+    ap.add_argument("--test-alert", action="store_true")
+    args = ap.parse_args()
+    buf, err = io.StringIO(), None
+    try:
+        with redirect_stdout(buf):
+            code = main()
+    except Exception as e:
+        code, err = 3, f"{type(e).__name__}: {e}"
+    report = buf.getvalue() + (f"ERREUR : {err}\n" if err else "")
+    print(report, end="")
+    head = "🛡️ Garde live/mirror — "
+    if args.test_alert:
+        text = head + "message de test (contrôle quotidien planifié)\n\n" + report
+    elif code == 2:
+        text = (head + "STOP\n\n" + report + "\nConsigne pré-enregistrée : pause des ENTRÉES live "
+                "(positions gardées, aucune liquidation). Reprise après attribution écrite.")
+    elif code != 0:
+        text = head + "contrôle IMPOSSIBLE\n\n" + report
+    else:
+        text = None
+    if text and (args.telegram or args.test_alert):
+        print("alerte Telegram envoyée" if _send(text) else "alerte Telegram NON envoyée")
+    return code
+
+
 if __name__ == "__main__":
-    sys.exit(main())
+    sys.exit(run())
