@@ -3,6 +3,11 @@
 Historique des versions d'Alfred. L'historique du bot précédent (v10–v12) est
 archivé dans le `CHANGELOG.md` à la racine du dépôt.
 
+## v1.31.1 — 2026-10-19
+
+- **S5 coupé aussi sur junior et baby** (décision utilisateur, override `enabled_strategies`). Aucun bot ne trade plus S5.
+- **Nouveau bot paper `s5obs` (S5-OBS)** : trade S5 seul, 518,34 $ fictifs, pour continuer à observer la stratégie après sa coupure. Aucun argent réel, aucun appel IA.
+
 ## v1.31.0 — 2026-10-19
 
 - **S5 coupé sur live, mirror et paper** (décision utilisateur du 19/10, override `enabled_strategies` dans `bots.json`, aucun code de trading modifié). Backtest par trimestre, capital remis à 1 000 $ : S5 contribue dans 8 trimestres sur 10, et le retirer n'améliore que les 2 plus récents (somme +377 % contre +413 % ; pire drawdown −34,9 % contre −37,7 %). En réel depuis juillet, S5 perd (live −169 $, paper −112 $). Le critère fixé avant (mieux sur ≥ 7/10) ne passait pas : choix de protection du capital assumé, pas un edge démontré. Les positions S5 ouvertes finissent avec leurs règles de sortie ; les signaux S5 continuent d'informer le plancher `opp_floor`. Junior et baby gardent S5.
