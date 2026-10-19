@@ -95,3 +95,16 @@ découverte, à 15 min. Si le carnet annonce un mouvement dans notre sens, on en
 le prix d'entrée en bps par rapport à une entrée immédiate. Témoin : délai fixe de
 15 min. **Validé si**, en validation (entrées juillet → octobre), gain moyen
 ≥ +3 bps avec t ≥ 2 et meilleur que le témoin.
+
+## Addendum 2026-10-19 (2) — test 1c, frein de contagion (avant calcul)
+
+Les stops catastrophe arrivent-ils en grappes ? Mesure descriptive : part des stops
+survenus à moins de 24 h d'un autre stop dans le même sens.
+Règle, seuils fixés a priori, aucun ajustement : **pas de nouvelle entrée dans le
+sens d si au moins 2 positions ouvertes dans le sens d sont à −500 bps ou pire**
+(clôture 4h de l'entrée). Évaluation par reconstruction sur le backtest continu du
+moteur (prix d'entrée et latents depuis les bougies 4h, notionnel fixe 150 $,
+trades écartés retirés sans redistribuer leurs slots — même approximation que le
+test 2).
+**Validé si**, sur la découverte ET sur la validation : P&L ≥ référence et moins de
+stops catastrophe.
