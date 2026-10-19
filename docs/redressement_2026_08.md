@@ -331,6 +331,8 @@ sous la médiane. Rien d'anormal, rien de probant.
 
 ## Revue du 2026-10-19 — critère 4 franchi
 
-Paper à 531,55 $, **−26,4 % sous son pic** (722,50 $) : le seuil du § 6.4 est franchi. Live à 355,61 $ (−39,7 %), à l'identique de son mirror (exécution iso). Backtest canonique sur la même période : −8,2 % depuis le 05/10, DD −23,3 % — la stratégie elle-même est en drawdown ; depuis le 09/07, S1 +492 $, S5 −297 $, S9 −157 $.
+Paper à 531,55 $, **−26,4 % sous son pic** (722,50 $) : le seuil du § 6.4 est franchi. Live à 355,61 $ (−39,7 %), à l'identique de son mirror (exécution iso). Backtest canonique sur la même période : −8,2 % depuis le 05/10, DD −23,3 % — la stratégie elle-même est en drawdown ; backtest depuis le 09/07 (1 000 $ simulés, composés) : S1 +492 $, S5 −297 $, S9 −157 $.
+
+**Réalisé réel depuis le 09/07** — live −162,69 $ (S1 +76, S5 −169, S9 −80, S10 −2, S8 +13) ; paper +13,19 $ (S1 +151, S5 −112, S9 −34, S10 +8). Même schéma que le backtest : S1 seul gagnant net, S5 principal perdant. Live a gagné deux fois moins sur S1 que le paper (couche IA puis course timeout/scan en juillet-août).
 
 **Décision utilisateur : continuer tel quel.** Plancher de perte maximale inchangé (250 $ sur 500 $ engagés). Aucune règle de trading modifiée.
