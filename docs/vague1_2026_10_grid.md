@@ -71,3 +71,27 @@ Positions publiques (`clearinghouseState`) de 300 comptes du classement public :
 P&L du mois < 0, volume de la semaine > 0). Instantané toutes les 15 min.
 Pas de verdict avant **au moins 4 semaines** de données ; grille d'analyse
 (carte des liquidations, indice des perdants) écrite avant la première lecture.
+
+## Addendum 2026-10-19 — carnet d'ordres à la bonne échelle (avant calcul)
+
+Le carnet n'avait été testé qu'en moyennes horaires dans un modèle à 24 h.
+Données : Binance `bookDepth` (instantané par minute, notionnel cumulé à ±1 %),
+bougies 1 min, 33 alts d'Alfred, 2026-01-01 → 2026-10-18. Déséquilibre
+imb = (bid₁ − ask₁) / (bid₁ + ask₁).
+
+**Test 8A — le carnet prédit-il les minutes suivantes ?** Rendement à 1, 5, 15,
+60 min selon les déciles d'imb (déciles par token, calculés en découverte
+janvier → juin). Mesure : écart décile haut − décile bas, et rendement d'une
+position qui suit le signe d'imb aux déciles extrêmes. t clusterisé par jour.
+- « Prédictif » si la validation (juillet → octobre) a le même signe que la
+  découverte avec t ≥ 3.
+- « Exploitable en taker » si, en validation, cette position nette de 13 bps est
+  > 0 avec t ≥ 2.
+
+**Test 8B — le carnet pour choisir le moment d'entrée.** Entrées du moteur (S1,
+S8, S9, S10, backtest aligned) en 2026. Le sens de l'effet est celui de 8A en
+découverte, à 15 min. Si le carnet annonce un mouvement dans notre sens, on entre
+à la minute ; sinon on attend, minute par minute, au plus 30 min. Mesure : gain sur
+le prix d'entrée en bps par rapport à une entrée immédiate. Témoin : délai fixe de
+15 min. **Validé si**, en validation (entrées juillet → octobre), gain moyen
+≥ +3 bps avec t ≥ 2 et meilleur que le témoin.
