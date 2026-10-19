@@ -108,3 +108,12 @@ trades écartés retirés sans redistribuer leurs slots — même approximation 
 test 2).
 **Validé si**, sur la découverte ET sur la validation : P&L ≥ référence et moins de
 stops catastrophe.
+
+## Addendum 2026-10-19 (3) — test 1d, plafond de positions dans le même sens (avant calcul)
+
+Le test 1c montre des stops en grappes (56 % à < 24 h d'un autre stop du même
+sens) issues de positions ouvertes ensemble, pas d'ajouts en pleine chute.
+Hypothèse : abaisser `max_same_direction` (4 actuellement ; son relèvement a été
+rejeté en septembre, son abaissement jamais testé). Variantes 3 et 2, aucune autre.
+**Validé si** (même critère que 1b) : sur les 10 trimestres, somme des P&L / |pire
+DD| meilleure que la référence, **et** P&L 2026 ≥ 90 % de la référence.
