@@ -1418,6 +1418,7 @@ class BotInstance:
             oi_delta_24h=features.oi_delta_24h_bps(st.oi_history) if st else None,
             oi_stale=(features.oi_absence_reason(st.oi_history, ts) == "stale"
                       if st else None),
+            range_pct=(self._feature_cache.get(sym) or {}).get("range_pct"),
             check_size_floor=True)
 
     def _rank_and_enter(self, sigs: list, now: datetime, m: rules.MarketCtx) -> int:

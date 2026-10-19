@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.32.0] — 2026-10-19
+
+- **Garde d'amplitude (R&D, désactivée par défaut)** : nouveau paramètre `entry_range_max_bps` et porte `range_gate` dans le noyau partagé — pas d'entrée si l'amplitude de la bougie 4h d'entrée dépasse le seuil. Dans le backtest, les entrées les plus agitées finissent en stop catastrophe dans 36,6 % des cas contre ~5 % pour les plus calmes. Validation 2026 : même P&L (−0,5 pt), 24 % de stops en moins, drawdown −21,9 % contre −29,4 % — rejetée de justesse par la grille, donc **pas activée en réel**.
+- **Nouveau bot paper `mirror_range`** : clone de live avec pour seule différence la garde (922,7 bps), pour une observation prospective face à `mirror`. Critère de revue fixé dans `docs/vague1_2026_10.md`.
+- **Vague 1 de recherche** : taille selon la volatilité, filtre sur la courbe de la stratégie, heures de règlement du funding, jours FOMC/CPI et allocation HLP testés et rejetés. Collecteur des positions publiques HL planifié (toutes les 15 min).
+
 ## [1.31.1] — 2026-10-19
 
 - **S5 coupé aussi sur junior et baby** (décision utilisateur, override `enabled_strategies`). Aucun bot ne trade plus S5.

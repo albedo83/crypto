@@ -289,6 +289,10 @@ class Params:
     # bot, l'historique OI vivant en mémoire. Conséquence non anticipée par
     # l'énoncé : le choix reste ouvert, le défaut ne change rien en silence.
     oi_missing_policy: str = "block_stale"
+    # v1.32.0 — garde d'amplitude (R&D, OFF = 0) : pas d'entrée si l'amplitude
+    # haut-bas de la bougie 4h d'entrée ≥ seuil (bps). Profil des stops
+    # catastrophe, docs/vague1_2026_10.md. Observé sur le bot paper mirror_range.
+    entry_range_max_bps: float = 0.0
     oi_gate_min_history_hours: float = 23.0
     disp_gate_bps: float = 99999.0            # v12.8.0: retired (700 to re-enable)
     disp_gate_strategies: frozenset[str] = frozenset({"S5", "S9"})

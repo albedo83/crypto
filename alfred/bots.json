@@ -120,6 +120,24 @@
    },
    "enabled": true,
    "_comment": "Observation de S5 seul après sa coupure partout (2026-10-19). Paper, aucun argent réel."
+  },
+  {
+   "id": "mirror_range",
+   "label": "MIRROR-RANGE",
+   "color": "#56d4dd",
+   "mode": "paper",
+   "capital_initial": 518.34,
+   "overrides": {
+    "enabled_strategies": [
+     "S1",
+     "S8",
+     "S9",
+     "S10"
+    ],
+    "entry_range_max_bps": 922.7
+   },
+   "enabled": true,
+   "_comment": "Observation prospective de la garde d'amplitude (docs/vague1_2026_10.md). Forké de live au même T0 que mirror ; seule différence = entry_range_max_bps."
   }
  ]
 }

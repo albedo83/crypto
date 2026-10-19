@@ -1571,6 +1571,7 @@ def run_window(features, data, sector_features, dxy_data,
                               if oi_data is not None else None),
                 oi_stale=(oi_absence_reason(oi_data, coin, ts) == "stale"
                           if oi_data is not None else None),
+                range_pct=(feat_by_ts.get(ts, {}).get(coin) or {}).get("range_pct"),
                 check_size_floor=aligned)
             if _reason == "max_positions":
                 if skip_log is not None:

@@ -391,6 +391,7 @@ def entry_skip_reason(sig: dict, c: PortfolioCounters, m: MarketCtx, p: Params,
                       paused: bool = False,
                       oi_delta_24h: float | None = None,
                       oi_stale: bool | None = None,
+                      range_pct: float | None = None,
                       check_size_floor: bool = True) -> str | None:
     """Why `sig` would be skipped, or None ("would enter").
 
@@ -448,6 +449,9 @@ def entry_skip_reason(sig: dict, c: PortfolioCounters, m: MarketCtx, p: Params,
                 return "oi_gate_no_data"
         elif oi_delta_24h < -p.oi_long_gate_bps:
             return "oi_gate"
+    if (p.entry_range_max_bps > 0 and range_pct is not None
+            and range_pct >= p.entry_range_max_bps):
+        return "range_gate"
     if check_size_floor:
         if position_size(strategy, direction, capital, m.btc_z, p) < 10:
             return "modulator_floor"
