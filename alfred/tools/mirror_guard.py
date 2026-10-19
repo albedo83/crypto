@@ -70,8 +70,10 @@ def main():
     proc = subprocess.run([sys.executable, "-m", "alfred.tools.compare_bots", "--a", "live", "--b", "mirror",
                            "--hours", str(hours)], cwd=_REPO, capture_output=True, text=True)
     out = proc.stdout
-    if proc.returncode != 0 or "Verdict" not in out:
-        # sans ce garde-fou, un compare_bots en échec lirait « 0 LOGIC » et dirait OK
+    # compare_bots : 0 = tout attribué, 1 = divergences non attribuées (résultat
+    # VALIDE, à compter), autre / pas de verdict = vrai échec. Sans ce garde-fou,
+    # un compare_bots en panne lirait « 0 LOGIC » et dirait OK.
+    if proc.returncode not in (0, 1) or "Verdict" not in out:
         raise RuntimeError(f"compare_bots en échec (code {proc.returncode}) : "
                            f"{(proc.stderr or out).strip()[-300:]}")
     logic = sum(int(x) for x in re.findall(r"LOGIC=(\d+)", out)) + \
