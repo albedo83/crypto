@@ -65,3 +65,17 @@ Remplissage 77-96 % selon le délai. Les trades **non remplis sont les gagnants*
 sur les 4 bots (paper : +33 à +61 $) : quand le fade a raison tout de suite, le
 prix ne revient pas. Repli taker : Δ −6 à −54 $, le glissement dépasse les
 3 bps économisés à tous les délais. **Rejeté avant le live.**
+
+## Recherche sur les 3 derniers mois (2026-07-19 → 2026-10-19)
+
+Demande : un indicateur qui aurait gagné sur les 3 derniers mois. 252 variantes
+(mêmes familles), barre du hasard = mêmes variantes sur signaux décalés dans le
+temps (5 tirages).
+- Meilleur réel : `F3_btclead_lag_4h_2` à 12 h, +295 bp, WR 82 %, **t = 2,70**.
+- Hasard : meilleur t médian **2,55** (1,94 à 3,16). **0 variante au-dessus.**
+- Information qualitative : la famille « rattrapage BTC » (BTC +2-3 % en 4-12 h →
+  alts en retard) occupe 6 des 15 premières places — c'est la logique de S1, seul
+  gagnant net du réel. Concentrée sur un mois (août → septembre), aucun
+  déclenchement le premier mois.
+**Aucun indicateur retenu pour du trading réel** ; candidat éventuel pour une
+observation prospective sans argent.

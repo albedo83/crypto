@@ -55,7 +55,14 @@
     "chat_id_env": "JUNIOR_TG_CHAT_ID"
    },
    "public_url": "https://echonym.fr/alfred/bot/junior",
-   "overrides": {},
+   "overrides": {
+    "enabled_strategies": [
+     "S1",
+     "S8",
+     "S9",
+     "S10"
+    ]
+   },
    "enabled": true
   },
   {
@@ -73,7 +80,14 @@
     "chat_id_env": "BABY_TG_CHAT_ID"
    },
    "public_url": "https://echonym.fr/alfred/bot/baby",
-   "overrides": {},
+   "overrides": {
+    "enabled_strategies": [
+     "S1",
+     "S8",
+     "S9",
+     "S10"
+    ]
+   },
    "enabled": true
   },
   {
@@ -92,6 +106,20 @@
    },
    "enabled": true,
    "_comment": "Expérience de demi-vie de divergence (docs/mirror_halflife_2026_09.md). État forké de live le 2026-09-27 11:04 UTC = T0. Re-synchroniser à chaque divergence via fork_bot_state --force."
+  },
+  {
+   "id": "s5obs",
+   "label": "S5-OBS",
+   "color": "#d29922",
+   "mode": "paper",
+   "capital_initial": 518.34,
+   "overrides": {
+    "enabled_strategies": [
+     "S5"
+    ]
+   },
+   "enabled": true,
+   "_comment": "Observation de S5 seul après sa coupure partout (2026-10-19). Paper, aucun argent réel."
   }
  ]
 }
