@@ -328,3 +328,9 @@ sous la médiane. Rien d'anormal, rien de probant.
    tous > 0,30. Le cap mord **à tout niveau de capital**, backtest inclus.
    Corrige la note du 2026-08-29 qui suggérait de rouvrir le sujet « si le
    capital double » : doubler le capital n'y changerait rien.
+
+## Revue du 2026-10-19 — critère 4 franchi
+
+Paper à 531,55 $, **−26,4 % sous son pic** (722,50 $) : le seuil du § 6.4 est franchi. Live à 355,61 $ (−39,7 %), à l'identique de son mirror (exécution iso). Backtest canonique sur la même période : −8,2 % depuis le 05/10, DD −23,3 % — la stratégie elle-même est en drawdown ; depuis le 09/07, S1 +492 $, S5 −297 $, S9 −157 $.
+
+**Décision utilisateur : continuer tel quel.** Plancher de perte maximale inchangé (250 $ sur 500 $ engagés). Aucune règle de trading modifiée.

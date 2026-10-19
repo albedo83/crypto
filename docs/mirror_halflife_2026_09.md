@@ -76,6 +76,21 @@ Vérifiés par `python3 -m alfred.tools.mirror_guard` (lecture seule, code 2 si 
 | **S3 chemin** | réalisé live − mirror ≤ −40 $ dans une époque | ≈ 8 % du capital ; l'incident du 02/10 valait −29 $ |
 | **S4 fréquence** | plus de 2 re-synchronisations en 14 jours | divergences trop fréquentes pour être accidentelles |
 
+### Amendement 1 — 2026-10-19 (décidé APRÈS l'alarme du 12/10, sur le texte du 27/09)
+
+S1 comptait toute ligne classée `LOGIC` par `compare_bots`. Or ce classement range
+aussi deux écarts que ce protocole déclarait **attendus dès le 27/09** (« une coupe
+du trigger sur une mèche… est un résultat ATTENDU et à compter, pas un bug ») :
+- **hard-stop exchange contre stop du bot** sur le même trade ;
+- **même trade sorti par un stop des deux côtés, à un autre moment** : le niveau de
+  stop dépend du prix d'entrée réellement rempli.
+
+Ces deux classes sont désormais **comptées à part** (affichées, et elles déclenchent
+toujours la re-synchronisation) et **ne déclenchent plus S1**. Tout autre `LOGIC`
+déclenche S1 comme avant ; les lignes en cause sont citées dans l'alerte. Contrôlé
+sur une sortie fabriquée : entrée d'un seul côté et sortie par timeout → STOP.
+S2, S3 et S4 sont inchangés.
+
 **Contrôle planifié** (2026-10-08) : chaque jour à 08:50 UTC,
 `scripts/cronrun -m alfred.tools.mirror_guard --telegram` (journal
 `analysis/output/mirror_guard.log`). Muet si tout est OK ; alerte Telegram sur
@@ -104,3 +119,6 @@ changement = nouvelle version datée de cette section, avant observation.
 | 2026-09-27 11:10 UTC | Contrôle de T0 : `compare_bots --a live --b mirror --hours 168` → **0 divergence**, 15/15 sorties appariées, taille ×1,00 pour un ratio de soldes ×1,00. Clone exact confirmé. |
 | **2026-10-02 16:03 UTC** | **1ʳᵉ divergence, J+5,2.** Catégorie STATE. Déclencheur : UNI et NEAR (échéance timeout 16:03:43). Mirror les ferme à 16:03:49 puis scanne à 16:03:53 → entre IMX S5 SHORT et INJ S10 SHORT. Live, scan différé (cooldown), scanne à 16:03:51 **sans repasser par les sorties** → `max_token` ; UNI/NEAR fermés à 16:04:05. Cascade : live entre IMX à 20h → exchange_stop −23,57 $ (mirror IMX : −1,30 $). Écart réalisé au 10-05 : live −61,35 $, mirror −32,01 $. **Prédiction confirmée** (décision à cheval sur un seuil, en jours). Ce n'est pas du hasard mais un défaut de séquencement présent sur ~25 % des timeouts de chaque bot depuis juillet → corrigé en v1.30.0. Re-synchronisation du mirror au redémarrage qui charge la v1.30.0. |
 | **2026-10-05 11:24 UTC** | **T0 de l'époque 2.** Re-synchronisation au redémarrage qui charge la v1.30.0 : 3 positions, capital $518,34, P&L réalisé −$43,70. |
+| **2026-10-12 17:18 UTC** | **1ʳᵉ divergence de l'époque 2, J+7,2.** APT S5 : même stop catastrophe des deux côtés, 4 h 25 d'écart ; entrée remplie à 0,9431 chez live contre 0,9393 chez mirror (glissement réel ≈ 40 bp) → niveau de stop plus haut. Live −16,00 $, mirror −16,51 $. **Prédiction confirmée une 2ᵉ fois** (décision à cheval sur un seuil, en jours). |
+| 2026-10-15 09:16 UTC | BLUR S5 : hard-stop exchange (live, −17,47 $) contre stop du bot (mirror, −16,78 $), même instant. |
+| 2026-10-19 | Garde : code 1 de `compare_bots` lu à tort comme une panne depuis le 12/10 (« contrôle impossible » au lieu de STOP S1) — corrigé `0138cf3`. Amendement 1 ci-dessus. Époque 2 : live −119,02 $, mirror −118,99 $, 27/27 entrées communes. Re-synchronisation au prochain redémarrage. |

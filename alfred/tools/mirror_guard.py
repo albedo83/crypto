@@ -76,9 +76,37 @@ def main():
     if proc.returncode not in (0, 1) or "Verdict" not in out:
         raise RuntimeError(f"compare_bots en échec (code {proc.returncode}) : "
                            f"{(proc.stderr or out).strip()[-300:]}")
-    logic = sum(int(x) for x in re.findall(r"LOGIC=(\d+)", out)) + \
-        sum(int(x) for x in re.findall(r"non appariées \(logic\)=(\d+)", out))
-    print(f"S1 noyau      : {logic} divergence(s) LOGIC depuis {epoch:%m-%d %H:%M} → {'STOP' if logic else 'OK'}")
+    # Amendement 1 (2026-10-19, docs/mirror_halflife_2026_09.md) : les écarts nés
+    # de l'EXÉCUTION réelle sont comptés à part et ne déclenchent pas S1 —
+    #   a) hard-stop exchange contre stop du bot sur le même trade ;
+    #   b) même trade sorti par un stop des deux côtés, à un moment différent
+    #      (niveau de stop décalé par le prix d'entrée réellement rempli).
+    STOPS = {"catastrophe_stop", "exchange_stop"}
+    lt, mt = _trades(live_db, since), _trades(mirror_db, since)
+    iso = lambda s: datetime.fromisoformat(s).timestamp()
+    exec_lines, logic_lines = [], []
+    for line in out.splitlines():
+        if "✗ [LOGIC" not in line:
+            continue
+        m = re.search(r"raison divergente (\S+) (\S+): live=(\S+) vs mirror=(\S+)", line)
+        if m and m.group(3) != m.group(4) and {m.group(3), m.group(4)} <= STOPS:
+            exec_lines.append(line.strip())
+            continue
+        m = re.search(r"close (live|mirror) sans pendant (?:live|mirror): (\S+) (\S+) (\S+) @ (\d\d-\d\d \d\d:\d\d)", line)
+        if m and m.group(4) in STOPS:
+            src, other = (lt, mt) if m.group(1) == "live" else (mt, lt)
+            a = [r for r in src.values() if r[0] == m.group(2) and r[1] == m.group(3)
+                 and r[4][5:16].replace("T", " ") == m.group(5)]
+            if a and any(r[0] == a[0][0] and r[1] == a[0][1] and r[5] in STOPS
+                         and abs(iso(r[3]) - iso(a[0][3])) <= 3600 for r in other.values()):
+                exec_lines.append(line.strip())
+                continue
+        logic_lines.append(line.strip())
+    logic = len(logic_lines)
+    print(f"S1 noyau      : {logic} divergence(s) LOGIC depuis {epoch:%m-%d %H:%M} "
+          f"(+ {len(exec_lines)} écart(s) d'exécution compté(s) à part) → {'STOP' if logic else 'OK'}")
+    for l in logic_lines:
+        print("     " + l)
     if logic:
         stops.append("S1")
 
