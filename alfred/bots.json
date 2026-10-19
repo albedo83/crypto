@@ -7,7 +7,14 @@
    "color": "#58a6ff",
    "mode": "paper",
    "capital_initial": 1000,
-   "overrides": {},
+   "overrides": {
+    "enabled_strategies": [
+     "S1",
+     "S8",
+     "S9",
+     "S10"
+    ]
+   },
    "enabled": true
   },
   {
@@ -23,7 +30,13 @@
    },
    "public_url": "https://echonym.fr/alfred/bot/live",
    "overrides": {
-    "hard_stop_enabled": true
+    "hard_stop_enabled": true,
+    "enabled_strategies": [
+     "S1",
+     "S8",
+     "S9",
+     "S10"
+    ]
    },
    "enabled": true
   },
@@ -69,7 +82,14 @@
    "color": "#8b949e",
    "mode": "paper",
    "capital_initial": 518.34,
-   "overrides": {},
+   "overrides": {
+    "enabled_strategies": [
+     "S1",
+     "S8",
+     "S9",
+     "S10"
+    ]
+   },
    "enabled": true,
    "_comment": "Expérience de demi-vie de divergence (docs/mirror_halflife_2026_09.md). État forké de live le 2026-09-27 11:04 UTC = T0. Re-synchroniser à chaque divergence via fork_bot_state --force."
   }

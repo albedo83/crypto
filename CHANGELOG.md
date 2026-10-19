@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.31.0] — 2026-10-19
+
+- **S5 coupé sur live, mirror et paper** (décision utilisateur du 19/10, override `enabled_strategies` dans `bots.json`, aucun code de trading modifié). Backtest par trimestre, capital remis à 1 000 $ : S5 contribue dans 8 trimestres sur 10, et le retirer n'améliore que les 2 plus récents (somme +377 % contre +413 % ; pire drawdown −34,9 % contre −37,7 %). En réel depuis juillet, S5 perd (live −169 $, paper −112 $). Le critère fixé avant (mieux sur ≥ 7/10) ne passait pas : choix de protection du capital assumé, pas un edge démontré. Les positions S5 ouvertes finissent avec leurs règles de sortie ; les signaux S5 continuent d'informer le plancher `opp_floor`. Junior et baby gardent S5.
+- **Garde live/mirror** : le code 1 de `compare_bots` n'est plus lu comme une panne ; amendement 1 (écarts d'exécution comptés à part).
+
 ## [1.30.1] — 2026-10-05
 
 - **Test de la course timeout / scan** : la décision d'attente du scan d'entrée 4h est extraite en fonction pure (`entry_scan_waits`, comportement identique à la 1.30.0) et couverte par `backtests/test_scan_timeout_race.py`, qui force les deux ordres sorties/scan sur 3 000 cas. L'ancienne règle y est prise en défaut dans 57 % des cas : un retour en arrière lors d'un futur remaniement du scheduler serait détecté.

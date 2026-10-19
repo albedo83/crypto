@@ -336,3 +336,13 @@ Paper à 531,55 $, **−26,4 % sous son pic** (722,50 $) : le seuil du § 6.4 es
 **Réalisé réel depuis le 09/07** — live −162,69 $ (S1 +76, S5 −169, S9 −80, S10 −2, S8 +13) ; paper +13,19 $ (S1 +151, S5 −112, S9 −34, S10 +8). Même schéma que le backtest : S1 seul gagnant net, S5 principal perdant. Live a gagné deux fois moins sur S1 que le paper (couche IA puis course timeout/scan en juillet-août).
 
 **Décision utilisateur : continuer tel quel.** Plancher de perte maximale inchangé (250 $ sur 500 $ engagés). Aucune règle de trading modifiée.
+
+## Décision du 2026-10-19 — S5 coupé sur live, mirror et paper
+
+| portefeuille | depuis le 09/07 | trimestres meilleurs que l'actuel | somme 10 trimestres | pire DD |
+|---|---:|:-:|---:|---:|
+| actuel | +6,9 % | — | +413 % | −37,7 % |
+| sans S5 | +20,4 % | 2/10 | +377 % | −34,9 % |
+| S1 seul | +38,4 % | 2/10 | +154 % | −25,1 % |
+
+Critère fixé avant la mesure : couper S5 seulement si mieux sur ≥ 7/10 trimestres, mieux au total et sans pire drawdown → **non rempli**. Décision utilisateur : couper S5 partout sauf junior/baby, par protection du capital (≈ 105 $ avant la perte maximale de 250 $). Les deux trimestres où S5 nuit sont les plus récents : choix de régime assumé, réversible (retirer l'override).
