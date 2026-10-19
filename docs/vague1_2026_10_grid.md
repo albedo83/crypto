@@ -117,3 +117,33 @@ Hypothèse : abaisser `max_same_direction` (4 actuellement ; son relèvement a �
 rejeté en septembre, son abaissement jamais testé). Variantes 3 et 2, aucune autre.
 **Validé si** (même critère que 1b) : sur les 10 trimestres, somme des P&L / |pire
 DD| meilleure que la référence, **et** P&L 2026 ≥ 90 % de la référence.
+
+## Addendum 2026-10-19 (4) — test 8C, profondeur du carnet à ±2-5 % et stops catastrophe (avant calcul)
+
+**Placer le stop sur un mur : infaisable avec ces données, constaté avant calcul.** Les
+stops catastrophe sont à −12,5 % (−7,5 % pour S8) du prix d'entrée, alors que
+`bookDepth` s'arrête à ±5 %. Aucun mur observable ne se trouve à la hauteur du stop.
+La question devient : **la profondeur de soutien à l'entrée prédit-elle le stop
+catastrophe ?** (filtre d'entrée, même forme que 1a).
+
+Données : Binance `bookDepth`, notionnel cumulé à ±1..5 %, moyenne des instantanés
+des 60 min qui précèdent l'entrée (clôture de la bougie signal, donc connu ex ante).
+Côté soutien S = bids pour un LONG, asks pour un SHORT ; résistance R = l'autre côté.
+Tokens sans carnet Binance : feature absente, aucune exclusion.
+
+Trois features (k = 3, aucune autre) :
+- **F1 coussin relatif** = ln(S₅ / R₅) ;
+- **F2 mur** = plus grande tranche de S (S₁, S₂−S₁, …, S₅−S₄) / S₅ ;
+- **F3 épaisseur** = S₅ / médiane de S₅ du token sur la découverte.
+
+Entrées du moteur (S1, S8, S9, S10, backtest aligned) en 2026. **Découverte** =
+entrées de janvier à juin, **validation** = juillet → octobre, lue une fois.
+Découverte : taux de stop catastrophe par quintile. Pour chaque feature, le
+quintile extrême (Q1 ou Q5) au taux le plus élevé est comparé au reste (χ² 2×2).
+Feature retenue = rapport pire/reste le plus élevé, **seulement si** p < 0,01 / 3.
+Si la découverte compte moins de 20 stops catastrophe avec carnet, le test est
+déclaré sans puissance et aucune règle n'est construite.
+Règle figée : pas d'entrée dans ce quintile (seuil de découverte).
+**Validé si**, backtest juillet → octobre (capital 1 000 $) : P&L ≥ référence,
+moins de stops catastrophe, DD max pas pire de plus de 2 pp.
+Puissance faible annoncée : la validation compte environ 25 stops.
